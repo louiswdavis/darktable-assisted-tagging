@@ -622,6 +622,28 @@ local function load_entries_csv()
     rules = M.parse_rules_csv(read_file(RULES_PATH))
 end
 
+local function cleanup_tmp()
+    -- An orphaned identify.py still needs its cancel flag, and cmd.exe is still
+    -- reading its .bat, so leave those until it exits.
+    if orphan then return end
+    for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", DONE_PATH, PROGRESS_PATH, CANCEL_PATH }) do
+        pcall(os.remove, p)
+    end
+    if IS_WINDOWS then
+        pcall(os.remove, TMP_DIR .. "/dt_assisted_tagging_run.bat")
+        pcall(os.remove, TMP_DIR .. "/dt_assisted_tagging_run.vbs")
+    end
+end
+
+-- False while an orphaned identify.py is still running; clears up after it once it exits.
+local function orphan_gone()
+    if orphan and file_exists(DONE_PATH) then
+        orphan = false
+        cleanup_tmp()
+    end
+    return not orphan
+end
+
 -- Refreshes the collection and entry lists from disk via identify.py --list,
 -- which also rewrites the collection's tag-plan.txt; show_plan points the user at it.
 local function reload_lists(quiet, show_plan)
@@ -635,10 +657,11 @@ local function reload_lists(quiet, show_plan)
             pcall(os.remove, COLLECTIONS_PATH)
             pcall(os.remove, ENTRIES_PATH)
             pcall(os.remove, RULES_PATH)
-            local code = run_python("- - --list" .. collection_args()
+            local code, why = run_python("- - --list" .. collection_args()
                 .. " --collections-out " .. shell_quote(COLLECTIONS_PATH)
                 .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH), nil)
             flush_log()
+            if code == nil and why ~= "cancelled" then return end -- already reported
             if code ~= 0 then
                 notify_error(failure_message(code))
                 return
@@ -689,28 +712,6 @@ local function start_log(what, n)
     pcall(os.rename, LOG_PATH, PREV_LOG_PATH)
     log(string.format("%s: darktable %s, %d images, collection %s", what,
         tostring(dt.configuration.version), n, current_collection()))
-end
-
-local function cleanup_tmp()
-    -- An orphaned identify.py still needs its cancel flag, and cmd.exe is still
-    -- reading its .bat, so leave those until it exits.
-    if orphan then return end
-    for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", DONE_PATH, PROGRESS_PATH, CANCEL_PATH }) do
-        pcall(os.remove, p)
-    end
-    if IS_WINDOWS then
-        pcall(os.remove, TMP_DIR .. "/dt_assisted_tagging_run.bat")
-        pcall(os.remove, TMP_DIR .. "/dt_assisted_tagging_run.vbs")
-    end
-end
-
--- False while an orphaned identify.py is still running; clears up after it once it exits.
-local function orphan_gone()
-    if orphan and file_exists(DONE_PATH) then
-        orphan = false
-        cleanup_tmp()
-    end
-    return not orphan
 end
 
 local function write_rows(path, rows)
@@ -787,7 +788,7 @@ function M.identify_images(images)
         job = dt.gui.create_job(_("Assisted Tagging"), true, stop_job)
         job.percent = 0.0
         local script = identify_script()
-        local code = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
+        local code, why = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
             .. collection_args() .. model_args(script)
             .. " --cache " .. shell_quote(CACHE_PATH)
             .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH),
@@ -808,6 +809,7 @@ function M.identify_images(images)
 
         load_entries_csv()
         refresh_entry_combo()
+        -- an image identify.py couldn't analyse has no rows, so its tags are left alone
         local rows_of = M.read_results(read_file(RESULTS_PATH))
 
         local owned = M.owned_tags(entries, rules)
@@ -871,7 +873,7 @@ function M.identify_images(images)
         if first_error then log("first tag write error: " .. first_error) end
     end)
 
-    if job then pcall(function() job.valid = false end) end
+    end_job(job)
     busy = false
     set_idle_label()
     if not okr then notify_error(_("Assisted Tagging: couldn't run. ") .. tostring(err)) end
@@ -914,16 +916,17 @@ function M.add_references(images, entry_id)
         end
         job = dt.gui.create_job(_("Assisted Tagging: adding references"), true, stop_job)
         job.percent = 0.0
-        local code = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
+        local code, why = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
             .. " --add-reference" .. collection_args() .. model_args(identify_script())
             .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH),
             job, 0, 1, "adding references")
         flush_log()
         dt.print_hinter(" ")
-        if code == nil or code == 130 then
+        if why == "cancelled" or code == 130 then
             say(_("Assisted Tagging: cancelled. References already saved stay in the collection."))
             return
         end
+        if code == nil then return end -- stalled or couldn't launch; already reported
         if code ~= 0 or not file_exists(RESULTS_PATH) then
             notify_error(failure_message(code))
             return
@@ -944,7 +947,7 @@ function M.add_references(images, entry_id)
             current_collection()))
     end)
 
-    if job then pcall(function() job.valid = false end) end
+    end_job(job)
     busy = false
     if not okr then notify_error(_("Assisted Tagging: couldn't add references. ") .. tostring(err)) end
     cleanup_tmp()
@@ -985,6 +988,14 @@ local function install_panel()
         changed_callback = function(self)
             local name = self.value
             if not name or name == "" or name == _("(no collections)") or name == current_collection() then return end
+            if busy or orphan then
+                -- a run is using the stored collection's entries; switch back
+                dt.print(_("Assisted Tagging: busy, switch collections when the current run finishes."))
+                for i = 1, #self do
+                    if self[i] == current_collection() then self.selected = i end
+                end
+                return
+            end
             dt.preferences.write("assisted_tagging", "last_collection", "string", name)
             reload_lists(true)
         end,
