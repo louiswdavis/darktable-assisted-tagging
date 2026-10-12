@@ -105,7 +105,7 @@ collections/
       index.npz
 ```
 
-`entries.json` holds the collection's **entries**, one per competitor, and its **rules**: what each outcome tags. [`docs/entries.example.json`](docs/entries.example.json) is a starting point:
+`entries.json` holds the collection's **entries**, one per competitor, and its **rules**: what each outcome tags. For example:
 
 ```json
 {
@@ -124,6 +124,12 @@ collections/
 
 A file that's just the `[ … ]` list of entries works too, with the default rules.
 
+[`examples/`](examples) has three collections to copy into the collections folder, each with a README on what it shows and how to supply its references:
+
+- [`f1-season`](examples/f1-season): a season with near-identical teammates, a one-off livery and number-less cars
+- [`btcc-event`](examples/btcc-event): one race weekend, with a "check me" tag for misses and no team-only tags
+- [`minimal`](examples/minimal): a bare entry list on the default rules
+
 ### Entries
 
 | Field | Required | Rules |
@@ -133,7 +139,7 @@ A file that's just the `[ … ]` list of entries works too, with the default rul
 | `number` | no | the race number, 1–3 digits. Leave it out for a car with no number; it can then only be identified by livery. Two entries with the same number are allowed, but that number then identifies neither. |
 | `team` | no | entries with the same team can fall back to their shared tags when their liveries are too close to call |
 
-The tags are yours to design: put the team tag on both teammates and the driver tag on one, and a team-only result carries exactly the team tag. The examples leave the year out of the tags: the collection already separates seasons for matching, and darktable's collections module filters by capture date. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags) or a new collection.
+The tags are yours to design: put the team tag on both teammates and the driver tag on one, and a team-only result carries exactly the team tag. The examples leave the year out of the tags: the collection already separates seasons for matching, and darktable's collections module filters by capture date. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags and no `number`, so the number still identifies `VER`) or a new collection.
 
 ### Rules
 

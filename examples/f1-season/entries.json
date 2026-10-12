@@ -1,0 +1,52 @@
+{
+  "rules": {
+    "team_only": "shared tags",
+    "unidentified": [],
+    "diagnostics": {
+      "number": "Assisted Tagging|Motorsport|Identified|By number",
+      "livery": "Assisted Tagging|Motorsport|Identified|By livery",
+      "burst": "Assisted Tagging|Motorsport|Identified|By burst",
+      "team": "Assisted Tagging|Motorsport|Team only",
+      "none": "Assisted Tagging|Motorsport|Unidentified"
+    }
+  },
+  "entries": [
+    {
+      "id": "LEC",
+      "number": "16",
+      "team": "Ferrari",
+      "tags": ["Motorsport|F1|Ferrari", "Motorsport|F1|Ferrari|Charles Leclerc"]
+    },
+    {
+      "id": "HAM",
+      "number": "44",
+      "team": "Ferrari",
+      "tags": ["Motorsport|F1|Ferrari", "Motorsport|F1|Ferrari|Lewis Hamilton"]
+    },
+    {
+      "id": "HAM-special",
+      "team": "Ferrari",
+      "tags": ["Motorsport|F1|Ferrari", "Motorsport|F1|Ferrari|Lewis Hamilton"]
+    },
+    {
+      "id": "RUS",
+      "number": "63",
+      "team": "Mercedes",
+      "tags": ["Motorsport|F1|Mercedes", "Motorsport|F1|Mercedes|George Russell"]
+    },
+    {
+      "id": "ANT",
+      "number": "12",
+      "team": "Mercedes",
+      "tags": ["Motorsport|F1|Mercedes", "Motorsport|F1|Mercedes|Kimi Antonelli"]
+    },
+    {
+      "id": "SAFETY",
+      "tags": ["Motorsport|F1|Safety Car"]
+    },
+    {
+      "id": "MEDICAL",
+      "tags": ["Motorsport|F1|Medical Car"]
+    }
+  ]
+}
