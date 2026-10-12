@@ -129,6 +129,24 @@ check("two drivers' tags map to no one", T.entry_for_tags({
 }, entries, order), nil)
 check("no matching tags map to no one", T.entry_for_tags({ ["Holiday"] = true }, entries, order), nil)
 
+-- read_results (review fix 4) ----------------------------------------------
+local rows_of, errored = T.read_results(table.concat({
+    "1,0,number,VER,,0.950",
+    "1,1,none,,,0.000",
+    "4,-1,none,,,0.000",
+    "5,-1,error,,,0.000",
+    "garbage",
+}, "\n"))
+check("results group by image id", #rows_of[1], 2)
+check("a no-vehicle frame has a row", rows_of[4][1].method, "none")
+check("an errored frame has no rows to apply", rows_of[5], nil)
+check("an errored frame is reported", errored[5], true)
+
+-- utf16le (review fix 6: the .vbs launcher must survive a non-ASCII tmp path) --
+check("utf16le: ASCII", T.utf16le("a"), "a\0")
+check("utf16le: Latin-1", T.utf16le("é"), "\xE9\0")
+check("utf16le: astral plane uses a surrogate pair", T.utf16le("😀"), "\x3D\xD8\x00\xDE")
+
 print("")
 if failures == 0 then
     print("all tests passed")
