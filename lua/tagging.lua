@@ -199,6 +199,39 @@ function M.entry_for_tags(have, entries, order)
     return found
 end
 
+-- identify.py's results.csv → rows by image id, and the ids it couldn't analyse.
+-- Those get no rows, so their tags are left exactly as they were.
+function M.read_results(text)
+    local rows_of, errored = {}, {}
+    for line in (text or ""):gmatch("[^\r\n]+") do
+        local p = M.parse_csv_line(line, 6)
+        local id = p and tonumber(p[1])
+        if id and p[3] == "error" then
+            errored[id] = true
+        elseif id then
+            rows_of[id] = rows_of[id] or {}
+            table.insert(rows_of[id], { box = tonumber(p[2]), method = p[3], entry_id = p[4], alt_entry_id = p[5] })
+        end
+    end
+    return rows_of, errored
+end
+
+-- UTF-8 → UTF-16LE (no BOM), for the .vbs launcher: wscript reads a script as
+-- ANSI unless it's UTF-16, which garbles a non-ASCII tmp path.
+function M.utf16le(s)
+    local out = {}
+    for _, c in utf8.codes(s) do
+        if c >= 0x10000 then
+            c = c - 0x10000
+            local hi, lo = 0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)
+            out[#out + 1] = string.char(hi & 0xFF, hi >> 8, lo & 0xFF, lo >> 8)
+        else
+            out[#out + 1] = string.char(c & 0xFF, c >> 8)
+        end
+    end
+    return table.concat(out)
+end
+
 local ok, dt = pcall(require, "darktable")
 if not ok then return M end
 
@@ -371,14 +404,14 @@ local function shell_quote(s)
 end
 
 -- The exit code goes to a temp file renamed onto done_path, so done_path
--- never exists without its code in it.
+-- never exists without its code in it. Returns false when it couldn't launch.
 local function run_async_command(cmd, done_path)
     local done_tmp = done_path .. ".tmp"
     if IS_WINDOWS then
         local bat = TMP_DIR .. "/dt_assisted_tagging_run.bat"
         local vbs = TMP_DIR .. "/dt_assisted_tagging_run.vbs"
         local f = io.open(bat, "w")
-        if not f then return end
+        if not f then return false end
         local win_done, win_tmp = done_path:gsub("/", "\\"), done_tmp:gsub("/", "\\")
         f:write("@echo off\r\nchcp 65001>nul\r\n")
         f:write(cmd, " < NUL\r\n")
@@ -386,16 +419,17 @@ local function run_async_command(cmd, done_path)
         f:write('> "', win_tmp, '" echo %ERRORLEVEL%\r\n')
         f:write('move /y "', win_tmp, '" "', win_done, '" >nul\r\n')
         f:close()
-        local f_vbs = io.open(vbs, "w")
-        if not f_vbs then return end
-        f_vbs:write('Set WshShell = CreateObject("WScript.Shell")\r\n')
-        f_vbs:write('WScript.Quit WshShell.Run(Chr(34) & "', bat:gsub("/", "\\"), '" & Chr(34), 0, False)\r\n')
+        local f_vbs = io.open(vbs, "wb")
+        if not f_vbs then return false end
+        f_vbs:write("\xFF\xFE", M.utf16le('Set WshShell = CreateObject("WScript.Shell")\r\n'
+            .. 'WScript.Quit WshShell.Run(Chr(34) & "' .. bat:gsub("/", "\\") .. '" & Chr(34), 0, False)\r\n'))
         f_vbs:close()
         os.execute('wscript.exe "' .. vbs:gsub("/", "\\") .. '"')
     else
         os.execute('( ' .. cmd .. ' ; echo $? > ' .. shell_quote(done_tmp)
             .. ' ; mv -f ' .. shell_quote(done_tmp) .. ' ' .. shell_quote(done_path) .. ' ) >/dev/null 2>&1 &')
     end
+    return true
 end
 
 local function read_log_tail()
