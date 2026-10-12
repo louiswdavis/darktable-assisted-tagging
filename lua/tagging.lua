@@ -14,12 +14,13 @@ M.cancel_requested = false
 M.module_installed = false
 M.event_registered = false
 
+-- Default diagnostic tag per outcome; a collection's rules can rename or drop each one.
 M.DIAG_TAGS = {
     number = "Assisted Tagging|By number",
     livery = "Assisted Tagging|By livery",
     burst = "Assisted Tagging|By burst",
     team = "Assisted Tagging|Team only",
-    unidentified = "Assisted Tagging|Unidentified",
+    none = "Assisted Tagging|Unidentified",
 }
 
 function M.exif_time_to_epoch(s)
@@ -94,38 +95,74 @@ function M.parse_entries_csv(text)
     return entries, order
 end
 
+function M.default_rules()
+    local diag = {}
+    for k, v in pairs(M.DIAG_TAGS) do diag[k] = v end
+    return { team_only = "shared tags", unidentified = {}, diag = diag }
+end
+
+-- identify.py's rules.csv (key,value lines from entries.json's "rules") → rules.
+function M.parse_rules_csv(text)
+    local rules = M.default_rules()
+    for line in (text or ""):gmatch("[^\r\n]+") do
+        local key, value = line:match("^([^,]+),(.*)$")
+        if key == "team_only" then
+            rules.team_only = value
+        elseif key == "unidentified" then
+            rules.unidentified = split(value, ";")
+        elseif key and key:sub(1, 5) == "diag_" and M.DIAG_TAGS[key:sub(6)] then
+            rules.diag[key:sub(6)] = value
+        end
+    end
+    return rules
+end
+
 -- rows: one image's results ({ box, method, entry_id, alt_entry_id }). Returns the
--- collection tags it should carry (name → true) and its diagnostic tags. A team
--- result carries only the tags both candidate entries share.
-function M.wanted_tags(rows, entries)
+-- collection tags it should carry (name → true), its diagnostic tags, and whether
+-- any vehicle was identified. What each outcome adds comes from `rules`.
+function M.wanted_tags(rows, entries, rules)
+    rules = rules or M.default_rules()
     local wanted, diag, identified = {}, {}, false
+    local function note(outcome)
+        local name = rules.diag[outcome]
+        if name and name ~= "" then diag[name] = true end
+    end
     for _, r in ipairs(rows) do
         local e = entries[r.entry_id]
         if e and (r.method == "number" or r.method == "livery" or r.method == "burst") then
             for _, t in ipairs(e.tags) do wanted[t] = true end
-            diag[M.DIAG_TAGS[r.method]] = true
+            note(r.method)
             identified = true
         elseif e and r.method == "team" then
-            local alt = entries[r.alt_entry_id]
-            local shared = {}
-            if alt then for _, t in ipairs(alt.tags) do shared[t] = true end end
-            for _, t in ipairs(e.tags) do
-                if shared[t] then wanted[t] = true end
+            if rules.team_only == "shared tags" then
+                local alt = entries[r.alt_entry_id]
+                local shared = {}
+                if alt then for _, t in ipairs(alt.tags) do shared[t] = true end end
+                for _, t in ipairs(e.tags) do
+                    if shared[t] then wanted[t] = true end
+                end
             end
-            diag[M.DIAG_TAGS.team] = true
+            note("team")
             identified = true
         end
     end
-    if not identified then diag[M.DIAG_TAGS.unidentified] = true end
-    return wanted, diag
+    if not identified then
+        for _, t in ipairs(rules.unidentified) do wanted[t] = true end
+        note("none")
+    end
+    return wanted, diag, identified
 end
 
--- Every tag the plugin may detach: the collection's entry tags and the diagnostic tags.
-function M.owned_tags(entries)
+-- Every tag the plugin may detach: the collection's entry and unidentified tags,
+-- and the diagnostic tags, including the defaults a collection renamed.
+function M.owned_tags(entries, rules)
+    rules = rules or M.default_rules()
     local owned = {}
     for _, e in pairs(entries) do
         for _, t in ipairs(e.tags) do owned[t] = true end
     end
+    for _, t in ipairs(rules.unidentified) do owned[t] = true end
+    for _, t in pairs(rules.diag) do if t ~= "" then owned[t] = true end end
     for _, t in pairs(M.DIAG_TAGS) do owned[t] = true end
     return owned
 end
@@ -190,6 +227,7 @@ local TMP_DIR = dt.configuration.tmp_dir
 local MANIFEST_PATH = TMP_DIR .. "/dt_assisted_tagging_manifest.csv"
 local RESULTS_PATH = TMP_DIR .. "/dt_assisted_tagging_results.csv"
 local ENTRIES_PATH = TMP_DIR .. "/dt_assisted_tagging_entries.csv"
+local RULES_PATH = TMP_DIR .. "/dt_assisted_tagging_rules.csv"
 local COLLECTIONS_PATH = TMP_DIR .. "/dt_assisted_tagging_collections.csv"
 local PROGRESS_PATH = TMP_DIR .. "/dt_assisted_tagging_progress.txt"
 local CANCEL_PATH = PROGRESS_PATH .. ".cancel"
@@ -412,7 +450,7 @@ end
 -- One identify.py process at a time: runs share the tmp files and the .bat/.vbs launcher.
 local busy = false
 local identify_button, collection_combo, entry_combo = nil, nil, nil
-local entries, entry_order = {}, {}
+local entries, entry_order, rules = {}, {}, M.default_rules()
 
 local function cancelled(job)
     return M.cancel_requested or (job and not job.valid) or file_exists(CANCEL_PATH)
@@ -516,10 +554,12 @@ end
 
 local function load_entries_csv()
     entries, entry_order = M.parse_entries_csv(read_file(ENTRIES_PATH))
+    rules = M.parse_rules_csv(read_file(RULES_PATH))
 end
 
--- Refreshes the collection and entry lists from disk via identify.py --list.
-local function reload_lists(quiet)
+-- Refreshes the collection and entry lists from disk via identify.py --list,
+-- which also rewrites the collection's tag-plan.txt; show_plan points the user at it.
+local function reload_lists(quiet, show_plan)
     if busy then
         if not quiet then dt.print(_("Assisted Tagging: busy, try again when the current run finishes.")) end
         return
@@ -529,9 +569,10 @@ local function reload_lists(quiet)
         for attempt = 1, 2 do
             pcall(os.remove, COLLECTIONS_PATH)
             pcall(os.remove, ENTRIES_PATH)
+            pcall(os.remove, RULES_PATH)
             local code = run_python("- - --list" .. collection_args()
                 .. " --collections-out " .. shell_quote(COLLECTIONS_PATH)
-                .. " --entries-out " .. shell_quote(ENTRIES_PATH), nil)
+                .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH), nil)
             flush_log()
             if code ~= 0 then
                 notify_error(failure_message(code))
@@ -550,6 +591,9 @@ local function reload_lists(quiet)
                 if #names == 0 then
                     say(string.format("Assisted Tagging: no collections yet. Create a folder with an entries.json in %s (see the README), then click Reload.",
                         collections_root()))
+                elseif show_plan then
+                    say(string.format("Assisted Tagging: the tags each outcome writes in %s are listed in %s/%s/tag-plan.txt",
+                        current_collection(), collections_root(), current_collection()))
                 elseif not quiet then
                     say(string.format("Assisted Tagging: %d collections; %s has %d entries.", #names,
                         current_collection(), #entry_order))
@@ -658,6 +702,7 @@ function M.identify_images(images)
         end
         pcall(os.remove, RESULTS_PATH)
         pcall(os.remove, ENTRIES_PATH)
+        pcall(os.remove, RULES_PATH)
         if not write_rows(MANIFEST_PATH, rows) then
             error("couldn't write the image list to darktable's tmp folder (disk full or no write access?)", 0)
         end
@@ -668,7 +713,7 @@ function M.identify_images(images)
         local code = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
             .. collection_args() .. model_args(script)
             .. " --cache " .. shell_quote(CACHE_PATH)
-            .. " --entries-out " .. shell_quote(ENTRIES_PATH),
+            .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH),
             job, 0, PROGRESS_ANALYSIS, "identifying")
         flush_log()
         dt.print_hinter(" ")
@@ -695,7 +740,7 @@ function M.identify_images(images)
             end
         end
 
-        local owned = M.owned_tags(entries)
+        local owned = M.owned_tags(entries, rules)
         local diag_on = dt.preferences.read("assisted_tagging", "diagnostic_tags", "bool")
         local tag_objs, writes, failed, first_error = {}, 0, 0, nil
         local n_tagged, n_unidentified, n_missing = 0, 0, 0
@@ -710,8 +755,8 @@ function M.identify_images(images)
             if not results then
                 n_missing = n_missing + 1
             else
-                local wanted, diag = M.wanted_tags(results, entries)
-                if diag[M.DIAG_TAGS.unidentified] then n_unidentified = n_unidentified + 1 else n_tagged = n_tagged + 1 end
+                local wanted, diag, identified = M.wanted_tags(results, entries, rules)
+                if identified then n_tagged = n_tagged + 1 else n_unidentified = n_unidentified + 1 end
                 for _, r in ipairs(results) do
                     if by_method[r.method] and entries[r.entry_id] then by_method[r.method] = by_method[r.method] + 1 end
                 end
@@ -802,7 +847,7 @@ function M.add_references(images, entry_id)
         job.percent = 0.0
         local code = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
             .. " --add-reference" .. collection_args() .. model_args(identify_script())
-            .. " --entries-out " .. shell_quote(ENTRIES_PATH),
+            .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH),
             job, 0, 1, "adding references")
         flush_log()
         dt.print_hinter(" ")
@@ -881,6 +926,11 @@ local function install_panel()
         tooltip = _("Reread the collections folder and the selected collection's entries.json"),
         clicked_callback = function() reload_lists(false) end,
     }
+    local plan_button = dt.new_widget("button") {
+        label = _("Show tag plan"),
+        tooltip = _("Write tag-plan.txt in the collection's folder: the exact tags every entry and outcome (team only, unidentified, diagnostics) writes, from its entries.json"),
+        clicked_callback = function() reload_lists(false, true) end,
+    }
     identify_button = dt.new_widget("button") {
         label = _("Identify selection"),
         tooltip = _("Identify the vehicles in the selected images and tag them with their entries' tags"),
@@ -913,6 +963,7 @@ local function install_panel()
         orientation = "vertical",
         collection_combo,
         reload_button,
+        plan_button,
         identify_button,
         dt.new_widget("section_label") { label = _("references") },
         entry_combo,

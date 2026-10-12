@@ -105,15 +105,26 @@ collections/
       index.npz
 ```
 
-`entries.json` lists one **entry** per competitor. [`docs/entries.example.json`](docs/entries.example.json) is a starting point:
+`entries.json` holds the collection's **entries**, one per competitor, and its **rules**: what each outcome tags. [`docs/entries.example.json`](docs/entries.example.json) is a starting point:
 
 ```json
-[
-  { "id": "VER", "number": "1",  "team": "Red Bull", "tags": ["Motorsport|F1|2026|Red Bull", "Motorsport|F1|2026|Red Bull|Max Verstappen"] },
-  { "id": "TSU", "number": "22", "team": "Red Bull", "tags": ["Motorsport|F1|2026|Red Bull", "Motorsport|F1|2026|Red Bull|Yuki Tsunoda"] },
-  { "id": "SAFETY", "tags": ["Motorsport|F1|2026|Safety Car"] }
-]
+{
+  "rules": {
+    "team_only": "shared tags",
+    "unidentified": ["Motorsport|F1|2026|Unidentified"],
+    "diagnostics": { "burst": "" }
+  },
+  "entries": [
+    { "id": "VER", "number": "1",  "team": "Red Bull", "tags": ["Motorsport|F1|2026|Red Bull", "Motorsport|F1|2026|Red Bull|Max Verstappen"] },
+    { "id": "TSU", "number": "22", "team": "Red Bull", "tags": ["Motorsport|F1|2026|Red Bull", "Motorsport|F1|2026|Red Bull|Yuki Tsunoda"] },
+    { "id": "SAFETY", "tags": ["Motorsport|F1|2026|Safety Car"] }
+  ]
+}
 ```
+
+A file that's just the `[ … ]` list of entries works too, with the default rules.
+
+### Entries
 
 | Field | Required | Rules |
 |---|---|---|
@@ -123,6 +134,22 @@ collections/
 | `team` | no | entries with the same team can fall back to their shared tags when their liveries are too close to call |
 
 The tags are yours to design: put the team tag on both teammates and the driver tag on one, and a team-only result carries exactly the team tag. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags) or a new collection.
+
+### Rules
+
+Every key is optional; leave one out for its default.
+
+| Rule | Default | What it does |
+|---|---|---|
+| `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
+| `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
+| `diagnostics` | the five `Assisted Tagging\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `team`, `none`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
+
+An unknown key, or a misspelt one, stops the run and names it, so a typo can't silently do nothing.
+
+### Checking what it will tag
+
+Click **Show tag plan** in the panel. It writes `tag-plan.txt` next to the collection's `entries.json`, listing exactly what each outcome writes: every entry's tags and reference count, the team-only tags for each pair of teammates, the unidentified tags, and the diagnostic tags. It also lists entries that can only be identified by number, and entries that can't be identified at all until they have references. The file is rewritten on every run and **Reload**, so it always matches `entries.json`.
 
 After editing `entries.json`, click **Reload** in the panel. A mistake in the file stops the run with the file name and what's wrong.
 
@@ -141,7 +168,7 @@ Each sample is a JPG in `refs/<entry id>/`, named after the darktable image id. 
 
 In lighttable, select a batch and click **Identify selection** in the **Assisted Tagging** panel. Progress shows in darktable's message area; click the button again to cancel. A cancelled run changes no tags.
 
-Every vehicle that gets an entry adds that entry's tags to the image, so a photo of two cars battling gets both. With the *diagnostic tags* preference on (the default), images also get a tag saying how they were identified:
+Every vehicle that gets an entry adds that entry's tags to the image, so a photo of two cars battling gets both; the collection's [rules](#rules) decide what team-only and unidentified images get. With the *diagnostic tags* preference on (the default), images also get a tag saying how they were identified. These are the default names; rules can rename or drop each one:
 
 | Tag | Meaning |
 |---|---|

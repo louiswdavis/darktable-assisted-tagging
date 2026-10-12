@@ -4,7 +4,10 @@ write one result row per vehicle for tagging.lua.
 Modes:
   identify.py MANIFEST RESULTS ...            id,filepath,burst_id → id,box,method,entry,alt_entry,confidence
   identify.py MANIFEST RESULTS --add-reference id,filepath,entry_id → id,status
-  identify.py - - --list                      collection names (+ entries.csv)
+  identify.py - - --list                      collection names (+ entries.csv, rules.csv)
+
+Every mode that reads a collection also writes its tag-plan.txt: the exact tags
+each outcome writes, from entries.json.
 
 Exit codes: 0 ok, 2 bad input (message on stderr), 3 missing package, 130 cancelled."""
 
@@ -17,6 +20,7 @@ import re
 import sqlite3
 import sys
 import time
+from dataclasses import dataclass
 
 from vehicles import CROP_DIM, MIN_BOX_FRAC, crop_box, detect_vehicles, file_key, load_full, log
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
@@ -37,10 +41,64 @@ class InputError(Exception):
     """Bad input the user fixes (entries.json, a model path): exit 2, message on stderr."""
 
 
-# ---------------------------------------------------------------- entries
+# ---------------------------------------------------------------- entries and rules
 
-def load_entries(collection_dir: str) -> dict:
-    """entries.json → {id: Entry} in file order. Raises InputError naming the file."""
+DIAG_DEFAULTS = {
+    "number": "Assisted Tagging|By number",
+    "livery": "Assisted Tagging|By livery",
+    "burst": "Assisted Tagging|By burst",
+    "team": "Assisted Tagging|Team only",
+    "none": "Assisted Tagging|Unidentified",
+}
+TEAM_ONLY_CHOICES = ("shared tags", "none")
+
+
+@dataclass(frozen=True)
+class Rules:
+    """What each outcome tags, from entries.json's "rules" block. An empty diagnostic name writes no tag."""
+    team_only: str = "shared tags"
+    unidentified: tuple = ()
+    diagnostics: tuple = tuple(DIAG_DEFAULTS.items())
+
+
+def _check_tags(tags, where: str, bad, allow_empty: bool = False):
+    if not isinstance(tags, list) or (not tags and not allow_empty) \
+            or not all(isinstance(t, str) and t.strip() for t in tags):
+        raise bad(f"{where} must be a {'' if allow_empty else 'non-empty '}list of tag names")
+    for t in tags:
+        if _BAD_TAG.search(t):
+            raise bad(f'{where}: tag "{t}" can\'t contain , ; or "')
+
+
+def _load_rules(raw, bad) -> Rules:
+    if raw is None:
+        return Rules()
+    if not isinstance(raw, dict):
+        raise bad('"rules" must be an object')
+    unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics"})
+    if unknown:
+        raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics)')
+    team_only = raw.get("team_only", "shared tags")
+    if team_only not in TEAM_ONLY_CHOICES:
+        raise bad('rules.team_only must be "shared tags" or "none"')
+    unidentified = raw.get("unidentified", [])
+    _check_tags(unidentified, "rules.unidentified", bad, allow_empty=True)
+    diag = dict(DIAG_DEFAULTS)
+    given = raw.get("diagnostics", {})
+    if not isinstance(given, dict):
+        raise bad("rules.diagnostics must be an object")
+    for key, name in given.items():
+        if key not in DIAG_DEFAULTS:
+            raise bad(f'unknown diagnostic "{key}" (they are {", ".join(DIAG_DEFAULTS)})')
+        if not isinstance(name, str) or _BAD_TAG.search(name):
+            raise bad(f'rules.diagnostics.{key} must be a tag name without , ; or " ("" for none)')
+        diag[key] = name.strip()
+    return Rules(team_only, tuple(unidentified), tuple(diag.items()))
+
+
+def load_collection(collection_dir: str) -> tuple:
+    """entries.json → ({id: Entry} in file order, Rules). The file is either a list
+    of entries or {"rules": {...}, "entries": [...]}. Raises InputError naming the file."""
     path = os.path.join(collection_dir, "entries.json")
 
     def bad(why):
@@ -53,8 +111,14 @@ def load_entries(collection_dir: str) -> dict:
         raise bad("file not found")
     except (json.JSONDecodeError, UnicodeDecodeError) as e:
         raise bad(f"not valid JSON ({e})")
+    rules_raw = None
+    if isinstance(data, dict):
+        unknown = sorted(set(data) - {"rules", "entries"})
+        if unknown:
+            raise bad(f'unknown key "{unknown[0]}" (the file holds "rules" and "entries")')
+        rules_raw, data = data.get("rules"), data.get("entries")
     if not isinstance(data, list):
-        raise bad("must be a list of entries")
+        raise bad('"entries" must be a list of entries')
     entries = {}
     for n, item in enumerate(data, 1):
         if not isinstance(item, dict):
@@ -66,12 +130,11 @@ def load_entries(collection_dir: str) -> dict:
             raise bad(f'entry "{eid}": id can\'t contain any of , ; " / \\ : * ? < > |')
         if eid in entries:
             raise bad(f'entry "{eid}" appears twice')
+        unknown = sorted(set(item) - {"id", "number", "team", "tags"})
+        if unknown:
+            raise bad(f'entry "{eid}": unknown field "{unknown[0]}" (fields are id, number, team, tags)')
         tags = item.get("tags")
-        if not isinstance(tags, list) or not tags or not all(isinstance(t, str) and t.strip() for t in tags):
-            raise bad(f'entry "{eid}": tags must be a non-empty list of tag names')
-        for t in tags:
-            if _BAD_TAG.search(t):
-                raise bad(f'entry "{eid}": tag "{t}" can\'t contain , ; or "')
+        _check_tags(tags, f'entry "{eid}": tags', bad)
         number = item.get("number", "")
         number = str(number) if isinstance(number, int) and not isinstance(number, bool) else number
         if not isinstance(number, str) or (number and not re.fullmatch(r"\d{1,3}", number)):
@@ -80,13 +143,76 @@ def load_entries(collection_dir: str) -> dict:
         if not isinstance(team, str) or _BAD_TAG.search(team):
             raise bad(f'entry "{eid}": team must be text without , ; or "')
         entries[eid] = Entry(eid, number, team, tuple(tags))
-    return entries
+    return entries, _load_rules(rules_raw, bad)
 
 
 def write_entries_csv(entries: dict, path: str):
     with open(path, "w", newline="", encoding="utf-8") as f:
         for e in entries.values():
             f.write(f"{e.id},{e.team},{e.number},{';'.join(e.tags)}\n")
+
+
+def write_rules_csv(rules: Rules, path: str):
+    """key,value lines for tagging.lua: team_only, unidentified (tags joined by ;) and diag_<outcome>."""
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        f.write(f"team_only,{rules.team_only}\n")
+        f.write(f"unidentified,{';'.join(rules.unidentified)}\n")
+        for key, name in rules.diagnostics:
+            f.write(f"diag_{key},{name}\n")
+
+
+def count_references(collection_dir: str) -> dict:
+    refs = os.path.join(collection_dir, "refs")
+    if not os.path.isdir(refs):
+        return {}
+    return {e: sum(n.lower().endswith(".jpg") for n in os.listdir(os.path.join(refs, e)))
+            for e in os.listdir(refs) if os.path.isdir(os.path.join(refs, e))}
+
+
+def tag_plan(name: str, entries: dict, rules: Rules, refs: dict) -> str:
+    """The exact tags every outcome writes in this collection, for the user to read."""
+    lines = [f"Tag plan for {name}", "", "Identified (by number, livery or burst): the vehicle's entry tags."]
+    for e in entries.values():
+        how = f"#{e.number}" if e.number else "no number, livery only"
+        n = refs.get(e.id, 0)
+        lines.append(f"  {e.id} ({how}{', ' + e.team if e.team else ''}; {n} reference{'s' if n != 1 else ''})")
+        lines.extend(f"      {t}" for t in e.tags)
+    lines += ["", f'Team only (teammates too close to call): rules.team_only = "{rules.team_only}".']
+    teams: dict = {}
+    for e in entries.values():
+        if e.team:
+            teams.setdefault(e.team, []).append(e)
+    pairs = [(t, es) for t, es in teams.items() if len(es) > 1]
+    if rules.team_only == "none":
+        lines.append("  adds no collection tags, only the Team only diagnostic below.")
+    elif not pairs:
+        lines.append("  no two entries share a team, so this never happens.")
+    for team, es in pairs:
+        shared = [t for t in es[0].tags if all(t in o.tags for o in es[1:])]
+        lines.append(f"  {team} ({', '.join(e.id for e in es)}):")
+        lines.extend(f"      {t}" for t in shared) if shared else lines.append("      (no shared tags: adds nothing)")
+    lines += ["", "Unidentified (no vehicle, or no confident match): rules.unidentified."]
+    lines.extend(f"      {t}" for t in rules.unidentified) if rules.unidentified else lines.append("      (nothing)")
+    lines += ["", "Diagnostics (only with the diagnostic tags preference on): rules.diagnostics."]
+    lines.extend(f"  {k:<7} {v or '(off)'}" for k, v in rules.diagnostics)
+    number_only = [e.id for e in entries.values() if not refs.get(e.id) and e.number]
+    never = [e.id for e in entries.values() if not refs.get(e.id) and not e.number]
+    if number_only:
+        lines += ["", "No references yet, so identified by number only: " + ", ".join(number_only)]
+    if never:
+        lines += ["", "No number and no references, so never identified until references are added: "
+                  + ", ".join(never)]
+    unknown = sorted(set(refs) - set(entries))
+    if unknown:
+        lines += ["", "Reference folders with no entry (ignored): " + ", ".join(unknown)]
+    return "\n".join(lines) + "\n"
+
+
+def write_tag_plan(collection_dir: str, name: str, entries: dict, rules: Rules) -> str:
+    path = os.path.join(collection_dir, "tag-plan.txt")
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(tag_plan(name, entries, rules, count_references(collection_dir)))
+    return path
 
 
 def list_collections(root: str) -> list:
@@ -266,7 +392,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
 
 def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
-    entries = load_entries(collection)
+    entries, rules = load_collection(collection)
     check_models(models)
     rows = read_manifest(args.manifest, 3)
     index = ReferenceIndex.load(collection, Embedder(models["embedder"]), embedder_key(models["embedder"]))
@@ -315,8 +441,7 @@ def identify(args, models: dict):
                 by_method[r.method] = by_method.get(r.method, 0) + 1
                 f.write(format_row(image_id, r) + "\n")
     os.replace(tmp, args.results)
-    if args.entries_out:
-        write_entries_csv(entries, args.entries_out)
+    write_collection_outputs(args, collection, entries, rules)
     log("vehicles by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 
 
@@ -324,7 +449,7 @@ def identify(args, models: dict):
 
 def add_references(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
-    entries = load_entries(collection)
+    entries, rules = load_collection(collection)
     check_models(models)
     embedder = Embedder(models["embedder"])
     index = ReferenceIndex.load(collection, embedder, embedder_key(models["embedder"]))
@@ -349,8 +474,16 @@ def add_references(args, models: dict):
             write_progress(args.progress, n, len(rows))
     index.save()
     os.replace(tmp, args.results)
+    write_collection_outputs(args, collection, entries, rules)
+
+
+def write_collection_outputs(args, collection: str, entries: dict, rules: Rules):
+    """entries.csv and rules.csv for tagging.lua, and the collection's tag-plan.txt for the user."""
     if args.entries_out:
         write_entries_csv(entries, args.entries_out)
+    if args.rules_out:
+        write_rules_csv(rules, args.rules_out)
+    log(f"tag plan: {write_tag_plan(collection, args.collection, entries, rules)}")
 
 
 def list_mode(args):
@@ -360,8 +493,9 @@ def list_mode(args):
     if args.collections_out:
         with open(args.collections_out, "w", newline="", encoding="utf-8") as f:
             f.writelines(n + "\n" for n in names)
-    if args.entries_out and args.collection in names:
-        write_entries_csv(load_entries(os.path.join(args.collections_root, args.collection)), args.entries_out)
+    if args.collection in names:
+        collection = os.path.join(args.collections_root, args.collection)
+        write_collection_outputs(args, collection, *load_collection(collection))
 
 
 def main(argv=None):
@@ -377,6 +511,7 @@ def main(argv=None):
     parser.add_argument("--ocr-rec", default="", help="CRNN text recognition .onnx")
     parser.add_argument("--embedder", default="", help="DINOv2 .onnx")
     parser.add_argument("--entries-out", default="", help="Write the collection's entries.csv here")
+    parser.add_argument("--rules-out", default="", help="Write the collection's rules.csv here")
     parser.add_argument("--collections-out", default="", help="--list: write collection names here")
     parser.add_argument("--add-reference", action="store_true", help="Add each manifest image as a reference")
     parser.add_argument("--list", action="store_true", help="List collections (and entries) only")
