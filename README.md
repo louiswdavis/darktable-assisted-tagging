@@ -5,7 +5,7 @@ A tagging assistant for [darktable](https://www.darktable.org/) that recognises 
 - **read its race number** and look it up in your entry list
 - if the number isn't readable, **match its livery** against reference samples you picked
 - if that's still unclear, **borrow the answer from the rest of the burst**
-- tag the image with that entry's tags, e.g. `Motorsport|F1|2026|Red Bull|Max Verstappen`
+- tag the image with that entry's tags, e.g. `Motorsport|F1|Red Bull|Max Verstappen`
 
 Teammates in identical liveries that it can't tell apart get only their shared team tag, never a guessed driver. Everything runs locally: a Lua plugin inside darktable and a Python identifier it shells out to. No API keys, no cloud. It only adds and removes tags from your entry list and its own `Assisted Tagging|…` tags; your other tags, ratings and colour labels are never touched.
 
@@ -111,13 +111,13 @@ collections/
 {
   "rules": {
     "team_only": "shared tags",
-    "unidentified": ["Motorsport|F1|2026|Unidentified"],
+    "unidentified": ["Motorsport|F1|Unidentified"],
     "diagnostics": { "burst": "" }
   },
   "entries": [
-    { "id": "VER", "number": "1",  "team": "Red Bull", "tags": ["Motorsport|F1|2026|Red Bull", "Motorsport|F1|2026|Red Bull|Max Verstappen"] },
-    { "id": "TSU", "number": "22", "team": "Red Bull", "tags": ["Motorsport|F1|2026|Red Bull", "Motorsport|F1|2026|Red Bull|Yuki Tsunoda"] },
-    { "id": "SAFETY", "tags": ["Motorsport|F1|2026|Safety Car"] }
+    { "id": "VER", "number": "1",  "team": "Red Bull", "tags": ["Motorsport|F1|Red Bull", "Motorsport|F1|Red Bull|Max Verstappen"] },
+    { "id": "TSU", "number": "22", "team": "Red Bull", "tags": ["Motorsport|F1|Red Bull", "Motorsport|F1|Red Bull|Yuki Tsunoda"] },
+    { "id": "SAFETY", "tags": ["Motorsport|F1|Safety Car"] }
   ]
 }
 ```
@@ -133,7 +133,7 @@ A file that's just the `[ … ]` list of entries works too, with the default rul
 | `number` | no | the race number, 1–3 digits. Leave it out for a car with no number; it can then only be identified by livery. Two entries with the same number are allowed, but that number then identifies neither. |
 | `team` | no | entries with the same team can fall back to their shared tags when their liveries are too close to call |
 
-The tags are yours to design: put the team tag on both teammates and the driver tag on one, and a team-only result carries exactly the team tag. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags) or a new collection.
+The tags are yours to design: put the team tag on both teammates and the driver tag on one, and a team-only result carries exactly the team tag. The examples leave the year out of the tags: the collection already separates seasons for matching, and darktable's collections module filters by capture date. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags) or a new collection.
 
 ### Rules
 
@@ -143,7 +143,7 @@ Every key is optional; leave one out for its default.
 |---|---|---|
 | `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
-| `diagnostics` | the five `Assisted Tagging\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `team`, `none`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
+| `diagnostics` | the five `Assisted Tagging\|Motorsport\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `team`, `none`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
 
 An unknown key, or a misspelt one, stops the run and names it, so a typo can't silently do nothing.
 
@@ -172,13 +172,13 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 
 | Tag | Meaning |
 |---|---|
-| `Assisted Tagging\|By number` | its race number was read |
-| `Assisted Tagging\|By livery` | matched against reference samples |
-| `Assisted Tagging\|By burst` | the rest of its burst agreed on one entry |
-| `Assisted Tagging\|Team only` | two teammates were too close to call; only their shared tags were added |
-| `Assisted Tagging\|Unidentified` | no vehicle, or no confident match |
+| `Assisted Tagging\|Motorsport\|Identified\|By number` | its race number was read |
+| `Assisted Tagging\|Motorsport\|Identified\|By livery` | matched against reference samples |
+| `Assisted Tagging\|Motorsport\|Identified\|By burst` | the rest of its burst agreed on one entry |
+| `Assisted Tagging\|Motorsport\|Team only` | two teammates were too close to call; only their shared tags were added |
+| `Assisted Tagging\|Motorsport\|Unidentified` | no vehicle, or no confident match |
 
-Filter on `Assisted Tagging|By livery` and `|Unidentified` in the **collections** module to spot-check the uncertain ones; an image it got wrong is often a good new reference.
+Filter on `Assisted Tagging|Motorsport|Identified|By livery` and `Assisted Tagging|Motorsport|Unidentified` in the **collections** module to spot-check the uncertain ones; an image it got wrong is often a good new reference.
 
 Re-running is safe: each image's entry and diagnostic tags are synced to the new result, so a frame that moves from one driver to another loses the old driver's tags. Tags that aren't in the active collection are never touched.
 

@@ -3,11 +3,11 @@
     "team_only": "shared tags",
     "unidentified": [],
     "diagnostics": {
-      "number": "Assisted Tagging|By number",
-      "livery": "Assisted Tagging|By livery",
-      "burst": "Assisted Tagging|By burst",
-      "team": "Assisted Tagging|Team only",
-      "none": "Assisted Tagging|Unidentified"
+      "number": "Assisted Tagging|Motorsport|Identified|By number",
+      "livery": "Assisted Tagging|Motorsport|Identified|By livery",
+      "burst": "Assisted Tagging|Motorsport|Identified|By burst",
+      "team": "Assisted Tagging|Motorsport|Team only",
+      "none": "Assisted Tagging|Motorsport|Unidentified"
     }
   },
   "entries": [
@@ -15,17 +15,17 @@
       "id": "VER",
       "number": "1",
       "team": "Red Bull",
-      "tags": ["Motorsport|F1|2026|Red Bull", "Motorsport|F1|2026|Red Bull|Max Verstappen"]
+      "tags": ["Motorsport|F1|Red Bull", "Motorsport|F1|Red Bull|Max Verstappen"]
     },
     {
       "id": "TSU",
       "number": "22",
       "team": "Red Bull",
-      "tags": ["Motorsport|F1|2026|Red Bull", "Motorsport|F1|2026|Red Bull|Yuki Tsunoda"]
+      "tags": ["Motorsport|F1|Red Bull", "Motorsport|F1|Red Bull|Yuki Tsunoda"]
     },
     {
       "id": "SAFETY",
-      "tags": ["Motorsport|F1|2026|Safety Car"]
+      "tags": ["Motorsport|F1|Safety Car"]
     }
   ]
 }

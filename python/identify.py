@@ -44,11 +44,11 @@ class InputError(Exception):
 # ---------------------------------------------------------------- entries and rules
 
 DIAG_DEFAULTS = {
-    "number": "Assisted Tagging|By number",
-    "livery": "Assisted Tagging|By livery",
-    "burst": "Assisted Tagging|By burst",
-    "team": "Assisted Tagging|Team only",
-    "none": "Assisted Tagging|Unidentified",
+    "number": "Assisted Tagging|Motorsport|Identified|By number",
+    "livery": "Assisted Tagging|Motorsport|Identified|By livery",
+    "burst": "Assisted Tagging|Motorsport|Identified|By burst",
+    "team": "Assisted Tagging|Motorsport|Team only",
+    "none": "Assisted Tagging|Motorsport|Unidentified",
 }
 TEAM_ONLY_CHOICES = ("shared tags", "none")
 

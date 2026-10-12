@@ -16,11 +16,11 @@ M.event_registered = false
 
 -- Default diagnostic tag per outcome; a collection's rules can rename or drop each one.
 M.DIAG_TAGS = {
-    number = "Assisted Tagging|By number",
-    livery = "Assisted Tagging|By livery",
-    burst = "Assisted Tagging|By burst",
-    team = "Assisted Tagging|Team only",
-    none = "Assisted Tagging|Unidentified",
+    number = "Assisted Tagging|Motorsport|Identified|By number",
+    livery = "Assisted Tagging|Motorsport|Identified|By livery",
+    burst = "Assisted Tagging|Motorsport|Identified|By burst",
+    team = "Assisted Tagging|Motorsport|Team only",
+    none = "Assisted Tagging|Motorsport|Unidentified",
 }
 
 function M.exif_time_to_epoch(s)
@@ -277,7 +277,7 @@ if dt.gui then
         "")
     dt.preferences.register("assisted_tagging", "diagnostic_tags", "bool",
         "Assisted Tagging: diagnostic tags",
-        "Tag how each image was identified (Assisted Tagging|By number, |By livery, |By burst, |Team only, |Unidentified) for filtering and spot-checks; off removes them on the next run",
+        "Tag how each image was identified (under Assisted Tagging|Motorsport: Identified|By number, |By livery, |By burst, then Team only and Unidentified) for filtering and spot-checks; a collection's rules can rename them. Off removes them on the next run",
         true)
     dt.preferences.register("assisted_tagging", "burst_gap_seconds", "integer",
         "Assisted Tagging: burst gap (seconds)",
