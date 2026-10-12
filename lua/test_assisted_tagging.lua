@@ -1,8 +1,8 @@
 -- Run with: lua test_assisted_tagging.lua
--- Exercises the darktable-independent half of tagging.lua directly.
+-- Exercises the darktable-independent half of assisted_tagging.lua directly.
 
 package.path = package.path .. ";./?.lua"
-local T = require("tagging")
+local T = require("assisted_tagging")
 
 local failures = 0
 local function check(name, got, want)

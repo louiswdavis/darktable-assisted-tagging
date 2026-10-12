@@ -1,5 +1,5 @@
 """Assisted Tagging: identify the vehicles in each frame of a manifest and
-write one result row per vehicle for tagging.lua.
+write one result row per vehicle for assisted_tagging.lua.
 
 Modes:
   identify.py MANIFEST RESULTS ...            id,filepath,burst_id → id,box,method,entry,alt_entry,confidence
@@ -154,7 +154,7 @@ def write_entries_csv(entries: dict, path: str):
 
 
 def write_rules_csv(rules: Rules, path: str):
-    """key,value lines for tagging.lua: team_only, unidentified (tags joined by ;) and diag_<outcome>."""
+    """key,value lines for assisted_tagging.lua: team_only, unidentified (tags joined by ;) and diag_<outcome>."""
     with open(path, "w", newline="", encoding="utf-8") as f:
         f.write(f"team_only,{rules.team_only}\n")
         f.write(f"unidentified,{';'.join(rules.unidentified)}\n")
@@ -435,7 +435,7 @@ def identify(args, models: dict):
         burst_of[image_id] = burst
         a = analyses.get(filepath)
         if a is None:
-            # an error row: tagging.lua leaves this image's tags alone
+            # an error row: assisted_tagging.lua leaves this image's tags alone
             frames[image_id] = [BoxResult(-1, "error")]
             continue
         if not a["boxes"]:
@@ -502,7 +502,7 @@ def add_references(args, models: dict):
 
 
 def write_collection_outputs(args, collection: str, entries: dict, rules: Rules):
-    """entries.csv and rules.csv for tagging.lua, and the collection's tag-plan.txt for the user."""
+    """entries.csv and rules.csv for assisted_tagging.lua, and the collection's tag-plan.txt for the user."""
     if args.entries_out:
         write_entries_csv(entries, args.entries_out)
     if args.rules_out:

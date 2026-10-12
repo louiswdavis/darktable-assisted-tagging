@@ -76,16 +76,16 @@ Linux / macOS:
 
 ```
 mkdir -p ~/.config/darktable/lua/contrib
-ln -s "$(pwd)/lua/tagging.lua" ~/.config/darktable/lua/contrib/tagging.lua
-echo 'require "contrib/tagging"' >> ~/.config/darktable/luarc
+ln -s "$(pwd)/lua/assisted_tagging.lua" ~/.config/darktable/lua/contrib/assisted_tagging.lua
+echo 'require "contrib/assisted_tagging"' >> ~/.config/darktable/luarc
 ```
 
 Windows (Command Prompt). Creating symbolic links needs an Administrator prompt unless Developer Mode is enabled.
 
 ```
 if not exist "%LOCALAPPDATA%\darktable\lua\contrib" mkdir "%LOCALAPPDATA%\darktable\lua\contrib"
-mklink "%LOCALAPPDATA%\darktable\lua\contrib\tagging.lua" "%CD%\lua\tagging.lua"
-echo require "contrib/tagging" >> "%LOCALAPPDATA%\darktable\luarc"
+mklink "%LOCALAPPDATA%\darktable\lua\contrib\assisted_tagging.lua" "%CD%\lua\assisted_tagging.lua"
+echo require "contrib/assisted_tagging" >> "%LOCALAPPDATA%\darktable\luarc"
 ```
 
 ### 4. Point the plugin at the repo
@@ -201,7 +201,7 @@ All under **preferences → lua options**.
 ## How it decides
 
 ```
-tagging.lua groups the selection into bursts by capture time, writes manifest.csv, runs identify.py
+assisted_tagging.lua groups the selection into bursts by capture time, writes manifest.csv, runs identify.py
         |
         v
 identify.py, per frame:  decode at full resolution → YOLOX vehicle boxes (up to 4)
@@ -217,7 +217,7 @@ per burst: frames with nothing identified take the burst's entry
            when 2+ frames agree on it and none disagree → burst
         |
         v
-tagging.lua reads results.csv and syncs tags
+assisted_tagging.lua reads results.csv and syncs tags
 ```
 
 Frames are decoded at native resolution (a raw file's embedded preview) and each vehicle is cropped from that before reading its number, since a number only a few pixels tall in a downscaled frame is readable in the crop. Detection, OCR text and embeddings are cached per frame in `assisted_tagging/cache.sqlite` in darktable's config directory. Matching isn't, so adding references or editing `entries.json` takes effect on the next run without decoding anything again. The cache key includes the file (path, modified time, size), every model file and the constants that change the cached data; unused entries are dropped after 90 days. Delete the file to start over.

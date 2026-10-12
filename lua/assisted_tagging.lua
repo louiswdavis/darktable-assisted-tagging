@@ -1,5 +1,5 @@
 --[[
-    tagging.lua — Assisted Tagging for darktable
+    assisted_tagging.lua — Assisted Tagging for darktable
 
     Lighttable panel that shells out to identify.py to recognise the
     motorsport vehicles in a selection (race number, then livery against a
