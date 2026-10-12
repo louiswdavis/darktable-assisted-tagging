@@ -1,0 +1,207 @@
+# Run with: python python/test_identify.py
+# Exercises identify.py's entries/rules loading, cache key, output and run flow,
+# plus vehicles.py's decode and crop, on synthetic files; no models needed.
+
+import json
+import os
+import sys
+import tempfile
+from argparse import Namespace
+
+import numpy as np
+from PIL import Image
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import identify as I
+import vehicles as V
+from embed import encode
+from match import BoxResult
+
+failures = 0
+
+
+def check(name, got, want):
+    global failures
+    if got != want:
+        failures += 1
+        print(f"FAIL {name}: got {got!r}, want {want!r}")
+    else:
+        print(f"ok   {name}")
+
+
+VER = {"id": "VER", "number": "1", "team": "Red Bull", "tags": ["F1|Red Bull", "F1|Red Bull|Verstappen"]}
+TSU = {"id": "TSU", "number": 22, "team": "Red Bull", "tags": ["F1|Red Bull", "F1|Red Bull|Tsunoda"]}
+
+
+def collection(data, root=None) -> str:
+    d = tempfile.mkdtemp(dir=root)
+    with open(os.path.join(d, "entries.json"), "w", encoding="utf-8") as f:
+        f.write(data if isinstance(data, str) else json.dumps(data))
+    return d
+
+
+def load_error(data) -> str:
+    d = collection(data)
+    try:
+        I.load_collection(d)
+    except I.InputError as e:
+        msg = str(e)
+        return msg[len(os.path.join(d, "entries.json")) + 2:] if msg.startswith(os.path.join(d, "entries.json")) \
+            else "(message doesn't start with the file path) " + msg
+    return "(no error)"
+
+
+def run_tests():
+    # ---- loading entries.json
+    entries, rules = I.load_collection(collection([VER, TSU]))
+    check("a bare list loads entries in file order", list(entries), ["VER", "TSU"])
+    check("an int number is read as text", entries["TSU"].number, "22")
+    check("a bare list gets the default rules", rules, I.Rules())
+    entries, rules = I.load_collection(collection({"rules": {"team_only": "none", "unidentified": ["F1|Check"],
+                                                             "diagnostics": {"burst": "", "team": "X|Team"}},
+                                                   "entries": [VER]}))
+    check("rules: team_only", rules.team_only, "none")
+    check("rules: unidentified tags", rules.unidentified, ("F1|Check",))
+    check("rules: renamed, dropped and default diagnostics", dict(rules.diagnostics),
+          dict(I.DIAG_DEFAULTS, burst="", team="X|Team"))
+    check("default diagnostics sit under Assisted Tagging|Motorsport",
+          all(v.startswith("Assisted Tagging|Motorsport|") for v in I.DIAG_DEFAULTS.values()), True)
+
+    check("duplicate id is rejected", load_error([VER, VER]), 'entry "VER" appears twice')
+    check("a comma in a tag is rejected", load_error([dict(VER, tags=["a,b"])]),
+          'entry "VER": tags: tag "a,b" can\'t contain , ; or "')
+    check("a non-digit number is rejected", load_error([dict(VER, number="1a")]), 'entry "VER": number must be 1–3 digits')
+    check("empty tags are rejected", load_error([dict(VER, tags=[])]),
+          'entry "VER": tags must be a non-empty list of tag names')
+    check("a path character in an id is rejected", load_error([dict(VER, id="a/b")]).startswith('entry "a/b": id can\'t'),
+          True)
+    check("bad JSON is rejected", load_error("[{").startswith("not valid JSON"), True)
+    d = tempfile.mkdtemp()
+    try:
+        I.load_collection(d)
+        missing = "(no error)"
+    except I.InputError as e:
+        missing = str(e)
+    check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
+    check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
+          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics)')
+    check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
+          'entry "VER": unknown field "tagz" (fields are id, number, team, tags)')
+    check("a misspelt top-level key is named", load_error({"entrys": []}),
+          'unknown key "entrys" (the file holds "rules" and "entries")')
+    check("a bad team_only value is rejected", load_error({"rules": {"team_only": "both"}, "entries": []}),
+          'rules.team_only must be "shared tags" or "none"')
+    check("an unknown diagnostic is named", load_error({"rules": {"diagnostics": {"guess": "x"}}, "entries": []}),
+          'unknown diagnostic "guess" (they are number, livery, burst, team, none)')
+
+    # ---- csv outputs and the tag plan
+    entries, rules = I.load_collection(collection({"rules": {"unidentified": ["F1|Check"]},
+                                                   "entries": [VER, TSU, {"id": "SC", "tags": ["F1|Safety Car"]}]}))
+    out = tempfile.mkdtemp()
+    I.write_entries_csv(entries, os.path.join(out, "e.csv"))
+    I.write_rules_csv(rules, os.path.join(out, "r.csv"))
+    check("entries.csv rows", open(os.path.join(out, "e.csv"), encoding="utf-8").read().splitlines()[1],
+          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda")
+    check("rules.csv rows", open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()[:3],
+          ["team_only,shared tags", "unidentified,F1|Check", "diag_number,Assisted Tagging|Motorsport|Identified|By number"])
+    plan = I.tag_plan("F1", entries, rules, {"VER": 3})
+    check("the plan lists the teammates' shared tags", "  Red Bull (VER, TSU):\n      F1|Red Bull\n" in plan, True)
+    check("the plan lists the unidentified tags", "rules.unidentified.\n      F1|Check" in plan, True)
+    check("the plan names entries it can only find by number",
+          "No references yet, so identified by number only: TSU" in plan, True)
+    check("the plan names entries it can never find yet",
+          "No number and no references, so never identified until references are added: SC" in plan, True)
+    none_plan = I.tag_plan("F1", entries, I.Rules(team_only="none"), {})
+    check("the plan says team only adds nothing with team_only none", "adds no collection tags" in none_plan, True)
+
+    # ---- cache key
+    img = tempfile.mkdtemp()
+    frame = os.path.join(img, "f.jpg")
+    Image.new("RGB", (64, 48), (90, 90, 90)).save(frame)
+    models = {k: frame for k in ("detector", "ocr_det", "ocr_rec", "embedder")}
+    key = I.frame_key(frame, models)
+    saved = I.OCR_MIN_SCORE
+    I.OCR_MIN_SCORE = 0.5
+    check("changing OCR_MIN_SCORE changes the cache key", I.frame_key(frame, models) != key, True)
+    I.OCR_MIN_SCORE = saved
+    check("the cache key is stable", I.frame_key(frame, models), key)
+
+    # ---- results rows
+    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000")
+    check("a team row carries the runner-up", I.format_row("7", BoxResult(0, "team", "VER", "TSU", 0.71234)),
+          "7,0,team,VER,TSU,0.712")
+
+    # ---- Review Focus 2: EXIF-rotated frames
+    rotated = os.path.join(img, "portrait.jpg")
+    exif = Image.Exif()
+    exif[0x0112] = 6  # stored landscape, displayed rotated 90° clockwise
+    Image.new("RGB", (300, 200), (10, 120, 200)).save(rotated, exif=exif)
+    rgb = V.load_full(rotated)
+    check("an Orientation-6 JPEG decodes upright (portrait)", rgb.shape[:2], (300, 200))
+    crop = V.crop_box(rgb, (0, 0, 200, 150, 0.9, 2))
+    check("a crop of an upright box keeps the upright aspect", crop.shape[:2], (150, 200))
+    check("crops are never upscaled", V.crop_box(rgb, (10, 10, 60, 40, 0.9, 2)).shape[:2], (30, 50))
+    check("box selection clips, filters and sorts",
+          [b[:4] for b in V.select_boxes([(-5, 0, 50, 40, 0.9, 2), (0, 0, 2, 2, 0.9, 2), (0, 0, 200, 300, 0.5, 7)],
+                                         200, 300)],
+          [(0.0, 0.0, 200.0, 300.0), (0.0, 0.0, 50.0, 40.0)])
+
+    # ---- the identify run, with the analysis stubbed (no models)
+    root = tempfile.mkdtemp(prefix="collections_")
+    coll = collection([VER, TSU], root=root)
+    manifest = os.path.join(img, "manifest.csv")
+    with open(manifest, "w", encoding="utf-8") as f:
+        f.write('"1","/x/1.jpg","5"\n"2","/x/2.jpg","5"\n"3","/x/3.jpg","5"\n"4","/x/4.jpg","9"\n')
+    vec = encode(np.eye(384, dtype=np.float32)[0])
+    car = [[0, 0, 100, 50, 0.9, 2]]
+    stub = {
+        "/x/1.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "emb": [vec], "note": ""},
+        "/x/2.jpg": {"boxes": car, "ocr": [[["1", 0.90]]], "emb": [vec], "note": ""},
+        "/x/3.jpg": {"boxes": car, "ocr": [[]], "emb": [vec], "note": ""},
+        "/x/4.jpg": {"boxes": [], "ocr": [], "emb": [], "note": "no vehicle"},
+    }
+
+    class FakeEmbedder:
+        def __init__(self, path):
+            pass
+
+        def embed(self, crop):
+            return np.eye(384, dtype=np.float32)[0]
+
+    real = (I.check_models, I.Embedder, I.run_frames)
+    I.check_models, I.Embedder = (lambda m: None), FakeEmbedder
+    I.run_frames = lambda paths, models, cache, progress: stub
+    results = os.path.join(img, "results.csv")
+    args = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "progress.txt"), cache="",
+                     collections_root=root, collection=os.path.basename(coll), entries_out=os.path.join(img, "e.csv"),
+                     rules_out=os.path.join(img, "r.csv"))
+    I.identify(args, {"embedder": "fake"})
+    rows = open(results, encoding="utf-8").read().splitlines()
+    check("number reads, burst consensus and no-vehicle rows come out in manifest order", rows,
+          ["1,0,number,VER,,0.950", "2,0,number,VER,,0.900", "3,0,burst,VER,,0.667", "4,-1,none,,,0.000"])
+    check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
+    check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
+
+    # ---- Review Focus 4: cancel leaves no results
+    os.remove(results)
+    open(args.progress + ".cancel", "w").close()
+    try:
+        I.identify(args, {"embedder": "fake"})
+        code = 0
+    except SystemExit as e:
+        code = e.code
+    check("a cancelled run exits 130", code, 130)
+    check("a cancelled run writes no results", os.path.exists(results) or os.path.exists(results + ".tmp"), False)
+    I.check_models, I.Embedder, I.run_frames = real
+
+    print("")
+    if failures == 0:
+        print("all tests passed")
+        sys.exit(0)
+    print(f"{failures} test(s) failed")
+    sys.exit(1)
+
+
+# Worker processes re-import this file on spawn; only the parent runs the tests.
+if __name__ == "__main__":
+    run_tests()
