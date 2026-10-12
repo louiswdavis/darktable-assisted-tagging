@@ -90,6 +90,25 @@ def run_tests():
     check("an unreadable index is rebuilt from the crops", (recovered.count_by_entry(), emb5.calls),
           ({"Pérez": 1, "HAM": 1}, 2))
 
+    # review fix 10: re-adding an image under another entry moves it
+    m = tempfile.mkdtemp()
+    idx = ReferenceIndex.load(m, FakeEmbedder(), ["model", 1])
+    idx.add("WRONG", "5", crop(30))
+    idx.add("RIGHT", "5", crop(30))
+    check("re-adding an image under another entry moves its sample", idx.count_by_entry(), {"RIGHT": 1})
+    check("the old entry's file is removed", os.path.exists(os.path.join(m, "refs", "WRONG", "5.jpg")), False)
+
+    # review fix 11: a corrupt crop is skipped, not fatal
+    c = tempfile.mkdtemp()
+    os.makedirs(os.path.join(c, "refs", "VER"))
+    Image.fromarray(crop(50)).save(os.path.join(c, "refs", "VER", "1.jpg"))
+    open(os.path.join(c, "refs", "VER", "2.jpg"), "wb").close()
+    try:
+        skipped = ReferenceIndex.load(c, FakeEmbedder(), ["model", 1]).count_by_entry()
+    except Exception as e:
+        skipped = f"raised {type(e).__name__}"
+    check("a zero-byte crop is skipped", skipped, {"VER": 1})
+
     print("")
     if failures == 0:
         print("all tests passed")

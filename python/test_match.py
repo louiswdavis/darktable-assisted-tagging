@@ -24,6 +24,7 @@ ENTRIES = {
     "VER": Entry("VER", "1", "Red Bull", ("F1|Red Bull", "F1|Red Bull|Verstappen")),
     "TSU": Entry("TSU", "22", "Red Bull", ("F1|Red Bull", "F1|Red Bull|Tsunoda")),
     "HAM": Entry("HAM", "44", "Ferrari", ("F1|Ferrari|Hamilton",)),
+    "LEC": Entry("LEC", "16", "Ferrari", ("F1|Ferrari|Leclerc",)),
     "SC": Entry("SC", "", "", ("F1|Safety Car",)),
 }
 
@@ -102,6 +103,17 @@ def run_tests():
     check("consensus fills only the largest box", [summary(r) for r in out["3"]],
           [("burst", "VER", ""), ("none", "", "")])
     check("a frame with one identified box isn't filled", summary(out["1"][1]), ("none", "", ""))
+
+    # review fix 9: a team-only result for another team is evidence of a different car
+    other_team = {
+        "1": [BoxResult(0, "number", "VER", "", 0.9)],
+        "2": [BoxResult(0, "number", "VER", "", 0.9)],
+        "3": [BoxResult(0, "team", "HAM", "LEC", 0.7)],
+        "4": [BoxResult(0, "team", "TSU", "VER", 0.7)],
+    }
+    out = Mt.burst_consensus(other_team, {k: "b" for k in other_team}, ENTRIES)
+    check("burst doesn't override a team-only result for another team", summary(out["3"][0]), ("team", "HAM", "LEC"))
+    check("burst does upgrade a team-only result for its own team", summary(out["4"][0]), ("burst", "VER", ""))
 
     print("")
     if failures == 0:

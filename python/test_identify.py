@@ -146,12 +146,35 @@ def run_tests():
                                          200, 300)],
           [(0.0, 0.0, 200.0, 300.0), (0.0, 0.0, 50.0, 40.0)])
 
+    # ---- review fix 5: models load from non-ASCII paths, and bad models fail at startup
+    models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models")
+    yolox = os.path.join(models_dir, "object_detection_yolox_2022nov.onnx")
+    if os.path.isfile(yolox):
+        uni = tempfile.mkdtemp(prefix="modèles_José_")
+        moved = os.path.join(uni, "yolox.onnx")
+        with open(yolox, "rb") as src, open(moved, "wb") as dst:
+            dst.write(src.read())
+        check("an ONNX model loads from a non-ASCII path", V.read_onnx(moved) is not None, True)
+    else:
+        print("skip non-ASCII model load (models/ not downloaded)")
+    fake = os.path.join(img, "not-a-model.onnx")
+    with open(fake, "w") as f:
+        f.write("<html>404</html>")
+    try:
+        I.check_models({"detector": fake, "ocr_det": fake, "ocr_rec": fake, "embedder": fake})
+        bad = "(no error)"
+    except I.InputError as e:
+        bad = str(e)
+    check("a file that isn't a model fails at startup with exit-2 input error",
+          bad.startswith("object detector model can't be loaded"), True)
+    check("the worker pool is capped", I.worker_count(64) <= I.MAX_WORKERS and I.worker_count(2) == 1, True)
+
     # ---- the identify run, with the analysis stubbed (no models)
     root = tempfile.mkdtemp(prefix="collections_")
     coll = collection([VER, TSU], root=root)
     manifest = os.path.join(img, "manifest.csv")
     with open(manifest, "w", encoding="utf-8") as f:
-        f.write('"1","/x/1.jpg","5"\n"2","/x/2.jpg","5"\n"3","/x/3.jpg","5"\n"4","/x/4.jpg","9"\n')
+        f.write('"1","/x/1.jpg","5"\n"2","/x/2.jpg","5"\n"3","/x/3.jpg","5"\n"4","/x/4.jpg","9"\n"5","/x/5.jpg","9"\n')
     vec = encode(np.eye(384, dtype=np.float32)[0])
     car = [[0, 0, 100, 50, 0.9, 2]]
     stub = {
@@ -159,6 +182,7 @@ def run_tests():
         "/x/2.jpg": {"boxes": car, "ocr": [[["1", 0.90]]], "emb": [vec], "note": ""},
         "/x/3.jpg": {"boxes": car, "ocr": [[]], "emb": [vec], "note": ""},
         "/x/4.jpg": {"boxes": [], "ocr": [], "emb": [], "note": "no vehicle"},
+        "/x/5.jpg": None,
     }
 
     class FakeEmbedder:
@@ -178,7 +202,8 @@ def run_tests():
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
     check("number reads, burst consensus and no-vehicle rows come out in manifest order", rows,
-          ["1,0,number,VER,,0.950", "2,0,number,VER,,0.900", "3,0,burst,VER,,0.667", "4,-1,none,,,0.000"])
+          ["1,0,number,VER,,0.950", "2,0,number,VER,,0.900", "3,0,burst,VER,,0.667", "4,-1,none,,,0.000",
+           "5,-1,error,,,0.000"])
     check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
     check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
 
