@@ -1,0 +1,19 @@
+[
+  {
+    "id": "VER",
+    "number": "1",
+    "team": "Red Bull",
+    "tags": ["Motorsport|F1|2026|Red Bull", "Motorsport|F1|2026|Red Bull|Max Verstappen"]
+  },
+  {
+    "id": "TSU",
+    "number": "22",
+    "team": "Red Bull",
+    "tags": ["Motorsport|F1|2026|Red Bull", "Motorsport|F1|2026|Red Bull|Yuki Tsunoda"]
+  },
+  {
+    "id": "SAFETY",
+    "team": "",
+    "tags": ["Motorsport|F1|2026|Safety Car"]
+  }
+]
