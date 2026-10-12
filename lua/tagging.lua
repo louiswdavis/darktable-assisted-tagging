@@ -482,7 +482,12 @@ local function tags_of(img)
 end
 
 -- One identify.py process at a time: runs share the tmp files and the .bat/.vbs launcher.
-local busy = false
+-- `orphan` is a cancelled or stalled process that hadn't exited when its run gave up
+-- waiting; nothing starts until its done file appears.
+local busy, orphan = false, false
+-- A run that shows no progress for this long is given up on (it may still be loading
+-- models or re-embedding references, so this is generous).
+local STALL_SECONDS = 300
 local identify_button, collection_combo, entry_combo = nil, nil, nil
 local entries, entry_order, rules = {}, {}, M.default_rules()
 
@@ -490,9 +495,29 @@ local function cancelled(job)
     return M.cancel_requested or (job and not job.valid) or file_exists(CANCEL_PATH)
 end
 
+-- Ends a job once. Setting valid = false destroys darktable's progress object without
+-- checking it still exists (src/lua/gui.c), so a second call would free it twice.
+local function end_job(job)
+    if job and job.valid then job.valid = false end
+end
+
+-- Asks a running identify.py to stop and waits briefly; if it's still running, it's an
+-- orphan and blocks the next run until it exits.
+local function abandon_process()
+    local cf = io.open(CANCEL_PATH, "w")
+    if cf then cf:write("1"); cf:close() end
+    for _ = 1, 50 do
+        if file_exists(DONE_PATH) then return end
+        dt.control.sleep(100)
+    end
+    orphan = true
+    log("identify.py hasn't exited yet; the next run waits for it")
+end
+
 -- Runs identify.py with `args` (already shell-quoted) and blocks until it exits,
 -- moving job.percent from `from` to `to` with its progress. Returns the exit
--- code, or nil when cancelled.
+-- code, or nil plus "cancelled", "stalled" or "launch" (the last two already
+-- reported to the user).
 local function run_python(args, job, from, to, hint)
     local script = identify_script()
     pcall(os.remove, DONE_PATH)
@@ -503,29 +528,35 @@ local function run_python(args, job, from, to, hint)
         .. " 2>> " .. shell_quote(LOG_PATH)
     log("running: " .. cmd)
     flush_log()
-    run_async_command(cmd, DONE_PATH)
-    local start = os.time()
+    if not run_async_command(cmd, DONE_PATH) then
+        notify_error(string.format("Assisted Tagging: couldn't start identify.py: no write access to darktable's tmp folder (%s).", TMP_DIR))
+        return nil, "launch"
+    end
+    local start, last_progress, last_change = os.time(), nil, os.time()
     while true do
         if job and cancelled(job) then
             M.cancel_requested = true
-            local cf = io.open(CANCEL_PATH, "w")
-            if cf then cf:write("1"); cf:close() end
-            -- give it a moment to exit so it can't overlap the next run
-            for _ = 1, 50 do
-                if file_exists(DONE_PATH) then break end
-                dt.control.sleep(100)
-            end
-            return nil
+            abandon_process()
+            return nil, "cancelled"
         end
         if file_exists(DONE_PATH) then
             local code = tonumber((read_file(DONE_PATH) or ""):match("%d+"))
             log("identify.py exit " .. tostring(code))
             return code
         end
-        local cur, tot = (read_file(PROGRESS_PATH) or ""):match("(%d+),(%d+)")
+        local progress = read_file(PROGRESS_PATH)
+        if progress ~= last_progress then
+            last_progress, last_change = progress, os.time()
+        elseif os.time() - last_change > STALL_SECONDS then
+            abandon_process()
+            notify_error(string.format("Assisted Tagging: identify.py made no progress for %d minutes, so the run was stopped. Details are in assisted_tagging.log in darktable's config folder.",
+                STALL_SECONDS // 60))
+            return nil, "stalled"
+        end
+        local cur, tot = (progress or ""):match("(%d+),(%d+)")
         local num, total = tonumber(cur), tonumber(tot)
         if hint and num and total and total > 0 then
-            if job then job.percent = from + (to - from) * math.min(1.0, num / total) end
+            if job and job.valid then job.percent = from + (to - from) * math.min(1.0, num / total) end
             dt.print_hinter(string.format("Assisted Tagging: %s %d / %d%s", hint, num, total,
                 fmt_eta(os.time() - start, num, total)))
         end
@@ -594,7 +625,7 @@ end
 -- Refreshes the collection and entry lists from disk via identify.py --list,
 -- which also rewrites the collection's tag-plan.txt; show_plan points the user at it.
 local function reload_lists(quiet, show_plan)
-    if busy then
+    if busy or not orphan_gone() then
         if not quiet then dt.print(_("Assisted Tagging: busy, try again when the current run finishes.")) end
         return
     end
@@ -649,7 +680,7 @@ local function stop_job(job)
     M.cancel_requested = true
     local cf = io.open(CANCEL_PATH, "w")
     if cf then cf:write("1"); cf:close() end
-    job.valid = false
+    end_job(job)
 end
 
 local function start_log(what, n)
@@ -661,17 +692,25 @@ local function start_log(what, n)
 end
 
 local function cleanup_tmp()
-    -- keep the cancel flag while a cancelled identify.py is still running, so it still sees it
-    local still_running = file_exists(CANCEL_PATH) and not file_exists(DONE_PATH)
-    for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", DONE_PATH }) do pcall(os.remove, p) end
-    if not still_running then
-        pcall(os.remove, PROGRESS_PATH)
-        pcall(os.remove, CANCEL_PATH)
+    -- An orphaned identify.py still needs its cancel flag, and cmd.exe is still
+    -- reading its .bat, so leave those until it exits.
+    if orphan then return end
+    for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", DONE_PATH, PROGRESS_PATH, CANCEL_PATH }) do
+        pcall(os.remove, p)
     end
     if IS_WINDOWS then
         pcall(os.remove, TMP_DIR .. "/dt_assisted_tagging_run.bat")
         pcall(os.remove, TMP_DIR .. "/dt_assisted_tagging_run.vbs")
     end
+end
+
+-- False while an orphaned identify.py is still running; clears up after it once it exits.
+local function orphan_gone()
+    if orphan and file_exists(DONE_PATH) then
+        orphan = false
+        cleanup_tmp()
+    end
+    return not orphan
 end
 
 local function write_rows(path, rows)
@@ -686,6 +725,10 @@ end
 local function can_start(images)
     if busy then
         dt.print(_("Assisted Tagging: already running. Click Cancel in the panel to stop it."))
+        return false
+    end
+    if not orphan_gone() then
+        dt.print(_("Assisted Tagging: the last run is still stopping. Try again in a moment."))
         return false
     end
     if not images or #images == 0 then
@@ -753,10 +796,11 @@ function M.identify_images(images)
         dt.print_hinter(" ")
 
         -- Burst consensus needs whole bursts, so a cancelled run applies nothing.
-        if code == nil or code == 130 then
+        if why == "cancelled" or code == 130 then
             say(_("Assisted Tagging: cancelled, no tags were changed."))
             return
         end
+        if code == nil then return end -- stalled or couldn't launch; already reported
         if code ~= 0 or not file_exists(RESULTS_PATH) then
             notify_error(failure_message(code))
             return
@@ -764,15 +808,7 @@ function M.identify_images(images)
 
         load_entries_csv()
         refresh_entry_combo()
-        local rows_of = {}
-        for line in (read_file(RESULTS_PATH) or ""):gmatch("[^\r\n]+") do
-            local p = M.parse_csv_line(line, 6)
-            if p then
-                local id = tonumber(p[1])
-                rows_of[id] = rows_of[id] or {}
-                table.insert(rows_of[id], { box = tonumber(p[2]), method = p[3], entry_id = p[4], alt_entry_id = p[5] })
-            end
-        end
+        local rows_of = M.read_results(read_file(RESULTS_PATH))
 
         local owned = M.owned_tags(entries, rules)
         local diag_on = dt.preferences.read("assisted_tagging", "diagnostic_tags", "bool")
@@ -814,7 +850,6 @@ function M.identify_images(images)
                     end
                 end
             end
-            job.percent = PROGRESS_ANALYSIS + (1 - PROGRESS_ANALYSIS) * i / #primaries
             if not job.valid then
                 say(string.format("Assisted Tagging: stopped while writing tags; %d of %d images were updated. Run again to finish.",
                     i, #primaries))
