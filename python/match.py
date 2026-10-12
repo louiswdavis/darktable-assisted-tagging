@@ -21,7 +21,7 @@ class Entry:
 @dataclass(frozen=True)
 class BoxResult:
     box: int  # -1: the frame had no vehicle
-    method: str  # number | livery | team | burst | none
+    method: str  # number | livery | team | burst | none | error (couldn't analyse; tags left alone)
     entry_id: str = ""
     alt_entry_id: str = ""
     confidence: float = 0.0
@@ -52,10 +52,12 @@ def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
     return BoxResult(box, "none", "", "", max(s1, 0.0))
 
 
-def burst_consensus(frames: dict, burst_of: dict) -> dict:
+def burst_consensus(frames: dict, burst_of: dict, entries=None) -> dict:
     """frames: image id → [BoxResult]. A frame none of whose boxes was identified
     takes its burst's entry on its largest box when at least BURST_MIN_AGREE
-    frames agree on that entry and no frame names another."""
+    frames agree on that entry and no frame names another. With `entries`, a
+    frame whose team-only result names another team is left alone: that's
+    evidence of a different car."""
     members: dict = {}
     for fid in frames:
         members.setdefault(burst_of.get(fid, fid), []).append(fid)
@@ -73,6 +75,10 @@ def burst_consensus(frames: dict, burst_of: dict) -> dict:
         for fid in ids:
             rows = frames[fid]
             if any(r.method in IDENTIFIED for r in rows) or not any(r.box == 0 for r in rows):
+                continue
+            if entries and eid in entries and any(
+                    r.method == "team" and r.entry_id in entries and entries[r.entry_id].team != entries[eid].team
+                    for r in rows):
                 continue
             out[fid] = [replace(r, method="burst", entry_id=eid, alt_entry_id="", confidence=n / len(ids))
                         if r.box == 0 else r for r in rows]

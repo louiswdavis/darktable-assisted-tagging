@@ -22,13 +22,14 @@ import sys
 import time
 from dataclasses import dataclass
 
-from vehicles import CROP_DIM, MIN_BOX_FRAC, crop_box, detect_vehicles, file_key, load_full, log
+from vehicles import CROP_DIM, MIN_BOX_FRAC, crop_box, detect_vehicles, detector_model, file_key, load_full, log
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
 from match import BoxResult, Entry, burst_consensus, match_box
 from reference_store import ReferenceIndex
 
 IDENTIFY_CACHE_VERSION = 1
+MAX_WORKERS = 4  # each worker holds every model plus a full-resolution decode
 CACHE_MAX_AGE_DAYS = 90
 CACHE_COMMIT_EVERY = 50
 
@@ -348,10 +349,25 @@ def describe_box(r: BoxResult, ocr: list, sims: list) -> str:
 
 
 def check_models(models: dict):
-    for label, key in (("object detector", "detector"), ("OCR text detection", "ocr_det"),
-                       ("OCR text recognition", "ocr_rec"), ("embedder", "embedder")):
+    """Every model exists and loads, so a bad one fails the run here, not per frame."""
+    labels = (("object detector", "detector"), ("OCR text detection", "ocr_det"),
+              ("OCR text recognition", "ocr_rec"), ("embedder", "embedder"))
+    for label, key in labels:
         if not models[key] or not os.path.isfile(models[key]):
             raise InputError(f"{label} model not found: {models[key] or '(not set)'}")
+    loaders = (("object detector", "detector", lambda: detector_model(models["detector"])),
+               ("OCR", "ocr_det", lambda: NumberReader(models["ocr_det"], models["ocr_rec"])),
+               ("embedder", "embedder", lambda: Embedder(models["embedder"])))
+    for label, key, load in loaders:
+        try:
+            load()
+        except Exception as e:
+            raise InputError(f"{label} model can't be loaded ({models[key]}): {type(e).__name__}: {e}. "
+                             f"Download it again (see the README).") from e
+
+
+def worker_count(cpus: int) -> int:
+    return max(1, min(cpus - 1, MAX_WORKERS))
 
 
 def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -> dict:
@@ -368,7 +384,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
     write_progress(progress, done, total)
     if not todo:
         return out
-    workers = max(1, (os.cpu_count() or 2) - 1)
+    workers = worker_count(os.cpu_count() or 2)
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers, initializer=_init_worker,
                                                 initargs=(models,)) as executor:
         futures = {executor.submit(analyse_frame, p): p for p in todo}
@@ -418,8 +434,12 @@ def identify(args, models: dict):
     for image_id, filepath, burst in rows:
         burst_of[image_id] = burst
         a = analyses.get(filepath)
-        if not a or not a["boxes"]:
-            log(f"{image_id}: {a['note'] if a else 'not analysed'}")
+        if a is None:
+            # an error row: tagging.lua leaves this image's tags alone
+            frames[image_id] = [BoxResult(-1, "error")]
+            continue
+        if not a["boxes"]:
+            log(f"{image_id}: {a['note']}")
             frames[image_id] = [BoxResult(-1, "none")]
             continue
         results = []
@@ -429,7 +449,7 @@ def identify(args, models: dict):
             log(f"{image_id}: {describe_box(r, ocr, sims)}")
             results.append(r)
         frames[image_id] = results
-    frames = burst_consensus(frames, burst_of)
+    frames = burst_consensus(frames, burst_of, entries)
 
     by_method: dict = {}
     tmp = args.results + ".tmp"
@@ -457,6 +477,10 @@ def add_references(args, models: dict):
     tmp = args.results + ".tmp"
     with open(tmp, "w", newline="", encoding="utf-8") as f:
         for n, (image_id, filepath, entry_id) in enumerate(rows, 1):
+            if cancel_requested(args.progress):
+                log("cancelled; references added so far are kept")
+                index.save()
+                sys.exit(130)
             status = "failed"
             if entry_id not in entries:
                 log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")

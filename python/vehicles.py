@@ -88,11 +88,17 @@ VEHICLE_CLASSES = [2, 3, 7]  # COCO car, motorcycle, truck (race cars are often 
 _DETECTORS: dict = {}
 
 
+def read_onnx(model_path: str):
+    """cv2.dnn net from an .onnx file. Read through numpy: cv2's own path
+    argument is narrow on Windows, so a non-ASCII path (a username) fails."""
+    return cv2.dnn.readNetFromONNX(np.fromfile(model_path, np.uint8))
+
+
 def detector_model(model_path: str):
     if model_path not in _DETECTORS:
         if not os.path.isfile(model_path):
             raise FileNotFoundError(f"object detector model not found: {model_path}")
-        _DETECTORS[model_path] = cv2.dnn.readNet(model_path)
+        _DETECTORS[model_path] = read_onnx(model_path)
     return _DETECTORS[model_path]
 
 

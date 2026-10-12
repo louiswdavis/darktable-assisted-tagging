@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 
 from embed import EMBED_DIM
+from vehicles import log
 
 INDEX_NAME = "index.npz"
 
@@ -40,7 +41,12 @@ class ReferenceIndex:
         known = set(idx.path)
         for rel in sorted(on_disk):
             if rel not in known:
-                idx._append(rel.split("/")[1], rel, idx._embed_file(rel))
+                try:
+                    vec = idx._embed_file(rel)
+                except Exception as e:  # one unreadable crop mustn't stop every run
+                    log(f"reference {rel} can't be read, skipped ({type(e).__name__}); delete or replace it")
+                    continue
+                idx._append(rel.split("/")[1], rel, vec)
                 changed = True
         if changed:
             idx.save()
@@ -87,6 +93,15 @@ class ReferenceIndex:
         sample of the same image, and returns its path relative to the collection."""
         os.makedirs(os.path.join(self.refs, entry_id), exist_ok=True)
         rel = f"refs/{entry_id}/{image_id}.jpg"
+        # an image is a sample of one entry: re-adding it elsewhere moves it
+        for other in [p for p in self.path if p.endswith(f"/{image_id}.jpg") and p != rel]:
+            i = self.path.index(other)
+            self.emb = np.delete(self.emb, i, axis=0)
+            del self.entry[i], self.path[i]
+            try:
+                os.remove(os.path.join(self.dir, *other.split("/")))
+            except OSError:
+                pass
         Image.fromarray(crop_rgb).save(os.path.join(self.dir, *rel.split("/")), quality=92)
         self._append(entry_id, rel, self.embedder.embed(crop_rgb))
         return rel

@@ -6,7 +6,7 @@ import os
 import numpy as np
 import cv2
 
-from vehicles import file_key
+from vehicles import file_key, read_onnx
 
 OCR_MIN_SCORE = 0.80
 
@@ -57,13 +57,13 @@ class NumberReader:
         for label, p in (("OCR text detection", det_path), ("OCR text recognition", rec_path)):
             if not os.path.isfile(p):
                 raise FileNotFoundError(f"{label} model not found: {p}")
-        self.det = cv2.dnn_TextDetectionModel_DB(cv2.dnn.readNet(det_path))
+        self.det = cv2.dnn_TextDetectionModel_DB(read_onnx(det_path))
         self.det.setBinaryThreshold(0.3)
         self.det.setPolygonThreshold(0.5)
         self.det.setMaxCandidates(200)
         self.det.setUnclipRatio(2.0)
         self.det.setInputParams(1.0 / 255.0, (DET_INPUT, DET_INPUT), DET_MEAN)
-        self.rec = cv2.dnn.readNet(rec_path)
+        self.rec = read_onnx(rec_path)
 
     def read(self, crop_rgb: np.ndarray) -> list:
         """[(digits, detection confidence)], distinct numbers, most confident first."""

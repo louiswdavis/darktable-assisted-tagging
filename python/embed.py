@@ -45,7 +45,8 @@ class Embedder:
         import onnxruntime as ort
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 1  # the worker pool supplies the parallelism
-        self.session = ort.InferenceSession(model_path, opts, providers=["CPUExecutionProvider"])
+        with open(model_path, "rb") as f:  # bytes, so a non-ASCII path can't trip a narrow-path API
+            self.session = ort.InferenceSession(f.read(), opts, providers=["CPUExecutionProvider"])
 
     def embed(self, crop_rgb: np.ndarray) -> np.ndarray:
         """Unit-length CLS feature, shape (EMBED_DIM,)."""
