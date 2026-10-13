@@ -331,7 +331,8 @@ def analyse_frame(filepath: str) -> dict:
         crop = crop_box(rgb, b)
         ocr.append([[d, c] for d, c in _W["reader"].read(crop)])
         emb.append(encode(_W["embedder"].embed(crop)))
-    return {"boxes": [list(b) for b in boxes], "ocr": ocr, "emb": emb, "note": note}
+    h, w = rgb.shape[:2]
+    return {"boxes": [list(b) for b in boxes], "ocr": ocr, "emb": emb, "note": note, "frame": [w, h]}
 
 
 # ---------------------------------------------------------------- identify mode
@@ -346,11 +347,14 @@ def format_row(image_id: str, r: BoxResult) -> str:
             f"{r.confidence:.3f},{r.unmatched_number}")
 
 
-def describe_box(r: BoxResult, ocr: list, sims: list) -> str:
+def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) -> str:
     seen = "/".join(d for d, _ in ocr) or "-"
     top = ", ".join(f"{e} {s:.3f}" for e, s in sims[:2]) or "no references"
     unmatched = f"; number seen but unmatched: {r.unmatched_number}" if r.unmatched_number else ""
-    return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}; livery {top}{unmatched})"
+    bw, bh = box[2] - box[0], box[3] - box[1]
+    fw, fh = frame
+    frac = f"; box {bw:.0f}x{bh:.0f} ({bw * bh / max(fw * fh, 1):.1%} of frame)"
+    return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}; livery {top}{unmatched}{frac})"
 
 
 def check_models(models: dict):
@@ -451,7 +455,7 @@ def identify(args, models: dict):
         for i, ocr in enumerate(a["ocr"]):
             sims = index.best_per_entry(decode(a["emb"][i]))
             r = match_box(i, [tuple(c) for c in ocr], sims, entries)
-            log(f"{image_id}: {describe_box(r, ocr, sims)}")
+            log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}")
             results.append(r)
         frames[image_id] = results
     frames = burst_consensus(frames, burst_of, entries)
