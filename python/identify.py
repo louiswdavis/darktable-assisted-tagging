@@ -22,7 +22,7 @@ import sys
 import time
 from dataclasses import dataclass
 
-from vehicles import CROP_DIM, MIN_BOX_FRAC, crop_box, detect_vehicles, detector_model, file_key, load_full, log
+from vehicles import BOX_MARGIN_TRIM, CROP_DIM, MIN_BOX_FRAC, crop_box, detect_vehicles, detector_model, file_key, load_full, log
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
 from match import BoxResult, Entry, burst_consensus, match_box
@@ -285,7 +285,7 @@ class IdentifyCache:
 def frame_key(filepath: str, models: dict) -> list:
     """Cache key parts for a frame's analysis. Entries and references stay out of it."""
     return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
-            embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, OCR_MIN_SCORE]
+            embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE]
 
 
 # ---------------------------------------------------------------- progress

@@ -24,6 +24,8 @@ RAW_EXTENSIONS = {".cr2", ".cr3", ".nef", ".arw", ".rw2", ".dng", ".raf", ".orf"
 MIN_BOX_FRAC = 0.02  # boxes smaller than this share of the frame are background traffic
 MAX_BOXES = 4
 CROP_DIM = 640
+BOX_MARGIN_TRIM = 0.1  # trimmed off each edge of a detected box before cropping, so a loose
+# box (common on cars shot at a distance) carries less background into the embedding
 
 
 def log(msg: str):
@@ -179,10 +181,13 @@ def detect_vehicles(rgb: np.ndarray, model_path: str) -> tuple:
 
 
 def crop_box(rgb: np.ndarray, box) -> np.ndarray:
-    """The box's region, its long side downscaled to at most CROP_DIM (never upscaled)."""
+    """The box's region, trimmed by BOX_MARGIN_TRIM on each edge and its long side
+    downscaled to at most CROP_DIM (never upscaled)."""
     h, w = rgb.shape[:2]
-    x0, y0 = max(int(box[0]), 0), max(int(box[1]), 0)
-    x1, y1 = min(int(round(box[2])), w), min(int(round(box[3])), h)
+    bx0, by0, bx1, by1 = box[0], box[1], box[2], box[3]
+    trim_x, trim_y = (bx1 - bx0) * BOX_MARGIN_TRIM, (by1 - by0) * BOX_MARGIN_TRIM
+    x0, y0 = max(int(bx0 + trim_x), 0), max(int(by0 + trim_y), 0)
+    x1, y1 = min(int(round(bx1 - trim_x)), w), min(int(round(by1 - trim_y)), h)
     crop = rgb[y0:max(y1, y0 + 1), x0:max(x1, x0 + 1)]
     ch, cw = crop.shape[:2]
     scale = CROP_DIM / max(ch, cw)
