@@ -16,11 +16,14 @@ M.event_registered = false
 
 -- Default diagnostic tag per outcome; a collection's rules can rename or drop each one.
 M.DIAG_TAGS = {
-    number = "Assisted Tagging|Motorsport|Identified|By number",
-    livery = "Assisted Tagging|Motorsport|Identified|By livery",
-    burst = "Assisted Tagging|Motorsport|Identified|By burst",
-    team = "Assisted Tagging|Motorsport|Team only",
-    none = "Assisted Tagging|Motorsport|Unidentified",
+    number = "Assisted Tagging|Identification|By number",
+    livery = "Assisted Tagging|Identification|By livery",
+    burst = "Assisted Tagging|Identification|By burst",
+    team = "Assisted Tagging|Identification|Team only",
+    none = "Assisted Tagging|Identification|Unidentified",
+    -- Suffixed with the literal digits read, e.g. "...|Number seen|115"; independent of
+    -- the outcome tags above, added whenever OCR read a number that didn't resolve.
+    number_seen = "Assisted Tagging|Identification|Number seen",
 }
 
 function M.exif_time_to_epoch(s)
@@ -145,6 +148,12 @@ function M.wanted_tags(rows, entries, rules)
             note("team")
             identified = true
         end
+        -- Independent of the outcome above: OCR read a number that matched zero or 2+
+        -- entries, so it couldn't drive identification, but it's worth seeing.
+        if r.unmatched_number and r.unmatched_number ~= "" then
+            local base = rules.diag.number_seen
+            if base and base ~= "" then diag[base .. "|" .. r.unmatched_number] = true end
+        end
     end
     if not identified then
         for _, t in ipairs(rules.unidentified) do wanted[t] = true end
@@ -168,14 +177,22 @@ function M.owned_tags(entries, rules)
 end
 
 -- have: an image's tag names (name → true). Returns the names to attach and to
--- detach, sorted. Only owned tags are ever detached.
-function M.tag_changes(have, wanted, owned)
+-- detach, sorted. Only owned tags, or tags starting with an owned prefix (the dynamic
+-- "...Number seen|<digits>" diagnostic, one tag per distinct digit string), are detached.
+function M.tag_changes(have, wanted, owned, owned_prefixes)
     local attach, detach = {}, {}
     for name in pairs(wanted) do
         if not have[name] then attach[#attach + 1] = name end
     end
+    local function is_owned(name)
+        if owned[name] then return true end
+        for _, p in ipairs(owned_prefixes or {}) do
+            if name:sub(1, #p) == p then return true end
+        end
+        return false
+    end
     for name in pairs(have) do
-        if owned[name] and not wanted[name] then detach[#detach + 1] = name end
+        if is_owned(name) and not wanted[name] then detach[#detach + 1] = name end
     end
     table.sort(attach)
     table.sort(detach)
@@ -204,13 +221,14 @@ end
 function M.read_results(text)
     local rows_of, errored = {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 6)
+        local p = M.parse_csv_line(line, 7)
         local id = p and tonumber(p[1])
         if id and p[3] == "error" then
             errored[id] = true
         elseif id then
             rows_of[id] = rows_of[id] or {}
-            table.insert(rows_of[id], { box = tonumber(p[2]), method = p[3], entry_id = p[4], alt_entry_id = p[5] })
+            table.insert(rows_of[id], { box = tonumber(p[2]), method = p[3], entry_id = p[4],
+                                         alt_entry_id = p[5], unmatched_number = p[7] })
         end
     end
     return rows_of, errored

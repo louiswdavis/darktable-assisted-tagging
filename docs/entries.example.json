@@ -3,11 +3,11 @@
     "team_only": "shared tags",
     "unidentified": [],
     "diagnostics": {
-      "number": "Assisted Tagging|Motorsport|Identified|By number",
-      "livery": "Assisted Tagging|Motorsport|Identified|By livery",
-      "burst": "Assisted Tagging|Motorsport|Identified|By burst",
-      "team": "Assisted Tagging|Motorsport|Team only",
-      "none": "Assisted Tagging|Motorsport|Unidentified"
+      "number": "Assisted Tagging|Identification|By number",
+      "livery": "Assisted Tagging|Identification|By livery",
+      "burst": "Assisted Tagging|Identification|By burst",
+      "team": "Assisted Tagging|Identification|Team only",
+      "none": "Assisted Tagging|Identification|Unidentified"
     }
   },
   "entries": [

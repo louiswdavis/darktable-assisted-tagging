@@ -45,11 +45,14 @@ class InputError(Exception):
 # ---------------------------------------------------------------- entries and rules
 
 DIAG_DEFAULTS = {
-    "number": "Assisted Tagging|Motorsport|Identified|By number",
-    "livery": "Assisted Tagging|Motorsport|Identified|By livery",
-    "burst": "Assisted Tagging|Motorsport|Identified|By burst",
-    "team": "Assisted Tagging|Motorsport|Team only",
-    "none": "Assisted Tagging|Motorsport|Unidentified",
+    "number": "Assisted Tagging|Identification|By number",
+    "livery": "Assisted Tagging|Identification|By livery",
+    "burst": "Assisted Tagging|Identification|By burst",
+    "team": "Assisted Tagging|Identification|Team only",
+    "none": "Assisted Tagging|Identification|Unidentified",
+    # Suffixed with the literal digits read, e.g. "...|Number seen|115": independent of
+    # the outcome above, applied whenever OCR read a number that matched zero or 2+ entries.
+    "number_seen": "Assisted Tagging|Identification|Number seen",
 }
 TEAM_ONLY_CHOICES = ("shared tags", "none")
 
@@ -339,13 +342,15 @@ def read_manifest(path: str, columns: int) -> list:
 
 
 def format_row(image_id: str, r: BoxResult) -> str:
-    return f"{image_id},{r.box},{r.method},{r.entry_id},{r.alt_entry_id},{r.confidence:.3f}"
+    return (f"{image_id},{r.box},{r.method},{r.entry_id},{r.alt_entry_id},"
+            f"{r.confidence:.3f},{r.unmatched_number}")
 
 
 def describe_box(r: BoxResult, ocr: list, sims: list) -> str:
     seen = "/".join(d for d, _ in ocr) or "-"
     top = ", ".join(f"{e} {s:.3f}" for e, s in sims[:2]) or "no references"
-    return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}; livery {top})"
+    unmatched = f"; number seen but unmatched: {r.unmatched_number}" if r.unmatched_number else ""
+    return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}; livery {top}{unmatched})"
 
 
 def check_models(models: dict):
