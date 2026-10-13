@@ -217,7 +217,7 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 | `Assisted Tagging\|Motorsport\|Team only` | two teammates were too close to call; only their shared tags were added |
 | `Assisted Tagging\|Motorsport\|Unidentified` | no vehicle, or no confident match |
 
-Filter on `Assisted Tagging|Motorsport|Identified|By livery` and `Assisted Tagging|Motorsport|Unidentified` in the **collections** module to spot-check the uncertain ones; an image it got wrong is often a good new reference.
+Filter on `Assisted Tagging|Identification|By livery` and `Assisted Tagging|Identification|Unidentified` in the **collections** module to spot-check the uncertain ones; an image it got wrong is often a good new reference.
 
 Re-running is safe: each image's entry and diagnostic tags are synced to the new result, so a frame that moves from one driver to another loses the old driver's tags. Tags that aren't in the active collection are never touched.
 

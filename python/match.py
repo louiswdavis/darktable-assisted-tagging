@@ -25,6 +25,11 @@ class BoxResult:
     entry_id: str = ""
     alt_entry_id: str = ""
     confidence: float = 0.0
+    # Set independently of `method` whenever OCR read digits that didn't resolve to exactly
+    # one entry (no entry has that number, or more than one does): every distinct digit
+    # string read, ";"-joined, for one diagnostic tag per string, even when livery/team/
+    # burst still identified the vehicle.
+    unmatched_number: str = ""
 
 
 def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
@@ -40,16 +45,17 @@ def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
             best_conf = max(best_conf, conf)
     if len(hits) == 1:
         return BoxResult(box, "number", hits.pop(), "", best_conf)
+    unmatched = ";".join(dict.fromkeys(digits for digits, _ in ocr))
 
     sims = [(eid, s) for eid, s in sims if eid in entries]
     if not sims:
-        return BoxResult(box, "none")
+        return BoxResult(box, "none", "", "", 0.0, unmatched)
     (e1, s1), (e2, s2) = sims[0], sims[1] if len(sims) > 1 else ("", 0.0)
     if s1 >= MATCH_MIN_SIM and s1 - s2 >= MATCH_MIN_MARGIN:
-        return BoxResult(box, "livery", e1, "", s1)
+        return BoxResult(box, "livery", e1, "", s1, unmatched)
     if s1 >= MATCH_MIN_SIM and e2 and entries[e1].team and entries[e1].team == entries[e2].team:
-        return BoxResult(box, "team", e1, e2, s1)
-    return BoxResult(box, "none", "", "", max(s1, 0.0))
+        return BoxResult(box, "team", e1, e2, s1, unmatched)
+    return BoxResult(box, "none", "", "", max(s1, 0.0), unmatched)
 
 
 def burst_consensus(frames: dict, burst_of: dict, entries=None) -> dict:

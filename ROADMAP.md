@@ -21,6 +21,30 @@ attributes instead of race number / team:
 Needs a schema redesign (`Entry` fields become domain-specific, or a pluggable
 "identifying attribute" concept) rather than reusing `number`/`team` as-is.
 
+### Proposed shape: per-collection workflow type
+
+Rather than one generic `Entry` schema stretched to cover every domain, give each
+collection a `workflow` (or `type`) field — similar in spirit to how
+darktable-assisted-culling selects an action type — that determines:
+
+- which `Entry` fields are valid/required (e.g. `number`+`team` for motorsport,
+  nothing but an id for landmarks, `species` instead of `team` for
+  flowers/birds/animals)
+- which embedding/matching model the pipeline uses (DINOv2 crop-embedding stays
+  the default; people may need a face-embedding model instead)
+- which tie-break logic `match_box` applies when a crop is ambiguous (team
+  tie-break for motorsport, species tie-break for animals, no tie-break at all
+  for landmarks)
+
+A collection's `entries.json` would declare its `workflow` once at the top level;
+`match.py`/`vehicles.py` would dispatch on it rather than assuming motorsport
+fields exist. The OCR number-matching path (`match.py`) stays motorsport-only and
+is simply absent for workflows that don't declare it.
+
+Scope this as its own task once the motorsport pipeline (current F1 fix, `Number
+seen` diagnostic, in-panel editor) is tested and stable — don't bolt it onto the
+in-progress work.
+
 ## Smaller known gaps
 
 - "Edit entries.json" button prints a mangled path instead of opening/editing the

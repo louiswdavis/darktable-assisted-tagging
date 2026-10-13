@@ -27,4 +27,4 @@ How to add them:
 2. In the panel's **references** section, pick the entry in the **entry** list, select the frames, and click **Add as reference**. The largest vehicle in each frame is cropped and saved under `refs/<entry id>/`.
 3. Already tagged a race weekend by hand? Select those frames and click **Add tagged images as references** instead. Each frame carrying all of one entry's tags is added to that entry; frames with only a team tag are skipped.
 
-After a run, filter on `Assisted Tagging|Motorsport|Identified|By livery` and `Assisted Tagging|Motorsport|Team only`. A frame it got wrong, fixed by hand, is usually the best next reference.
+After a run, filter on `Assisted Tagging|Identification|By livery` and `Assisted Tagging|Identification|Team only`. A frame it got wrong, fixed by hand, is usually the best next reference.
