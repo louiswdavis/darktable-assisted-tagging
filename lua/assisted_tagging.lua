@@ -386,7 +386,6 @@ local RESULTS_PATH = TMP_DIR .. "/dt_assisted_tagging_results.csv"
 local ENTRIES_PATH = TMP_DIR .. "/dt_assisted_tagging_entries.csv"
 local RULES_PATH = TMP_DIR .. "/dt_assisted_tagging_rules.csv"
 local COLLECTIONS_PATH = TMP_DIR .. "/dt_assisted_tagging_collections.csv"
-local EXAMPLES_PATH = TMP_DIR .. "/dt_assisted_tagging_examples.csv"
 local PROGRESS_PATH = TMP_DIR .. "/dt_assisted_tagging_progress.txt"
 local CANCEL_PATH = PROGRESS_PATH .. ".cancel"
 local DONE_PATH = TMP_DIR .. "/dt_assisted_tagging_done.txt"
@@ -826,6 +825,30 @@ local function reload_lists(quiet, show_plan)
     if not okr then notify_error(_("Assisted Tagging: couldn't reload collections. ") .. tostring(err)) end
 end
 
+-- Subfolders of `root` holding an entries.json: a plain directory listing, not
+-- identify.py, so it never contends with a run in progress.
+local function list_examples(root)
+    local names = {}
+    local cmd = IS_WINDOWS
+        and string.format('dir /b /ad "%s" 2>nul', root:gsub("/", "\\"))
+        or ("ls -1 " .. shell_quote(root) .. " 2>/dev/null")
+    local p = io.popen(cmd)
+    if not p then return names end
+    for line in p:lines() do
+        if file_exists(root .. "/" .. line .. "/entries.json") then names[#names + 1] = line end
+    end
+    p:close()
+    table.sort(names)
+    return names
+end
+
+-- Lists the repo's shipped example collections (see examples_root()) into example_combo.
+local function reload_examples()
+    local root = examples_root()
+    local names = (df.test_file(root, "e") or file_exists(root)) and list_examples(root) or {}
+    fill_combo(example_combo, #names > 0 and names or { _("(no examples)") }, 1)
+end
+
 local function set_idle_label()
     if identify_button then identify_button.label = _("Identify selection") end
 end
@@ -1088,36 +1111,101 @@ end
 
 local _BAD_FOLDER = '[/\\:*?"<>|]'
 
--- Builds a new collection's entries.json from the hierarchical tags already on
--- `images` (see M.derive_entries), then adds each image as its entry's reference.
-function M.create_collection(images, raw_name)
+-- Validates a typed collection name and that it doesn't already exist, printing
+-- why and returning nil when it can't proceed. Doesn't touch disk.
+local function new_collection_path(raw_name)
     if busy then
         dt.print(_("Assisted Tagging: already running. Click Cancel in the panel to stop it."))
-        return
+        return nil
     end
     if not orphan_gone() then
         dt.print(_("Assisted Tagging: the last run is still stopping. Try again in a moment."))
-        return
-    end
-    if not images or #images == 0 then
-        dt.print(_("Assisted Tagging: select some tagged images first"))
-        return
+        return nil
     end
     local name = (raw_name or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if name == "" then
         dt.print(_("Assisted Tagging: type a name for the new collection first"))
-        return
+        return nil
     end
     if name:find(_BAD_FOLDER) then
         dt.print(_('Assisted Tagging: collection name can\'t contain / \\ : * ? " < > |'))
-        return
+        return nil
     end
     local dir = collections_root() .. "/" .. name
     if df.test_file(dir, "e") or file_exists(dir .. "/entries.json") then
         dt.print(string.format(_("Assisted Tagging: %s already exists. Pick a new name, or select it as "
-            .. "the collection and use Add tagged images as references instead."), name))
+            .. "the collection and use Edit entries.json instead."), name))
+        return nil
+    end
+    return name, dir
+end
+
+local function make_collection_dir(dir)
+    if IS_WINDOWS then
+        os.execute(string.format('mkdir "%s" 2>nul', dir:gsub("/", "\\")))
+    else
+        os.execute("mkdir -p " .. shell_quote(dir) .. " 2>/dev/null")
+    end
+end
+
+-- Opens a file in whatever app the OS has associated with it, so the user can
+-- read and edit entries.json without leaving darktable for a file manager.
+local function open_in_app(path)
+    if not file_exists(path) then
+        dt.print(string.format(_("Assisted Tagging: %s doesn't exist."), path))
         return
     end
+    if IS_WINDOWS then
+        os.execute(string.format('start "" "%s"', path:gsub("/", "\\")))
+    elseif dt.configuration.running_os == "macos" then
+        os.execute("open " .. shell_quote(path))
+    else
+        os.execute("xdg-open " .. shell_quote(path) .. " >/dev/null 2>&1 &")
+    end
+end
+
+-- Copies an example's entries.json (see examples_root()) into a new collection:
+-- no images needed, since the example already defines the structure, just not
+-- your actual entries.
+function M.create_collection_from_example(example, raw_name)
+    if not example then
+        dt.print(_("Assisted Tagging: pick an example first"))
+        return
+    end
+    local name, dir = new_collection_path(raw_name)
+    if not name then return end
+
+    local text = read_file(examples_root() .. "/" .. example .. "/entries.json")
+    if not text then
+        notify_error(string.format(_("Assisted Tagging: couldn't read the %s example's entries.json."), example))
+        return
+    end
+    make_collection_dir(dir)
+    local f = io.open(dir .. "/entries.json", "w")
+    if not f then
+        notify_error(string.format(
+            _("Assisted Tagging: couldn't create %s/entries.json (check the collections folder preference)."), dir))
+        return
+    end
+    f:write(text)
+    f:close()
+
+    say(string.format(
+        _("Assisted Tagging: created %s from the %s example. Edit its entries.json with your own entries, "
+            .. "then click Reload."), name, example))
+    dt.preferences.write("assisted_tagging", "last_collection", "string", name)
+    reload_lists(true)
+end
+
+-- Builds a new collection's entries.json from the hierarchical tags already on
+-- `images` (see M.derive_entries), then adds each image as its entry's reference.
+function M.create_collection(images, raw_name)
+    if not images or #images == 0 then
+        dt.print(_("Assisted Tagging: select some tagged images first"))
+        return
+    end
+    local name, dir = new_collection_path(raw_name)
+    if not name then return end
 
     local image_rows = {}
     for _, img in ipairs(images) do
@@ -1132,11 +1220,7 @@ function M.create_collection(images, raw_name)
         return
     end
 
-    if IS_WINDOWS then
-        os.execute(string.format('mkdir "%s" 2>nul', dir:gsub("/", "\\")))
-    else
-        os.execute("mkdir -p " .. shell_quote(dir) .. " 2>/dev/null")
-    end
+    make_collection_dir(dir)
     local f = io.open(dir .. "/entries.json", "w")
     if not f then
         notify_error(string.format(
@@ -1214,6 +1298,31 @@ local function install_panel()
             M.create_collection(dt.gui.action_images, new_collection_name.text)
         end,
     }
+    example_combo = dt.new_widget("combobox") {
+        label = _("example"),
+        tooltip = _("A collection template shipped in the repo's examples folder, with placeholder entries and no references"),
+        _("(no examples)"),
+    }
+    local example_view_button = dt.new_widget("button") {
+        label = _("View example"),
+        tooltip = _("Open the selected example's entries.json in your editor, to read or copy from"),
+        clicked_callback = function()
+            local example = selected_example()
+            if not example then
+                dt.print(_("Assisted Tagging: pick an example first"))
+                return
+            end
+            open_in_app(examples_root() .. "/" .. example .. "/entries.json")
+        end,
+    }
+    local example_create_button = dt.new_widget("button") {
+        label = _("Create collection from example"),
+        tooltip = _("Copy the selected example's entries.json into a new collection with no images needed; "
+            .. "edit it afterward with your own entries"),
+        clicked_callback = function()
+            M.create_collection_from_example(selected_example(), new_collection_name.text)
+        end,
+    }
 
     -- changed_callback runs asynchronously and also fires when the list is
     -- refilled, so it acts only on a real change from the stored collection.
@@ -1245,6 +1354,17 @@ local function install_panel()
         label = _("Show tag plan"),
         tooltip = _("Write tag-plan.txt in the collection's folder: the exact tags every entry and outcome (team only, unidentified, diagnostics) writes, from its entries.json"),
         clicked_callback = function() reload_lists(false, true) end,
+    }
+    local edit_button = dt.new_widget("button") {
+        label = _("Edit entries.json"),
+        tooltip = _("Open the selected collection's entries.json in your editor; click Reload after saving"),
+        clicked_callback = function()
+            if current_collection() == "" then
+                dt.print(_("Assisted Tagging: pick a collection first"))
+                return
+            end
+            open_in_app(collections_root() .. "/" .. current_collection() .. "/entries.json")
+        end,
     }
     identify_button = dt.new_widget("button") {
         label = _("Identify selection"),
@@ -1279,10 +1399,14 @@ local function install_panel()
         dt.new_widget("section_label") { label = _("new collection") },
         new_collection_name,
         new_collection_button,
+        example_combo,
+        example_view_button,
+        example_create_button,
         dt.new_widget("section_label") { label = _("collection") },
         collection_combo,
         reload_button,
         plan_button,
+        edit_button,
         identify_button,
         dt.new_widget("section_label") { label = _("references") },
         entry_combo,
@@ -1296,6 +1420,7 @@ local function install_panel()
         panel_box
     )
     dt.control.dispatch(reload_lists, true)
+    reload_examples()
 end
 
 local function destroy()

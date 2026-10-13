@@ -128,6 +128,16 @@ Two kinds of selected image don't become an entry, and are reported in the done 
 
 If you want number-based identification but your tags don't already encode the number, or you want custom [rules](#rules), add those by hand afterward (see below). If a collection with that name already exists, nothing is overwritten — pick a new name, or switch to the existing one and use **Add tagged images as references** instead.
 
+### From an example
+
+No tagged photos yet, or just want to see the shape of a working `entries.json`? The **example** dropdown in the panel lists the collections shipped in [`examples/`](examples) — no images needed, since these ship with their structure already filled in (with placeholder names, not real references):
+
+1. Pick one in the **example** dropdown.
+2. Click **View example** to open its `entries.json` in your editor and read it, or
+3. type a name under **new collection** and click **Create collection from example** to copy it into a real collection.
+
+Either way, a created collection still needs its placeholder names replaced with your own competitors (and references added, for anything you want livery-matched) before it identifies anything correctly — click **Edit entries.json** in the panel's **collection** section at any time to open the *active* collection's file the same way.
+
 ### By hand
 
 Write `entries.json` yourself for more control than tags alone give you: a race `number`, or custom [rules](#rules). It holds the collection's **entries**, one per competitor, and its **rules**: what each outcome tags. For example:
@@ -149,7 +159,7 @@ Write `entries.json` yourself for more control than tags alone give you: a race 
 
 A file that's just the `[ … ]` list of entries works too, with the default rules — this is exactly the shape **Create collection from tagged images** writes, so you can build one that way and then hand-edit it in to add numbers or rules.
 
-[`examples/`](examples) has three collections to copy into the collections folder, each with a README on what it shows and how to supply its references:
+[`examples/`](examples) has three collections — pick one from the panel's **example** dropdown (see [above](#from-an-example)), or copy its folder into the collections folder by hand. Each has a README on what it shows and how to supply its references:
 
 - [`f1-season`](examples/f1-season): a season with near-identical teammates, a one-off livery and number-less cars
 - [`btcc-event`](examples/btcc-event): one race weekend, with a "check me" tag for misses and no team-only tags
@@ -248,6 +258,16 @@ per burst: frames with nothing identified take the burst's entry
         v
 assisted_tagging.lua reads results.csv and syncs tags
 ```
+
+Each outcome above is one of five methods, named consistently from `identify.py`'s `method` field through to the diagnostic tag it writes (see [Rules](#rules) to rename or drop one):
+
+| Method | Decided by | Diagnostic tag |
+|---|---|---|
+| `number` | OCR reading an entry's `number` | `…\|Identified\|By number` |
+| `livery` | the DINOv2 embedding, against reference samples | `…\|Identified\|By livery` |
+| `burst` | the rest of the burst agreeing, when number and livery didn't | `…\|Identified\|By burst` |
+| `team` | two teammates too close to call by livery (shared tags only) | `…\|Team only` |
+| `none` | nothing matched | `…\|Unidentified` |
 
 Frames are decoded at native resolution (a raw file's embedded preview) and each vehicle is cropped from that before reading its number, since a number only a few pixels tall in a downscaled frame is readable in the crop. Detection, OCR text and embeddings are cached per frame in `assisted_tagging/cache.sqlite` in darktable's config directory. Matching isn't, so adding references or editing `entries.json` takes effect on the next run without decoding anything again. The cache key includes the file (path, modified time, size), every model file and the constants that change the cached data; unused entries are dropped after 90 days. Delete the file to start over.
 
