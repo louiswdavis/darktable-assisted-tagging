@@ -26,8 +26,9 @@ class BoxResult:
     alt_entry_id: str = ""
     confidence: float = 0.0
     # Set independently of `method` whenever OCR read digits that didn't resolve to exactly
-    # one entry (no entry has that number, or more than one does): the digits themselves,
-    # for a diagnostic tag, even when livery/team/burst still identified the vehicle.
+    # one entry (no entry has that number, or more than one does): every distinct digit
+    # string read, ";"-joined, for one diagnostic tag per string, even when livery/team/
+    # burst still identified the vehicle.
     unmatched_number: str = ""
 
 
@@ -44,7 +45,7 @@ def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
             best_conf = max(best_conf, conf)
     if len(hits) == 1:
         return BoxResult(box, "number", hits.pop(), "", best_conf)
-    unmatched = max(ocr, key=lambda oc: oc[1])[0] if ocr else ""
+    unmatched = ";".join(dict.fromkeys(digits for digits, _ in ocr))
 
     sims = [(eid, s) for eid, s in sims if eid in entries]
     if not sims:

@@ -149,10 +149,15 @@ function M.wanted_tags(rows, entries, rules)
             identified = true
         end
         -- Independent of the outcome above: OCR read a number that matched zero or 2+
-        -- entries, so it couldn't drive identification, but it's worth seeing.
+        -- entries, so it couldn't drive identification, but it's worth seeing. One tag
+        -- per distinct digit string read on this box.
         if r.unmatched_number and r.unmatched_number ~= "" then
             local base = rules.diag.number_seen
-            if base and base ~= "" then diag[base .. "|" .. r.unmatched_number] = true end
+            if base and base ~= "" then
+                for _, digits in ipairs(split(r.unmatched_number, ";")) do
+                    diag[base .. "|" .. digits] = true
+                end
+            end
         end
     end
     if not identified then
@@ -288,10 +293,14 @@ M.MIN_REFS_PER_ENTRY = 2
 
 -- images: { { key = <string>, tags = {<raw tag name>, ...} }, ... }. Groups images
 -- carrying the exact same hierarchical tags into one entry: the shared tags become
--- the entry's tags, the deepest one seeds its id (and its `number` when that tag's
--- leaf is 1-3 digits, e.g. "Car|Number|44"), and a tag shared with some but not every
--- other group becomes an inferred team (one every group shares identifies no one; one
--- shared with no one isn't a team).
+-- the entry's tags, and a tag shared with some but not every other group becomes an
+-- inferred team (one every group shares identifies no one; one shared with no one
+-- isn't a team). The entry's id is seeded from its deepest tag, e.g. "Team|Driver" ->
+-- "Driver"; but if that deepest tag's leaf is 1-3 digits AND there's a tag one level
+-- up (e.g. "Team|Driver|44"), the number comes from the digits and the id instead
+-- comes from that shallower tag, so a numbered entry still gets a readable id. With
+-- no such shallower tag (e.g. just "Team|44"), the old behaviour holds: the digits
+-- seed both the id and the number.
 -- Returns entries ({ id, number, team, tags }, first-seen order), entry_of (key -> id),
 -- skipped (keys with no usable hierarchical tag), and thin (keys whose tags matched
 -- fewer than MIN_REFS_PER_ENTRY images, so no entry was built for them).
@@ -319,13 +328,28 @@ function M.derive_entries(images)
         return best
     end
 
+    local function is_number_tag(t)
+        return tag_leaf(t):match("^%d%d?%d?$") ~= nil
+    end
+
     local used_ids, entries, entry_of, thin = {}, {}, {}, {}
     for _, sig in ipairs(order) do
         local g = groups[sig]
         if #g.keys < M.MIN_REFS_PER_ENTRY then
             for _, k in ipairs(g.keys) do thin[#thin + 1] = k end
         else
-            local own_deep = deepest(g.tags)
+            local deep = deepest(g.tags)
+            local own_deep, number_tag = deep, nil
+            if #g.tags >= 3 and is_number_tag(deep) then
+                -- The deepest tag is a number and there's a level besides team beneath
+                -- it: it's a "Team|Driver|Number" chain, so the number comes from here
+                -- and the id instead comes from the driver tag one level up.
+                number_tag = deep
+                local parent_depth = tag_depth(deep) - 1
+                for _, t in ipairs(g.tags) do
+                    if tag_depth(t) == parent_depth then own_deep = t end
+                end
+            end
             local base = M.sanitize_id(tag_leaf(own_deep))
             local id, n = base, 1
             while used_ids[id] do n = n + 1; id = base .. "-" .. n end
@@ -333,7 +357,7 @@ function M.derive_entries(images)
 
             local team, team_depth = "", -1
             for _, t in ipairs(g.tags) do
-                if t ~= own_deep then
+                if t ~= own_deep and t ~= number_tag then
                     local shared_by, shared_with_all = 0, true
                     for _, osig in ipairs(order) do
                         local has = false
@@ -348,7 +372,7 @@ function M.derive_entries(images)
                 end
             end
 
-            local number = tag_leaf(own_deep):match("^%d%d?%d?$") or ""
+            local number = number_tag and tag_leaf(number_tag) or (tag_leaf(own_deep):match("^%d%d?%d?$") or "")
             entries[#entries + 1] = { id = id, number = number, team = team, tags = g.tags }
             for _, k in ipairs(g.keys) do entry_of[k] = id end
         end
@@ -985,6 +1009,8 @@ function M.identify_images(images)
         local rows_of = M.read_results(read_file(RESULTS_PATH))
 
         local owned = M.owned_tags(entries, rules)
+        local owned_prefixes = (rules.diag.number_seen and rules.diag.number_seen ~= "")
+            and { rules.diag.number_seen .. "|" } or {}
         local diag_on = dt.preferences.read("assisted_tagging", "diagnostic_tags", "bool")
         local tag_objs, writes, failed, first_error = {}, 0, 0, nil
         local n_tagged, n_unidentified, n_missing = 0, 0, 0
@@ -1008,7 +1034,7 @@ function M.identify_images(images)
                     for name in pairs(diag) do wanted[name] = true end
                 end
                 for _, copy in ipairs(group_of[img.id]) do
-                    local attach, detach = M.tag_changes(tags_of(copy), wanted, owned)
+                    local attach, detach = M.tag_changes(tags_of(copy), wanted, owned, owned_prefixes)
                     local okw, werr = pcall(function()
                         for _, name in ipairs(detach) do tags.detach(tag_named(name), copy) end
                         for _, name in ipairs(attach) do tags.attach(tag_named(name), copy) end
@@ -1373,15 +1399,58 @@ local function install_panel()
         tooltip = _("Write tag-plan.txt in the collection's folder: the exact tags every entry and outcome (team only, unidentified, diagnostics) writes, from its entries.json"),
         clicked_callback = function() reload_lists(false, true) end,
     }
+    local entries_editor = dt.new_widget("text_view") {
+        editable = true,
+        text = "",
+        visible = false,
+    }
+    local save_entries_button, cancel_entries_button
+    local function close_entries_editor()
+        entries_editor.visible = false
+        save_entries_button.visible = false
+        cancel_entries_button.visible = false
+    end
+    save_entries_button = dt.new_widget("button") {
+        label = _("Save entries.json"),
+        tooltip = _("Write the edited text back to entries.json and reload"),
+        visible = false,
+        clicked_callback = function()
+            local path = collections_root() .. "/" .. current_collection() .. "/entries.json"
+            local f = io.open(path, "w")
+            if not f then
+                notify_error(string.format(_("Assisted Tagging: couldn't write %s (check the collections folder preference)."), path))
+                return
+            end
+            f:write(entries_editor.text)
+            f:close()
+            close_entries_editor()
+            reload_lists(false)
+        end,
+    }
+    cancel_entries_button = dt.new_widget("button") {
+        label = _("Cancel edit"),
+        tooltip = _("Discard changes and close the editor"),
+        visible = false,
+        clicked_callback = close_entries_editor,
+    }
     local edit_button = dt.new_widget("button") {
         label = _("Edit entries.json"),
-        tooltip = _("Open the selected collection's entries.json in your editor; click Reload after saving"),
+        tooltip = _("Edit the selected collection's entries.json in place below, then click Save entries.json"),
         clicked_callback = function()
             if current_collection() == "" then
                 dt.print(_("Assisted Tagging: pick a collection first"))
                 return
             end
-            open_in_app(collections_root() .. "/" .. current_collection() .. "/entries.json")
+            local path = collections_root() .. "/" .. current_collection() .. "/entries.json"
+            local text = read_file(path)
+            if not text then
+                notify_error(string.format(_("Assisted Tagging: couldn't read %s."), path))
+                return
+            end
+            entries_editor.text = text
+            entries_editor.visible = true
+            save_entries_button.visible = true
+            cancel_entries_button.visible = true
         end,
     }
     identify_button = dt.new_widget("button") {
@@ -1425,6 +1494,9 @@ local function install_panel()
         reload_button,
         plan_button,
         edit_button,
+        entries_editor,
+        save_entries_button,
+        cancel_entries_button,
         identify_button,
         dt.new_widget("section_label") { label = _("references") },
         entry_combo,
