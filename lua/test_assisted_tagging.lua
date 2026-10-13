@@ -164,30 +164,55 @@ check("sanitize_id falls back on an empty name", T.sanitize_id(""), "entry")
 -- derive_entries / entries_json (new collection bootstrap) -------------------
 local function img(key, tags) return { key = key, tags = tags } end
 
-local derived, entry_of, skipped = T.derive_entries({
-    img("1", { "F1|Red Bull", "F1|Red Bull|Verstappen", "Holiday" }),
-    img("2", { "F1|Red Bull", "F1|Red Bull|Tsunoda" }),
+check("entries need at least this many samples of their tag", T.MIN_REFS_PER_ENTRY, 2)
+
+local derived, entry_of, skipped, thin = T.derive_entries({
+    img("1a", { "F1|Red Bull", "F1|Red Bull|Verstappen", "Holiday" }),
+    img("1b", { "F1|Red Bull", "F1|Red Bull|Verstappen" }),
+    img("2a", { "F1|Red Bull", "F1|Red Bull|Tsunoda" }),
+    img("2b", { "F1|Red Bull", "F1|Red Bull|Tsunoda" }),
     img("3", { "F1|Safety Car" }),
     img("4", { "Holiday" }),
 })
-check("one entry per distinct tag set", #derived, 3)
+check("one entry per distinct tag set with enough samples", #derived, 2)
 check("derive_entries skips images with no hierarchical tag", table.concat(skipped, ","), "4")
+check("a tag only one image carries doesn't become an entry", table.concat(thin, ","), "3")
 check("the deepest tag seeds the id", derived[1].id, "Verstappen")
 check("a tag shared by only some groups becomes the team", derived[1].team, "Red Bull")
 check("teammates share the same team", derived[2].team, "Red Bull")
-check("a tag with no other group sharing it has no team", derived[3].team, "")
-check("entry_of maps each image to its entry", entry_of["1"] .. "/" .. entry_of["2"] .. "/" .. entry_of["3"],
-    "Verstappen/Tsunoda/Safety Car")
+check("a non-numeric leaf sets no race number", derived[1].number, "")
+check("entry_of maps each sampled image to its entry",
+    entry_of["1a"] .. "/" .. entry_of["1b"] .. "/" .. entry_of["2a"], "Verstappen/Verstappen/Tsunoda")
+check("a thin group's images aren't mapped to an entry", entry_of["3"], nil)
+
+local numbered = T.derive_entries({
+    img("1a", { "Car|Number|44" }),
+    img("1b", { "Car|Number|44" }),
+    img("2a", { "Car|Number|1" }),
+    img("2b", { "Car|Number|1" }),
+})
+check("a numeric leaf becomes the race number", numbered[1].number, "44")
+check("a numeric leaf also seeds the id", numbered[1].id, "44")
+check("no shared tag between numbers means no team", numbered[1].team, "")
+check("a 4-digit leaf isn't mistaken for a race number", T.derive_entries({
+    img("1a", { "Car|Number|1234" }),
+    img("1b", { "Car|Number|1234" }),
+})[1].number, "")
 
 local dup = T.derive_entries({
-    img("1", { "A|X" }),
-    img("2", { "B|X" }),
+    img("1a", { "A|X" }),
+    img("1b", { "A|X" }),
+    img("2a", { "B|X" }),
+    img("2b", { "B|X" }),
 })
 check("a colliding id gets a numeric suffix", dup[1].id .. "," .. dup[2].id, "X,X-2")
 
-local j = T.entries_json({ { id = "VER", team = "Red Bull", tags = { "F1|Red Bull", "F1|Red Bull|Verstappen" } } })
+local j = T.entries_json({
+    { id = "VER", number = "1", team = "Red Bull", tags = { "F1|Red Bull", "F1|Red Bull|Verstappen" } },
+})
 check("entries_json emits a bare list", j:match("^%[") ~= nil, true)
 check("entries_json quotes every field", j:find('"id": "VER"', 1, true) ~= nil, true)
+check("entries_json emits the number field", j:find('"number": "1"', 1, true) ~= nil, true)
 check("entries_json emits the tag array", j:find('"tags": ["F1|Red Bull", "F1|Red Bull|Verstappen"]', 1, true) ~= nil,
     true)
 

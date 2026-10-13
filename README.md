@@ -109,19 +109,24 @@ Build one of two ways:
 
 ### From already-tagged images (recommended)
 
-If you've already hand-tagged a handful of photos — one per competitor, e.g. `Motorsport|F1|Red Bull` on both Red Bull cars and `Motorsport|F1|Red Bull|Max Verstappen` on just his — the panel can turn those into a working collection in one click:
+If you've already hand-tagged a handful of photos — one per competitor, e.g. `Motorsport|F1|Red Bull` on both Red Bull cars and `Motorsport|F1|Red Bull|Max Verstappen` on just his — the panel can turn those into a working collection in one click. This isn't motorsport-specific: it only ever reads whatever `A|B|C`-style tags you've already used, so the same button builds a collection for any set of visually-distinguishable, hierarchically-tagged subjects.
 
-1. In lighttable, select a handful of already-tagged photos — ideally a few per competitor, from different angles.
+1. In lighttable, select a handful of already-tagged photos — **at least 2 per target**, from different angles.
 2. Under **new collection** in the panel, type a name for the collection, e.g. `F1 2026`.
 3. Click **Create collection from tagged images**.
 
 It reads each selected image's tags down to wherever two images stop being identical: images carrying the exact same tags become one entry, and whatever tag is unique to a photo (the driver tag) is what tells two teammates apart. From that it:
 
-- creates the collection folder with an `entries.json` built from those tag sets, inferring each entry's `team` where a tag is shared with some but not all of the other entries
+- creates the collection folder with an `entries.json` built from those tag sets, inferring each entry's `team` where a tag is shared with some but not all of the other entries, and its race `number` when the deepest tag's leaf is 1-3 digits (e.g. a `Car|Number|44` convention sets `number: "44"` automatically)
 - adds every selected image as a reference sample of its entry, exactly like [**Add tagged images as references**](#building-references)
 - switches the panel to the new collection and reloads it
 
-An image with no tag that looks like `A|B` is skipped (and reported in the done message) — it has nothing to build an entry from. The race `number` field isn't set this way, since there's no tag for it; add it by hand afterward (see below) if you want number-based identification too, or just rely on livery matching. If a collection with that name already exists, nothing is overwritten — pick a new name, or switch to the existing one and use **Add tagged images as references** instead.
+Two kinds of selected image don't become an entry, and are reported in the done message rather than silently dropped:
+
+- an image with no tag that looks like `A|B` has nothing to build an entry from
+- a tag that only 1 selected image carries is skipped rather than turned into a single-sample entry — a lone sample tells the matcher nothing about how that target varies across angles and light, so it's better surfaced as "needs more references" than quietly matched (and likely mismatched) later. Select at least 2 photos per target to avoid this.
+
+If you want number-based identification but your tags don't already encode the number, or you want custom [rules](#rules), add those by hand afterward (see below). If a collection with that name already exists, nothing is overwritten — pick a new name, or switch to the existing one and use **Add tagged images as references** instead.
 
 ### By hand
 

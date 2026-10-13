@@ -263,13 +263,20 @@ function M.sanitize_id(s)
     return s ~= "" and s or "entry"
 end
 
+-- A single sample tells the matcher nothing about what varies between photos of the
+-- same target (angle, light, crop); below this many it can't "understand" the target,
+-- motorsport livery or not, so the group is reported instead of becoming an entry.
+M.MIN_REFS_PER_ENTRY = 2
+
 -- images: { { key = <string>, tags = {<raw tag name>, ...} }, ... }. Groups images
 -- carrying the exact same hierarchical tags into one entry: the shared tags become
--- the entry's tags, the deepest one seeds its id, and a tag shared with some but not
--- every other group becomes an inferred team (one every group shares identifies no
--- one; one shared with no one isn't a team).
--- Returns entries ({ id, team, tags }, first-seen order), entry_of (key -> id), and
--- skipped (keys with no usable hierarchical tag).
+-- the entry's tags, the deepest one seeds its id (and its `number` when that tag's
+-- leaf is 1-3 digits, e.g. "Car|Number|44"), and a tag shared with some but not every
+-- other group becomes an inferred team (one every group shares identifies no one; one
+-- shared with no one isn't a team).
+-- Returns entries ({ id, number, team, tags }, first-seen order), entry_of (key -> id),
+-- skipped (keys with no usable hierarchical tag), and thin (keys whose tags matched
+-- fewer than MIN_REFS_PER_ENTRY images, so no entry was built for them).
 function M.derive_entries(images)
     local groups, order, skipped = {}, {}, {}
     for _, img in ipairs(images) do
@@ -294,36 +301,41 @@ function M.derive_entries(images)
         return best
     end
 
-    local used_ids, entries, entry_of = {}, {}, {}
+    local used_ids, entries, entry_of, thin = {}, {}, {}, {}
     for _, sig in ipairs(order) do
         local g = groups[sig]
-        local own_deep = deepest(g.tags)
-        local base = M.sanitize_id(tag_leaf(own_deep))
-        local id, n = base, 1
-        while used_ids[id] do n = n + 1; id = base .. "-" .. n end
-        used_ids[id] = true
+        if #g.keys < M.MIN_REFS_PER_ENTRY then
+            for _, k in ipairs(g.keys) do thin[#thin + 1] = k end
+        else
+            local own_deep = deepest(g.tags)
+            local base = M.sanitize_id(tag_leaf(own_deep))
+            local id, n = base, 1
+            while used_ids[id] do n = n + 1; id = base .. "-" .. n end
+            used_ids[id] = true
 
-        local team, team_depth = "", -1
-        for _, t in ipairs(g.tags) do
-            if t ~= own_deep then
-                local shared_by, shared_with_all = 0, true
-                for _, osig in ipairs(order) do
-                    local has = false
-                    for _, t2 in ipairs(groups[osig].tags) do
-                        if t2 == t then has = true; break end
+            local team, team_depth = "", -1
+            for _, t in ipairs(g.tags) do
+                if t ~= own_deep then
+                    local shared_by, shared_with_all = 0, true
+                    for _, osig in ipairs(order) do
+                        local has = false
+                        for _, t2 in ipairs(groups[osig].tags) do
+                            if t2 == t then has = true; break end
+                        end
+                        if has then shared_by = shared_by + 1 else shared_with_all = false end
                     end
-                    if has then shared_by = shared_by + 1 else shared_with_all = false end
-                end
-                if shared_by > 1 and not shared_with_all and tag_depth(t) > team_depth then
-                    team, team_depth = tag_leaf(t), tag_depth(t)
+                    if shared_by > 1 and not shared_with_all and tag_depth(t) > team_depth then
+                        team, team_depth = tag_leaf(t), tag_depth(t)
+                    end
                 end
             end
-        end
 
-        entries[#entries + 1] = { id = id, team = team, tags = g.tags }
-        for _, k in ipairs(g.keys) do entry_of[k] = id end
+            local number = tag_leaf(own_deep):match("^%d%d?%d?$") or ""
+            entries[#entries + 1] = { id = id, number = number, team = team, tags = g.tags }
+            for _, k in ipairs(g.keys) do entry_of[k] = id end
+        end
     end
-    return entries, entry_of, skipped
+    return entries, entry_of, skipped, thin
 end
 
 local function json_string(s)
@@ -331,14 +343,15 @@ local function json_string(s)
 end
 
 -- A bare entries.json list (default rules apply). Entries already carry only
--- ids/tags that passed sanitize_id/hierarchical_tags, so this never needs to reject input.
+-- ids/tags/numbers that passed sanitize_id/hierarchical_tags/the digit check, so this
+-- never needs to reject input.
 function M.entries_json(entries)
     local parts = {}
     for _, e in ipairs(entries) do
         local tag_parts = {}
         for _, t in ipairs(e.tags) do tag_parts[#tag_parts + 1] = json_string(t) end
-        parts[#parts + 1] = string.format('  { "id": %s, "team": %s, "tags": [%s] }',
-            json_string(e.id), json_string(e.team or ""), table.concat(tag_parts, ", "))
+        parts[#parts + 1] = string.format('  { "id": %s, "number": %s, "team": %s, "tags": [%s] }',
+            json_string(e.id), json_string(e.number or ""), json_string(e.team or ""), table.concat(tag_parts, ", "))
     end
     return "[\n" .. table.concat(parts, ",\n") .. "\n]\n"
 end
@@ -1105,10 +1118,10 @@ function M.create_collection(images, raw_name)
         for _, t in ipairs(tags.get_tags(img)) do names[#names + 1] = t.name end
         image_rows[#image_rows + 1] = { key = tostring(img.id), tags = names }
     end
-    local derived, _entry_of, skipped = M.derive_entries(image_rows)
+    local derived, entry_of, skipped, thin = M.derive_entries(image_rows)
     if #derived == 0 then
         dt.print(_("Assisted Tagging: none of the selected images carry a hierarchical tag "
-            .. "(e.g. Series|Team|Driver) to build entries from"))
+            .. "(e.g. Series|Team|Driver) shared by at least " .. M.MIN_REFS_PER_ENTRY .. " of the selected images"))
         return
     end
 
@@ -1126,13 +1139,24 @@ function M.create_collection(images, raw_name)
     f:write(M.entries_json(derived))
     f:close()
 
+    local extra = {}
+    if #skipped > 0 then
+        extra[#extra + 1] = string.format(_("%d skipped (no hierarchical tag)"), #skipped)
+    end
+    if #thin > 0 then
+        extra[#extra + 1] = string.format(
+            _("%d skipped (fewer than %d images shared their tag)"), #thin, M.MIN_REFS_PER_ENTRY)
+    end
     say(string.format(_("Assisted Tagging: created %s with %d entr%s%s."), name, #derived,
-        #derived == 1 and "y" or "ies",
-        #skipped > 0 and string.format(_(", %d image(s) skipped (no hierarchical tag)"), #skipped) or ""))
+        #derived == 1 and "y" or "ies", #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or ""))
 
     dt.preferences.write("assisted_tagging", "last_collection", "string", name)
     reload_lists(true)
-    M.add_references(images, nil)
+    local active_images = {}
+    for _, img in ipairs(images) do
+        if entry_of[tostring(img.id)] then active_images[#active_images + 1] = img end
+    end
+    M.add_references(active_images, nil)
 end
 
 local function start_identify(allow_cancel)
@@ -1169,7 +1193,9 @@ local function install_panel()
         label = _("Create collection from tagged images"),
         tooltip = _("Build a new collection from the selected images' existing tags: images carrying the "
             .. "same hierarchical tags (e.g. Series|Team|Driver) become one entry, then each image is "
-            .. "added as that entry's reference"),
+            .. "added as that entry's reference. A tag only " .. (M.MIN_REFS_PER_ENTRY - 1)
+            .. " image carries is skipped, not made into an entry (and a numeric leaf, e.g. Car|Number|44, "
+            .. "becomes that entry's race number)"),
         clicked_callback = function()
             M.create_collection(dt.gui.action_images, new_collection_name.text)
         end,
