@@ -147,6 +147,50 @@ check("utf16le: ASCII", T.utf16le("a"), "a\0")
 check("utf16le: Latin-1", T.utf16le("é"), "\xE9\0")
 check("utf16le: astral plane uses a surrogate pair", T.utf16le("😀"), "\x3D\xD8\x00\xDE")
 
+-- hierarchical_tags / sanitize_id -------------------------------------------
+check("hierarchical_tags keeps only tags with a hierarchy", table.concat(T.hierarchical_tags({
+    "F1|Red Bull|Verstappen", "Holiday", "F1|Red Bull",
+}), ","), "F1|Red Bull,F1|Red Bull|Verstappen")
+check("hierarchical_tags drops the plugin's own diagnostics", table.concat(T.hierarchical_tags({
+    "F1|Red Bull", "Assisted Tagging|Motorsport|Unidentified",
+}), ","), "F1|Red Bull")
+check("hierarchical_tags drops a tag entries.json can't hold", table.concat(T.hierarchical_tags({
+    "F1|Red Bull", 'F1|Red,Bull',
+}), ","), "F1|Red Bull")
+check("sanitize_id replaces folder-unsafe characters", T.sanitize_id("Max/Verstappen"), "Max-Verstappen")
+check("sanitize_id trims whitespace", T.sanitize_id("  Hamilton  "), "Hamilton")
+check("sanitize_id falls back on an empty name", T.sanitize_id(""), "entry")
+
+-- derive_entries / entries_json (new collection bootstrap) -------------------
+local function img(key, tags) return { key = key, tags = tags } end
+
+local derived, entry_of, skipped = T.derive_entries({
+    img("1", { "F1|Red Bull", "F1|Red Bull|Verstappen", "Holiday" }),
+    img("2", { "F1|Red Bull", "F1|Red Bull|Tsunoda" }),
+    img("3", { "F1|Safety Car" }),
+    img("4", { "Holiday" }),
+})
+check("one entry per distinct tag set", #derived, 3)
+check("derive_entries skips images with no hierarchical tag", table.concat(skipped, ","), "4")
+check("the deepest tag seeds the id", derived[1].id, "Verstappen")
+check("a tag shared by only some groups becomes the team", derived[1].team, "Red Bull")
+check("teammates share the same team", derived[2].team, "Red Bull")
+check("a tag with no other group sharing it has no team", derived[3].team, "")
+check("entry_of maps each image to its entry", entry_of["1"] .. "/" .. entry_of["2"] .. "/" .. entry_of["3"],
+    "Verstappen/Tsunoda/Safety Car")
+
+local dup = T.derive_entries({
+    img("1", { "A|X" }),
+    img("2", { "B|X" }),
+})
+check("a colliding id gets a numeric suffix", dup[1].id .. "," .. dup[2].id, "X,X-2")
+
+local j = T.entries_json({ { id = "VER", team = "Red Bull", tags = { "F1|Red Bull", "F1|Red Bull|Verstappen" } } })
+check("entries_json emits a bare list", j:match("^%[") ~= nil, true)
+check("entries_json quotes every field", j:find('"id": "VER"', 1, true) ~= nil, true)
+check("entries_json emits the tag array", j:find('"tags": ["F1|Red Bull", "F1|Red Bull|Verstappen"]', 1, true) ~= nil,
+    true)
+
 print("")
 if failures == 0 then
     print("all tests passed")

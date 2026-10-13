@@ -232,6 +232,117 @@ function M.utf16le(s)
     return table.concat(out)
 end
 
+-- Tags usable to build an entry: hierarchical (A|B), not the plugin's own
+-- diagnostics, and clean enough for entries.json (no , ; ").
+local ASSISTED_PREFIX = "Assisted Tagging|"
+
+function M.hierarchical_tags(names)
+    local out = {}
+    for _, n in ipairs(names) do
+        if n:find("|", 1, true) and n:sub(1, #ASSISTED_PREFIX) ~= ASSISTED_PREFIX and not n:find('[,;"]') then
+            out[#out + 1] = n
+        end
+    end
+    table.sort(out)
+    return out
+end
+
+local function tag_depth(tag)
+    local n = 0
+    for _ in tag:gmatch("|") do n = n + 1 end
+    return n
+end
+
+local function tag_leaf(tag)
+    return tag:match("([^|]+)$")
+end
+
+-- entries.json's id can't hold , ; " / \ : * ? < > |
+function M.sanitize_id(s)
+    s = (s or ""):gsub('[,;"/\\:*?<>|]', "-"):gsub("^%s+", ""):gsub("%s+$", "")
+    return s ~= "" and s or "entry"
+end
+
+-- images: { { key = <string>, tags = {<raw tag name>, ...} }, ... }. Groups images
+-- carrying the exact same hierarchical tags into one entry: the shared tags become
+-- the entry's tags, the deepest one seeds its id, and a tag shared with some but not
+-- every other group becomes an inferred team (one every group shares identifies no
+-- one; one shared with no one isn't a team).
+-- Returns entries ({ id, team, tags }, first-seen order), entry_of (key -> id), and
+-- skipped (keys with no usable hierarchical tag).
+function M.derive_entries(images)
+    local groups, order, skipped = {}, {}, {}
+    for _, img in ipairs(images) do
+        local tags = M.hierarchical_tags(img.tags)
+        if #tags == 0 then
+            skipped[#skipped + 1] = img.key
+        else
+            local sig = table.concat(tags, "\30")
+            if not groups[sig] then
+                groups[sig] = { tags = tags, keys = {} }
+                order[#order + 1] = sig
+            end
+            table.insert(groups[sig].keys, img.key)
+        end
+    end
+
+    local function deepest(tags)
+        local best = tags[1]
+        for _, t in ipairs(tags) do
+            if tag_depth(t) > tag_depth(best) or (tag_depth(t) == tag_depth(best) and t > best) then best = t end
+        end
+        return best
+    end
+
+    local used_ids, entries, entry_of = {}, {}, {}
+    for _, sig in ipairs(order) do
+        local g = groups[sig]
+        local own_deep = deepest(g.tags)
+        local base = M.sanitize_id(tag_leaf(own_deep))
+        local id, n = base, 1
+        while used_ids[id] do n = n + 1; id = base .. "-" .. n end
+        used_ids[id] = true
+
+        local team, team_depth = "", -1
+        for _, t in ipairs(g.tags) do
+            if t ~= own_deep then
+                local shared_by, shared_with_all = 0, true
+                for _, osig in ipairs(order) do
+                    local has = false
+                    for _, t2 in ipairs(groups[osig].tags) do
+                        if t2 == t then has = true; break end
+                    end
+                    if has then shared_by = shared_by + 1 else shared_with_all = false end
+                end
+                if shared_by > 1 and not shared_with_all and tag_depth(t) > team_depth then
+                    team, team_depth = tag_leaf(t), tag_depth(t)
+                end
+            end
+        end
+
+        entries[#entries + 1] = { id = id, team = team, tags = g.tags }
+        for _, k in ipairs(g.keys) do entry_of[k] = id end
+    end
+    return entries, entry_of, skipped
+end
+
+local function json_string(s)
+    return '"' .. tostring(s):gsub('\\', '\\\\'):gsub('"', '\\"') .. '"'
+end
+
+-- A bare entries.json list (default rules apply). Entries already carry only
+-- ids/tags that passed sanitize_id/hierarchical_tags, so this never needs to reject input.
+function M.entries_json(entries)
+    local parts = {}
+    for _, e in ipairs(entries) do
+        local tag_parts = {}
+        for _, t in ipairs(e.tags) do tag_parts[#tag_parts + 1] = json_string(t) end
+        parts[#parts + 1] = string.format('  { "id": %s, "team": %s, "tags": [%s] }',
+            json_string(e.id), json_string(e.team or ""), table.concat(tag_parts, ", "))
+    end
+    return "[\n" .. table.concat(parts, ",\n") .. "\n]\n"
+end
+
 local ok, dt = pcall(require, "darktable")
 if not ok then return M end
 
@@ -955,6 +1066,75 @@ function M.add_references(images, entry_id)
     flush_log()
 end
 
+local _BAD_FOLDER = '[/\\:*?"<>|]'
+
+-- Builds a new collection's entries.json from the hierarchical tags already on
+-- `images` (see M.derive_entries), then adds each image as its entry's reference.
+function M.create_collection(images, raw_name)
+    if busy then
+        dt.print(_("Assisted Tagging: already running. Click Cancel in the panel to stop it."))
+        return
+    end
+    if not orphan_gone() then
+        dt.print(_("Assisted Tagging: the last run is still stopping. Try again in a moment."))
+        return
+    end
+    if not images or #images == 0 then
+        dt.print(_("Assisted Tagging: select some tagged images first"))
+        return
+    end
+    local name = (raw_name or ""):gsub("^%s+", ""):gsub("%s+$", "")
+    if name == "" then
+        dt.print(_("Assisted Tagging: type a name for the new collection first"))
+        return
+    end
+    if name:find(_BAD_FOLDER) then
+        dt.print(_('Assisted Tagging: collection name can\'t contain / \\ : * ? " < > |'))
+        return
+    end
+    local dir = collections_root() .. "/" .. name
+    if df.test_file(dir, "e") or file_exists(dir .. "/entries.json") then
+        dt.print(string.format(_("Assisted Tagging: %s already exists. Pick a new name, or select it as "
+            .. "the collection and use Add tagged images as references instead."), name))
+        return
+    end
+
+    local image_rows = {}
+    for _, img in ipairs(images) do
+        local names = {}
+        for _, t in ipairs(tags.get_tags(img)) do names[#names + 1] = t.name end
+        image_rows[#image_rows + 1] = { key = tostring(img.id), tags = names }
+    end
+    local derived, _entry_of, skipped = M.derive_entries(image_rows)
+    if #derived == 0 then
+        dt.print(_("Assisted Tagging: none of the selected images carry a hierarchical tag "
+            .. "(e.g. Series|Team|Driver) to build entries from"))
+        return
+    end
+
+    if IS_WINDOWS then
+        os.execute(string.format('mkdir "%s" 2>nul', dir:gsub("/", "\\")))
+    else
+        os.execute("mkdir -p " .. shell_quote(dir) .. " 2>/dev/null")
+    end
+    local f = io.open(dir .. "/entries.json", "w")
+    if not f then
+        notify_error(string.format(
+            _("Assisted Tagging: couldn't create %s/entries.json (check the collections folder preference)."), dir))
+        return
+    end
+    f:write(M.entries_json(derived))
+    f:close()
+
+    say(string.format(_("Assisted Tagging: created %s with %d entr%s%s."), name, #derived,
+        #derived == 1 and "y" or "ies",
+        #skipped > 0 and string.format(_(", %d image(s) skipped (no hierarchical tag)"), #skipped) or ""))
+
+    dt.preferences.write("assisted_tagging", "last_collection", "string", name)
+    reload_lists(true)
+    M.add_references(images, nil)
+end
+
 local function start_identify(allow_cancel)
     if busy then
         if allow_cancel and identify_button and identify_button.label == _("Cancel") then
@@ -979,6 +1159,21 @@ end
 local function install_panel()
     if M.module_installed then return end
     M.module_installed = true
+
+    local new_collection_name = dt.new_widget("entry") {
+        tooltip = _("Name for the new collection's folder, e.g. \"F1 2026\""),
+        placeholder = _("collection name"),
+        text = "",
+    }
+    local new_collection_button = dt.new_widget("button") {
+        label = _("Create collection from tagged images"),
+        tooltip = _("Build a new collection from the selected images' existing tags: images carrying the "
+            .. "same hierarchical tags (e.g. Series|Team|Driver) become one entry, then each image is "
+            .. "added as that entry's reference"),
+        clicked_callback = function()
+            M.create_collection(dt.gui.action_images, new_collection_name.text)
+        end,
+    }
 
     -- changed_callback runs asynchronously and also fires when the list is
     -- refilled, so it acts only on a real change from the stored collection.
@@ -1041,6 +1236,10 @@ local function install_panel()
 
     local panel_box = dt.new_widget("box") {
         orientation = "vertical",
+        dt.new_widget("section_label") { label = _("new collection") },
+        new_collection_name,
+        new_collection_button,
+        dt.new_widget("section_label") { label = _("collection") },
         collection_combo,
         reload_button,
         plan_button,

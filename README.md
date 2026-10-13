@@ -15,7 +15,7 @@ Forked from [darktable-assisted-culling](https://github.com/louiswdavis/darktabl
 
 - [Requirements](#requirements)
 - [Install](#install)
-- [Collections and entries](#collections-and-entries)
+- [Starting a collection](#starting-a-collection)
 - [Building references](#building-references)
 - [Identifying](#identifying)
 - [Preferences](#preferences)
@@ -92,20 +92,40 @@ echo require "contrib/assisted_tagging" >> "%LOCALAPPDATA%\darktable\luarc"
 
 Start darktable, open **preferences → lua options**, and set **Assisted Tagging: identify.py** to `python/identify.py` in this repo. From that path the plugin finds the repo's `.venv` and `models` folder by itself. Set **Assisted Tagging: Python interpreter** or the model preferences only if yours live somewhere else.
 
-## Collections and entries
+## Starting a collection
 
 A **collection** is one entry list plus its reference samples: normally one series and season (`F1 2026`), or one event (`BTCC 2026 Brands Hatch`). Collections live in the collections folder, by default `assisted_tagging/collections` in darktable's config directory (the panel creates it the first time it loads). Each one is a folder:
 
 ```
 collections/
   F1 2026/
-    entries.json      # you write this
+    entries.json      # built for you, or write it yourself
     refs/             # the plugin fills this when you add references
       VER/1234.jpg
       index.npz
 ```
 
-`entries.json` holds the collection's **entries**, one per competitor, and its **rules**: what each outcome tags. For example:
+Build one of two ways:
+
+### From already-tagged images (recommended)
+
+If you've already hand-tagged a handful of photos — one per competitor, e.g. `Motorsport|F1|Red Bull` on both Red Bull cars and `Motorsport|F1|Red Bull|Max Verstappen` on just his — the panel can turn those into a working collection in one click:
+
+1. In lighttable, select a handful of already-tagged photos — ideally a few per competitor, from different angles.
+2. Under **new collection** in the panel, type a name for the collection, e.g. `F1 2026`.
+3. Click **Create collection from tagged images**.
+
+It reads each selected image's tags down to wherever two images stop being identical: images carrying the exact same tags become one entry, and whatever tag is unique to a photo (the driver tag) is what tells two teammates apart. From that it:
+
+- creates the collection folder with an `entries.json` built from those tag sets, inferring each entry's `team` where a tag is shared with some but not all of the other entries
+- adds every selected image as a reference sample of its entry, exactly like [**Add tagged images as references**](#building-references)
+- switches the panel to the new collection and reloads it
+
+An image with no tag that looks like `A|B` is skipped (and reported in the done message) — it has nothing to build an entry from. The race `number` field isn't set this way, since there's no tag for it; add it by hand afterward (see below) if you want number-based identification too, or just rely on livery matching. If a collection with that name already exists, nothing is overwritten — pick a new name, or switch to the existing one and use **Add tagged images as references** instead.
+
+### By hand
+
+Write `entries.json` yourself for more control than tags alone give you: a race `number`, or custom [rules](#rules). It holds the collection's **entries**, one per competitor, and its **rules**: what each outcome tags. For example:
 
 ```json
 {
@@ -122,7 +142,7 @@ collections/
 }
 ```
 
-A file that's just the `[ … ]` list of entries works too, with the default rules.
+A file that's just the `[ … ]` list of entries works too, with the default rules — this is exactly the shape **Create collection from tagged images** writes, so you can build one that way and then hand-edit it in to add numbers or rules.
 
 [`examples/`](examples) has three collections to copy into the collections folder, each with a README on what it shows and how to supply its references:
 
@@ -161,9 +181,7 @@ After editing `entries.json`, click **Reload** in the panel. A mistake in the fi
 
 ## Building references
 
-Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong.
-
-Two buttons in the panel's **references** section:
+Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong. **Create collection from tagged images** already does this for the images it was given; add more at any time with the panel's **references** section, below **new collection** and **collection**:
 
 - **Add as reference**: pick the entry in the **entry** list, select photos of that car, click. The largest vehicle in each photo is cropped and saved under that entry. A photo where no vehicle is found is saved whole, and the done message says how many.
 - **Add tagged images as references**: select photos you've already tagged by hand. Each one carrying *all* of one entry's tags is added under that entry. A photo with only a shared team tag, or with two drivers' tags, is skipped.
