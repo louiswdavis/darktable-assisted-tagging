@@ -386,6 +386,7 @@ local RESULTS_PATH = TMP_DIR .. "/dt_assisted_tagging_results.csv"
 local ENTRIES_PATH = TMP_DIR .. "/dt_assisted_tagging_entries.csv"
 local RULES_PATH = TMP_DIR .. "/dt_assisted_tagging_rules.csv"
 local COLLECTIONS_PATH = TMP_DIR .. "/dt_assisted_tagging_collections.csv"
+local EXAMPLES_PATH = TMP_DIR .. "/dt_assisted_tagging_examples.csv"
 local PROGRESS_PATH = TMP_DIR .. "/dt_assisted_tagging_progress.txt"
 local CANCEL_PATH = PROGRESS_PATH .. ".cancel"
 local DONE_PATH = TMP_DIR .. "/dt_assisted_tagging_done.txt"
@@ -522,6 +523,12 @@ local function current_collection()
     return dt.preferences.read("assisted_tagging", "last_collection", "string") or ""
 end
 
+-- The repo's shipped example collections (entries.json templates, no refs), a
+-- sibling of python/. Missing if the repo was trimmed down to just the plugin.
+local function examples_root()
+    return plugin_root(identify_script()) .. "/examples"
+end
+
 local function shell_quote(s)
     if IS_WINDOWS then return '"' .. s .. '"' end
     return "'" .. s:gsub("'", "'\\''") .. "'"
@@ -612,7 +619,7 @@ local busy, orphan = false, false
 -- A run that shows no progress for this long is given up on (it may still be loading
 -- models or re-embedding references, so this is generous).
 local STALL_SECONDS = 300
-local identify_button, collection_combo, entry_combo = nil, nil, nil
+local identify_button, collection_combo, entry_combo, example_combo = nil, nil, nil, nil
 local entries, entry_order, rules = {}, {}, M.default_rules()
 
 local function cancelled(job)
@@ -1178,6 +1185,13 @@ end
 local function selected_entry_id()
     local i = entry_combo and entry_combo.selected or 0
     return entry_order[i]
+end
+
+local function selected_example()
+    local i = example_combo and example_combo.selected or 0
+    local name = example_combo and example_combo[i]
+    if not name or name == _("(no examples)") then return nil end
+    return name
 end
 
 local function install_panel()
