@@ -10,12 +10,22 @@ from vehicles import file_key
 
 EMBED_INPUT = 224
 EMBED_DIM = 384
+DEGRADE_FACTOR = 4  # how far a reference crop is downscaled-then-upscaled by degrade()
 _MEAN = np.array([0.485, 0.456, 0.406], np.float32)
 _STD = np.array([0.229, 0.224, 0.225], np.float32)
 
 
 def embedder_key(model_path: str):
     return file_key(model_path)
+
+
+def degrade(crop_rgb: np.ndarray) -> np.ndarray:
+    """Downscaled by DEGRADE_FACTOR and back, so a close-up reference loses detail
+    roughly the way a small, far-away box does once stretched up to EMBED_INPUT."""
+    h, w = crop_rgb.shape[:2]
+    small = cv2.resize(crop_rgb, (max(1, w // DEGRADE_FACTOR), max(1, h // DEGRADE_FACTOR)),
+                        interpolation=cv2.INTER_AREA)
+    return cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
 
 
 def encode(vec: np.ndarray) -> str:

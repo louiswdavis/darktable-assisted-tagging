@@ -69,6 +69,9 @@ class Rules:
     # Experimental: pool box-0 livery similarity across a burst's frames and re-run the
     # livery/team decision once on the average, for frames number didn't resolve.
     burst_livery_pooling: bool = False
+    # Experimental: embed references after downscaling-then-upscaling them (embed.degrade),
+    # so their embeddings sit closer to a far-away query crop's degraded detail level.
+    blur_references: bool = False
 
 
 def _check_tags(tags, where: str, bad, allow_empty: bool = False):
@@ -85,10 +88,11 @@ def _load_rules(raw, bad) -> Rules:
         return Rules()
     if not isinstance(raw, dict):
         raise bad('"rules" must be an object')
-    unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling"})
+    unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling",
+                                  "blur_references"})
     if unknown:
         raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics, '
-                   f'burst_livery_pooling)')
+                   f'burst_livery_pooling, blur_references)')
     team_only = raw.get("team_only", "shared tags")
     if team_only not in TEAM_ONLY_CHOICES:
         raise bad('rules.team_only must be "shared tags" or "none"')
@@ -97,6 +101,9 @@ def _load_rules(raw, bad) -> Rules:
     pooling = raw.get("burst_livery_pooling", False)
     if not isinstance(pooling, bool):
         raise bad("rules.burst_livery_pooling must be true or false")
+    blur_refs = raw.get("blur_references", False)
+    if not isinstance(blur_refs, bool):
+        raise bad("rules.blur_references must be true or false")
     diag = dict(DIAG_DEFAULTS)
     given = raw.get("diagnostics", {})
     if not isinstance(given, dict):
@@ -107,7 +114,7 @@ def _load_rules(raw, bad) -> Rules:
         if not isinstance(name, str) or _BAD_TAG.search(name):
             raise bad(f'rules.diagnostics.{key} must be a tag name without , ; or " ("" for none)')
         diag[key] = name.strip()
-    return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling)
+    return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling, blur_refs)
 
 
 def load_collection(collection_dir: str) -> tuple:
@@ -456,7 +463,8 @@ def identify(args, models: dict):
     entries, rules = load_collection(collection)
     check_models(models)
     rows = read_manifest(args.manifest, 3)
-    index = ReferenceIndex.load(collection, Embedder(models["embedder"]), embedder_key(models["embedder"]))
+    index = ReferenceIndex.load(collection, Embedder(models["embedder"]),
+                                 [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
     counts = index.count_by_entry()
     if not counts:
         log(f"collection {args.collection} has no references yet: only numbers can identify a car")
@@ -521,7 +529,8 @@ def add_references(args, models: dict):
     entries, rules = load_collection(collection)
     check_models(models)
     embedder = Embedder(models["embedder"])
-    index = ReferenceIndex.load(collection, embedder, embedder_key(models["embedder"]))
+    index = ReferenceIndex.load(collection, embedder,
+                                 [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
     rows = read_manifest(args.manifest, 3)
     tmp = args.results + ".tmp"
     with open(tmp, "w", newline="", encoding="utf-8") as f:

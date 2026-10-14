@@ -8,25 +8,26 @@ import os
 import numpy as np
 from PIL import Image
 
-from embed import EMBED_DIM
+from embed import EMBED_DIM, degrade
 from vehicles import log
 
 INDEX_NAME = "index.npz"
 
 
 class ReferenceIndex:
-    def __init__(self, collection_dir: str, embedder, key):
+    def __init__(self, collection_dir: str, embedder, key, blur: bool = False):
         self.dir = collection_dir
         self.refs = os.path.join(collection_dir, "refs")
         self.embedder = embedder
+        self.blur = blur
         self.key = json.dumps(key)
         self.emb = np.zeros((0, EMBED_DIM), np.float32)
         self.entry: list = []
         self.path: list = []
 
     @classmethod
-    def load(cls, collection_dir: str, embedder, key) -> "ReferenceIndex":
-        idx = cls(collection_dir, embedder, key)
+    def load(cls, collection_dir: str, embedder, key, blur: bool = False) -> "ReferenceIndex":
+        idx = cls(collection_dir, embedder, key, blur)
         stored = idx._read()
         on_disk = idx._scan()
         changed = stored is None
@@ -77,7 +78,8 @@ class ReferenceIndex:
 
     def _embed_file(self, rel: str) -> np.ndarray:
         with Image.open(os.path.join(self.dir, *rel.split("/"))) as im:
-            return self.embedder.embed(np.array(im.convert("RGB")))
+            crop = np.array(im.convert("RGB"))
+        return self.embedder.embed(degrade(crop) if self.blur else crop)
 
     def _append(self, entry_id: str, rel: str, vec: np.ndarray):
         if rel in self.path:
@@ -103,7 +105,7 @@ class ReferenceIndex:
             except OSError:
                 pass
         Image.fromarray(crop_rgb).save(os.path.join(self.dir, *rel.split("/")), quality=92)
-        self._append(entry_id, rel, self.embedder.embed(crop_rgb))
+        self._append(entry_id, rel, self.embedder.embed(degrade(crop_rgb) if self.blur else crop_rgb))
         return rel
 
     def save(self):
