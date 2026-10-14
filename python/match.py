@@ -32,6 +32,34 @@ class BoxResult:
     unmatched_number: str = ""
 
 
+def match_livery(box: int, sims: list, entries: dict, unmatched: str = "") -> BoxResult:
+    """sims: [(entry_id, similarity)] most similar first. Livery match, else a
+    same-team tie-break, else none. Shared with pooled burst matching, so a caller
+    can run this once on sims averaged across a burst instead of one frame's own."""
+    sims = [(eid, s) for eid, s in sims if eid in entries]
+    if not sims:
+        return BoxResult(box, "none", "", "", 0.0, unmatched)
+    (e1, s1), (e2, s2) = sims[0], sims[1] if len(sims) > 1 else ("", 0.0)
+    if s1 >= MATCH_MIN_SIM and s1 - s2 >= MATCH_MIN_MARGIN:
+        return BoxResult(box, "livery", e1, "", s1, unmatched)
+    if s1 >= MATCH_MIN_SIM and e2 and entries[e1].team and entries[e1].team == entries[e2].team:
+        return BoxResult(box, "team", e1, e2, s1, unmatched)
+    return BoxResult(box, "none", "", "", max(s1, 0.0), unmatched)
+
+
+def pool_sims(sims_list: list) -> list:
+    """Average each entry's similarity across a burst's frames (sims_list: one
+    [(entry_id, similarity)] per frame), most similar first."""
+    totals, counts = {}, {}
+    for sims in sims_list:
+        for eid, s in sims:
+            totals[eid] = totals.get(eid, 0.0) + s
+            counts[eid] = counts.get(eid, 0) + 1
+    pooled = [(eid, totals[eid] / counts[eid]) for eid in totals]
+    pooled.sort(key=lambda t: t[1], reverse=True)
+    return pooled
+
+
 def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
     """ocr: [(digits, confidence)]; sims: [(entry_id, similarity)] most similar first."""
     by_number: dict = {}
@@ -46,16 +74,7 @@ def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
     if len(hits) == 1:
         return BoxResult(box, "number", hits.pop(), "", best_conf)
     unmatched = ";".join(dict.fromkeys(digits for digits, _ in ocr))
-
-    sims = [(eid, s) for eid, s in sims if eid in entries]
-    if not sims:
-        return BoxResult(box, "none", "", "", 0.0, unmatched)
-    (e1, s1), (e2, s2) = sims[0], sims[1] if len(sims) > 1 else ("", 0.0)
-    if s1 >= MATCH_MIN_SIM and s1 - s2 >= MATCH_MIN_MARGIN:
-        return BoxResult(box, "livery", e1, "", s1, unmatched)
-    if s1 >= MATCH_MIN_SIM and e2 and entries[e1].team and entries[e1].team == entries[e2].team:
-        return BoxResult(box, "team", e1, e2, s1, unmatched)
-    return BoxResult(box, "none", "", "", max(s1, 0.0), unmatched)
+    return match_livery(box, sims, entries, unmatched)
 
 
 def burst_consensus(frames: dict, burst_of: dict, entries=None) -> dict:

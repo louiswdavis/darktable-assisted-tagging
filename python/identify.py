@@ -20,12 +20,12 @@ import re
 import sqlite3
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from vehicles import BOX_MARGIN_TRIM, CROP_DIM, MIN_BOX_FRAC, crop_box, detect_vehicles, detector_model, file_key, load_full, log
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
-from match import BoxResult, Entry, burst_consensus, match_box
+from match import BoxResult, Entry, burst_consensus, match_box, match_livery, pool_sims
 from reference_store import ReferenceIndex
 
 IDENTIFY_CACHE_VERSION = 1
@@ -53,6 +53,9 @@ DIAG_DEFAULTS = {
     # Suffixed with the literal digits read, e.g. "...|Number seen|115": independent of
     # the outcome above, applied whenever OCR read a number that matched zero or 2+ entries.
     "number_seen": "Assisted Tagging|Identification|Number seen",
+    # Written instead of "livery"/"team" when burst_livery_pooling resolved a frame
+    # that didn't clear the threshold on its own.
+    "pooled": "Assisted Tagging|Identification|By pooled burst",
 }
 TEAM_ONLY_CHOICES = ("shared tags", "none")
 
@@ -63,6 +66,9 @@ class Rules:
     team_only: str = "shared tags"
     unidentified: tuple = ()
     diagnostics: tuple = tuple(DIAG_DEFAULTS.items())
+    # Experimental: pool box-0 livery similarity across a burst's frames and re-run the
+    # livery/team decision once on the average, for frames number didn't resolve.
+    burst_livery_pooling: bool = False
 
 
 def _check_tags(tags, where: str, bad, allow_empty: bool = False):
@@ -79,14 +85,18 @@ def _load_rules(raw, bad) -> Rules:
         return Rules()
     if not isinstance(raw, dict):
         raise bad('"rules" must be an object')
-    unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics"})
+    unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling"})
     if unknown:
-        raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics)')
+        raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics, '
+                   f'burst_livery_pooling)')
     team_only = raw.get("team_only", "shared tags")
     if team_only not in TEAM_ONLY_CHOICES:
         raise bad('rules.team_only must be "shared tags" or "none"')
     unidentified = raw.get("unidentified", [])
     _check_tags(unidentified, "rules.unidentified", bad, allow_empty=True)
+    pooling = raw.get("burst_livery_pooling", False)
+    if not isinstance(pooling, bool):
+        raise bad("rules.burst_livery_pooling must be true or false")
     diag = dict(DIAG_DEFAULTS)
     given = raw.get("diagnostics", {})
     if not isinstance(given, dict):
@@ -97,7 +107,7 @@ def _load_rules(raw, bad) -> Rules:
         if not isinstance(name, str) or _BAD_TAG.search(name):
             raise bad(f'rules.diagnostics.{key} must be a tag name without , ; or " ("" for none)')
         diag[key] = name.strip()
-    return Rules(team_only, tuple(unidentified), tuple(diag.items()))
+    return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling)
 
 
 def load_collection(collection_dir: str) -> tuple:
@@ -415,6 +425,32 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
     return out
 
 
+def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: dict) -> dict:
+    """Experimental (rules.burst_livery_pooling): for each burst with 2+ frames, pool
+    box-0 livery similarity across them and re-run the livery/team decision once on the
+    average. Frames whose box 0 was already resolved by number are left alone; a frame
+    the pooled decision still can't resolve keeps its own per-frame result."""
+    members: dict = {}
+    for image_id in box0_sims:
+        members.setdefault(burst_of.get(image_id, image_id), []).append(image_id)
+    out = dict(frames)
+    for ids in members.values():
+        if len(ids) < 2:
+            continue
+        pooled = pool_sims([box0_sims[i] for i in ids])
+        decision = match_livery(0, pooled, entries)
+        if decision.method == "none":
+            continue
+        for image_id in ids:
+            box0 = out[image_id][0]
+            if box0.method == "number":
+                continue
+            out[image_id] = [replace(box0, method="pooled", entry_id=decision.entry_id,
+                                      alt_entry_id=decision.alt_entry_id,
+                                      confidence=decision.confidence)] + out[image_id][1:]
+    return out
+
+
 def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
@@ -439,7 +475,7 @@ def identify(args, models: dict):
         log("cancelled")
         sys.exit(130)
 
-    frames, burst_of = {}, {}
+    frames, burst_of, box0_sims = {}, {}, {}
     for image_id, filepath, burst in rows:
         burst_of[image_id] = burst
         a = analyses.get(filepath)
@@ -457,7 +493,11 @@ def identify(args, models: dict):
             r = match_box(i, [tuple(c) for c in ocr], sims, entries)
             log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}")
             results.append(r)
+            if i == 0 and rules.burst_livery_pooling:
+                box0_sims[image_id] = sims
         frames[image_id] = results
+    if rules.burst_livery_pooling:
+        frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
     frames = burst_consensus(frames, burst_of, entries)
 
     by_method: dict = {}

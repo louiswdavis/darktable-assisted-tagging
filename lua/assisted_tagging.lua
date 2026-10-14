@@ -24,6 +24,9 @@ M.DIAG_TAGS = {
     -- Suffixed with the literal digits read, e.g. "...|Number seen|115"; independent of
     -- the outcome tags above, added whenever OCR read a number that didn't resolve.
     number_seen = "Assisted Tagging|Identification|Number seen",
+    -- Experimental (rules.burst_livery_pooling): a frame resolved by pooling box-0
+    -- livery similarity across its burst rather than on its own.
+    pooled = "Assisted Tagging|Identification|By pooled burst",
 }
 
 function M.exif_time_to_epoch(s)
@@ -132,7 +135,7 @@ function M.wanted_tags(rows, entries, rules)
     end
     for _, r in ipairs(rows) do
         local e = entries[r.entry_id]
-        if e and (r.method == "number" or r.method == "livery" or r.method == "burst") then
+        if e and (r.method == "number" or r.method == "livery" or r.method == "burst" or r.method == "pooled") then
             for _, t in ipairs(e.tags) do wanted[t] = true end
             note(r.method)
             identified = true
@@ -1014,7 +1017,7 @@ function M.identify_images(images)
         local diag_on = dt.preferences.read("assisted_tagging", "diagnostic_tags", "bool")
         local tag_objs, writes, failed, first_error = {}, 0, 0, nil
         local n_tagged, n_unidentified, n_missing = 0, 0, 0
-        local by_method = { number = 0, livery = 0, burst = 0, team = 0 }
+        local by_method = { number = 0, livery = 0, burst = 0, team = 0, pooled = 0 }
         local function tag_named(name)
             tag_objs[name] = tag_objs[name] or tags.create(name)
             return tag_objs[name]
@@ -1059,7 +1062,7 @@ function M.identify_images(images)
 
         local parts = {}
         for _, m in ipairs({ { "number", "by number" }, { "livery", "by livery" }, { "burst", "by burst" },
-                             { "team", "team only" } }) do
+                             { "team", "team only" }, { "pooled", "by pooled burst" } }) do
             if by_method[m[1]] > 0 then parts[#parts + 1] = string.format("%d %s", by_method[m[1]], m[2]) end
         end
         local msg = string.format("Assisted Tagging: done. %d of %d images tagged", n_tagged, #primaries)
