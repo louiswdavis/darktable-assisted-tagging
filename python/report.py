@@ -14,7 +14,7 @@ CATEGORIES = ("identified", "team-obvious", "weak-match", "no-references", "numb
               "conflict", "already-tagged", "no-vehicle")
 IDENTIFIED_METHODS = ("number", "livery", "burst", "pooled")
 # categories whose boxes are listed one by one; the rest are only counted
-DETAIL_CATEGORIES = ("team-obvious", "weak-match", "no-references", "number-unmatched", "conflict")
+DETAIL_CATEGORIES = ("team-obvious", "weak-match", "no-references", "number-unmatched", "conflict", "no-vehicle")
 MEDIAN_CATEGORIES = ("team-obvious", "weak-match")
 
 
@@ -73,7 +73,8 @@ def rows(data: dict) -> list:
         out.append({"image": image_id, "box": -1, "category": "already-tagged"})
     for image_id, img in data["images"].items():
         if img["status"] == "no_vehicle":
-            out.append({"image": image_id, "box": -1, "category": "no-vehicle"})
+            out.append({"image": image_id, "box": -1, "category": "no-vehicle", "top1": 0.0,
+                        "burst": img.get("burst", ""), "note": img.get("note", "")})
         for box in img["boxes"]:
             cat = categorize(box)
             out.append({"image": image_id, "box": box["box"], "category": cat, "shot": img["shot"],
@@ -106,6 +107,8 @@ def pct(x: float) -> str:
 
 
 def describe(r: dict) -> str:
+    if r["category"] == "no-vehicle":
+        return f"`{r['image']}` burst {r['burst']}: {r['note'] or 'no detector note'}"
     cands = ", ".join(f"`{e}` {s:.3f}" for e, s in r["candidates"][:3]) or "no candidates"
     parts = [f"`{r['image']}` box {r['box']}: {cands}", f"{r['decided_by']}" + (f", short by {r['gap']:.3f}" if r["gap"] else "")]
     if r["ocr"]:

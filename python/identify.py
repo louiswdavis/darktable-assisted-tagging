@@ -493,7 +493,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "ocr": b["ocr"], "decided_by": rule, "gap": round(gap, 4),
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict"})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
-                            "boxes": boxes}
+                            "burst": d["burst"], "note": d["note"], "boxes": boxes}
     return {"collection": collection,
             "thresholds": {"min_sim": MATCH_MIN_SIM, "min_margin": MATCH_MIN_MARGIN,
                            "reference_margin": REFERENCE_MIN_MARGIN},
@@ -542,7 +542,7 @@ def identify(args, models: dict):
     frames, burst_of, box0_sims, detail = {}, {}, {}, {}
     for image_id, filepath, burst, _protected in rows:
         burst_of[image_id] = burst
-        detail[image_id] = {"file": filepath, "frame": [], "boxes": []}
+        detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst}
         if image_id in fully_tagged:
             log(f"{image_id}: already carries all of {already_tagged(protected_of[image_id], entries)}'s tags, skipped")
             frames[image_id] = [BoxResult(-1, "skipped")]
@@ -554,6 +554,7 @@ def identify(args, models: dict):
             continue
         if not a["boxes"]:
             log(f"{image_id}: {a['note']}")
+            detail[image_id]["note"] = a["note"]
             frames[image_id] = [BoxResult(-1, "none")]
             continue
         results = []
