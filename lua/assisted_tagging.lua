@@ -1072,9 +1072,11 @@ function M.identify_images(images, replace_manual)
             end
         end
 
-        local time_items = {}
+        local time_items, time_of = {}, {}
         for _, img in ipairs(primaries) do
-            table.insert(time_items, { id = img.id, epoch = M.exif_time_to_epoch(img.exif_datetime_taken) })
+            local epoch = M.exif_time_to_epoch(img.exif_datetime_taken)
+            time_of[img.id] = epoch
+            table.insert(time_items, { id = img.id, epoch = epoch })
         end
         local gap = dt.preferences.read("assisted_tagging", "burst_gap_seconds", "integer")
         local burst_of = M.cluster_by_time(time_items, (gap and gap >= 1) and gap or M.BURST_GAP_SECONDS)
@@ -1100,7 +1102,8 @@ function M.identify_images(images, replace_manual)
         for _, img in ipairs(primaries) do
             rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, burst_of[img.id],
                                 table.concat(sorted_names(protected_of[img.id]), ";"),
-                                table.concat(sorted_names(hints_of[img.id]), ";") }
+                                table.concat(sorted_names(hints_of[img.id]), ";"),
+                                time_of[img.id] and tostring(time_of[img.id]) or "" }
         end
         pcall(os.remove, RESULTS_PATH)
         pcall(os.remove, ENTRIES_PATH)

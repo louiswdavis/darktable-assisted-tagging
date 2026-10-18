@@ -2,7 +2,7 @@
 write one result row per vehicle for assisted_tagging.lua.
 
 Modes:
-  identify.py MANIFEST RESULTS ...            id,filepath,burst_id[,protected tags] →
+  identify.py MANIFEST RESULTS ...            id,filepath,burst_id[,protected tags,hint prefixes,capture epoch] →
                                               id,box,method,entry,alt_entry,confidence,unmatched_number,shot
                                               (+ --boxes-out: the per-vehicle boxes.json)
   identify.py MANIFEST RESULTS --add-reference id,filepath,entry_id → id,status
@@ -559,7 +559,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict",
                           "hint": b.get("hint", {})})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
-                            "burst": d["burst"], "note": d["note"], "boxes": boxes}
+                            "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes}
     return {"collection": collection,
             "thresholds": {"min_sim": MATCH_MIN_SIM, "min_margin": MATCH_MIN_MARGIN,
                            "reference_margin": REFERENCE_MIN_MARGIN},
@@ -581,7 +581,7 @@ def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
     check_models(models)
-    rows = read_manifest(args.manifest, 3, 2)
+    rows = read_manifest(args.manifest, 3, 3)
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     # 5th column: hand-applied tags that are a strict prefix of an entry's tags (team hints), ";"-joined.
@@ -609,9 +609,10 @@ def identify(args, models: dict):
         sys.exit(130)
 
     frames, burst_of, box0_sims, detail = {}, {}, {}, {}
-    for image_id, filepath, burst, _protected, _hints in rows:
+    for image_id, filepath, burst, _protected, _hints, taken in rows:
         burst_of[image_id] = burst
-        detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst}
+        detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst,
+                            "time": int(taken) if taken.isdigit() else None}
         if image_id in fully_tagged:
             log(f"{image_id}: already carries all of {already_tagged(protected_of[image_id], entries)}'s tags, skipped")
             frames[image_id] = [BoxResult(-1, "skipped")]

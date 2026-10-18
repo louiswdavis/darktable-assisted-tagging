@@ -103,6 +103,34 @@ def summarize(data: dict, all_rows: list) -> dict:
             "medians": medians}
 
 
+def burst_timing(data: dict) -> dict:
+    """Per-burst capture timing from boxes.json: frames, span, the within-burst gaps and the gap to
+    the next burst. Bursts with no capture times are counted, not described."""
+    groups = {}
+    for image_id, img in data["images"].items():
+        groups.setdefault(str(img.get("burst", "")), []).append((img.get("time"), image_id, img))
+    timed, untimed = [], 0
+    for burst, members in groups.items():
+        times = sorted(t for t, _, _ in members if t is not None)
+        if not times:
+            untimed += 1
+            continue
+        gaps = [b - a for a, b in zip(times, times[1:])]
+        statuses = [i["status"] for _, _, i in members]
+        timed.append({"burst": burst, "frames": len(members), "start": times[0], "end": times[-1],
+                      "span": times[-1] - times[0], "max_gap": max(gaps, default=0),
+                      "no_vehicle": statuses.count("no_vehicle"), "ok": statuses.count("ok")})
+    timed.sort(key=lambda b: b["start"])
+    for cur, nxt in zip(timed, timed[1:]):
+        cur["gap_to_next"] = nxt["start"] - cur["end"]
+    if timed:
+        timed[-1]["gap_to_next"] = None
+    within = [b["max_gap"] for b in timed]
+    return {"bursts": timed, "untimed": untimed,
+            "frame_counts": sorted(b["frames"] for b in timed),
+            "max_gap_counts": {str(g): within.count(g) for g in sorted(set(within))}}
+
+
 def pct(x: float) -> str:
     return f"{x * 100:.0f}%"
 
@@ -141,6 +169,18 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int) -> str:
         out.append(f"- hints: {len(hinted)} applied, {sum(1 for h in hinted if h['dropped'])} dropped")
     if summary["errors"]:
         out.append(f"- images that failed analysis (not counted above): {summary['errors']}")
+    timing = burst_timing(data)
+    if timing["bursts"] and top > 0:
+        out += ["", f"## bursts ({len(timing['bursts'])} timed, {timing['untimed']} without capture times)", "",
+                "within-burst largest gap (s) → bursts: " + ", ".join(f"{g}s ×{n}" for g, n in timing["max_gap_counts"].items()),
+                "frames per burst: " + ", ".join(str(n) for n in timing["frame_counts"]), "",
+                "closest to the next burst (possible split):"]
+        near = sorted((b for b in timing["bursts"] if b["gap_to_next"] is not None), key=lambda b: b["gap_to_next"])
+        out += [f"- burst {b['burst']}: {b['frames']} frames, next burst starts {b['gap_to_next']}s later" for b in near[:top]]
+        out += ["", "largest within-burst gap (possible merge):"]
+        wide = sorted(timing["bursts"], key=lambda b: -b["max_gap"])
+        out += [f"- burst {b['burst']}: {b['frames']} frames over {b['span']}s, largest gap {b['max_gap']}s, "
+                f"{b['ok']} with vehicles, {b['no_vehicle']} without" for b in wide[:top]]
     if top > 0:
         for c in DETAIL_CATEGORIES:
             sel = sorted((r for r in all_rows if r["category"] == c), key=lambda r: r["top1"])
@@ -162,7 +202,7 @@ def write_report(data: dict, out_prefix: str, top: int) -> tuple:
     os.makedirs(os.path.dirname(os.path.abspath(out_prefix)), exist_ok=True)
     for path, text in ((paths[0], render_md(data, all_rows, summary, top)),
                        (paths[1], json.dumps({"collection": data["collection"], "thresholds": data["thresholds"],
-                                              "summary": summary, "rows": all_rows}))):
+                                              "summary": summary, "bursts": burst_timing(data), "rows": all_rows}))):
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(text)
