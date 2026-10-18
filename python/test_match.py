@@ -148,6 +148,30 @@ def run_tests():
         check(f"promotable: never {m}", Mt.promotable({**wide, "method": m}), False)
     check("promotable: no entry", Mt.promotable({**wide, "entry": ""}), False)
 
+    # ---- Stage B: hints
+    check("entries_under: prefix boundary", list(Mt.entries_under(ENTRIES, ["F1|Red"])), [])
+    check("entries_under: team prefix", list(Mt.entries_under(ENTRIES, ["F1|Red Bull"])), ["VER", "TSU"])
+    sims = [("HAM", 0.90), ("VER", 0.80), ("TSU", 0.70)]
+    r, h = Mt.hinted_match(0, [], sims, ENTRIES, [], "")
+    check("hinted_match: no prefixes is plain match_box", (r.method, h), ("livery", {}))
+    r, h = Mt.hinted_match(0, [], sims, ENTRIES, ["F1|Red Bull"], "tag")
+    check("hinted_match: restricts to the team", (r.method, r.entry_id, h["restricted"], h["dropped"]), ("livery", "VER", 2, False))
+    r, h = Mt.hinted_match(0, [], [("HAM", 0.9), ("VER", 0.5), ("TSU", 0.4)], ENTRIES, ["F1|Red Bull"], "sponsor")
+    check("hinted_match: low restricted similarity drops the hint", (r.entry_id, h["dropped"], h["reason"]), ("HAM", True, "below_min_sim"))
+    r, h = Mt.hinted_match(0, [("44", 0.9)], sims, ENTRIES, ["F1|Red Bull"], "tag")
+    check("hinted_match: a number outside the set drops the hint", (r.entry_id, h["reason"]), ("HAM", "number_outside"))
+    r, h = Mt.hinted_match(0, [], sims, ENTRIES, ["F1|Nobody"], "tag")
+    check("hinted_match: a prefix matching no entry falls back", (r.entry_id, h["reason"]), ("HAM", "no_entries"))
+
+    # ---- partial references
+    none = BoxResult(0, "none")
+    check("match_team: a clear team lead becomes team", Mt.match_team(none, [("F1|Red Bull", 0.8), ("F1|Ferrari", 0.6)], ENTRIES)
+          .method, "team")
+    check("match_team: a narrow lead stays none", Mt.match_team(none, [("F1|Red Bull", 0.8), ("F1|Ferrari", 0.78)], ENTRIES).method, "none")
+    check("match_team: a one-entry team stays none", Mt.match_team(none, [("F1|Safety Car", 0.9)], ENTRIES).method, "none")
+    check("match_team: identified results are untouched", Mt.match_team(BoxResult(0, "livery", "HAM"), [("F1|Red Bull", 0.9)], ENTRIES).method, "livery")
+    check("team_key avoids the path separator", Mt.team_key("F1|Red Bull"), "@team@F1__Red Bull")
+
     print("")
     if failures == 0:
         print("all tests passed")

@@ -31,8 +31,9 @@ from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, M
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
-                   burst_consensus, conflicts, decided_by, match_box, match_livery, pool_sims, promotable,
-                   shot_type)
+                   burst_consensus, conflicts, decided_by, entries_under, hinted_match, match_box, match_livery,
+                   match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
+from sponsors import sponsor_prefixes
 from report import write_report
 from reference_store import ReferenceIndex
 
@@ -84,6 +85,11 @@ class Rules:
     # Experimental: embed references after downscaling-then-upscaling them (embed.degrade),
     # so their embeddings sit closer to a far-away query crop's degraded detail level.
     blur_references: bool = False
+    # ((lowercase keyword, tag prefix), …): a sponsor word read on a car hints its team's prefix
+    # (see sponsors.sponsor_prefixes). Empty: off.
+    sponsor_keywords: tuple = ()
+    # Solo shots carrying only a team-prefix tag are accepted as team-level references.
+    partial_references: bool = False
 
 
 def _check_tags(tags, where: str, bad, allow_empty: bool = False):
@@ -101,10 +107,18 @@ def _load_rules(raw, bad) -> Rules:
     if not isinstance(raw, dict):
         raise bad('"rules" must be an object')
     unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling",
-                                  "blur_references"})
+                                  "blur_references", "sponsor_keywords", "partial_references"})
     if unknown:
         raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics, '
-                   f'burst_livery_pooling, blur_references)')
+                   f'burst_livery_pooling, blur_references, sponsor_keywords, partial_references)')
+    sponsors = raw.get("sponsor_keywords", {})
+    if not isinstance(sponsors, dict) or not all(
+            isinstance(k, str) and k.strip() and k == k.lower() and isinstance(v, str) and v.strip()
+            and not _BAD_TAG.search(v) for k, v in sponsors.items()):
+        raise bad("rules.sponsor_keywords must map lowercase keywords to tag prefixes")
+    partial = raw.get("partial_references", False)
+    if not isinstance(partial, bool):
+        raise bad("rules.partial_references must be true or false")
     team_only = raw.get("team_only", "shared tags")
     if team_only not in TEAM_ONLY_CHOICES:
         raise bad('rules.team_only must be "shared tags" or "none"')
@@ -126,7 +140,8 @@ def _load_rules(raw, bad) -> Rules:
         if not isinstance(name, str) or _BAD_TAG.search(name):
             raise bad(f'rules.diagnostics.{key} must be a tag name without , ; or " ("" for none)')
         diag[key] = name.strip()
-    return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling, blur_refs)
+    return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling, blur_refs,
+                 tuple(sponsors.items()), partial)
 
 
 def load_collection(collection_dir: str) -> tuple:
@@ -176,7 +191,11 @@ def load_collection(collection_dir: str) -> tuple:
         if not isinstance(team, str) or _BAD_TAG.search(team):
             raise bad(f'entry "{eid}": team must be text without , ; or "')
         entries[eid] = Entry(eid, number, team, tuple(tags))
-    return entries, _load_rules(rules_raw, bad)
+    rules = _load_rules(rules_raw, bad)
+    for word, prefix in rules.sponsor_keywords:
+        if not entries_under(entries, [prefix]):
+            raise bad(f'rules.sponsor_keywords.{word}: no entry has a tag under "{prefix}"')
+    return entries, rules
 
 
 def write_entries_csv(entries: dict, path: str):
@@ -375,6 +394,29 @@ def read_manifest(path: str, columns: int, optional: int = 0) -> list:
         return [(row + [""] * optional)[:columns + optional] for row in csv.reader(f) if len(row) >= columns]
 
 
+def strict_prefixes(entries: dict) -> list:
+    """Every tag path that is a strict prefix of some entry tag, in first-seen order."""
+    found = {}
+    for e in entries.values():
+        for t in e.tags:
+            parts = t.split("|")
+            for n in range(1, len(parts)):
+                found["|".join(parts[:n])] = True
+    return list(found)
+
+
+def box_hint(tag_prefixes: list, sponsor: list) -> tuple:
+    """(prefixes, source) for one box. Tag and sponsor prefixes that agree are merged (`both`);
+    when they differ the user's tags win."""
+    if tag_prefixes and sponsor:
+        if all(any(s == t or s.startswith(t + "|") or t.startswith(s + "|") for t in tag_prefixes) for s in sponsor):
+            return list(dict.fromkeys(tag_prefixes + sponsor)), "both"
+        return tag_prefixes, "tag"
+    if tag_prefixes:
+        return tag_prefixes, "tag"
+    return sponsor, "sponsor" if sponsor else ""
+
+
 def format_row(image_id: str, r: BoxResult, shot: str = "") -> str:
     return (f"{image_id},{r.box},{r.method},{r.entry_id},{r.alt_entry_id},"
             f"{r.confidence:.3f},{r.unmatched_number},{shot}")
@@ -514,7 +556,8 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "method": r.method, "confidence": round(r.confidence, 4),
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
-                          "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict"})
+                          "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict",
+                          "hint": b.get("hint", {})})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "note": d["note"], "boxes": boxes}
     return {"collection": collection,
@@ -538,9 +581,11 @@ def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
     check_models(models)
-    rows = read_manifest(args.manifest, 3, 1)
+    rows = read_manifest(args.manifest, 3, 2)
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
+    # 5th column: hand-applied tags that are a strict prefix of an entry's tags (team hints), ";"-joined.
+    tag_hints_of = {r[0]: [t for t in r[4].split(";") if t] for r in rows}
     fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
     index = ReferenceIndex.load(collection, Embedder(models["embedder"]),
                                  [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
@@ -549,7 +594,8 @@ def identify(args, models: dict):
         log(f"collection {args.collection} has no references yet: only numbers can identify a car")
     else:
         log("references: " + ", ".join(f"{e} {counts.get(e, 0)}" for e in entries))
-    unknown = sorted(set(counts) - set(entries))
+    unknown = sorted(k for k in set(counts) - set(entries) if not k.startswith(TEAM_KEY))
+    team_of = {team_key(p): p for p in strict_prefixes(entries)} if rules.partial_references else {}
     if unknown:
         log("references for entries not in entries.json (ignored): " + ", ".join(unknown))
 
@@ -563,7 +609,7 @@ def identify(args, models: dict):
         sys.exit(130)
 
     frames, burst_of, box0_sims, detail = {}, {}, {}, {}
-    for image_id, filepath, burst, _protected in rows:
+    for image_id, filepath, burst, _protected, _hints in rows:
         burst_of[image_id] = burst
         detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst}
         if image_id in fully_tagged:
@@ -584,11 +630,18 @@ def identify(args, models: dict):
         detail[image_id]["frame"] = a["frame"]
         for i, ocr in enumerate(a["ocr"]):
             sims = index.best_per_entry(decode(a["emb"][i]))
-            r = match_box(i, [tuple(c) for c in ocr], sims, entries)
-            log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}")
+            team_sims = [(team_of[k], s) for k, s in sims if k in team_of]
+            sims = [(k, s) for k, s in sims if k in entries]
+            trace = a.get("ocr_trace", [[]] * len(a["ocr"]))[i]
+            prefixes, source = box_hint(tag_hints_of[image_id] if len(a["boxes"]) == 1 else [],
+                                        sponsor_prefixes(trace, rules.sponsor_keywords))
+            r, hint = hinted_match(i, [tuple(c) for c in ocr], sims, entries, prefixes, source)
+            r = match_team(r, team_sims, entries)
+            log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
+                + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else ""))
             results.append(r)
             detail[image_id]["boxes"].append({"bbox": [float(v) for v in a["boxes"][i][:4]], "ocr": ocr, "sims": sims,
-                                              "ocr_trace": a.get("ocr_trace", [[]] * len(a["ocr"]))[i]})
+                                              "ocr_trace": trace, "hint": hint})
             if i == 0 and rules.burst_livery_pooling:
                 box0_sims[image_id] = sims
         frames[image_id] = results
@@ -650,14 +703,25 @@ def add_references(args, models: dict):
                 index.save()
                 sys.exit(130)
             status = "failed"
-            if entry_id not in entries:
+            # a team prefix instead of an entry id: a solo shot tagged only to team level
+            is_team = entry_id not in entries and entry_id in strict_prefixes(entries)
+            if entry_id not in entries and not is_team:
                 log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")
+            elif is_team and not rules.partial_references:
+                status = "team_refs_off"
+                log(f"{image_id}: only tagged to {entry_id}; set rules.partial_references to save team references")
             else:
                 try:
                     rgb = load_full(filepath)
                     boxes, note = detect_vehicles(rgb, models["detector"])
+                    if is_team and len(boxes) != 1:
+                        status = "team_not_solo"
+                        log(f"{image_id}: {len(boxes)} vehicles found; only a solo shot can be a team reference")
+                        f.write(f"{image_id},{status}\n")
+                        write_progress(args.progress, n, len(rows))
+                        continue
                     box = boxes[0] if boxes else (0, 0, rgb.shape[1], rgb.shape[0])
-                    rel = index.add(entry_id, image_id, crop_box(rgb, box))
+                    rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop_box(rgb, box))
                     status = "added" if boxes else "no_vehicle_whole_frame"
                     log(f"{image_id}: reference {rel}" + ("" if boxes else f" (whole frame; {note})"))
                 except Exception as e:

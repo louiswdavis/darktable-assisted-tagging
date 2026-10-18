@@ -78,6 +78,57 @@ def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
     return match_livery(box, sims, entries, unmatched)
 
 
+def entries_under(entries: dict, prefixes: list) -> dict:
+    """The entries with a tag equal to a prefix or below it (`prefix|…`), in file order."""
+    return {eid: e for eid, e in entries.items()
+            if any(t == p or t.startswith(p + "|") for t in e.tags for p in prefixes)}
+
+
+def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list, source: str) -> tuple:
+    """(BoxResult, hint) matching only the entries under `prefixes`. The restriction is a soft
+    prior: it is dropped (the full set is matched) when it holds no entries, every restricted
+    similarity is under MATCH_MIN_SIM, or OCR read a number that belongs to an entry outside it.
+    `hint` is {} without prefixes, else {prefixes, source, restricted, dropped, reason}."""
+    if not prefixes:
+        return match_box(box, ocr, sims, entries), {}
+    inside = entries_under(entries, prefixes)
+    hint = {"prefixes": list(prefixes), "source": source, "restricted": len(inside), "dropped": False, "reason": ""}
+    reason = ""
+    if not inside:
+        reason = "no_entries"
+    else:
+        digits = {d for d, _ in ocr}
+        if any(e.number in digits for eid, e in entries.items() if e.number and eid not in inside):
+            reason = "number_outside"
+        elif not any(s >= MATCH_MIN_SIM for eid, s in sims if eid in inside):
+            reason = "below_min_sim"
+    if reason:
+        hint.update(dropped=True, reason=reason)
+        return match_box(box, ocr, sims, entries), hint
+    return match_box(box, ocr, [(eid, s) for eid, s in sims if eid in inside], inside), hint
+
+
+TEAM_KEY = "@team@"  # reference folder / index key prefix of a team-level reference
+
+
+def team_key(prefix: str) -> str:
+    """The refs/ folder name of a team prefix (`|` can't sit in a path on every platform)."""
+    return TEAM_KEY + prefix.replace("|", "__")
+
+
+def match_team(result: BoxResult, team_sims: list, entries: dict) -> BoxResult:
+    """A `none` result upgraded to `team` when one team's references clearly lead: team_sims is
+    [(team prefix, similarity)] most similar first. The first two entries under the team become
+    entry/alt so the plugin writes only their shared tags. Any other result is returned as is."""
+    if result.method != "none" or not team_sims:
+        return result
+    (prefix, s1), s2 = team_sims[0], team_sims[1][1] if len(team_sims) > 1 else 0.0
+    members = list(entries_under(entries, [prefix]))
+    if s1 < MATCH_MIN_SIM or s1 - s2 < MATCH_MIN_MARGIN or len(members) < 2:
+        return result
+    return replace(result, method="team", entry_id=members[0], alt_entry_id=members[1], confidence=s1)
+
+
 def shot_type(n_boxes: int, max_boxes: int) -> str:
     """solo / pack / crowded from the box count; "" when the frame has no vehicle.
     crowded = the detector's cap was reached, so more cars may be in frame than were boxed."""

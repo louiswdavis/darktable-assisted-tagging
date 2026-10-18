@@ -206,7 +206,7 @@ def run_tests():
     results = os.path.join(img, "results.csv")
     args = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "progress.txt"), cache="",
                      collections_root=root, collection=os.path.basename(coll), entries_out=os.path.join(img, "e.csv"),
-                     rules_out=os.path.join(img, "r.csv"), boxes_out="", boxes_in="", report_out="", report_top=20)
+                     rules_out=os.path.join(img, "r.csv"), boxes_out="", boxes_in="", report_out="", report_top=20, archive_dir="")
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
     check("number reads, burst consensus and no-vehicle rows come out in manifest order (3-column manifest)", rows,
@@ -299,6 +299,27 @@ def run_tests():
     check("a cancelled run exits 130", code, 130)
     check("a cancelled run writes no results", os.path.exists(results) or os.path.exists(results + ".tmp"), False)
     I.check_models, I.Embedder, I.run_frames = real
+
+    # ---- Stage B: hints
+    mf = os.path.join(tempfile.mkdtemp(), "m.csv")
+    with open(mf, "w", encoding="utf-8") as f:
+        f.write('1,a.jpg,0\n2,b.jpg,0,F1|X\n3,c.jpg,0,,F1|Red Bull\n')
+    check("3-, 4- and 5-column manifests all parse", [r[3:] for r in I.read_manifest(mf, 3, 2)],
+          [["", ""], ["F1|X", ""], ["", "F1|Red Bull"]])
+    ents = {"VER": I.Entry("VER", "1", "Red Bull", ("F1|Red Bull", "F1|Red Bull|Verstappen"))}
+    check("strict prefixes of entry tags", I.strict_prefixes(ents), ["F1", "F1|Red Bull"])
+    check("tag and sponsor hints that agree merge", I.box_hint(["F1|Red Bull"], ["F1|Red Bull"]), (["F1|Red Bull"], "both"))
+    check("a tag hint beats a differing sponsor hint", I.box_hint(["F1|Ferrari"], ["F1|Red Bull"]), (["F1|Ferrari"], "tag"))
+    check("sponsor hint alone", I.box_hint([], ["F1|Red Bull"]), (["F1|Red Bull"], "sponsor"))
+    check("no hint", I.box_hint([], []), ([], ""))
+    check("sponsor_keywords naming a prefix with no entries is rejected",
+          load_error({"rules": {"sponsor_keywords": {"petronas": "F1|Mercedes"}}, "entries": [VER]}).startswith(
+              "rules.sponsor_keywords.petronas: no entry has a tag under"), True)
+    check("sponsor_keywords must be lowercase", load_error(
+          {"rules": {"sponsor_keywords": {"Petronas": "F1"}}, "entries": [VER]}),
+          "rules.sponsor_keywords must map lowercase keywords to tag prefixes")
+    check("partial_references must be a boolean", load_error({"rules": {"partial_references": "yes"}, "entries": [VER]}),
+          "rules.partial_references must be true or false")
 
     print("")
     if failures == 0:

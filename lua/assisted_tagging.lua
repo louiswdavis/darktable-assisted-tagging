@@ -266,6 +266,28 @@ function M.protected_tags(have, ledger_set, entries)
     return out
 end
 
+-- Tags among `have` the user applied (not in `ledger_set`) that are a strict prefix of some
+-- entry's tag (`prefix|…`): team-level hints that narrow matching. A driver's own leaf tag is not.
+function M.hint_prefixes(have, ledger_set, entries)
+    local below = {}
+    for _, e in pairs(entries) do
+        for _, t in ipairs(e.tags) do
+            local pos = 1
+            while true do
+                local bar = t:find("|", pos, true)
+                if not bar then break end
+                below[t:sub(1, bar - 1)] = true
+                pos = bar + 1
+            end
+        end
+    end
+    local out = {}
+    for name in pairs(have) do
+        if below[name] and not (ledger_set and ledger_set[name]) then out[name] = true end
+    end
+    return out
+end
+
 -- The entry an already-tagged image belongs to: the one whose tags it carries
 -- all of (a shared team tag alone matches no one). nil when none or several do.
 function M.entry_for_tags(have, entries, order)
@@ -1060,7 +1082,7 @@ function M.identify_images(images, replace_manual)
         -- The ledger holds the tags this plugin attached. Entries no longer on the image are
         -- dropped, so a tag removed and re-applied by hand counts as the user's again.
         local ledger = M.ledger_parse(read_file(LEDGER_PATH))
-        local protected_of = {}
+        local protected_of, hints_of = {}, {}
         for _, copies in pairs(group_of) do
             for _, copy in ipairs(copies) do
                 local have = tags_of(copy)
@@ -1070,13 +1092,15 @@ function M.identify_images(images, replace_manual)
                 end
                 ledger[copy.id] = next(kept) and kept or nil
                 protected_of[copy.id] = replace_manual and {} or M.protected_tags(have, kept, entries)
+                hints_of[copy.id] = replace_manual and {} or M.hint_prefixes(have, kept, entries)
             end
         end
 
         local rows = {}
         for _, img in ipairs(primaries) do
             rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, burst_of[img.id],
-                                table.concat(sorted_names(protected_of[img.id]), ";") }
+                                table.concat(sorted_names(protected_of[img.id]), ";"),
+                                table.concat(sorted_names(hints_of[img.id]), ";") }
         end
         pcall(os.remove, RESULTS_PATH)
         pcall(os.remove, ENTRIES_PATH)
@@ -1225,6 +1249,12 @@ function M.add_references(images, entry_id)
         local rows, n_skipped = {}, 0
         for _, img in ipairs(images) do
             local eid = entry_id or M.entry_for_tags(tags_of(img), entries, entry_order)
+            if not eid then
+                -- tagged only to team level: identify.py saves it as a team reference when
+                -- rules.partial_references is on and the shot is solo
+                local prefixes = sorted_names(M.hint_prefixes(tags_of(img), nil, entries))
+                if #prefixes == 1 then eid = prefixes[1] end
+            end
             if eid then
                 rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, eid }
             else

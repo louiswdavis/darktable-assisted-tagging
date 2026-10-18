@@ -97,6 +97,13 @@ def run_tests():
     wmd = R.render_md(weird, R.rows(weird), R.summarize(weird, R.rows(weird)), 5)
     check("render: ids with markdown characters sit in code spans", ("`x|y_z`" in wmd, "`a|b_c`" in wmd), (True, True))
 
+    hinted = data({"x": image([dict(box(), hint={"prefixes": ["F1|Red Bull"], "source": "tag", "restricted": 2,
+                                                 "dropped": True, "reason": "below_min_sim"})])})
+    hmd = R.render_md(hinted, R.rows(hinted), R.summarize(hinted, R.rows(hinted)), 5)
+    check("render: a dropped hint is listed and counted", ("hint `Red Bull` (tag) dropped (below_min_sim)" in hmd,
+                                                           "hints: 1 applied, 1 dropped" in hmd), (True, True))
+    check("render: no hint, no hint line", "hints:" in R.render_md(d, R.rows(d), R.summarize(d, R.rows(d)), 5), False)
+
     with tempfile.TemporaryDirectory() as tmp:
         prefix = os.path.join(tmp, "sub", "c.report")
         md_path, json_path = R.write_report(d, prefix, 20)

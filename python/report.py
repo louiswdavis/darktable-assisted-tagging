@@ -81,7 +81,7 @@ def rows(data: dict) -> list:
                         "entry": box["entry"], "alt_entry": box["alt_entry"], "method": box["method"],
                         "decided_by": box["decided_by"], "gap": box["gap"], "top1": round(top1_of(box), 4),
                         "margin": round(margin_of(box), 4), "candidates": box["candidates"],
-                        "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []),
+                        "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []), "hint": box.get("hint", {}),
                         "lever": lever(cat, box, entries)})
     return out
 
@@ -118,6 +118,10 @@ def describe(r: dict) -> str:
         parts.append("ocr saw " + ", ".join(f"`{t}` {c:.2f}" for c, t in r["ocr_trace"][:3]))
     elif "ocr_trace" in r:
         parts.append("ocr saw no text")
+    h = r.get("hint")
+    if h:
+        parts.append("hint " + ", ".join(f"`{p.rsplit('|', 1)[-1]}`" for p in h["prefixes"]) + f" ({h['source']})"
+                     + (f" dropped ({h['reason']})" if h["dropped"] else ""))
     if r["lever"]:
         parts.append(f"lever: {r['lever']}")
     return "; ".join(parts)
@@ -132,6 +136,9 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int) -> str:
         out.append(f"- {c}: {summary['counts'][c]} ({pct(summary['shares'][c])})")
     for c, m in summary["medians"].items():
         out.append(f"- median {c}: top-1 {m['top1']:.3f}, margin {m['margin']:.3f}")
+    hinted = [r["hint"] for r in all_rows if r.get("hint")]
+    if hinted:
+        out.append(f"- hints: {len(hinted)} applied, {sum(1 for h in hinted if h['dropped'])} dropped")
     if summary["errors"]:
         out.append(f"- images that failed analysis (not counted above): {summary['errors']}")
     if top > 0:

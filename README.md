@@ -186,6 +186,9 @@ Every key is optional; leave one out for its default.
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
 | `diagnostics` | the five `Assisted Tagging\|Motorsport\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `team`, `none`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
 
+| `sponsor_keywords` | `{}` | maps a lowercase sponsor word to the tag prefix of its team, e.g. `{"petronas": "Motorsport\|F1\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
+| `partial_references` | `false` | **Add tagged images as references** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only). |
+
 An unknown key, or a misspelt one, stops the run and names it, so a typo can't silently do nothing.
 
 ### Checking what it will tag
@@ -230,6 +233,7 @@ Re-running is safe: each image's entry and diagnostic tags are synced to the new
 The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config directory) of the tags it attached to each image. An entry tag on an image that isn't in its ledger is yours, at any depth (team or driver), and a run never removes it. So a photo you tagged to a team stays that way even when the run can't tell the driver.
 
 - A **solo shot** whose result disagrees with the tags you applied is left as you had it: nothing is added, it doesn't get the *Unidentified* tags, and the done message counts it. Packs aren't checked, since you may have tagged just one of the cars.
+- A **team tag** you applied (a tag that is a prefix of an entry's tags, such as `Motorsport|F1|Red Bull`) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car.
 - An image already carrying all of one entry's tags is **skipped** without being analysed.
 - To let a run replace your tags, tick **Replace manual tags** under **Identify selection**. It applies to the next run only and clears itself.
 - If you remove a tag the plugin attached and later apply it again by hand, it counts as yours.
@@ -352,7 +356,7 @@ python python/identify.py manifest.csv results.csv --collections-root collection
 
 `results.csv` gets `id,box,method,entry_id,alt_entry_id,confidence,unmatched_number,shot` per vehicle (box −1 for a frame with no vehicle; method `skipped` or `conflict` as above). Exit codes: 0 ok, 2 bad input (the message is on stderr), 3 missing package, 130 cancelled.
 
-`--boxes-out PATH` also writes `boxes.json`, one record per vehicle: `{"collection", "thresholds", "entries": {id: {"team", "number", "tags", "refs"}}, "images": {id: {"shot", "status" (ok, no_vehicle or error), "file", "frame", "boxes": [{"box", "bbox", "entry", "alt_entry", "method", "confidence", "candidates" (top 5 entry/similarity), "ocr", "decided_by", "gap", "unmatched_number", "conflict"}]}}, "skipped": [ids]}`. For `none` boxes `decided_by` names the rule that failed (`no_references`, `below_min_sim`, `margin_too_small`) and `gap` how far short it fell. The plugin writes it to `last-run/<collection>.boxes.json` in its config directory; `--promote-boxes --boxes-in PATH` (same manifest, `id,filepath,""`) saves its confident boxes as references.
+`--boxes-out PATH` also writes `boxes.json`, one record per vehicle: `{"collection", "thresholds", "entries": {id: {"team", "number", "tags", "refs"}}, "images": {id: {"shot", "status" (ok, no_vehicle or error), "file", "frame", "boxes": [{"box", "bbox", "entry", "alt_entry", "method", "confidence", "candidates" (top 5 entry/similarity), "ocr", "decided_by", "gap", "unmatched_number", "conflict", "hint" (prefixes, source, restricted, dropped, reason; {} without one)}]}}, "skipped": [ids]}`. For `none` boxes `decided_by` names the rule that failed (`no_references`, `below_min_sim`, `margin_too_small`) and `gap` how far short it fell. The plugin writes it to `last-run/<collection>.boxes.json` in its config directory; `--promote-boxes --boxes-in PATH` (same manifest, `id,filepath,""`) saves its confident boxes as references.
 
 ### Debug report
 

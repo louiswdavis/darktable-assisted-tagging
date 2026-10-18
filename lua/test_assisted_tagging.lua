@@ -163,6 +163,14 @@ check("protected: an entry tag not in the ledger is the user's", prot["F1|Red Bu
 check("protected: a ledgered tag is the plugin's", prot["F1|Red Bull|Verstappen"], nil)
 check("protected: a non-entry tag is ignored", prot["Holiday"], nil)
 
+local hint = T.hint_prefixes(
+    { ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true, ["F1|Ferrari"] = true, ["Holiday"] = true },
+    { ["F1|Ferrari"] = true }, entries)
+check("hint: a user-applied strict prefix of an entry tag hints", hint["F1|Red Bull"], true)
+check("hint: a driver's own leaf tag is not a hint", hint["F1|Red Bull|Verstappen"], nil)
+check("hint: a ledgered tag is the plugin's, not a hint", hint["F1|Ferrari"], nil)
+check("hint: a non-entry tag is ignored", hint["Holiday"], nil)
+
 attach, detach = T.tag_changes({ ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true },
     T.wanted_tags({ row("none") }, entries), owned, nil, { ["F1|Red Bull"] = true })
 check("a protected tag is never detached", table.concat(detach, ","), "F1|Red Bull|Verstappen")
