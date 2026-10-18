@@ -29,8 +29,10 @@ from dataclasses import dataclass, replace
 from vehicles import BOX_MARGIN_TRIM, CROP_DIM, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect_vehicles, detector_model, file_key, load_full, log
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
-from match import (BoxResult, Entry, already_tagged, burst_consensus, conflicts, decided_by, match_box,
-                   match_livery, pool_sims, promotable, shot_type)
+from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
+                   burst_consensus, conflicts, decided_by, match_box, match_livery, pool_sims, promotable,
+                   shot_type)
+from report import write_report
 from reference_store import ReferenceIndex
 
 IDENTIFY_CACHE_VERSION = 1
@@ -468,15 +470,17 @@ def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: di
     return out
 
 
-def write_boxes(path: str, collection: str, frames: dict, shots: dict, detail: dict, entries: dict):
-    """The run's per-vehicle record (see the Stage A plan for the shape), written atomically.
-    `skipped` lists images left alone because they already carry one entry's full tag set."""
+def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entries: dict, counts: dict) -> dict:
+    """The run's per-vehicle record (see the Stage A plan for the shape). `skipped` lists images
+    left alone because they already carry one entry's full tag set; each image's `status` is
+    ok, no_vehicle or error. `entries` and `thresholds` give the debug report what it needs."""
     images, skipped = {}, []
     for image_id, results in frames.items():
         if any(r.method == "skipped" for r in results):
             skipped.append(image_id)
             continue
         d = detail[image_id]
+        status = "error" if any(r.method == "error" for r in results) else "ok" if d["boxes"] else "no_vehicle"
         boxes = []
         for r in results:
             if r.box < 0:
@@ -487,12 +491,23 @@ def write_boxes(path: str, collection: str, frames: dict, shots: dict, detail: d
                           "method": r.method, "confidence": round(r.confidence, 4),
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "decided_by": rule, "gap": round(gap, 4),
-                          "conflict": r.method == "conflict"})
-        images[image_id] = {"shot": shots[image_id], "file": d["file"], "frame": d["frame"], "boxes": boxes}
+                          "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict"})
+        images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
+                            "boxes": boxes}
+    return {"collection": collection,
+            "thresholds": {"min_sim": MATCH_MIN_SIM, "min_margin": MATCH_MIN_MARGIN,
+                           "reference_margin": REFERENCE_MIN_MARGIN},
+            "entries": {e.id: {"team": e.team, "number": e.number, "tags": list(e.tags), "refs": counts.get(e.id, 0)}
+                        for e in entries.values()},
+            "images": images, "skipped": skipped}
+
+
+def write_boxes(path: str, data: dict):
+    """Writes build_boxes' record atomically."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
-        json.dump({"collection": collection, "images": images, "skipped": skipped}, f)
+        json.dump(data, f)
     os.replace(tmp, path)
 
 
@@ -576,8 +591,13 @@ def identify(args, models: dict):
                 by_method[r.method] = by_method.get(r.method, 0) + 1
                 f.write(format_row(image_id, r, shots[image_id]) + "\n")
     os.replace(tmp, args.results)
-    if args.boxes_out:
-        write_boxes(args.boxes_out, args.collection, frames, shots, detail, entries)
+    if args.boxes_out or args.report_out:
+        data = build_boxes(args.collection, frames, shots, detail, entries, counts)
+        if args.boxes_out:
+            write_boxes(args.boxes_out, data)
+        if args.report_out:
+            md_path, _ = write_report(data, args.report_out, args.report_top)
+            log(f"report: {md_path}")
     write_collection_outputs(args, collection, entries, rules)
     log("vehicles by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 
@@ -705,7 +725,10 @@ def main(argv=None):
     parser.add_argument("--rules-out", default="", help="Write the collection's rules.csv here")
     parser.add_argument("--collections-out", default="", help="--list: write collection names here")
     parser.add_argument("--boxes-out", default="", help="Write the run's per-vehicle boxes.json here")
-    parser.add_argument("--boxes-in", default="", help="--promote-boxes: the boxes.json to read")
+    parser.add_argument("--report-out", default="",
+                        help="Write the run's debug report to <this>.md and <this>.json")
+    parser.add_argument("--report-top", type=int, default=20, help="Per-category cap on box detail in report.md")
+    parser.add_argument("--boxes-in",default="", help="--promote-boxes: the boxes.json to read")
     parser.add_argument("--promote-boxes", action="store_true",
                         help="Add each manifest image's confident vehicles from --boxes-in as references")
     parser.add_argument("--add-reference", action="store_true", help="Add each manifest image as a reference")

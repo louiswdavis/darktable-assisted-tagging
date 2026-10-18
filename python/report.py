@@ -1,0 +1,172 @@
+"""Debug report built from a run's boxes.json: every detected vehicle gets one category, the run
+summary counts them, and the worst boxes per category are listed with their numbers and a lever.
+
+Standalone: report.py BOXES_JSON OUT_PREFIX [--report-top N]  (writes OUT_PREFIX.md and .json)
+"""
+
+import argparse
+import json
+import os
+import statistics
+import sys
+
+CATEGORIES = ("identified", "team-obvious", "weak-match", "no-references", "number-unmatched",
+              "conflict", "already-tagged", "no-vehicle")
+IDENTIFIED_METHODS = ("number", "livery", "burst", "pooled")
+# categories whose boxes are listed one by one; the rest are only counted
+DETAIL_CATEGORIES = ("team-obvious", "weak-match", "no-references", "number-unmatched", "conflict")
+MEDIAN_CATEGORIES = ("team-obvious", "weak-match")
+
+
+def top1_of(box: dict) -> float:
+    c = box.get("candidates") or []
+    return c[0][1] if c else 0.0
+
+
+def margin_of(box: dict) -> float:
+    c = box.get("candidates") or []
+    return c[0][1] - c[1][1] if len(c) > 1 else 0.0
+
+
+def categorize(box: dict) -> str:
+    """The one category of a boxes.json box record. Precedence: conflict, identified, team,
+    then the failures of a `none` result (no references before unmatched number before weak)."""
+    if box.get("conflict"):
+        return "conflict"
+    if box["method"] in IDENTIFIED_METHODS:
+        return "identified"
+    if box["method"] == "team":
+        return "team-obvious"
+    if box["decided_by"] == "no_references":
+        return "no-references"
+    if box.get("unmatched_number"):
+        return "number-unmatched"
+    return "weak-match"
+
+
+def lever(category: str, box: dict, entries: dict) -> str:
+    """One suggested next step from a fixed rule list; "" when no rule applies."""
+    cands = box.get("candidates") or []
+    if category == "no-references":
+        return "no references yet, add some"
+    if category == "number-unmatched":
+        return "no entry has number " + box["unmatched_number"].replace(";", " or ")
+    if category != "weak-match" or not cands:
+        return ""
+    top = entries.get(cands[0][0], {})
+    if box["decided_by"] == "margin_too_small" and len(cands) > 1:
+        a, b = entries.get(cands[0][0], {}), entries.get(cands[1][0], {})
+        if not a.get("team") and not b.get("team") and set(a.get("tags", [])) & set(b.get("tags", [])):
+            return f"set team on {cands[0][0]} and {cands[1][0]}"
+    if top.get("refs") == 0:
+        return f"{cands[0][0]} needs references"
+    if box["decided_by"] == "below_min_sim":
+        return "weak match, add references from this angle"
+    return ""
+
+
+def rows(data: dict) -> list:
+    """One flat row per box, plus one per already-tagged and no-vehicle image. Images that
+    failed analysis are left out (see summarize's `errors`)."""
+    entries, out = data["entries"], []
+    for image_id in data["skipped"]:
+        out.append({"image": image_id, "box": -1, "category": "already-tagged"})
+    for image_id, img in data["images"].items():
+        if img["status"] == "no_vehicle":
+            out.append({"image": image_id, "box": -1, "category": "no-vehicle"})
+        for box in img["boxes"]:
+            cat = categorize(box)
+            out.append({"image": image_id, "box": box["box"], "category": cat, "shot": img["shot"],
+                        "entry": box["entry"], "alt_entry": box["alt_entry"], "method": box["method"],
+                        "decided_by": box["decided_by"], "gap": box["gap"], "top1": round(top1_of(box), 4),
+                        "margin": round(margin_of(box), 4), "candidates": box["candidates"],
+                        "ocr": box["ocr"], "lever": lever(cat, box, entries)})
+    return out
+
+
+def summarize(data: dict, all_rows: list) -> dict:
+    total = len(all_rows)
+    counts = {c: sum(1 for r in all_rows if r["category"] == c) for c in CATEGORIES}
+    medians = {}
+    for c in MEDIAN_CATEGORIES:
+        sel = [r for r in all_rows if r["category"] == c]
+        if sel:
+            medians[c] = {"top1": round(statistics.median(r["top1"] for r in sel), 4),
+                          "margin": round(statistics.median(r["margin"] for r in sel), 4)}
+    return {"total": total,
+            "errors": sum(1 for i in data["images"].values() if i["status"] == "error"),
+            "counts": counts,
+            "shares": {c: (counts[c] / total if total else 0.0) for c in CATEGORIES},
+            "identified_rate": counts["identified"] / total if total else 0.0,
+            "medians": medians}
+
+
+def pct(x: float) -> str:
+    return f"{x * 100:.0f}%"
+
+
+def describe(r: dict) -> str:
+    cands = ", ".join(f"`{e}` {s:.3f}" for e, s in r["candidates"][:3]) or "no candidates"
+    parts = [f"`{r['image']}` box {r['box']}: {cands}", f"{r['decided_by']}" + (f", short by {r['gap']:.3f}" if r["gap"] else "")]
+    if r["ocr"]:
+        parts.append("read " + ", ".join(f"`{d}`" for d, _ in r["ocr"]))
+    if r["lever"]:
+        parts.append(f"lever: {r['lever']}")
+    return "; ".join(parts)
+
+
+def render_md(data: dict, all_rows: list, summary: dict, top: int) -> str:
+    t = data["thresholds"]
+    out = [f"# Assisted Tagging report: `{data['collection']}`", "",
+           f"thresholds: min_sim {t['min_sim']}, min_margin {t['min_margin']}, reference_margin {t['reference_margin']}",
+           "", "## Summary", "", f"{summary['total']} vehicles/images, identified rate {pct(summary['identified_rate'])}", ""]
+    for c in CATEGORIES:
+        out.append(f"- {c}: {summary['counts'][c]} ({pct(summary['shares'][c])})")
+    for c, m in summary["medians"].items():
+        out.append(f"- median {c}: top-1 {m['top1']:.3f}, margin {m['margin']:.3f}")
+    if summary["errors"]:
+        out.append(f"- images that failed analysis (not counted above): {summary['errors']}")
+    if top > 0:
+        for c in DETAIL_CATEGORIES:
+            sel = sorted((r for r in all_rows if r["category"] == c), key=lambda r: r["top1"])
+            if not sel:
+                continue
+            out += ["", f"## {c} ({len(sel)})", ""]
+            out += [f"- {describe(r)}" for r in sel[:top]]
+            if len(sel) > top:
+                out.append(f"- … {len(sel) - top} more in report.json")
+    return "\n".join(out) + "\n"
+
+
+def write_report(data: dict, out_prefix: str, top: int) -> tuple:
+    """Writes OUT_PREFIX.md (capped at `top` boxes per category) and OUT_PREFIX.json (every row);
+    returns both paths."""
+    all_rows = rows(data)
+    summary = summarize(data, all_rows)
+    paths = (out_prefix + ".md", out_prefix + ".json")
+    os.makedirs(os.path.dirname(os.path.abspath(out_prefix)), exist_ok=True)
+    for path, text in ((paths[0], render_md(data, all_rows, summary, top)),
+                       (paths[1], json.dumps({"collection": data["collection"], "thresholds": data["thresholds"],
+                                              "summary": summary, "rows": all_rows}))):
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    return paths
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Rebuild the debug report from a saved boxes.json")
+    parser.add_argument("boxes", help="boxes.json from a run")
+    parser.add_argument("out_prefix", help="Writes <this>.md and <this>.json")
+    parser.add_argument("--report-top", type=int, default=20, help="Per-category cap on box detail in the .md")
+    args = parser.parse_args(argv)
+    with open(args.boxes, encoding="utf-8") as f:
+        data = json.load(f)
+    md_path, json_path = write_report(data, args.out_prefix, args.report_top)
+    print(md_path)
+    print(json_path)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

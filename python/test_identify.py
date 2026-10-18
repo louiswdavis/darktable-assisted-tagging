@@ -206,7 +206,7 @@ def run_tests():
     results = os.path.join(img, "results.csv")
     args = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "progress.txt"), cache="",
                      collections_root=root, collection=os.path.basename(coll), entries_out=os.path.join(img, "e.csv"),
-                     rules_out=os.path.join(img, "r.csv"), boxes_out="", boxes_in="")
+                     rules_out=os.path.join(img, "r.csv"), boxes_out="", boxes_in="", report_out="", report_top=20)
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
     check("number reads, burst consensus and no-vehicle rows come out in manifest order (3-column manifest)", rows,
@@ -246,6 +246,16 @@ def run_tests():
           ("conflict", "VER", True))
     check("a box with no references says why", run["images"]["9"]["boxes"][1]["decided_by"], "no_references")
     check("a number box records its OCR", run["images"]["6"]["boxes"][0]["ocr"], [["1", 0.95]])
+    check("boxes.json records each image's status and the box's unmatched digits",
+          (run["images"]["9"]["status"], run["images"]["9"]["boxes"][1]["unmatched_number"]), ("ok", ""))
+    check("boxes.json carries the thresholds and per-entry facts the report needs",
+          (sorted(run["thresholds"]), sorted(run["entries"]["VER"])), (["min_margin", "min_sim", "reference_margin"],
+                                                                      ["number", "refs", "tags", "team"]))
+    args.report_out = os.path.join(img, "last-run", "c.report")
+    I.identify(args, {"embedder": "fake"})
+    check("--report-out writes report.md and report.json", (os.path.isfile(args.report_out + ".md"),
+          json.load(open(args.report_out + ".json", encoding="utf-8"))["summary"]["counts"]["already-tagged"]), (True, 1))
+    args.report_out = ""
 
     # ---- --promote-boxes: saves confident boxes from the box crop, replaces on re-run, flags a changed file
     real_jpg = os.path.join(img, "promo.jpg")

@@ -1013,6 +1013,11 @@ local function boxes_path()
     return LAST_RUN_DIR .. "/" .. current_collection() .. ".boxes.json"
 end
 
+-- Prefix of the run's debug report: identify.py writes <prefix>.md and <prefix>.json.
+local function report_prefix()
+    return LAST_RUN_DIR .. "/" .. current_collection() .. ".report"
+end
+
 local function sorted_names(set)
     local out = {}
     for name in pairs(set) do out[#out + 1] = name end
@@ -1086,7 +1091,8 @@ function M.identify_images(images, replace_manual)
             .. collection_args() .. model_args(script)
             .. " --cache " .. shell_quote(CACHE_PATH)
             .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH)
-            .. " --boxes-out " .. shell_quote(boxes_path()),
+            .. " --boxes-out " .. shell_quote(boxes_path())
+            .. " --report-out " .. shell_quote(report_prefix()),
             job, 0, PROGRESS_ANALYSIS, "identifying")
         flush_log()
         dt.print_hinter(" ")
