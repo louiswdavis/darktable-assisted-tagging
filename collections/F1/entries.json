@@ -1,0 +1,211 @@
+{
+  "rules": {
+    "team_only": "shared tags",
+    "unidentified": [],
+    "sponsor_keywords": {
+      "petronas": "Sports|F1|Mercedes",
+      "redbull": "Sports|F1|Red Bull",
+      "aramco": "Sports|F1|Aston Martin"
+    }
+  },
+  "entries": [
+    {
+      "id": "Lawson",
+      "number": "30",
+      "team": "Racing Bulls",
+      "tags": [
+        "Sports|F1|Racing Bulls",
+        "Sports|F1|Racing Bulls|Lawson"
+      ]
+    },
+    {
+      "id": "Piastri",
+      "number": "81",
+      "team": "McLaren",
+      "tags": [
+        "Sports|F1|McLaren",
+        "Sports|F1|McLaren|Piastri"
+      ]
+    },
+    {
+      "id": "Bottas",
+      "number": "77",
+      "team": "Cadillac",
+      "tags": [
+        "Sports|F1|Cadillac",
+        "Sports|F1|Cadillac|Bottas"
+      ]
+    },
+    {
+      "id": "LeClerc",
+      "number": "16",
+      "team": "Ferrari",
+      "tags": [
+        "Sports|F1|Ferrari",
+        "Sports|F1|Ferrari|LeClerc"
+      ]
+    },
+    {
+      "id": "Lindblad",
+      "number": "41",
+      "team": "Racing Bulls",
+      "tags": [
+        "Sports|F1|Racing Bulls",
+        "Sports|F1|Racing Bulls|Lindblad"
+      ]
+    },
+    {
+      "id": "Hamilton",
+      "number": "44",
+      "team": "Ferrari",
+      "tags": [
+        "Sports|F1|Ferrari",
+        "Sports|F1|Ferrari|Hamilton"
+      ]
+    },
+    {
+      "id": "Norris",
+      "number": "1",
+      "team": "McLaren",
+      "tags": [
+        "Sports|F1|McLaren",
+        "Sports|F1|McLaren|Norris"
+      ]
+    },
+    {
+      "id": "Stroll",
+      "number": "18",
+      "team": "Aston Martin",
+      "tags": [
+        "Sports|F1|Aston Martin",
+        "Sports|F1|Aston Martin|Stroll"
+      ]
+    },
+    {
+      "id": "Bortoleto",
+      "number": "5",
+      "team": "Audi",
+      "tags": [
+        "Sports|F1|Audi",
+        "Sports|F1|Audi|Bortoleto"
+      ]
+    },
+    {
+      "id": "Bearman",
+      "number": "87",
+      "team": "Haas",
+      "tags": [
+        "Sports|F1|Haas",
+        "Sports|F1|Haas|Bearman"
+      ]
+    },
+    {
+      "id": "Verstappen",
+      "number": "3",
+      "team": "Red Bull",
+      "tags": [
+        "Sports|F1|Red Bull",
+        "Sports|F1|Red Bull|Verstappen"
+      ]
+    },
+    {
+      "id": "Perez",
+      "number": "11",
+      "team": "Cadillac",
+      "tags": [
+        "Sports|F1|Cadillac",
+        "Sports|F1|Cadillac|Perez"
+      ]
+    },
+    {
+      "id": "Hulkenburg",
+      "number": "27",
+      "team": "Audi",
+      "tags": [
+        "Sports|F1|Audi",
+        "Sports|F1|Audi|Hulkenburg"
+      ]
+    },
+    {
+      "id": "Hadjar",
+      "number": "6",
+      "team": "Red Bull",
+      "tags": [
+        "Sports|F1|Red Bull",
+        "Sports|F1|Red Bull|Hadjar"
+      ]
+    },
+    {
+      "id": "Colapinto",
+      "number": "43",
+      "team": "Alpine",
+      "tags": [
+        "Sports|F1|Alpine",
+        "Sports|F1|Alpine|Colapinto"
+      ]
+    },
+    {
+      "id": "Gasly",
+      "number": "10",
+      "team": "Alpine",
+      "tags": [
+        "Sports|F1|Alpine",
+        "Sports|F1|Alpine|Gasly"
+      ]
+    },
+    {
+      "id": "Antonelli",
+      "number": "12",
+      "team": "Mercedes",
+      "tags": [
+        "Sports|F1|Mercedes",
+        "Sports|F1|Mercedes|Antonelli"
+      ]
+    },
+    {
+      "id": "Alonso",
+      "number": "14",
+      "team": "Aston Martin",
+      "tags": [
+        "Sports|F1|Aston Martin",
+        "Sports|F1|Aston Martin|Alonso"
+      ]
+    },
+    {
+      "id": "Russell",
+      "number": "63",
+      "team": "Mercedes",
+      "tags": [
+        "Sports|F1|Mercedes",
+        "Sports|F1|Mercedes|Russell"
+      ]
+    },
+    {
+      "id": "Sainz",
+      "number": "55",
+      "team": "Williams",
+      "tags": [
+        "Sports|F1|Williams",
+        "Sports|F1|Williams|Sainz"
+      ]
+    },
+    {
+      "id": "Albon",
+      "number": "23",
+      "team": "Williams",
+      "tags": [
+        "Sports|F1|Williams",
+        "Sports|F1|Williams|Albon"
+      ]
+    },
+    {
+      "id": "Ocon",
+      "number": "31",
+      "team": "Haas",
+      "tags": [
+        "Sports|F1|Haas",
+        "Sports|F1|Haas|Ocon"
+      ]
+    }
+  ]
+}
