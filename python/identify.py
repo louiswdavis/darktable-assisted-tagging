@@ -315,7 +315,7 @@ def frame_key(filepath: str, models: dict) -> list:
     """Cache key parts for a frame's analysis. Entries and references stay out of it."""
     return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
-            DETECTOR_MIN_SCORE]
+            DETECTOR_MIN_SCORE, "ocr-trace-1"]
 
 
 # ---------------------------------------------------------------- progress
@@ -356,13 +356,15 @@ def analyse_frame(filepath: str) -> dict:
     """Boxes, OCR candidates and embeddings for one frame: the cached value."""
     rgb = load_full(filepath)
     boxes, note = detect_vehicles(rgb, _W["models"]["detector"])
-    ocr, emb = [], []
+    ocr, trace, emb = [], [], []
     for b in boxes:
         crop = crop_box(rgb, b)
         ocr.append([[d, c] for d, c in _W["reader"].read(crop)])
+        trace.append(_W["reader"].last_trace)
         emb.append(encode(_W["embedder"].embed(crop)))
     h, w = rgb.shape[:2]
-    return {"boxes": [list(b) for b in boxes], "ocr": ocr, "emb": emb, "note": note, "frame": [w, h]}
+    return {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "emb": emb, "note": note,
+            "frame": [w, h]}
 
 
 # ---------------------------------------------------------------- identify mode
@@ -511,7 +513,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
             boxes.append({"box": r.box, "bbox": b["bbox"], "entry": r.entry_id, "alt_entry": r.alt_entry_id,
                           "method": r.method, "confidence": round(r.confidence, 4),
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
-                          "ocr": b["ocr"], "decided_by": rule, "gap": round(gap, 4),
+                          "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict"})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "note": d["note"], "boxes": boxes}
@@ -585,7 +587,8 @@ def identify(args, models: dict):
             r = match_box(i, [tuple(c) for c in ocr], sims, entries)
             log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}")
             results.append(r)
-            detail[image_id]["boxes"].append({"bbox": [float(v) for v in a["boxes"][i][:4]], "ocr": ocr, "sims": sims})
+            detail[image_id]["boxes"].append({"bbox": [float(v) for v in a["boxes"][i][:4]], "ocr": ocr, "sims": sims,
+                                              "ocr_trace": a.get("ocr_trace", [[]] * len(a["ocr"]))[i]})
             if i == 0 and rules.burst_livery_pooling:
                 box0_sims[image_id] = sims
         frames[image_id] = results
