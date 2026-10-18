@@ -115,6 +115,39 @@ def run_tests():
     check("burst doesn't override a team-only result for another team", summary(out["3"][0]), ("team", "HAM", "LEC"))
     check("burst does upgrade a team-only result for its own team", summary(out["4"][0]), ("burst", "VER", ""))
 
+    # shot_type / decided_by / already_tagged / conflicts / promotable
+    check("shot: no boxes", Mt.shot_type(0, 4), "")
+    check("shot: one box is solo", Mt.shot_type(1, 4), "solo")
+    check("shot: two boxes is a pack", Mt.shot_type(2, 4), "pack")
+    check("shot: the cap reached is crowded", Mt.shot_type(4, 4), "crowded")
+
+    sims_none = [("VER", 0.55), ("TSU", 0.40)]
+    check("decided_by passes a method through", Mt.decided_by(BoxResult(0, "number", "VER"), [], ENTRIES), ("number", 0.0))
+    check("decided_by: no vehicle", Mt.decided_by(BoxResult(-1, "none"), [], ENTRIES), ("no_vehicle", 0.0))
+    check("decided_by: no references", Mt.decided_by(BoxResult(0, "none"), [], ENTRIES), ("no_references", 0.0))
+    rule, gap = Mt.decided_by(BoxResult(0, "none"), sims_none, ENTRIES)
+    check("decided_by: below the minimum similarity", (rule, round(gap, 3)), ("below_min_sim", 0.05))
+    rule, gap = Mt.decided_by(BoxResult(0, "none"), [("VER", 0.91), ("HAM", 0.908)], ENTRIES)
+    check("decided_by: margin too small", (rule, round(gap, 3)), ("margin_too_small", 0.048))
+
+    check("already_tagged: a team tag alone is no one", Mt.already_tagged({"F1|Red Bull"}, ENTRIES), "")
+    check("already_tagged: a driver's whole chain", Mt.already_tagged({"F1|Red Bull", "F1|Red Bull|Tsunoda"}, ENTRIES), "TSU")
+    check("already_tagged: two drivers are no one", Mt.already_tagged(
+        {"F1|Red Bull", "F1|Red Bull|Tsunoda", "F1|Ferrari|Hamilton"}, ENTRIES), "")
+
+    check("conflict: a solo shot sharing no tag", Mt.conflicts("HAM", {"F1|Red Bull"}, ENTRIES, True), True)
+    check("conflict: never in a pack", Mt.conflicts("HAM", {"F1|Red Bull"}, ENTRIES, False), False)
+    check("conflict: nothing protected", Mt.conflicts("HAM", set(), ENTRIES, True), False)
+    check("conflict: a shared tag agrees", Mt.conflicts("TSU", {"F1|Red Bull"}, ENTRIES, True), False)
+
+    wide = {"method": "livery", "entry": "VER", "candidates": [["VER", 0.9], ["TSU", 0.7]]}
+    check("promotable: number", Mt.promotable({"method": "number", "entry": "VER"}), True)
+    check("promotable: wide livery margin", Mt.promotable(wide), True)
+    check("promotable: narrow livery margin", Mt.promotable({**wide, "candidates": [["VER", 0.9], ["TSU", 0.85]]}), False)
+    for m in ("burst", "team", "pooled", "conflict", "none"):
+        check(f"promotable: never {m}", Mt.promotable({**wide, "method": m}), False)
+    check("promotable: no entry", Mt.promotable({**wide, "entry": ""}), False)
+
     print("")
     if failures == 0:
         print("all tests passed")

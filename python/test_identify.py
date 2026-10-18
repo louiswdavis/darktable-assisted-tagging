@@ -127,9 +127,12 @@ def run_tests():
     check("the cache key is stable", I.frame_key(frame, models), key)
 
     # ---- results rows
-    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000")
+    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,")
     check("a team row carries the runner-up", I.format_row("7", BoxResult(0, "team", "VER", "TSU", 0.71234)),
-          "7,0,team,VER,TSU,0.712")
+          "7,0,team,VER,TSU,0.712,,")
+    check("a row ends with the shot type", I.format_row("7", BoxResult(0, "number", "VER", "", 0.9), "pack"),
+          "7,0,number,VER,,0.900,,pack")
+    check("a row has eight fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 8)
 
     # ---- Review Focus 2: EXIF-rotated frames
     rotated = os.path.join(img, "portrait.jpg")
@@ -177,12 +180,17 @@ def run_tests():
         f.write('"1","/x/1.jpg","5"\n"2","/x/2.jpg","5"\n"3","/x/3.jpg","5"\n"4","/x/4.jpg","9"\n"5","/x/5.jpg","9"\n')
     vec = encode(np.eye(384, dtype=np.float32)[0])
     car = [[0, 0, 100, 50, 0.9, 2]]
+    fr = [100, 50]
     stub = {
-        "/x/1.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "emb": [vec], "note": ""},
-        "/x/2.jpg": {"boxes": car, "ocr": [[["1", 0.90]]], "emb": [vec], "note": ""},
-        "/x/3.jpg": {"boxes": car, "ocr": [[]], "emb": [vec], "note": ""},
+        "/x/1.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "emb": [vec], "note": "", "frame": fr},
+        "/x/2.jpg": {"boxes": car, "ocr": [[["1", 0.90]]], "emb": [vec], "note": "", "frame": fr},
+        "/x/3.jpg": {"boxes": car, "ocr": [[]], "emb": [vec], "note": "", "frame": fr},
         "/x/4.jpg": {"boxes": [], "ocr": [], "emb": [], "note": "no vehicle"},
         "/x/5.jpg": None,
+        "/x/6.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "emb": [vec], "note": "", "frame": fr},
+        "/x/7.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "emb": [vec], "note": "", "frame": fr},
+        "/x/8.jpg": {"boxes": car, "ocr": [[]], "emb": [vec], "note": "", "frame": fr},
+        "/x/9.jpg": {"boxes": car * 2, "ocr": [[["1", 0.95]], []], "emb": [vec, vec], "note": "", "frame": fr},
     }
 
     class FakeEmbedder:
@@ -198,14 +206,77 @@ def run_tests():
     results = os.path.join(img, "results.csv")
     args = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "progress.txt"), cache="",
                      collections_root=root, collection=os.path.basename(coll), entries_out=os.path.join(img, "e.csv"),
-                     rules_out=os.path.join(img, "r.csv"))
+                     rules_out=os.path.join(img, "r.csv"), boxes_out="", boxes_in="")
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
-    check("number reads, burst consensus and no-vehicle rows come out in manifest order", rows,
-          ["1,0,number,VER,,0.950", "2,0,number,VER,,0.900", "3,0,burst,VER,,0.667", "4,-1,none,,,0.000",
-           "5,-1,error,,,0.000"])
+    check("number reads, burst consensus and no-vehicle rows come out in manifest order (3-column manifest)", rows,
+          ["1,0,number,VER,,0.950,,solo", "2,0,number,VER,,0.900,,solo", "3,0,burst,VER,,0.667,,solo",
+           "4,-1,none,,,0.000,,", "5,-1,error,,,0.000,,"])
     check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
     check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
+
+    _, shot_rules = I.load_collection(collection({"rules": {"diagnostics": {"shot_pack": "Mine|Pack", "shot_solo": ""}},
+                                                  "entries": [VER]}))
+    check("shot diagnostics can be renamed or dropped like the others",
+          (dict(shot_rules.diagnostics)["shot_pack"], dict(shot_rules.diagnostics)["shot_solo"],
+           dict(shot_rules.diagnostics)["shot_crowded"]),
+          ("Mine|Pack", "", I.DIAG_DEFAULTS["shot_crowded"]))
+
+    # ---- hand-applied tags: skipped, conflict (also after burst fill), packs; and boxes.json
+    with open(manifest, "w", encoding="utf-8") as f:
+        f.write('"1","/x/1.jpg","5","F1|Red Bull;F1|Red Bull|Tsunoda"\n'
+                '"2","/x/2.jpg","5","F1|Red Bull|Tsunoda"\n'
+                '"6","/x/6.jpg","8",""\n"7","/x/7.jpg","8",""\n'
+                '"8","/x/8.jpg","8","F1|Red Bull|Tsunoda"\n'
+                '"9","/x/9.jpg","9","F1|Red Bull|Tsunoda"\n')
+    args.boxes_out = os.path.join(img, "last-run", "c.boxes.json")
+    I.identify(args, {"embedder": "fake"})
+    rows = open(results, encoding="utf-8").read().splitlines()
+    check("a fully tagged image is skipped; solo disagreement is a conflict, also when burst-filled; packs aren't", rows,
+          ["1,-1,skipped,,,0.000,,", "2,0,conflict,VER,,0.900,,solo", "6,0,number,VER,,0.950,,solo",
+           "7,0,number,VER,,0.950,,solo", "8,0,conflict,VER,,0.667,,solo", "9,0,number,VER,,0.950,,pack",
+           "9,1,none,,,0.000,,pack"])
+    run = json.load(open(args.boxes_out, encoding="utf-8"))
+    check("boxes.json names the collection and the skipped images", (run["collection"], run["skipped"]),
+          (os.path.basename(coll), ["1"]))
+    check("boxes.json records the shot and frame", (run["images"]["9"]["shot"], run["images"]["9"]["frame"]),
+          ("pack", [100, 50]))
+    b = run["images"]["2"]["boxes"][0]
+    check("a conflict box keeps its entry and is flagged", (b["method"], b["entry"], b["conflict"]),
+          ("conflict", "VER", True))
+    check("a box with no references says why", run["images"]["9"]["boxes"][1]["decided_by"], "no_references")
+    check("a number box records its OCR", run["images"]["6"]["boxes"][0]["ocr"], [["1", 0.95]])
+
+    # ---- --promote-boxes: saves confident boxes from the box crop, replaces on re-run, flags a changed file
+    real_jpg = os.path.join(img, "promo.jpg")
+    Image.new("RGB", (100, 50), (200, 30, 30)).save(real_jpg)
+    promo_boxes = os.path.join(img, "promo.boxes.json")
+
+    def write_promo(frame):
+        record = {"shot": "pack", "file": real_jpg, "frame": frame, "boxes": [
+            {"box": 0, "bbox": [0, 0, 50, 50], "entry": "VER", "alt_entry": "", "method": "number",
+             "confidence": 0.95, "candidates": [], "ocr": [], "decided_by": "number", "gap": 0.0, "conflict": False},
+            {"box": 1, "bbox": [50, 0, 100, 50], "entry": "TSU", "alt_entry": "", "method": "livery",
+             "confidence": 0.8, "candidates": [["TSU", 0.80], ["VER", 0.78]], "ocr": [], "decided_by": "livery",
+             "gap": 0.0, "conflict": False}]}
+        with open(promo_boxes, "w", encoding="utf-8") as f:
+            json.dump({"collection": os.path.basename(coll), "images": {"1": record}, "skipped": []}, f)
+
+    with open(manifest, "w", encoding="utf-8") as f:
+        f.write(f'"1","{real_jpg}",""\n')
+    pargs = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "p2.txt"), cache="",
+                      collections_root=root, collection=os.path.basename(coll), entries_out=args.entries_out,
+                      rules_out=args.rules_out, boxes_out="", boxes_in=promo_boxes)
+    write_promo([100, 50])
+    I.promote_boxes(pargs, {"embedder": "fake"})
+    check("promote adds a confident box", open(results, encoding="utf-8").read().strip(), "1,added")
+    refs = sorted(os.listdir(os.path.join(coll, "refs")))
+    check("only the wide-margin box became a reference", refs, ["VER"])
+    I.promote_boxes(pargs, {"embedder": "fake"})
+    check("promoting again replaces rather than duplicates", len(os.listdir(os.path.join(coll, "refs", "VER"))), 1)
+    write_promo([10, 10])
+    I.promote_boxes(pargs, {"embedder": "fake"})
+    check("a file that no longer matches the run is stale", open(results, encoding="utf-8").read().strip(), "1,stale")
 
     # ---- Review Focus 4: cancel leaves no results
     os.remove(results)

@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 MATCH_MIN_SIM = 0.60
 MATCH_MIN_MARGIN = 0.05
 BURST_MIN_AGREE = 2
+REFERENCE_MIN_MARGIN = 0.10  # a livery match must lead by this much to be saved as a reference
 
 IDENTIFIED = ("number", "livery")
 
@@ -75,6 +76,70 @@ def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
         return BoxResult(box, "number", hits.pop(), "", best_conf)
     unmatched = ";".join(dict.fromkeys(digits for digits, _ in ocr))
     return match_livery(box, sims, entries, unmatched)
+
+
+def shot_type(n_boxes: int, max_boxes: int) -> str:
+    """solo / pack / crowded from the box count; "" when the frame has no vehicle.
+    crowded = the detector's cap was reached, so more cars may be in frame than were boxed."""
+    if n_boxes <= 0:
+        return ""
+    if n_boxes == 1:
+        return "solo"
+    return "crowded" if n_boxes >= max_boxes else "pack"
+
+
+def decided_by(r: BoxResult, sims: list, entries: dict) -> tuple:
+    """(rule, gap): the rule that produced r. For method `none`, the rule that failed and
+    how far short it fell (similarity below MATCH_MIN_SIM, or margin below MATCH_MIN_MARGIN)."""
+    if r.method != "none":
+        return r.method, 0.0
+    if r.box == -1:
+        return "no_vehicle", 0.0
+    sims = [(eid, s) for eid, s in sims if eid in entries]
+    if not sims:
+        return "no_references", 0.0
+    s1 = sims[0][1]
+    s2 = sims[1][1] if len(sims) > 1 else 0.0
+    if s1 < MATCH_MIN_SIM:
+        return "below_min_sim", MATCH_MIN_SIM - s1
+    return "margin_too_small", MATCH_MIN_MARGIN - (s1 - s2)
+
+
+def already_tagged(protected: set, entries: dict) -> str:
+    """The id of the one entry whose tags are all in `protected`; "" when none or several
+    are (a shared team tag alone matches no one). Same rule as the plugin's entry_for_tags."""
+    found = ""
+    for e in entries.values():
+        if e.tags and all(t in protected for t in e.tags):
+            if found:
+                return ""
+            found = e.id
+    return found
+
+
+def conflicts(entry_id: str, protected: set, entries: dict, solo: bool) -> bool:
+    """A solo shot whose result shares no tag with the tags the user applied by hand. Packs
+    never conflict: the user may have tagged just one of the cars."""
+    if not solo or not protected or entry_id not in entries:
+        return False
+    return not any(t in protected for t in entries[entry_id].tags)
+
+
+def promotable(record: dict) -> bool:
+    """A boxes.json box record confident enough to become a reference: number-read, or a
+    livery match whose lead over the runner-up is at least REFERENCE_MIN_MARGIN. Burst,
+    team, pooled and conflict boxes never are."""
+    if not record.get("entry"):
+        return False
+    if record["method"] == "number":
+        return True
+    if record["method"] != "livery":
+        return False
+    cands = record.get("candidates") or []
+    if not cands:
+        return False
+    s2 = cands[1][1] if len(cands) > 1 else 0.0
+    return cands[0][1] - s2 >= REFERENCE_MIN_MARGIN
 
 
 def burst_consensus(frames: dict, burst_of: dict, entries=None) -> dict:

@@ -130,17 +130,55 @@ check("two drivers' tags map to no one", T.entry_for_tags({
 check("no matching tags map to no one", T.entry_for_tags({ ["Holiday"] = true }, entries, order), nil)
 
 -- read_results (review fix 4) ----------------------------------------------
-local rows_of, errored = T.read_results(table.concat({
-    "1,0,number,VER,,0.950",
-    "1,1,none,,,0.000",
-    "4,-1,none,,,0.000",
-    "5,-1,error,,,0.000",
+local rows_of, errored, skipped_ids = T.read_results(table.concat({
+    "1,0,number,VER,,0.950,,pack",
+    "1,1,none,,,0.000,,pack",
+    "4,-1,none,,,0.000,,",
+    "5,-1,error,,,0.000,,",
+    "6,-1,skipped,,,0.000,,",
+    "7,0,none,,,0.000,",
     "garbage",
 }, "\n"))
 check("results group by image id", #rows_of[1], 2)
 check("a no-vehicle frame has a row", rows_of[4][1].method, "none")
 check("an errored frame has no rows to apply", rows_of[5], nil)
 check("an errored frame is reported", errored[5], true)
+check("a skipped frame has no rows to apply", rows_of[6], nil)
+check("a skipped frame is reported", skipped_ids[6], true)
+check("rows carry the shot type", rows_of[1][1].shot, "pack")
+check("a 7-field line is rejected", rows_of[7], nil)
+
+-- ledger / protected tags / shot + conflict handling ---------------------------
+local led = T.ledger_parse(T.ledger_format({ [3] = { b = true, a = true }, [1] = { z = true } }))
+check("ledger round-trips", led[3].a and led[3].b and led[1].z, true)
+check("ledger output is sorted", T.ledger_format({ [3] = { b = true, a = true }, [1] = { z = true } }),
+    "1,z\n3,a\n3,b\n")
+check("an empty ledger formats to nothing", T.ledger_format({}), "")
+check("a missing ledger file parses to empty", next(T.ledger_parse(nil)), nil)
+
+local prot = T.protected_tags(
+    { ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true, ["Holiday"] = true },
+    { ["F1|Red Bull|Verstappen"] = true }, entries)
+check("protected: an entry tag not in the ledger is the user's", prot["F1|Red Bull"], true)
+check("protected: a ledgered tag is the plugin's", prot["F1|Red Bull|Verstappen"], nil)
+check("protected: a non-entry tag is ignored", prot["Holiday"], nil)
+
+attach, detach = T.tag_changes({ ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true },
+    T.wanted_tags({ row("none") }, entries), owned, nil, { ["F1|Red Bull"] = true })
+check("a protected tag is never detached", table.concat(detach, ","), "F1|Red Bull|Verstappen")
+
+w, d, ok = T.wanted_tags({ { box = 0, method = "conflict", entry_id = "VER", alt_entry_id = "", shot = "solo" } },
+    entries, rules)
+check("a conflict-only image gets no unidentified tags", keys(w), "")
+check("a conflict-only image gets no none diagnostic", keys(d), "Assisted Tagging|Identification|Shot|Solo")
+check("a conflict is not identified", ok, false)
+w, d, ok = T.wanted_tags({
+    { box = 0, method = "conflict", entry_id = "VER", alt_entry_id = "", shot = "pack" },
+    { box = 1, method = "number", entry_id = "HAM", alt_entry_id = "", shot = "pack" },
+}, entries, rules)
+check("a pack still tags its other cars beside a conflict", keys(w), "F1|Ferrari + F1|Ferrari|Hamilton")
+check("a pack adds its shot diagnostic once", keys(d),
+    "Assisted Tagging|Identification|Shot|Pack + Assisted Tagging|Motorsport|Identified|By number")
 
 -- utf16le (review fix 6: the .vbs launcher must survive a non-ASCII tmp path) --
 check("utf16le: ASCII", T.utf16le("a"), "a\0")

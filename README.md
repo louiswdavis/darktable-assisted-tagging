@@ -184,7 +184,7 @@ Every key is optional; leave one out for its default.
 |---|---|---|
 | `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
-| `diagnostics` | the five `Assisted Tagging\|Motorsport\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `team`, `none`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
+| `diagnostics` | the five `Assisted Tagging\|Motorsport\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `team`, `none`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
 
 An unknown key, or a misspelt one, stops the run and names it, so a typo can't silently do nothing.
 
@@ -200,6 +200,7 @@ Numbers aren't readable in every shot (rear views, motion blur, a number hidden 
 
 - **Add as reference**: pick the entry in the **entry** list, select photos of that car, click. The largest vehicle in each photo is cropped and saved under that entry. A photo where no vehicle is found is saved whole, and the done message says how many.
 - **Add tagged images as references**: select photos you've already tagged by hand. Each one carrying *all* of one entry's tags is added under that entry. A photo with only a shared team tag, or with two drivers' tags, is skipped.
+- **Add confident vehicles from last run**: select photos from the last **Identify selection** run. Each vehicle that run was sure of (its number was read, or its livery led the runner-up by `REFERENCE_MIN_MARGIN`) is saved under the entry it found. This works for pack shots: the saved crop is that one car, not the whole photo, so the entry's tag doesn't have to describe the frame. Burst, team-only and held-back results are never saved. Photos changed since the run are skipped.
 
 Each sample is a JPG in `refs/<entry id>/`, named after the darktable image id. Adding the same photo again replaces its sample. To remove a bad sample, delete its JPG; the next run notices.
 
@@ -216,10 +217,23 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 | `Assisted Tagging\|Motorsport\|Identified\|By burst` | the rest of its burst agreed on one entry |
 | `Assisted Tagging\|Motorsport\|Team only` | two teammates were too close to call; only their shared tags were added |
 | `Assisted Tagging\|Motorsport\|Unidentified` | no vehicle, or no confident match |
+| `Assisted Tagging\|Identification\|Shot\|Solo` | one vehicle was found in the frame |
+| `Assisted Tagging\|Identification\|Shot\|Pack` | two or three vehicles were found |
+| `Assisted Tagging\|Identification\|Shot\|Crowded` | the detector's limit (`MAX_BOXES`) was reached, so there may be more cars than were identified |
 
 Filter on `Assisted Tagging|Identification|By livery` and `Assisted Tagging|Identification|Unidentified` in the **collections** module to spot-check the uncertain ones; an image it got wrong is often a good new reference.
 
 Re-running is safe: each image's entry and diagnostic tags are synced to the new result, so a frame that moves from one driver to another loses the old driver's tags. Tags that aren't in the active collection are never touched.
+
+### Tags you apply by hand
+
+The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config directory) of the tags it attached to each image. An entry tag on an image that isn't in its ledger is yours, at any depth (team or driver), and a run never removes it. So a photo you tagged to a team stays that way even when the run can't tell the driver.
+
+- A **solo shot** whose result disagrees with the tags you applied is left as you had it: nothing is added, it doesn't get the *Unidentified* tags, and the done message counts it. Packs aren't checked, since you may have tagged just one of the cars.
+- An image already carrying all of one entry's tags is **skipped** without being analysed.
+- To let a run replace your tags, tick **Replace manual tags** under **Identify selection**. It applies to the next run only and clears itself.
+- If you remove a tag the plugin attached and later apply it again by hand, it counts as yours.
+- Images tagged by an older version have no ledger, so all their entry tags count as yours.
 
 ## Preferences
 
@@ -281,6 +295,7 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 | `MATCH_MIN_SIM` | `match.py` | 0.60 | the livery similarity a match needs at all |
 | `MATCH_MIN_MARGIN` | `match.py` | 0.05 | how far the best entry must be ahead of the next one |
 | `BURST_MIN_AGREE` | `match.py` | 2 | frames that must agree before a burst fills in the rest |
+| `REFERENCE_MIN_MARGIN` | `match.py` | 0.10 | how far a livery match must lead to be saved by **Add confident vehicles from last run** |
 | `MIN_BOX_FRAC` | `vehicles.py` | 0.02 | the smallest vehicle, as a share of the frame, worth identifying |
 | `MAX_BOXES` | `vehicles.py` | 4 | vehicles identified per frame |
 | `CROP_DIM` | `vehicles.py` | 640 | the long side each vehicle crop is reduced to |
@@ -327,7 +342,7 @@ The pure-logic half of the plugin runs under any Lua 5.4 (`cd lua && lua test_as
 
 ### Running the identifier on its own
 
-`manifest.csv` is `id,filepath,burst_id` per line:
+`manifest.csv` is `id,filepath,burst_id` per line, with an optional fourth column, the `;`-joined entry tags the user applied by hand (an image carrying all of one entry's are skipped; a solo result sharing none of them is held back as `conflict`):
 
 ```
 python python/identify.py manifest.csv results.csv --collections-root collections --collection "F1 2026" \
@@ -335,7 +350,9 @@ python python/identify.py manifest.csv results.csv --collections-root collection
     --ocr-rec models/text_recognition_CRNN_EN_2021sep.onnx --embedder models/dinov2_small.onnx
 ```
 
-`results.csv` gets `id,box,method,entry_id,alt_entry_id,confidence` per vehicle (box −1 for a frame with no vehicle). Exit codes: 0 ok, 2 bad input (the message is on stderr), 3 missing package, 130 cancelled.
+`results.csv` gets `id,box,method,entry_id,alt_entry_id,confidence,unmatched_number,shot` per vehicle (box −1 for a frame with no vehicle; method `skipped` or `conflict` as above). Exit codes: 0 ok, 2 bad input (the message is on stderr), 3 missing package, 130 cancelled.
+
+`--boxes-out PATH` also writes `boxes.json`, one record per vehicle: `{"collection", "images": {id: {"shot", "file", "frame", "boxes": [{"box", "bbox", "entry", "alt_entry", "method", "confidence", "candidates" (top 5 entry/similarity), "ocr", "decided_by", "gap", "conflict"}]}}, "skipped": [ids]}`. For `none` boxes `decided_by` names the rule that failed (`no_references`, `below_min_sim`, `margin_too_small`) and `gap` how far short it fell. The plugin writes it to `last-run/<collection>.boxes.json` in its config directory; `--promote-boxes --boxes-in PATH` (same manifest, `id,filepath,""`) saves its confident boxes as references.
 
 ### Notes from the darktable source
 

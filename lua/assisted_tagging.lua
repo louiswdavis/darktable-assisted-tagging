@@ -27,6 +27,10 @@ M.DIAG_TAGS = {
     -- Experimental (rules.burst_livery_pooling): a frame resolved by pooling box-0
     -- livery similarity across its burst rather than on its own.
     pooled = "Assisted Tagging|Identification|By pooled burst",
+    -- One per image, from how many vehicles identify.py boxed (solo / pack / crowded).
+    shot_solo = "Assisted Tagging|Identification|Shot|Solo",
+    shot_pack = "Assisted Tagging|Identification|Shot|Pack",
+    shot_crowded = "Assisted Tagging|Identification|Shot|Crowded",
 }
 
 function M.exif_time_to_epoch(s)
@@ -129,13 +133,19 @@ end
 function M.wanted_tags(rows, entries, rules)
     rules = rules or M.default_rules()
     local wanted, diag, identified = {}, {}, false
+    -- held: a box disagreed with tags the user applied by hand and was left as they had it.
+    -- That's not "unidentified", so it adds no unidentified tags.
+    local held, shot = false, nil
     local function note(outcome)
         local name = rules.diag[outcome]
         if name and name ~= "" then diag[name] = true end
     end
     for _, r in ipairs(rows) do
         local e = entries[r.entry_id]
-        if e and (r.method == "number" or r.method == "livery" or r.method == "burst" or r.method == "pooled") then
+        if r.shot and r.shot ~= "" then shot = r.shot end
+        if r.method == "conflict" then
+            held = true
+        elseif e and (r.method == "number" or r.method == "livery" or r.method == "burst" or r.method == "pooled") then
             for _, t in ipairs(e.tags) do wanted[t] = true end
             note(r.method)
             identified = true
@@ -163,7 +173,8 @@ function M.wanted_tags(rows, entries, rules)
             end
         end
     end
-    if not identified then
+    if shot then note("shot_" .. shot) end
+    if not identified and not held then
         for _, t in ipairs(rules.unidentified) do wanted[t] = true end
         note("none")
     end
@@ -187,7 +198,9 @@ end
 -- have: an image's tag names (name → true). Returns the names to attach and to
 -- detach, sorted. Only owned tags, or tags starting with an owned prefix (the dynamic
 -- "...Number seen|<digits>" diagnostic, one tag per distinct digit string), are detached.
-function M.tag_changes(have, wanted, owned, owned_prefixes)
+-- `protected` (name → true): tags the user applied by hand; never detached.
+function M.tag_changes(have, wanted, owned, owned_prefixes, protected)
+    protected = protected or {}
     local attach, detach = {}, {}
     for name in pairs(wanted) do
         if not have[name] then attach[#attach + 1] = name end
@@ -200,11 +213,57 @@ function M.tag_changes(have, wanted, owned, owned_prefixes)
         return false
     end
     for name in pairs(have) do
-        if is_owned(name) and not wanted[name] then detach[#detach + 1] = name end
+        if is_owned(name) and not wanted[name] and not protected[name] then
+            detach[#detach + 1] = name
+        end
     end
     table.sort(attach)
     table.sort(detach)
     return attach, detach
+end
+
+-- Ledger: the tags the plugin attached, per image id, persisted as `id,tag` lines. A
+-- tag on an image that's not in its ledger was applied by the user.
+function M.ledger_parse(text)
+    local ledger = {}
+    for line in (text or ""):gmatch("[^\r\n]+") do
+        local p = M.parse_csv_line(line, 2)
+        local id = p and tonumber(p[1])
+        if id and p[2] ~= "" then
+            ledger[id] = ledger[id] or {}
+            ledger[id][p[2]] = true
+        end
+    end
+    return ledger
+end
+
+function M.ledger_format(ledger)
+    local ids = {}
+    for id in pairs(ledger) do ids[#ids + 1] = id end
+    table.sort(ids)
+    local out = {}
+    for _, id in ipairs(ids) do
+        local names = {}
+        for name in pairs(ledger[id]) do names[#names + 1] = name end
+        table.sort(names)
+        -- unquoted: parse_csv_line doesn't unquote, and tag names never hold a comma
+        for _, name in ipairs(names) do out[#out + 1] = id .. "," .. name end
+    end
+    return #out > 0 and table.concat(out, "\n") .. "\n" or ""
+end
+
+-- Entry tags among `have` that the plugin didn't attach (not in `ledger_set`): the
+-- user's own, which a run must never detach.
+function M.protected_tags(have, ledger_set, entries)
+    local in_entry = {}
+    for _, e in pairs(entries) do
+        for _, t in ipairs(e.tags) do in_entry[t] = true end
+    end
+    local out = {}
+    for name in pairs(have) do
+        if in_entry[name] and not (ledger_set and ledger_set[name]) then out[name] = true end
+    end
+    return out
 end
 
 -- The entry an already-tagged image belongs to: the one whose tags it carries
@@ -225,21 +284,24 @@ function M.entry_for_tags(have, entries, order)
 end
 
 -- identify.py's results.csv → rows by image id, and the ids it couldn't analyse.
--- Those get no rows, so their tags are left exactly as they were.
+-- Those get no rows, so their tags are left exactly as they were. `skipped` (already
+-- fully tagged, not analysed) is the same.
 function M.read_results(text)
-    local rows_of, errored = {}, {}
+    local rows_of, errored, skipped = {}, {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 7)
+        local p = M.parse_csv_line(line, 8)
         local id = p and tonumber(p[1])
         if id and p[3] == "error" then
             errored[id] = true
+        elseif id and p[3] == "skipped" then
+            skipped[id] = true
         elseif id then
             rows_of[id] = rows_of[id] or {}
             table.insert(rows_of[id], { box = tonumber(p[2]), method = p[3], entry_id = p[4],
-                                         alt_entry_id = p[5], unmatched_number = p[7] })
+                                         alt_entry_id = p[5], unmatched_number = p[7], shot = p[8] })
         end
     end
-    return rows_of, errored
+    return rows_of, errored, skipped
 end
 
 -- UTF-8 → UTF-16LE (no BOM), for the .vbs launcher: wscript reads a script as
@@ -439,6 +501,8 @@ local DONE_PATH = TMP_DIR .. "/dt_assisted_tagging_done.txt"
 local LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.log"
 local PREV_LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.prev.log"
 local CACHE_PATH = dt.configuration.config_dir .. "/assisted_tagging/cache.sqlite"
+local LEDGER_PATH = dt.configuration.config_dir .. "/assisted_tagging/ledger.csv"
+local LAST_RUN_DIR = dt.configuration.config_dir .. "/assisted_tagging/last-run"
 local DEFAULT_COLLECTIONS_ROOT = dt.configuration.config_dir .. "/assisted_tagging/collections"
 
 local MODEL_FILES = {
@@ -664,6 +728,7 @@ local busy, orphan = false, false
 -- models or re-embedding references, so this is generous).
 local STALL_SECONDS = 300
 local identify_button, collection_combo, entry_combo, example_combo = nil, nil, nil, nil
+local replace_manual_check = nil
 local entries, entry_order, rules = {}, {}, M.default_rules()
 
 local function cancelled(job)
@@ -943,7 +1008,20 @@ local function can_start(images)
     return true
 end
 
-function M.identify_images(images)
+-- Where a run leaves its per-vehicle records, for "Add confident vehicles from last run".
+local function boxes_path()
+    return LAST_RUN_DIR .. "/" .. current_collection() .. ".boxes.json"
+end
+
+local function sorted_names(set)
+    local out = {}
+    for name in pairs(set) do out[#out + 1] = name end
+    table.sort(out)
+    return out
+end
+
+-- replace_manual: lift the protection of tags the user applied by hand, for this run only.
+function M.identify_images(images, replace_manual)
     if not can_start(images) then return end
     busy = true
     M.cancel_requested = false
@@ -973,9 +1051,26 @@ function M.identify_images(images)
         local gap = dt.preferences.read("assisted_tagging", "burst_gap_seconds", "integer")
         local burst_of = M.cluster_by_time(time_items, (gap and gap >= 1) and gap or M.BURST_GAP_SECONDS)
 
+        -- The ledger holds the tags this plugin attached. Entries no longer on the image are
+        -- dropped, so a tag removed and re-applied by hand counts as the user's again.
+        local ledger = M.ledger_parse(read_file(LEDGER_PATH))
+        local protected_of = {}
+        for _, copies in pairs(group_of) do
+            for _, copy in ipairs(copies) do
+                local have = tags_of(copy)
+                local kept = {}
+                for name in pairs(ledger[copy.id] or {}) do
+                    if have[name] then kept[name] = true end
+                end
+                ledger[copy.id] = next(kept) and kept or nil
+                protected_of[copy.id] = replace_manual and {} or M.protected_tags(have, kept, entries)
+            end
+        end
+
         local rows = {}
         for _, img in ipairs(primaries) do
-            rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, burst_of[img.id] }
+            rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, burst_of[img.id],
+                                table.concat(sorted_names(protected_of[img.id]), ";") }
         end
         pcall(os.remove, RESULTS_PATH)
         pcall(os.remove, ENTRIES_PATH)
@@ -990,7 +1085,8 @@ function M.identify_images(images)
         local code, why = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
             .. collection_args() .. model_args(script)
             .. " --cache " .. shell_quote(CACHE_PATH)
-            .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH),
+            .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH)
+            .. " --boxes-out " .. shell_quote(boxes_path()),
             job, 0, PROGRESS_ANALYSIS, "identifying")
         flush_log()
         dt.print_hinter(" ")
@@ -1009,7 +1105,7 @@ function M.identify_images(images)
         load_entries_csv()
         refresh_entry_combo()
         -- an image identify.py couldn't analyse has no rows, so its tags are left alone
-        local rows_of = M.read_results(read_file(RESULTS_PATH))
+        local rows_of, _, skipped = M.read_results(read_file(RESULTS_PATH))
 
         local owned = M.owned_tags(entries, rules)
         local owned_prefixes = (rules.diag.number_seen and rules.diag.number_seen ~= "")
@@ -1017,6 +1113,7 @@ function M.identify_images(images)
         local diag_on = dt.preferences.read("assisted_tagging", "diagnostic_tags", "bool")
         local tag_objs, writes, failed, first_error = {}, 0, 0, nil
         local n_tagged, n_unidentified, n_missing = 0, 0, 0
+        local n_skipped, n_conflict = 0, 0
         local by_method = { number = 0, livery = 0, burst = 0, team = 0, pooled = 0 }
         local function tag_named(name)
             tag_objs[name] = tag_objs[name] or tags.create(name)
@@ -1025,19 +1122,23 @@ function M.identify_images(images)
 
         for i, img in ipairs(primaries) do
             local results = rows_of[tonumber(img.id)]
-            if not results then
+            if skipped[tonumber(img.id)] then
+                n_skipped = n_skipped + 1
+            elseif not results then
                 n_missing = n_missing + 1
             else
                 local wanted, diag, identified = M.wanted_tags(results, entries, rules)
                 if identified then n_tagged = n_tagged + 1 else n_unidentified = n_unidentified + 1 end
                 for _, r in ipairs(results) do
                     if by_method[r.method] and entries[r.entry_id] then by_method[r.method] = by_method[r.method] + 1 end
+                    if r.method == "conflict" then n_conflict = n_conflict + 1 end
                 end
                 if diag_on then
                     for name in pairs(diag) do wanted[name] = true end
                 end
                 for _, copy in ipairs(group_of[img.id]) do
-                    local attach, detach = M.tag_changes(tags_of(copy), wanted, owned, owned_prefixes)
+                    local attach, detach = M.tag_changes(tags_of(copy), wanted, owned, owned_prefixes,
+                        protected_of[copy.id])
                     local okw, werr = pcall(function()
                         for _, name in ipairs(detach) do tags.detach(tag_named(name), copy) end
                         for _, name in ipairs(attach) do tags.attach(tag_named(name), copy) end
@@ -1045,6 +1146,12 @@ function M.identify_images(images)
                     if not okw then
                         failed = failed + 1
                         first_error = first_error or tostring(werr)
+                    else
+                        -- what the plugin now owns on this copy: its earlier tags minus the detached, plus the attached
+                        local mine = ledger[copy.id] or {}
+                        for _, name in ipairs(detach) do mine[name] = nil end
+                        for _, name in ipairs(attach) do mine[name] = true end
+                        ledger[copy.id] = next(mine) and mine or nil
                     end
                     writes = writes + #attach + #detach
                     if writes >= WRITE_BUDGET then
@@ -1068,8 +1175,18 @@ function M.identify_images(images)
         local msg = string.format("Assisted Tagging: done. %d of %d images tagged", n_tagged, #primaries)
         if #parts > 0 then msg = msg .. " (vehicles: " .. table.concat(parts, ", ") .. ")" end
         if n_unidentified > 0 then msg = msg .. string.format(", %d unidentified", n_unidentified) end
+        if n_skipped > 0 then msg = msg .. string.format(", %d already tagged (skipped)", n_skipped) end
+        if n_conflict > 0 then msg = msg .. string.format(", %d vehicles left as you tagged them", n_conflict) end
         if n_missing > 0 then msg = msg .. string.format(", %d unreadable (see log)", n_missing) end
         if failed > 0 then msg = msg .. string.format(", %d couldn't be updated (see log)", failed) end
+        -- Written only here: a cancelled, stalled or interrupted run leaves the ledger as it was.
+        local lf = io.open(LEDGER_PATH, "w")
+        if lf then
+            lf:write(M.ledger_format(ledger))
+            lf:close()
+        else
+            log("couldn't write the tag ledger " .. LEDGER_PATH .. "; tags this run attached will count as yours next run")
+        end
         say(msg)
         if first_error then log("first tag write error: " .. first_error) end
     end)
@@ -1146,6 +1263,68 @@ function M.add_references(images, entry_id)
         say(string.format("Assisted Tagging: added %d references to %s%s. Each sample's crop is in %s/refs.",
             added, entry_id or "their entries", #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "",
             current_collection()))
+    end)
+
+    end_job(job)
+    busy = false
+    if not okr then notify_error(_("Assisted Tagging: couldn't add references. ") .. tostring(err)) end
+    cleanup_tmp()
+    log("run finished")
+    flush_log()
+end
+
+-- Saves the confident vehicles (number-read, or a clear livery match) that the last
+-- Identify run recorded for these images as references of the entries it found.
+function M.promote_references(images)
+    if not can_start(images) then return end
+    local boxes = boxes_path()
+    if not file_exists(boxes) then
+        dt.print(_("Assisted Tagging: no records for this collection yet. Run Identify first."))
+        return
+    end
+    busy = true
+    M.cancel_requested = false
+    start_log("add confident vehicles from last run", #images)
+
+    local job = nil
+    local okr, err = pcall(function()
+        local rows = {}
+        for _, img in ipairs(images) do
+            rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, "" }
+        end
+        pcall(os.remove, RESULTS_PATH)
+        if not write_rows(MANIFEST_PATH, rows) then
+            error("couldn't write the image list to darktable's tmp folder (disk full or no write access?)", 0)
+        end
+        job = dt.gui.create_job(_("Assisted Tagging: adding references"), true, stop_job)
+        job.percent = 0.0
+        local code, why = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
+            .. " --promote-boxes --boxes-in " .. shell_quote(boxes)
+            .. collection_args() .. model_args(identify_script())
+            .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH),
+            job, 0, 1, "adding references")
+        flush_log()
+        dt.print_hinter(" ")
+        if why == "cancelled" or code == 130 then
+            say(_("Assisted Tagging: cancelled. References already saved stay in the collection."))
+            return
+        end
+        if code == nil then return end -- stalled or couldn't launch; already reported
+        if code ~= 0 or not file_exists(RESULTS_PATH) then
+            notify_error(failure_message(code))
+            return
+        end
+        local counts = { added = 0, none_promotable = 0, stale = 0, failed = 0 }
+        for line in (read_file(RESULTS_PATH) or ""):gmatch("[^\r\n]+") do
+            local p = M.parse_csv_line(line, 2)
+            if p then counts[p[2]] = (counts[p[2]] or 0) + 1 end
+        end
+        local extra = {}
+        if counts.none_promotable > 0 then extra[#extra + 1] = string.format("%d images had none confident enough", counts.none_promotable) end
+        if counts.stale > 0 then extra[#extra + 1] = string.format("%d changed since the run (run Identify again)", counts.stale) end
+        if counts.failed > 0 then extra[#extra + 1] = string.format("%d failed, see log", counts.failed) end
+        say(string.format("Assisted Tagging: saved vehicles from %d images as references%s. Crops are in %s/refs.",
+            counts.added, #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "", current_collection()))
     end)
 
     end_job(job)
@@ -1310,7 +1489,10 @@ local function start_identify(allow_cancel)
         end
         return
     end
-    M.identify_images(dt.gui.action_images)
+    -- One run only: read the box, then clear it so the next run is protected again.
+    local replace_manual = replace_manual_check and replace_manual_check.value or false
+    if replace_manual_check then replace_manual_check.value = false end
+    M.identify_images(dt.gui.action_images, replace_manual)
 end
 
 local function selected_entry_id()
@@ -1461,6 +1643,11 @@ local function install_panel()
         tooltip = _("Identify the vehicles in the selected images and tag them with their entries' tags"),
         clicked_callback = function() start_identify(true) end,
     }
+    replace_manual_check = dt.new_widget("check_button") {
+        label = _("Replace manual tags"),
+        tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let the next run replace them. It clears itself after the run."),
+        value = false,
+    }
     entry_combo = dt.new_widget("combobox") {
         label = _("entry"),
         tooltip = _("The entry Add as reference saves the selected images under"),
@@ -1483,6 +1670,11 @@ local function install_panel()
         tooltip = _("For each selected image that already carries all of one entry's tags, save it as a reference of that entry"),
         clicked_callback = function() M.add_references(dt.gui.action_images, nil) end,
     }
+    local promote_button = dt.new_widget("button") {
+        label = _("Add confident vehicles from last run"),
+        tooltip = _("Save each vehicle the last Identify run was sure of (number read, or a clear livery match) as a reference of the entry it found. Works for pack shots too: only that car's crop is saved."),
+        clicked_callback = function() M.promote_references(dt.gui.action_images) end,
+    }
 
     local panel_box = dt.new_widget("box") {
         orientation = "vertical",
@@ -1501,10 +1693,12 @@ local function install_panel()
         save_entries_button,
         cancel_entries_button,
         identify_button,
+        replace_manual_check,
         dt.new_widget("section_label") { label = _("references") },
         entry_combo,
         add_button,
         add_tagged_button,
+        promote_button,
     }
 
     dt.register_lib(

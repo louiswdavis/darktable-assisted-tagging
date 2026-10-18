@@ -2,8 +2,12 @@
 write one result row per vehicle for assisted_tagging.lua.
 
 Modes:
-  identify.py MANIFEST RESULTS ...            id,filepath,burst_id → id,box,method,entry,alt_entry,confidence
+  identify.py MANIFEST RESULTS ...            id,filepath,burst_id[,protected tags] →
+                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot
+                                              (+ --boxes-out: the per-vehicle boxes.json)
   identify.py MANIFEST RESULTS --add-reference id,filepath,entry_id → id,status
+  identify.py MANIFEST RESULTS --promote-boxes --boxes-in F   id,filepath,"" → id,status
+                                              (confident vehicles from a run's boxes.json become references)
   identify.py - - --list                      collection names (+ entries.csv, rules.csv)
 
 Every mode that reads a collection also writes its tag-plan.txt: the exact tags
@@ -22,10 +26,11 @@ import sys
 import time
 from dataclasses import dataclass, replace
 
-from vehicles import BOX_MARGIN_TRIM, CROP_DIM, MIN_BOX_FRAC, crop_box, detect_vehicles, detector_model, file_key, load_full, log
+from vehicles import BOX_MARGIN_TRIM, CROP_DIM, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect_vehicles, detector_model, file_key, load_full, log
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
-from match import BoxResult, Entry, burst_consensus, match_box, match_livery, pool_sims
+from match import (BoxResult, Entry, already_tagged, burst_consensus, conflicts, decided_by, match_box,
+                   match_livery, pool_sims, promotable, shot_type)
 from reference_store import ReferenceIndex
 
 IDENTIFY_CACHE_VERSION = 1
@@ -56,6 +61,10 @@ DIAG_DEFAULTS = {
     # Written instead of "livery"/"team" when burst_livery_pooling resolved a frame
     # that didn't clear the threshold on its own.
     "pooled": "Assisted Tagging|Identification|By pooled burst",
+    # One per image, from how many vehicles were boxed (see match.shot_type).
+    "shot_solo": "Assisted Tagging|Identification|Shot|Solo",
+    "shot_pack": "Assisted Tagging|Identification|Shot|Pack",
+    "shot_crowded": "Assisted Tagging|Identification|Shot|Crowded",
 }
 TEAM_ONLY_CHOICES = ("shared tags", "none")
 
@@ -215,7 +224,7 @@ def tag_plan(name: str, entries: dict, rules: Rules, refs: dict) -> str:
     lines += ["", "Unidentified (no vehicle, or no confident match): rules.unidentified."]
     lines.extend(f"      {t}" for t in rules.unidentified) if rules.unidentified else lines.append("      (nothing)")
     lines += ["", "Diagnostics (only with the diagnostic tags preference on): rules.diagnostics."]
-    lines.extend(f"  {k:<7} {v or '(off)'}" for k, v in rules.diagnostics)
+    lines.extend(f"  {k:<12} {v or '(off)'}" for k, v in rules.diagnostics)
     number_only = [e.id for e in entries.values() if not refs.get(e.id) and e.number]
     never = [e.id for e in entries.values() if not refs.get(e.id) and not e.number]
     if number_only:
@@ -354,14 +363,15 @@ def analyse_frame(filepath: str) -> dict:
 
 # ---------------------------------------------------------------- identify mode
 
-def read_manifest(path: str, columns: int) -> list:
+def read_manifest(path: str, columns: int, optional: int = 0) -> list:
+    """Rows of `columns` + `optional` fields; a row may omit the optional ones (read as "")."""
     with open(path, newline="", encoding="utf-8") as f:
-        return [row[:columns] for row in csv.reader(f) if len(row) >= columns]
+        return [(row + [""] * optional)[:columns + optional] for row in csv.reader(f) if len(row) >= columns]
 
 
-def format_row(image_id: str, r: BoxResult) -> str:
+def format_row(image_id: str, r: BoxResult, shot: str = "") -> str:
     return (f"{image_id},{r.box},{r.method},{r.entry_id},{r.alt_entry_id},"
-            f"{r.confidence:.3f},{r.unmatched_number}")
+            f"{r.confidence:.3f},{r.unmatched_number},{shot}")
 
 
 def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) -> str:
@@ -458,11 +468,42 @@ def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: di
     return out
 
 
+def write_boxes(path: str, collection: str, frames: dict, shots: dict, detail: dict, entries: dict):
+    """The run's per-vehicle record (see the Stage A plan for the shape), written atomically.
+    `skipped` lists images left alone because they already carry one entry's full tag set."""
+    images, skipped = {}, []
+    for image_id, results in frames.items():
+        if any(r.method == "skipped" for r in results):
+            skipped.append(image_id)
+            continue
+        d = detail[image_id]
+        boxes = []
+        for r in results:
+            if r.box < 0:
+                continue
+            b = d["boxes"][r.box]
+            rule, gap = decided_by(r, b["sims"], entries)
+            boxes.append({"box": r.box, "bbox": b["bbox"], "entry": r.entry_id, "alt_entry": r.alt_entry_id,
+                          "method": r.method, "confidence": round(r.confidence, 4),
+                          "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
+                          "ocr": b["ocr"], "decided_by": rule, "gap": round(gap, 4),
+                          "conflict": r.method == "conflict"})
+        images[image_id] = {"shot": shots[image_id], "file": d["file"], "frame": d["frame"], "boxes": boxes}
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"collection": collection, "images": images, "skipped": skipped}, f)
+    os.replace(tmp, path)
+
+
 def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
     check_models(models)
-    rows = read_manifest(args.manifest, 3)
+    rows = read_manifest(args.manifest, 3, 1)
+    # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
+    protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
+    fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
     index = ReferenceIndex.load(collection, Embedder(models["embedder"]),
                                  [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
     counts = index.count_by_entry()
@@ -476,16 +517,21 @@ def identify(args, models: dict):
 
     cache = IdentifyCache(args.cache)
     try:
-        analyses = run_frames([r[1] for r in rows], models, cache, args.progress)
+        analyses = run_frames([r[1] for r in rows if r[0] not in fully_tagged], models, cache, args.progress)
     finally:
         cache.close()
     if cancel_requested(args.progress):
         log("cancelled")
         sys.exit(130)
 
-    frames, burst_of, box0_sims = {}, {}, {}
-    for image_id, filepath, burst in rows:
+    frames, burst_of, box0_sims, detail = {}, {}, {}, {}
+    for image_id, filepath, burst, _protected in rows:
         burst_of[image_id] = burst
+        detail[image_id] = {"file": filepath, "frame": [], "boxes": []}
+        if image_id in fully_tagged:
+            log(f"{image_id}: already carries all of {already_tagged(protected_of[image_id], entries)}'s tags, skipped")
+            frames[image_id] = [BoxResult(-1, "skipped")]
+            continue
         a = analyses.get(filepath)
         if a is None:
             # an error row: assisted_tagging.lua leaves this image's tags alone
@@ -496,17 +542,27 @@ def identify(args, models: dict):
             frames[image_id] = [BoxResult(-1, "none")]
             continue
         results = []
+        detail[image_id]["frame"] = a["frame"]
         for i, ocr in enumerate(a["ocr"]):
             sims = index.best_per_entry(decode(a["emb"][i]))
             r = match_box(i, [tuple(c) for c in ocr], sims, entries)
             log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}")
             results.append(r)
+            detail[image_id]["boxes"].append({"bbox": [float(v) for v in a["boxes"][i][:4]], "ocr": ocr, "sims": sims})
             if i == 0 and rules.burst_livery_pooling:
                 box0_sims[image_id] = sims
         frames[image_id] = results
     if rules.burst_livery_pooling:
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
     frames = burst_consensus(frames, burst_of, entries)
+
+    # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
+    shots = {}
+    for image_id, results in frames.items():
+        n_boxes = sum(1 for r in results if r.box >= 0)
+        shots[image_id] = shot_type(n_boxes, MAX_BOXES)
+        frames[image_id] = [replace(r, method="conflict") if r.entry_id and conflicts(
+            r.entry_id, protected_of[image_id], entries, n_boxes == 1) else r for r in results]
 
     by_method: dict = {}
     tmp = args.results + ".tmp"
@@ -515,9 +571,13 @@ def identify(args, models: dict):
             for r in results:
                 if r.method == "burst":
                     log(f"{image_id}: box {r.box}: burst {r.entry_id} ({r.confidence:.2f} of the burst agrees)")
+                if r.method == "conflict":
+                    log(f"{image_id}: box {r.box}: {r.entry_id} shares no tag with the ones you applied; left as you tagged it")
                 by_method[r.method] = by_method.get(r.method, 0) + 1
-                f.write(format_row(image_id, r) + "\n")
+                f.write(format_row(image_id, r, shots[image_id]) + "\n")
     os.replace(tmp, args.results)
+    if args.boxes_out:
+        write_boxes(args.boxes_out, args.collection, frames, shots, detail, entries)
     write_collection_outputs(args, collection, entries, rules)
     log("vehicles by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 
@@ -552,6 +612,55 @@ def add_references(args, models: dict):
                     log(f"{image_id}: reference {rel}" + ("" if boxes else f" (whole frame; {note})"))
                 except Exception as e:
                     log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
+            f.write(f"{image_id},{status}\n")
+            write_progress(args.progress, n, len(rows))
+    index.save()
+    os.replace(tmp, args.results)
+    write_collection_outputs(args, collection, entries, rules)
+
+
+def promote_boxes(args, models: dict):
+    """Save each manifest image's confident vehicles (match.promotable) from the last run's
+    boxes.json as references, cropped from the box itself, so a pack shot's tags land on the
+    right car. Re-promoting a box replaces its sample."""
+    collection = os.path.join(args.collections_root, args.collection)
+    entries, rules = load_collection(collection)
+    check_models(models)
+    try:
+        with open(args.boxes_in, encoding="utf-8") as f:
+            run = json.load(f)
+    except (OSError, ValueError) as e:
+        raise InputError(f"{args.boxes_in}: can't read the last run's boxes ({e}); run Identify first")
+    if run.get("collection") != args.collection:
+        raise InputError(f"the last run was for collection {run.get('collection')!r}, not {args.collection!r}")
+    embedder = Embedder(models["embedder"])
+    index = ReferenceIndex.load(collection, embedder,
+                                 [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
+    rows = read_manifest(args.manifest, 3)
+    tmp = args.results + ".tmp"
+    with open(tmp, "w", newline="", encoding="utf-8") as f:
+        for n, (image_id, filepath, _entry) in enumerate(rows, 1):
+            if cancel_requested(args.progress):
+                log("cancelled; references added so far are kept")
+                index.save()
+                sys.exit(130)
+            status = "none_promotable"
+            record = run["images"].get(image_id)
+            wanted = [b for b in record["boxes"] if promotable(b) and b["entry"] in entries] if record else []
+            if wanted:
+                try:
+                    rgb = load_full(filepath)
+                    if [rgb.shape[1], rgb.shape[0]] != record["frame"]:
+                        status = "stale"
+                        log(f"{image_id}: the file no longer matches the last run (frame size changed), skipped")
+                    else:
+                        for b in wanted:
+                            rel = index.add(b["entry"], f"{image_id}_b{b['box']}", crop_box(rgb, b["bbox"]))
+                            log(f"{image_id}: box {b['box']} ({b['method']}) reference {rel}")
+                        status = "added"
+                except Exception as e:
+                    status = "failed"
+                    log(f"{image_id}: couldn't add references ({type(e).__name__}: {e})")
             f.write(f"{image_id},{status}\n")
             write_progress(args.progress, n, len(rows))
     index.save()
@@ -595,6 +704,10 @@ def main(argv=None):
     parser.add_argument("--entries-out", default="", help="Write the collection's entries.csv here")
     parser.add_argument("--rules-out", default="", help="Write the collection's rules.csv here")
     parser.add_argument("--collections-out", default="", help="--list: write collection names here")
+    parser.add_argument("--boxes-out", default="", help="Write the run's per-vehicle boxes.json here")
+    parser.add_argument("--boxes-in", default="", help="--promote-boxes: the boxes.json to read")
+    parser.add_argument("--promote-boxes", action="store_true",
+                        help="Add each manifest image's confident vehicles from --boxes-in as references")
     parser.add_argument("--add-reference", action="store_true", help="Add each manifest image as a reference")
     parser.add_argument("--list", action="store_true", help="List collections (and entries) only")
     args = parser.parse_args(argv)
@@ -605,6 +718,8 @@ def main(argv=None):
             list_mode(args)
         elif args.add_reference:
             add_references(args, models)
+        elif args.promote_boxes:
+            promote_boxes(args, models)
         else:
             identify(args, models)
     except InputError as e:
