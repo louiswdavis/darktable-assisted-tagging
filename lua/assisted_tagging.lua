@@ -503,6 +503,7 @@ local PREV_LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.prev.log
 local CACHE_PATH = dt.configuration.config_dir .. "/assisted_tagging/cache.sqlite"
 local LEDGER_PATH = dt.configuration.config_dir .. "/assisted_tagging/ledger.csv"
 local LAST_RUN_DIR = dt.configuration.config_dir .. "/assisted_tagging/last-run"
+local RUNS_DIR = dt.configuration.config_dir .. "/assisted_tagging/runs"
 local DEFAULT_COLLECTIONS_ROOT = dt.configuration.config_dir .. "/assisted_tagging/collections"
 
 local MODEL_FILES = {
@@ -1092,7 +1093,8 @@ function M.identify_images(images, replace_manual)
             .. " --cache " .. shell_quote(CACHE_PATH)
             .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH)
             .. " --boxes-out " .. shell_quote(boxes_path())
-            .. " --report-out " .. shell_quote(report_prefix()),
+            .. " --report-out " .. shell_quote(report_prefix())
+            .. " --archive-dir " .. shell_quote(RUNS_DIR),
             job, 0, PROGRESS_ANALYSIS, "identifying")
         flush_log()
         dt.print_hinter(" ")

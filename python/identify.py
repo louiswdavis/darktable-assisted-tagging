@@ -21,12 +21,13 @@ import csv
 import json
 import os
 import re
+import shutil
 import sqlite3
 import sys
 import time
 from dataclasses import dataclass, replace
 
-from vehicles import BOX_MARGIN_TRIM, CROP_DIM, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect_vehicles, detector_model, file_key, load_full, log
+from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect_vehicles, detector_model, file_key, load_full, log
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
@@ -313,7 +314,8 @@ class IdentifyCache:
 def frame_key(filepath: str, models: dict) -> list:
     """Cache key parts for a frame's analysis. Entries and references stay out of it."""
     return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
-            embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE]
+            embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
+            DETECTOR_MIN_SCORE]
 
 
 # ---------------------------------------------------------------- progress
@@ -470,6 +472,25 @@ def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: di
     return out
 
 
+ARCHIVE_KEEP = 20  # runs kept under --archive-dir; the oldest are deleted
+
+
+def archive_run(files: list, archive_dir: str, keep: int):
+    """Copy a run's output files into <archive_dir>/<YYYYMMDD-HHMMSS>/ and delete all but the
+    newest `keep` run folders. A failure is logged, never fatal: the run's own outputs are already written."""
+    try:
+        dest = os.path.join(archive_dir, time.strftime("%Y%m%d-%H%M%S"))
+        os.makedirs(dest, exist_ok=True)
+        for path in files:
+            shutil.copy2(path, dest)
+        runs = sorted(d for d in os.listdir(archive_dir) if re.fullmatch(r"\d{8}-\d{6}", d))
+        for old in runs[:-keep]:
+            shutil.rmtree(os.path.join(archive_dir, old), ignore_errors=True)
+        log(f"archived run: {dest}")
+    except OSError as e:
+        log(f"could not archive the run: {e}")
+
+
 def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entries: dict, counts: dict) -> dict:
     """The run's per-vehicle record (see the Stage A plan for the shape). `skipped` lists images
     left alone because they already carry one entry's full tag set; each image's `status` is
@@ -594,11 +615,16 @@ def identify(args, models: dict):
     os.replace(tmp, args.results)
     if args.boxes_out or args.report_out:
         data = build_boxes(args.collection, frames, shots, detail, entries, counts)
+        written = []
         if args.boxes_out:
             write_boxes(args.boxes_out, data)
+            written.append(args.boxes_out)
         if args.report_out:
-            md_path, _ = write_report(data, args.report_out, args.report_top)
+            md_path, json_path = write_report(data, args.report_out, args.report_top)
+            written += [md_path, json_path]
             log(f"report: {md_path}")
+        if args.archive_dir:
+            archive_run(written, args.archive_dir, ARCHIVE_KEEP)
     write_collection_outputs(args, collection, entries, rules)
     log("vehicles by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 
@@ -728,6 +754,8 @@ def main(argv=None):
     parser.add_argument("--boxes-out", default="", help="Write the run's per-vehicle boxes.json here")
     parser.add_argument("--report-out", default="",
                         help="Write the run's debug report to <this>.md and <this>.json")
+    parser.add_argument("--archive-dir", default="",
+                        help="Also copy boxes.json and the report into <dir>/<YYYYMMDD-HHMMSS>/, keeping the newest 20 runs")
     parser.add_argument("--report-top", type=int, default=20, help="Per-category cap on box detail in report.md")
     parser.add_argument("--boxes-in",default="", help="--promote-boxes: the boxes.json to read")
     parser.add_argument("--promote-boxes", action="store_true",
