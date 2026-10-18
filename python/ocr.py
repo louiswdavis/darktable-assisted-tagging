@@ -66,18 +66,21 @@ class NumberReader:
         self.rec = read_onnx(rec_path)
 
     def read(self, crop_rgb: np.ndarray) -> list:
-        """[(digits, detection confidence)], distinct numbers, most confident first."""
+        """[(digits, detection confidence)], distinct numbers, most confident first. Also sets
+        `last_trace`: the five most confident detected text regions as [confidence, raw text],
+        accepted or not, so a zero-read crop shows what the reader saw."""
         bgr = cv2.cvtColor(_letterbox(crop_rgb, DET_INPUT), cv2.COLOR_RGB2BGR)
         quads, confidences = self.det.detect(bgr)
         gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-        best = {}
+        best, trace = {}, []
         for quad, conf in zip(quads, confidences):
-            if conf < OCR_MIN_SCORE:
-                continue
             m = cv2.getPerspectiveTransform(np.asarray(quad, np.float32).reshape(4, 2), REC_TARGET)
             word = cv2.warpPerspective(gray, m, REC_INPUT)
             self.rec.setInput(cv2.dnn.blobFromImage(word, 1 / 127.5, REC_INPUT, 127.5))
-            digits = digits_only(_ctc_greedy(self.rec.forward()))
-            if digits and conf > best.get(digits, -1.0):
+            text = _ctc_greedy(self.rec.forward())
+            trace.append([float(conf), text])
+            digits = digits_only(text)
+            if conf >= OCR_MIN_SCORE and digits and conf > best.get(digits, -1.0):
                 best[digits] = float(conf)
+        self.last_trace = sorted(trace, reverse=True)[:5]
         return sorted(best.items(), key=lambda kv: kv[1], reverse=True)

@@ -81,7 +81,8 @@ def rows(data: dict) -> list:
                         "entry": box["entry"], "alt_entry": box["alt_entry"], "method": box["method"],
                         "decided_by": box["decided_by"], "gap": box["gap"], "top1": round(top1_of(box), 4),
                         "margin": round(margin_of(box), 4), "candidates": box["candidates"],
-                        "ocr": box["ocr"], "lever": lever(cat, box, entries)})
+                        "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []),
+                        "lever": lever(cat, box, entries)})
     return out
 
 
@@ -113,6 +114,10 @@ def describe(r: dict) -> str:
     parts = [f"`{r['image']}` box {r['box']}: {cands}", f"{r['decided_by']}" + (f", short by {r['gap']:.3f}" if r["gap"] else "")]
     if r["ocr"]:
         parts.append("read " + ", ".join(f"`{d}`" for d, _ in r["ocr"]))
+    elif r.get("ocr_trace"):
+        parts.append("ocr saw " + ", ".join(f"`{t}` {c:.2f}" for c, t in r["ocr_trace"][:3]))
+    elif "ocr_trace" in r:
+        parts.append("ocr saw no text")
     if r["lever"]:
         parts.append(f"lever: {r['lever']}")
     return "; ".join(parts)
