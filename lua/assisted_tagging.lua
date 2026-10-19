@@ -1450,8 +1450,8 @@ function M.audit_references()
             local k, v = line:match("^([^,]+),(.*)$")
             if k == "report" then report = v elseif k then c[k] = tonumber(v) or 0 end
         end
-        say(string.format("Assisted Tagging: audited %d references: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers; %d flagged by 2+ checks (start there). Details in %s",
-            c.references or 0, c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, c.strongest or 0, report))
+        say(string.format("Assisted Tagging: audited %d references: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers, %d odd crops; %d flagged by 2+ checks (start there). Details in %s",
+            c.references or 0, c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, c.crops or 0, c.strongest or 0, report))
     end)
     finish_reference_job(state, okr, err)
 end

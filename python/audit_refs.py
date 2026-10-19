@@ -9,6 +9,7 @@ Writes ref-audit.txt in COLLECTION_DIR. Sections:
   mislabel suspects  - closer to another entry's refs than to its own (margin = other - own, 0.2+)
   cross-entry copies - near-identical to a ref filed under a different entry
   outliers           - far from the rest of its own entry (robust z-score, entries with 5+ refs)
+  odd crops          - crop size or shape far from the entry's usual (distant car, whole frame, nose-only cut)
   colour outliers    - livery colours (hue/saturation, brightness ignored) unlike the entry's typical ones
   redundant          - near-duplicates inside one entry (add no variety)"""
 
@@ -23,6 +24,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from eval_matching import load, unit
 
 MISLABEL_MIN_MARGIN = 0.2  # other-entry similarity must beat the own-entry one by this much
+CROP_MIN_Z = 4.0  # robust z of crop size or aspect ratio against the entry's median
+CROP_AREA_MAD_FLOOR = 0.15  # log scale, so 0.15 is about 16% in side length
+CROP_ASPECT_MAD_FLOOR = 0.08
 COLOUR_MAD_FLOOR = 0.03  # entries whose refs agree closely would otherwise flag normal lighting variation
 
 
@@ -101,6 +105,33 @@ def colour_audit(collection_dir, entry, path):
     return sorted(found)
 
 
+def crop_audit(collection_dir, entry, path):
+    """Refs whose crop size or shape is far from their entry's usual: a distant car (small crop), a
+    whole frame saved instead of a car, or a nose-only cut. Image headers only, no model. An entry
+    needs 4+ refs. Returns [(score, i, (w, h), (median w, median h))], worst first."""
+    from PIL import Image
+    sizes = []
+    for rel in path:
+        with Image.open(os.path.join(collection_dir, *rel.split("/"))) as im:
+            sizes.append(im.size)
+    wh = np.array(sizes, dtype=float)
+    log_area, log_aspect = np.log(wh[:, 0] * wh[:, 1]) / 2, np.log(wh[:, 0] / wh[:, 1])
+    ent = np.array(entry)
+    found = []
+    for n in sorted(set(entry)):
+        idx = np.where(ent == n)[0]
+        if len(idx) < 4:
+            continue
+        worst = np.zeros(len(idx))
+        for vals, floor in ((log_area[idx], CROP_AREA_MAD_FLOOR), (log_aspect[idx], CROP_ASPECT_MAD_FLOOR)):
+            med = np.median(vals)
+            mad = max(np.median(np.abs(vals - med)), floor)
+            worst = np.maximum(worst, np.abs(vals - med) / (1.4826 * mad))
+        med_wh = tuple(int(v) for v in np.median(wh[idx], axis=0))
+        found += [(float(worst[k]), i, tuple(int(v) for v in wh[i]), med_wh) for k, i in enumerate(idx) if worst[k] > CROP_MIN_Z]
+    return sorted(found, reverse=True)
+
+
 def write_audit(collection_dir, dup_sim=0.97, top=40):
     """Audits collection_dir's index.npz and writes ref-audit.txt beside it. Returns
     (path written, {"references", "mislabel", "copies", "outliers"})."""
@@ -113,9 +144,10 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
         colours = colour_audit(collection_dir, entry, path)
     except ImportError:  # no cv2: the colour section is skipped
         colours = []
+    crops = crop_audit(collection_dir, entry, path)
     out = [f"{len(entry)} references, {len(set(entry))} entries with 2+ refs (entries with fewer are skipped)",
            f"{len(mislabel)} mislabel suspects, {len(copies)} cross-entry copies, {len(outliers)} outliers, "
-           f"{len(colours)} colour outliers", ""]
+           f"{len(colours)} colour outliers, {len(crops)} odd crops", ""]
 
     def row(i, j, extra):
         cross = " (same team)" if team.get(entry[j]) == team.get(entry[i]) else ""
@@ -123,7 +155,8 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
 
     flags = {}
     for label, items in (("mislabel", [(m, i) for m, i, _ in mislabel]), ("copy", [(s, i) for s, i, _ in copies]),
-                         ("outlier", [(-z, i) for z, i, _ in outliers]), ("colour", [(-z, i) for z, i, *_ in colours])):
+                         ("outlier", [(-z, i) for z, i, _ in outliers]), ("colour", [(-z, i) for z, i, *_ in colours]),
+                         ("crop", [(z, i) for z, i, *_ in crops])):
         for _, i in items:
             flags.setdefault(i, []).append(label)
     strongest = sorted((i for i, f in flags.items() if len(f) >= 2), key=lambda i: (-len(flags[i]), path[i]))
@@ -143,6 +176,9 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
     out.append("\n## colour outliers (livery colours differ from the entry's typical ones; ignores brightness. 'looks like' names the entry whose colours it matches better)")
     for z, i, own, other, other_sim in colours[:top]:
         out.append(f"  {path[i]}  [{entry[i]}]  z {z:.1f}  own {own:.3f}" + (f"  looks like [{other}] {other_sim:.3f}" if other else ""))
+    out.append("\n## odd crops (size or shape far from the entry's usual: distant car, whole frame, nose-only cut; these can be good refs too)")
+    for z, i, (w, h), (mw, mh) in crops[:top]:
+        out.append(f"  {path[i]}  [{entry[i]}]  {w}x{h}  entry median {mw}x{mh}  z {z:.1f}")
     out.append("\n## redundant (refs with a near-duplicate in the same entry)")
     for name, c in redundant[:top]:
         out.append(f"  {name}: {c}")
@@ -151,7 +187,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
     with open(report, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
     return report, {"references": len(entry), "mislabel": len(mislabel), "copies": len(copies), "outliers": len(outliers),
-                    "colour": len(colours), "strongest": len(strongest)}
+                    "colour": len(colours), "crops": len(crops), "strongest": len(strongest)}
 
 
 def main():
