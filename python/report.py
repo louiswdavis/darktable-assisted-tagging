@@ -14,10 +14,10 @@ from pod import pod_colour
 from sponsors import SPONSOR_MIN_CONF
 
 CATEGORIES = ("identified", "team-obvious", "weak-match", "no-references", "number-unmatched",
-              "conflict", "already-tagged", "no-vehicle")
+              "conflict", "overlapped", "already-tagged", "no-vehicle")
 IDENTIFIED_METHODS = ("number", "livery", "burst", "pooled")
 # categories whose boxes are listed one by one; the rest are only counted
-DETAIL_CATEGORIES = ("team-obvious", "weak-match", "no-references", "number-unmatched", "conflict", "no-vehicle")
+DETAIL_CATEGORIES = ("team-obvious", "weak-match", "no-references", "number-unmatched", "conflict", "overlapped", "no-vehicle")
 MEDIAN_CATEGORIES = ("team-obvious", "weak-match")
 # detector score bands [from, to); the first band also holds everything below the cutoff
 DETECTOR_BANDS = ((0.0, 0.30), (0.30, 0.40), (0.40, 0.50), (0.50, 0.70), (0.70, 1.01))
@@ -45,6 +45,8 @@ def categorize(box: dict) -> str:
         return "identified"
     if box["method"] == "team":
         return "team-obvious"
+    if box["decided_by"] == "overlapped":
+        return "overlapped"
     if box["decided_by"] == "no_references":
         return "no-references"
     if box.get("unmatched_number"):

@@ -34,6 +34,7 @@ from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
                    burst_consensus, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
+from overlap import HIDDEN, visible_boxes
 from pod import pod_colour, pod_reading
 from rescue import RESCUE_MIN_SIM, plan_burst
 from sponsors import sponsor_prefixes
@@ -396,7 +397,7 @@ def frame_key(filepath: str, models: dict) -> list:
         return [file_key(filepath), "people", *face_model_key(models["face_det"], models["face_rec"]), "face-1"]
     return [file_key(filepath),file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
-            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-2", "cand-1", *(["colour-1"] if models.get("colour") else [])]
+            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-2", "cand-1", "overlap-1", *(["colour-1"] if models.get("colour") else [])]
 
 
 # ---------------------------------------------------------------- progress
@@ -450,16 +451,17 @@ def analyse_frame(filepath: str) -> dict:
 
 def _read_boxes(rgb, boxes: list) -> dict:
     """OCR candidates, pod reading and embedding of each box, in the analysis shape."""
-    ocr, trace, emb, pod, hist = [], [], [], [], []
-    for b in boxes:
-        pod.append(pod_reading(rgb, b))
-        crop = crop_box(rgb, b)
+    ocr, trace, emb, pod, hist, overlap = [], [], [], [], [], []
+    for b, (seen, state) in zip(boxes, visible_boxes(boxes)):
+        overlap.append(state)
+        pod.append(pod_reading(rgb, seen))
+        crop = crop_box(rgb, seen)
         ocr.append([[d, c] for d, c in _W["reader"].read(crop)])
         trace.append(_W["reader"].last_trace)
         emb.append(encode(_W["embedder"].embed(crop)))
         if _W["models"].get("colour"):
             hist.append(encode(colour_hist(crop)))
-    out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "pod": pod, "emb": emb}
+    out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "pod": pod, "emb": emb, "overlap": overlap}
     if hist:
         out["hist"] = hist
     return out
@@ -693,13 +695,13 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
             if r.box < 0:
                 continue
             b = d["boxes"][r.box]
-            rule, gap = decided_by(r, b["sims"], entries)
+            rule, gap = ("overlapped", 0.0) if b.get("overlap") == HIDDEN else decided_by(r, b["sims"], entries)
             boxes.append({"box": r.box, "bbox": b["bbox"], "score": round(b["score"], 3), "entry": r.entry_id, "alt_entry": r.alt_entry_id,
                           "method": r.method, "confidence": round(r.confidence, 4),
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict",
-                          "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "rescued": b.get("rescued", {})})
+                          "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "overlap": b.get("overlap", ""), "rescued": b.get("rescued", {})})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes}
     return {"collection": collection,
@@ -742,12 +744,15 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         r = match_camera(r, pod_colour(pod), entries)
         if r.entry_id != before:
             log(f"{image_id}: pod {pod_colour(pod)} moved {before} -> {r.entry_id}")
+        overlap = a.get("overlap", [""] * len(a["ocr"]))[i]
+        if overlap == HIDDEN:
+            r = BoxResult(i, "none")
         log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
             + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else ""))
         results.append(r)
         boxes_out.append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
                           "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "pod_colour": pod_colour(pod), "hint": hint,
-                          "rescued": a.get("rescued", {})})
+                          "overlap": overlap, "rescued": a.get("rescued", {})})
         if i == 0:
             box0_sims[image_id] = sims
     return results
