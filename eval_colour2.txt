@@ -1,0 +1,43 @@
+645 references, 22 entries with 2+; blur_references=False
+645 references, 22 entries, 11 teams (colour histogram only, leave-one-out)
+centre fraction kept: team accuracy / entry accuracy
+  100%: 61.7% / 48.4%
+  70%: 66.5% / 52.6%
+  50%: 66.5% / 52.4%
+detail below is for the best team accuracy (70%); chance ~4.5% entry / 9.1% team
+
+per entry: refs, recall as entry, recall as team, most-confused-with
+  Albon            8     12%     50%  Sainz x3, Piastri x1
+  Alonso          27     30%     56%  Stroll x7, Bortoleto x3
+  Antonelli       59     31%     51%  Bortoleto x14, Stroll x13
+  Bearman          4      0%     50%  Piastri x1, Hadjar x1  <5 refs
+  Bortoleto       24     42%     50%  Lawson x5, Hulkenburg x3
+  Bottas           4     75%     50%  Piastri x1  <5 refs
+  Colapinto       66     38%     74%  Gasly x24, Bortoleto x6
+  Gasly           89     70%     85%  Colapinto x14, Bortoleto x6
+  Hadjar          59     76%     81%  Bortoleto x6, Lawson x3
+  Hamilton        60     60%     68%  LeClerc x5, Ocon x4
+  Hulkenburg       5      0%     20%  Ocon x2, Hamilton x1
+  Lawson          31     74%     74%  Hadjar x3, Bottas x2
+  LeClerc          9     22%     33%  Ocon x2, Hamilton x1
+  Lindblad        18      0%     56%  Lawson x10, Bottas x3
+  Norris          99     78%     81%  Bortoleto x12, Verstappen x3
+  Ocon             5      0%     80%  Piastri x3, Perez x1
+  Perez            5      0%     40%  Bottas x2, Ocon x1
+  Piastri         13     31%      0%  Ocon x2, Hulkenburg x2
+  Russell          4      0%      0%  Hamilton x1, Verstappen x1  <5 refs
+  Sainz           19     37%     47%  Albon x3, Gasly x3
+  Stroll          29     55%     59%  Bortoleto x5, Lindblad x5
+  Verstappen       8     25%     12%  Piastri x3, Bottas x1
+
+team pairs colour confuses most (true -> predicted, count)
+  McLaren -> Haas x13
+  Mercedes -> Audi x12
+  Alpine -> Audi x12
+  McLaren -> Audi x11
+  Ferrari -> Haas x10
+  Mercedes -> Aston Martin x8
+  Aston Martin -> Audi x7
+  Racing Bulls -> Cadillac x7
+
+References are cleaner than real in-race crops: read the ranking, not the absolute accuracy.
