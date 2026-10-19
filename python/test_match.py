@@ -92,6 +92,31 @@ def run_tests():
     out = Mt.burst_consensus(conflict, {k: "b" for k in conflict})
     check("a burst naming two entries fills nothing", summary(out["3"][0]), ("none", "", ""))
 
+    # identity-change split
+    def ident(eid):
+        return [BoxResult(0, "number", eid, "", 0.9)]
+
+    def gap():
+        return [BoxResult(0, "none")]
+
+    cars = {"1": ident("VER"), "2": gap(), "3": ident("VER"), "4": ident("HAM"), "5": gap(), "6": ident("HAM"),
+            "7": gap()}
+    cars_burst = {k: "b" for k in cars}
+    out = Mt.burst_consensus(cars, cars_burst)
+    check("a split fills a gap inside a run", summary(out["2"][0]), ("burst", "VER", ""))
+    check("a split fills a gap inside the other run", summary(out["5"][0]), ("burst", "HAM", ""))
+    check("a split fills the burst's trailing edge from the last run", summary(out["7"][0]), ("burst", "HAM", ""))
+    check("split confidence is the run's share of its span", round(out["2"][0].confidence, 3), round(2 / 3, 3))
+    between = {"1": ident("VER"), "2": ident("VER"), "3": gap(), "4": ident("HAM"), "5": ident("HAM")}
+    out = Mt.burst_consensus(between, {k: "b" for k in between})
+    check("a gap between two runs belongs to neither", summary(out["3"][0]), ("none", "", ""))
+    lone = {"1": ident("VER"), "2": ident("VER"), "3": gap(), "4": ident("HAM")}
+    out = Mt.burst_consensus(lone, {k: "b" for k in lone})
+    check("a single frame of another entry starts no run", summary(out["3"][0]), ("none", "", ""))
+    shuffled = {"b": ident("HAM"), "a": ident("VER"), "c": gap(), "d": ident("VER"), "e": ident("HAM")}
+    out = Mt.burst_consensus(shuffled, {k: "x" for k in shuffled}, None, {"a": 1, "d": 2, "c": 3, "b": 4, "e": 5})
+    check("the order argument decides the shooting sequence", summary(out["c"][0]), ("none", "", ""))
+
     split = Mt.burst_consensus(frames, {"1": "a", "2": "a", "3": "c", "4": "a", "5": "a"})
     check("consensus stays within its own burst", summary(split["3"][0]), ("none", "", ""))
 

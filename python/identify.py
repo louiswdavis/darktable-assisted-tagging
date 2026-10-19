@@ -705,7 +705,8 @@ def identify(args, models: dict):
                                        detail[image_id]["boxes"], box0_sims)
     if rules.burst_livery_pooling:
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
-    frames = burst_consensus(frames, burst_of, entries)
+    shooting_order = {i: (d["time"] if d["time"] is not None else 0, d["file"]) for i, d in detail.items()}
+    frames = burst_consensus(frames, burst_of, entries, shooting_order)
 
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
     shots = {}

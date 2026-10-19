@@ -216,12 +216,55 @@ def promotable(record: dict) -> bool:
     return cands[0][1] - s2 >= REFERENCE_MIN_MARGIN
 
 
-def burst_consensus(frames: dict, burst_of: dict, entries=None) -> dict:
+def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries) -> list:
+    """The frame's rows with box 0 set to the burst's entry, or the rows unchanged when the frame is
+    already identified, has no box 0, or shows a team-only result for another team (a different car)."""
+    rows = frames[fid]
+    if any(r.method in IDENTIFIED for r in rows) or not any(r.box == 0 for r in rows):
+        return rows
+    if entries and eid in entries and any(
+            r.method == "team" and r.entry_id in entries and entries[r.entry_id].team != entries[eid].team
+            for r in rows):
+        return rows
+    return [replace(r, method="burst", entry_id=eid, alt_entry_id="", confidence=confidence) if r.box == 0 else r
+            for r in rows]
+
+
+def _split_burst(ids: list, frames: dict) -> list:
+    """Fill spans for a burst that names several entries: [(entry id, [frame ids to fill from])]. `ids` is
+    in shooting order. An anchor is a frame whose box 0 was identified; a run of anchors with one entry
+    (at least BURST_MIN_AGREE) fills the frames between its first and last anchor, plus the unidentified
+    frames reaching the burst's edge on its side. Frames between two runs of different entries could
+    belong to either car and stay unfilled."""
+    anchors = []
+    for pos, fid in enumerate(ids):
+        ident = [r.entry_id for r in frames[fid] if r.box == 0 and r.method in IDENTIFIED]
+        if ident:
+            anchors.append((pos, ident[0]))
+    runs: list = []
+    for pos, eid in anchors:
+        if runs and runs[-1][0] == eid:
+            runs[-1][1].append(pos)
+        else:
+            runs.append((eid, [pos]))
+    spans = []
+    for n, (eid, positions) in enumerate(runs):
+        if len(positions) < BURST_MIN_AGREE:
+            continue
+        lo = 0 if n == 0 else positions[0]
+        hi = len(ids) - 1 if n == len(runs) - 1 else positions[-1]
+        spans.append((eid, ids[lo:hi + 1], len(positions)))
+    return spans
+
+
+def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None) -> dict:
     """frames: image id → [BoxResult]. A frame none of whose boxes was identified
     takes its burst's entry on its largest box when at least BURST_MIN_AGREE
     frames agree on that entry and no frame names another. With `entries`, a
     frame whose team-only result names another team is left alone: that's
-    evidence of a different car."""
+    evidence of a different car. A burst that names several entries is split at the identity
+    changes (see _split_burst) using `order` (image id → sort key, shooting order; default the
+    order of `frames`), so each stretch fills only from its own car."""
     members: dict = {}
     for fid in frames:
         members.setdefault(burst_of.get(fid, fid), []).append(fid)
@@ -231,19 +274,17 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None) -> dict:
         for fid in ids:
             for eid in {r.entry_id for r in frames[fid] if r.method in IDENTIFIED}:
                 agree[eid] = agree.get(eid, 0) + 1
+        if len(agree) > 1:
+            ordered = sorted(ids, key=order.__getitem__) if order else ids
+            for eid, span, n in _split_burst(ordered, frames):
+                for fid in span:
+                    out[fid] = _burst_fill(frames, fid, eid, n / len(span), entries)
+            continue
         if len(agree) != 1:
             continue
         (eid, n), = agree.items()
         if n < BURST_MIN_AGREE:
             continue
         for fid in ids:
-            rows = frames[fid]
-            if any(r.method in IDENTIFIED for r in rows) or not any(r.box == 0 for r in rows):
-                continue
-            if entries and eid in entries and any(
-                    r.method == "team" and r.entry_id in entries and entries[r.entry_id].team != entries[eid].team
-                    for r in rows):
-                continue
-            out[fid] = [replace(r, method="burst", entry_id=eid, alt_entry_id="", confidence=n / len(ids))
-                        if r.box == 0 else r for r in rows]
+            out[fid] = _burst_fill(frames, fid, eid, n / len(ids), entries)
     return out
