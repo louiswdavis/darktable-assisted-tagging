@@ -1,70 +1,70 @@
 Tag plan for F1
 
 Identified (by number, livery or burst): the vehicle's entry tags.
-  Lawson (#30, Racing Bulls; 58 references)
+  Lawson (#30, Racing Bulls; 204 references)
       Sports|F1|Racing Bulls
       Sports|F1|Racing Bulls|Lawson
-  Piastri (#81, McLaren; 59 references)
+  Piastri (#81, McLaren; 72 references)
       Sports|F1|McLaren
       Sports|F1|McLaren|Piastri
-  Bottas (#77, Cadillac; 19 references)
+  Bottas (#77, Cadillac; 35 references)
       Sports|F1|Cadillac
       Sports|F1|Cadillac|Bottas
-  LeClerc (#16, Ferrari; 113 references)
+  LeClerc (#16, Ferrari; 127 references)
       Sports|F1|Ferrari
       Sports|F1|Ferrari|LeClerc
-  Lindblad (#41, Racing Bulls; 37 references)
+  Lindblad (#41, Racing Bulls; 38 references)
       Sports|F1|Racing Bulls
       Sports|F1|Racing Bulls|Lindblad
-  Hamilton (#44, Ferrari; 197 references)
+  Hamilton (#44, Ferrari; 201 references)
       Sports|F1|Ferrari
       Sports|F1|Ferrari|Hamilton
-  Norris (#1, McLaren; 137 references)
+  Norris (#1, McLaren; 143 references)
       Sports|F1|McLaren
       Sports|F1|McLaren|Norris
-  Stroll (#18, Aston Martin; 29 references)
+  Stroll (#18, Aston Martin; 121 references)
       Sports|F1|Aston Martin
       Sports|F1|Aston Martin|Stroll
-  Bortoleto (#5, Audi; 24 references)
+  Bortoleto (#5, Audi; 62 references)
       Sports|F1|Audi
       Sports|F1|Audi|Bortoleto
-  Bearman (#87, Haas; 17 references)
+  Bearman (#87, Haas; 59 references)
       Sports|F1|Haas
       Sports|F1|Haas|Bearman
-  Verstappen (#3, Red Bull; 27 references)
+  Verstappen (#3, Red Bull; 32 references)
       Sports|F1|Red Bull
       Sports|F1|Red Bull|Verstappen
-  Perez (#11, Cadillac; 8 references)
+  Perez (#11, Cadillac; 79 references)
       Sports|F1|Cadillac
       Sports|F1|Cadillac|Perez
-  Hulkenburg (#27, Audi; 5 references)
+  Hulkenburg (#27, Audi; 39 references)
       Sports|F1|Audi
       Sports|F1|Audi|Hulkenburg
-  Hadjar (#6, Red Bull; 78 references)
+  Hadjar (#6, Red Bull; 88 references)
       Sports|F1|Red Bull
       Sports|F1|Red Bull|Hadjar
-  Colapinto (#43, Alpine; 66 references)
+  Colapinto (#43, Alpine; 68 references)
       Sports|F1|Alpine
       Sports|F1|Alpine|Colapinto
-  Gasly (#10, Alpine; 89 references)
+  Gasly (#10, Alpine; 93 references)
       Sports|F1|Alpine
       Sports|F1|Alpine|Gasly
-  Antonelli (#12, Mercedes; 68 references)
+  Antonelli (#12, Mercedes; 259 references)
       Sports|F1|Mercedes
       Sports|F1|Mercedes|Antonelli
-  Alonso (#14, Aston Martin; 27 references)
+  Alonso (#14, Aston Martin; 84 references)
       Sports|F1|Aston Martin
       Sports|F1|Aston Martin|Alonso
-  Russell (#63, Mercedes; 18 references)
+  Russell (#63, Mercedes; 78 references)
       Sports|F1|Mercedes
       Sports|F1|Mercedes|Russell
-  Sainz (#55, Williams; 19 references)
+  Sainz (#55, Williams; 108 references)
       Sports|F1|Williams
       Sports|F1|Williams|Sainz
-  Albon (#23, Williams; 9 references)
+  Albon (#23, Williams; 58 references)
       Sports|F1|Williams
       Sports|F1|Williams|Albon
-  Ocon (#31, Haas; 26 references)
+  Ocon (#31, Haas; 80 references)
       Sports|F1|Haas
       Sports|F1|Haas|Ocon
 

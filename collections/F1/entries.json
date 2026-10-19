@@ -2,7 +2,7 @@
   "rules": {
     "team_only": "shared tags",
     "unidentified": [],
-  "colour_weight": 1.5,
+    "colour_weight": 1.5,
     "sponsor_keywords": {
       "petronas": "Sports|F1|Mercedes",
       "redbull": "Sports|F1|Red Bull",
