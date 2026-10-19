@@ -110,7 +110,16 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
         reason = "no_entries"
     else:
         digits = {d for d, _ in ocr}
-        if any(e.number in digits for eid, e in entries.items() if e.number and eid not in inside):
+        outside = [eid for eid, e in entries.items() if e.number and e.number in digits and eid not in inside]
+        if outside and source == "tag":
+            # The user tagged this photo to the set; a number outside it only wins when the livery
+            # doesn't clearly point back inside (a misread digit or sponsor text, not another car).
+            sim = dict(sims)
+            lead = max((sim.get(eid, 0.0) for eid in inside), default=0.0) - max(sim.get(eid, 0.0) for eid in outside)
+            if lead >= MATCH_MIN_MARGIN:
+                ocr = [(d, c) for d, c in ocr if d not in {entries[eid].number for eid in outside}]
+                outside = []
+        if outside:
             reason = "number_outside"
         elif not any(s >= MATCH_MIN_SIM for eid, s in sims if eid in inside):
             reason = "below_min_sim"

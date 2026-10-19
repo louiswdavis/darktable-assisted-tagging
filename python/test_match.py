@@ -209,6 +209,11 @@ def run_tests():
     check("hinted_match: a weak sponsor hint is still dropped", (r.method, h["dropped"]), ("livery", True))
     r, h = Mt.hinted_match(0, [("44", 0.9)], sims, ENTRIES, ["F1|Red Bull"], "tag")
     check("hinted_match: a number outside the set drops the hint", (r.entry_id, h["reason"]), ("HAM", "number_outside"))
+    r, h = Mt.hinted_match(0, [("44", 0.9)], [("VER", 0.8), ("TSU", 0.5), ("HAM", 0.3)], ENTRIES, ["F1|Red Bull"], "tag")
+    check("hinted_match: a number outside is ignored when the livery clearly points inside a tagged set",
+          (r.method, r.entry_id, h["dropped"]), ("livery", "VER", False))
+    r, h = Mt.hinted_match(0, [("44", 0.9)], [("VER", 0.8), ("TSU", 0.5), ("HAM", 0.3)], ENTRIES, ["F1|Red Bull"], "sponsor")
+    check("hinted_match: a sponsor hint still yields to an outside number", (r.entry_id, h["reason"]), ("HAM", "number_outside"))
     check("most_specific: an ancestor prefix is dropped", Mt.most_specific(["F1", "F1|Red Bull", "F1|Red Bull", "F2"]), ["F1|Red Bull", "F2"])
     r, h = Mt.hinted_match(0, [], sims, ENTRIES, ["F1", "F1|Red Bull"], "tag")
     check("hinted_match: a broad tag doesn't widen a team tag", (h["restricted"], h["prefixes"]), (2, ["F1|Red Bull"]))
