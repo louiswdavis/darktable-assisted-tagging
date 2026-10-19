@@ -84,7 +84,7 @@ def run_tests():
         missing = str(e)
     check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
-          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics)')
+          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references)')
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
           'entry "VER": unknown field "tagz" (fields are id, number, team, tags, camera)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
@@ -92,7 +92,7 @@ def run_tests():
     check("a bad team_only value is rejected", load_error({"rules": {"team_only": "both"}, "entries": []}),
           'rules.team_only must be "shared tags" or "none"')
     check("an unknown diagnostic is named", load_error({"rules": {"diagnostics": {"guess": "x"}}, "entries": []}),
-          'unknown diagnostic "guess" (they are number, livery, burst, team, none)')
+          'unknown diagnostic "guess" (they are number, livery, burst, team, none, number_seen, pooled, shot_solo, shot_pack, shot_crowded)')
 
     # ---- csv outputs and the tag plan
     entries, rules = I.load_collection(collection({"rules": {"unidentified": ["F1|Check"]},
@@ -142,8 +142,8 @@ def run_tests():
     rgb = V.load_full(rotated)
     check("an Orientation-6 JPEG decodes upright (portrait)", rgb.shape[:2], (300, 200))
     crop = V.crop_box(rgb, (0, 0, 200, 150, 0.9, 2))
-    check("a crop of an upright box keeps the upright aspect", crop.shape[:2], (150, 200))
-    check("crops are never upscaled", V.crop_box(rgb, (10, 10, 60, 40, 0.9, 2)).shape[:2], (30, 50))
+    check("a crop of an upright box keeps the upright aspect", crop.shape[:2], (120, 160))
+    check("crops are never upscaled", V.crop_box(rgb, (10, 10, 60, 40, 0.9, 2)).shape[:2], (24, 40))
     check("box selection clips, filters and sorts",
           [b[:4] for b in V.select_boxes([(-5, 0, 50, 40, 0.9, 2), (0, 0, 2, 2, 0.9, 2), (0, 0, 200, 300, 0.5, 7)],
                                          200, 300)],
@@ -182,15 +182,15 @@ def run_tests():
     car = [[0, 0, 100, 50, 0.9, 2]]
     fr = [100, 50]
     stub = {
-        "/x/1.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "emb": [vec], "note": "", "frame": fr},
-        "/x/2.jpg": {"boxes": car, "ocr": [[["1", 0.90]]], "emb": [vec], "note": "", "frame": fr},
-        "/x/3.jpg": {"boxes": car, "ocr": [[]], "emb": [vec], "note": "", "frame": fr},
+        "/x/1.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
+        "/x/2.jpg": {"boxes": car, "ocr": [[["1", 0.90]]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
+        "/x/3.jpg": {"boxes": car, "ocr": [[]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
         "/x/4.jpg": {"boxes": [], "ocr": [], "emb": [], "note": "no vehicle"},
         "/x/5.jpg": None,
-        "/x/6.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "emb": [vec], "note": "", "frame": fr},
-        "/x/7.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "emb": [vec], "note": "", "frame": fr},
-        "/x/8.jpg": {"boxes": car, "ocr": [[]], "emb": [vec], "note": "", "frame": fr},
-        "/x/9.jpg": {"boxes": car * 2, "ocr": [[["1", 0.95]], []], "emb": [vec, vec], "note": "", "frame": fr},
+        "/x/6.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
+        "/x/7.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
+        "/x/8.jpg": {"boxes": car, "ocr": [[]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
+        "/x/9.jpg": {"boxes": car * 2, "ocr": [[["1", 0.95]], []], "ocr_trace": [[], []], "pod": [{}, {}], "emb": [vec, vec], "note": "", "frame": fr},
     }
 
     class FakeEmbedder:
