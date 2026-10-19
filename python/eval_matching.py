@@ -5,6 +5,7 @@ once, matched against all the others. Run from this folder:
   python eval_matching.py COLLECTION_DIR                      # embedding-only variants
   python eval_matching.py COLLECTION_DIR --embedder PATH.onnx  # also colour and stretch variants
   python eval_matching.py COLLECTION_DIR --colour-only         # colour histograms alone; needs refs/, no model
+  python eval_matching.py COLLECTION_DIR --embedder PATH.onnx --fresh-embed  # re-embed refs with that model (compare embedders)
 
 COLLECTION_DIR holds entries.json, index.npz and refs/. Near-duplicates of the query (cosine over
 --dup-sim, e.g. frames of one burst) are ignored as neighbours, so the numbers aren't flattered by
@@ -178,6 +179,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("collection_dir")
     ap.add_argument("--embedder", default="", help="DINOv2 .onnx; adds the colour and stretch variants")
+    ap.add_argument("--fresh-embed", action="store_true",
+                    help="re-embed the refs/ crops with --embedder instead of using index.npz, to compare embedder models")
     ap.add_argument("--colour-only", action="store_true", help="colour-histogram analysis of the refs/ images; no model")
     ap.add_argument("--dup-sim", type=float, default=0.97)
     ap.add_argument("--topk", type=int, default=3)
@@ -190,6 +193,13 @@ def main():
     if a.colour_only:
         colour_report(a.collection_dir, entry, path, team, blur)
         return
+    if a.fresh_embed:
+        if not a.embedder or not os.path.isfile(a.embedder):
+            sys.exit("--fresh-embed needs --embedder PATH.onnx")
+        from embed import Embedder
+        model = Embedder(a.embedder)
+        emb = np.stack([model.embed(c) for c in crops(a.collection_dir, path, blur)]).astype(np.float32)
+        print(f"re-embedded {len(emb)} references with {os.path.basename(a.embedder)} ({emb.shape[1]} dims); index.npz untouched")
     dup = dup_mask_of(emb, a.dup_sim)
     centred = unit(emb - emb.mean(axis=0))
     variants = [("baseline (max similarity)", emb, 1), (f"top-{a.topk} mean", emb, a.topk),

@@ -71,7 +71,7 @@ curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2
 Optional models. The plugin works without them:
 
 - **Segmentation**, for pack shots with overlapping cars. With it in `models`, a box that overlaps another is read through a car-shaped mask, with the background and the neighbouring car painted grey.
-- **Larger livery embedder.** Not used unless you set **Assisted Tagging: livery embedder model** (preferences → lua options) to `dinov2_base.onnx`; the next run then re-embeds every reference. Compare it first with `python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx`.
+- **Larger livery embedder.** Not used unless you set **Assisted Tagging: livery embedder model** (preferences → lua options) to `dinov2_base.onnx`; the next run then re-embeds every reference. Compare it first with `python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx --fresh-embed` (re-embeds the refs with that model in memory; `index.npz` is untouched).
 
 ```
 curl -L -o models/image_segmentation_efficientsam_ti_2025april.onnx https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx
