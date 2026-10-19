@@ -84,7 +84,7 @@ def run_tests():
         missing = str(e)
     check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
-          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px)')
+          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px, colour_weight)')
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
           'entry "VER": unknown field "tagz" (fields are id, number, team, tags, camera)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
@@ -136,6 +136,7 @@ def run_tests():
     frame = os.path.join(img, "f.jpg")
     Image.new("RGB", (64, 48), (90, 90, 90)).save(frame)
     models = {k: frame for k in ("detector", "ocr_det", "ocr_rec", "embedder")}
+    models["kind"] = "motorsport"
     key = I.frame_key(frame, models)
     saved = I.OCR_MIN_SCORE
     I.OCR_MIN_SCORE = 0.5
