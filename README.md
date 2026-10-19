@@ -324,6 +324,8 @@ The run log has one line per vehicle with the numbers read and the top two liver
 
 After changing `OCR_MIN_SCORE`, `MIN_BOX_FRAC`, `CROP_DIM` or the detection, OCR or embedding code, bump `IDENTIFY_CACHE_VERSION` in `identify.py` (`CROP_DIM`, `MIN_BOX_FRAC`, `BOX_MARGIN_TRIM`, `OCR_MIN_SCORE` and `DETECTOR_MIN_SCORE` are already in the cache key; code changes aren't). Changes to `match.py` never need it.
 
+**Higher-detail re-read.** Frames are first analysed from the RAW's embedded preview (fast). After the first match, each box left unidentified (`none`, or `team` with the driver not separated; overlapped boxes excluded) is re-read from a half-size decode of the RAW itself, which gives OCR and the embedding several times the pixels on a small car. Boxes stay in preview coordinates; only their crops come from the sharper decode. Non-RAW files and previews already near full width are left alone. A re-read replaces that box's OCR, embedding and colour only, and the box record carries `"hires": true`. The re-read of a frame is cached separately (`hires-1`), so a rerun doesn't decode again. Reference crops are still taken from previews.
+
 ## Troubleshooting
 
 - **The panel isn't there.** Start darktable with `-d lua` and look for `LUA ERROR` in the log. On Windows the log is `Documents\Darktable\darktable-log.txt`.

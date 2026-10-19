@@ -691,6 +691,20 @@ def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str) -
     return out
 
 
+def hires_wanted(frames: dict, detail: dict, analyses: dict) -> dict:
+    """filepath → indices of the boxes worth re-reading at higher detail: those the first pass left
+    unidentified (`none`, or `team` with the driver not separated). Hidden (overlapped) boxes are
+    left out, since a sharper crop can't uncover them."""
+    wanted: dict = {}
+    for image_id, results in frames.items():
+        path = detail[image_id]["file"]
+        a = analyses.get(path)
+        for r in results:
+            if r.box >= 0 and r.method in ("none", "team") and a and a.get("overlap", [""] * len(a["boxes"]))[r.box] != HIDDEN:
+                wanted.setdefault(path, set()).add(r.box)
+    return wanted
+
+
 def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: dict) -> dict:
     """Experimental (rules.burst_livery_pooling): for each burst with 2+ frames, pool
     box-0 livery similarity across them and re-run the livery/team decision once on the
@@ -759,7 +773,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict",
-                          "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "overlap": b.get("overlap", ""), "rescued": b.get("rescued", {})})
+                          "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "overlap": b.get("overlap", ""), "hires": b.get("hires", False), "rescued": b.get("rescued", {})})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes}
     return {"collection": collection,
@@ -782,10 +796,10 @@ def write_boxes(path: str, data: dict):
 
 
 def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, rules: Rules, team_of: dict,
-                tag_hints: list, boxes_out: list, box0_sims: dict) -> list:
+                tag_hints: list, boxes_out: list, box0_sims: dict, quiet: bool = False) -> list:
     """One BoxResult per detected vehicle in the analysed frame `a`. Appends each box's detail
     (bbox, detector score, sims, OCR, hint) to `boxes_out`, and box 0's sims to `box0_sims` when
-    burst pooling needs them."""
+    burst pooling needs them. `quiet` skips the per-box log lines (a pass that is redone)."""
     results = []
     for i, ocr in enumerate(a["ocr"]):
         sims = index.best_per_entry(decode(a["emb"][i]),
@@ -800,17 +814,19 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         pod = a["pod"][i]
         before = r.entry_id
         r = match_camera(r, pod_colour(pod), entries)
-        if r.entry_id != before:
+        if r.entry_id != before and not quiet:
             log(f"{image_id}: pod {pod_colour(pod)} moved {before} -> {r.entry_id}")
         overlap = a.get("overlap", [""] * len(a["ocr"]))[i]
         if overlap == HIDDEN:
             r = BoxResult(i, "none")
-        log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
-            + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else ""))
+        if not quiet:
+            log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
+                + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else "")
+                + (" [higher detail]" if a.get("hires", [])[i:i + 1] == [True] else ""))
         results.append(r)
         boxes_out.append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
                           "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "pod_colour": pod_colour(pod), "hint": hint,
-                          "overlap": overlap, "rescued": a.get("rescued", {})})
+                          "overlap": overlap, "hires": a.get("hires", [])[i:i + 1] == [True], "rescued": a.get("rescued", {})})
         if i == 0:
             box0_sims[image_id] = sims
     return results
@@ -971,7 +987,7 @@ def identify(args, models: dict):
                 continue
             detail[image_id]["frame"] = a["frame"]
             frames[image_id] = match_frame(image_id, a, index, entries, rules, team_of, tag_hints_of[image_id],
-                                           detail[image_id]["boxes"], box0_sims)
+                                           detail[image_id]["boxes"], box0_sims, quiet)
         return frames, burst_of, box0_sims, detail
 
     # first pass on the cheap analysis; boxes it can't identify are then re-read at higher detail
