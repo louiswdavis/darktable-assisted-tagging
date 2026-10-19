@@ -322,8 +322,8 @@ def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, bo
         return rows
     if confidence < BURST_MIN_CONFIDENCE:
         return rows
-    if box0_sims is not None and not _supported(box0_sims.get(fid, []), eid):
-        return rows
+    if box0_sims is not None and not (fid in box0_sims and (not box0_sims[fid] or _supported(box0_sims[fid], eid))):
+        return rows  # empty sims (a collection without references) leave nothing to contradict the burst
     if entries and eid in entries and any(
             r.method == "team" and r.entry_id in entries and entries[r.entry_id].team != entries[eid].team
             for r in rows):
