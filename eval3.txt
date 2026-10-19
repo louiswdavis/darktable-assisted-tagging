@@ -1,0 +1,57 @@
+1130 references, 22 entries with 2+; blur_references=False
+
+baseline (max similarity)
+  entry accuracy 62.1%   team accuracy 82.4%   median margin 0.011
+  current rule (sim>=0.6, margin>=0.15): identified right 0.3%, wrong 0.0%, abstained 99.7%
+  margin gate: identified right/wrong  0.05: 8%/0.9%   0.08: 2%/0.1%   0.10: 2%/0.0%   0.12: 1%/0.0%   0.15: 0%/0.0%   0.20: 0%/0.0%
+  precision at coverage (most confident first)  25%: 88%   50%: 78%   75%: 69%   100%: 62%
+  commonest confusions: Hamilton->LeClerc x32, Colapinto->Gasly x29, LeClerc->Hamilton x29, Gasly->Colapinto x26, Lindblad->Lawson x19
+
+top-3 mean
+  entry accuracy 59.5%   team accuracy 76.1%   median margin 0.011
+  current rule (sim>=0.6, margin>=0.15): identified right 0.4%, wrong 0.2%, abstained 99.4%
+  margin gate: identified right/wrong  0.05: 7%/0.7%   0.08: 3%/0.6%   0.10: 2%/0.4%   0.12: 1%/0.3%   0.15: 0%/0.2%   0.20: 0%/0.1%
+  precision at coverage (most confident first)  25%: 83%   50%: 75%   75%: 67%   100%: 59%
+  commonest confusions: LeClerc->Hamilton x29, Colapinto->Gasly x27, Gasly->Colapinto x20, Hamilton->LeClerc x20, Lindblad->Lawson x17
+
+centred embeddings
+  entry accuracy 63.2%   team accuracy 82.0%   median margin 0.044
+  current rule (sim>=0.6, margin>=0.15): identified right 10.6%, wrong 0.7%, abstained 88.7%
+  margin gate: identified right/wrong  0.05: 36%/8.4%   0.08: 25%/3.1%   0.10: 20%/1.9%   0.12: 16%/1.2%   0.15: 11%/0.7%   0.20: 4%/0.1%
+  precision at coverage (most confident first)  25%: 89%   50%: 78%   75%: 72%   100%: 63%
+  commonest confusions: Hamilton->LeClerc x31, LeClerc->Hamilton x27, Gasly->Colapinto x25, Colapinto->Gasly x22, Lindblad->Lawson x19
+
+centred + top-3 mean
+  entry accuracy 60.1%   team accuracy 77.0%   median margin 0.039
+  current rule (sim>=0.6, margin>=0.15): identified right 12.7%, wrong 0.8%, abstained 86.5%
+  margin gate: identified right/wrong  0.05: 33%/8.6%   0.08: 26%/5.0%   0.10: 21%/3.5%   0.12: 18%/1.8%   0.15: 13%/0.8%   0.20: 6%/0.4%
+  precision at coverage (most confident first)  25%: 85%   50%: 76%   75%: 67%   100%: 60%
+  commonest confusions: LeClerc->Hamilton x26, Hamilton->LeClerc x25, Colapinto->Gasly x23, Gasly->Colapinto x21, Lindblad->Lawson x18
+
+centred + colour histogram x0.5, top-3
+  entry accuracy 61.2%   team accuracy 77.9%   median margin 0.038
+  current rule (sim>=0.6, margin>=0.15): identified right 11.9%, wrong 0.4%, abstained 87.7%
+  margin gate: identified right/wrong  0.05: 34%/7.4%   0.08: 25%/4.0%   0.10: 21%/2.3%   0.12: 17%/1.1%   0.15: 12%/0.4%   0.20: 4%/0.3%
+  precision at coverage (most confident first)  25%: 89%   50%: 78%   75%: 68%   100%: 61%
+  commonest confusions: LeClerc->Hamilton x26, Colapinto->Gasly x24, Gasly->Colapinto x20, Hamilton->LeClerc x20, Lindblad->Lawson x18
+
+centred + colour histogram x1.0, top-3
+  entry accuracy 63.6%   team accuracy 78.9%   median margin 0.034
+  current rule (sim>=0.6, margin>=0.15): identified right 7.3%, wrong 0.3%, abstained 92.5%
+  margin gate: identified right/wrong  0.05: 34%/5.6%   0.08: 24%/1.9%   0.10: 19%/0.9%   0.12: 14%/0.4%   0.15: 7%/0.3%   0.20: 2%/0.0%
+  precision at coverage (most confident first)  25%: 93%   50%: 81%   75%: 71%   100%: 64%
+  commonest confusions: LeClerc->Hamilton x30, Gasly->Colapinto x19, Colapinto->Gasly x18, Hamilton->LeClerc x17, Lindblad->Lawson x17
+
+centred + colour histogram x2.0, top-3
+  entry accuracy 65.7%   team accuracy 79.0%   median margin 0.026
+  current rule (sim>=0.6, margin>=0.15): identified right 1.0%, wrong 0.0%, abstained 99.0%
+  margin gate: identified right/wrong  0.05: 28%/2.4%   0.08: 16%/0.7%   0.10: 9%/0.4%   0.12: 4%/0.2%   0.15: 1%/0.0%   0.20: 0%/0.0%
+  precision at coverage (most confident first)  25%: 94%   50%: 83%   75%: 74%   100%: 66%
+  commonest confusions: LeClerc->Hamilton x24, Colapinto->Gasly x17, Hamilton->LeClerc x15, Lindblad->Lawson x15, Gasly->Colapinto x12
+
+stretched crop, centred, top-3
+  entry accuracy 61.0%   team accuracy 76.9%   median margin 0.043
+  current rule (sim>=0.6, margin>=0.15): identified right 13.3%, wrong 1.2%, abstained 85.5%
+  margin gate: identified right/wrong  0.05: 36%/7.6%   0.08: 26%/4.2%   0.10: 22%/2.7%   0.12: 18%/2.1%   0.15: 13%/1.2%   0.20: 8%/0.4%
+  precision at coverage (most confident first)  25%: 89%   50%: 78%   75%: 70%   100%: 61%
+  commonest confusions: LeClerc->Hamilton x29, Colapinto->Gasly x22, Gasly->Colapinto x21, Hamilton->LeClerc x19, Lawson->Lindblad x11
