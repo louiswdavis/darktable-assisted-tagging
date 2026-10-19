@@ -639,7 +639,8 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
             "thresholds": {"min_sim": MATCH_MIN_SIM, "min_margin": MATCH_MIN_MARGIN,
                            "reference_margin": REFERENCE_MIN_MARGIN},
             "sponsor_keywords": dict(sponsor_keywords),
-            "entries": {e.id: {"team": e.team, "number": e.number, "tags": list(e.tags), "refs": counts.get(e.id, 0)}
+            "entries": {e.id: {"team": e.team, "number": e.number, "tags": list(e.tags), "camera": e.camera,
+                                    "refs": counts.get(e.id, 0)}
                         for e in entries.values()},
             "images": images, "skipped": skipped}
 

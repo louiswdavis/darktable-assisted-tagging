@@ -250,7 +250,7 @@ def run_tests():
           (run["images"]["9"]["status"], run["images"]["9"]["boxes"][1]["unmatched_number"]), ("ok", ""))
     check("boxes.json carries the thresholds and per-entry facts the report needs",
           (sorted(run["thresholds"]), sorted(run["entries"]["VER"])), (["min_margin", "min_sim", "reference_margin"],
-                                                                      ["number", "refs", "tags", "team"]))
+                                                                      ["camera", "number", "refs", "tags", "team"]))
     args.report_out = os.path.join(img, "last-run", "c.report")
     I.identify(args, {"embedder": "fake"})
     check("--report-out writes report.md and report.json", (os.path.isfile(args.report_out + ".md"),
