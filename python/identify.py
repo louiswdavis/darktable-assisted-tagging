@@ -1116,10 +1116,13 @@ def add_references(args, models: dict):
             if is_team and len(boxes) != 1:
                 log(f"{image_id}: {len(boxes)} vehicles found; only a solo shot can be a team reference")
                 return "team_not_solo"
-            box = boxes[0] if boxes else (0, 0, rgb.shape[1], rgb.shape[0])
-            rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop_box(rgb, box))
-            log(f"{image_id}: reference {rel}" + ("" if boxes else f" (whole frame; {note})"))
-            return "added" if boxes else "no_vehicle_whole_frame"
+            if not boxes:
+                # a whole frame as a reference matches on its scenery, not the car (see audit_refs.py)
+                log(f"{image_id}: no vehicle found, so no reference saved ({note})")
+                return "no_vehicle"
+            rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop_box(rgb, boxes[0]))
+            log(f"{image_id}: reference {rel}")
+            return "added"
         except Exception as e:
             log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
             return "failed"

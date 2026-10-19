@@ -1375,17 +1375,17 @@ function M.add_references(images, entry_id)
         end
         local results = run_reference_job(state, rows, " --add-reference")
         if not results then return end
-        local added, whole, failed, no_face, multi = 0, 0, 0, 0, 0
+        local added, no_car, failed, no_face, multi = 0, 0, 0, 0, 0
         for line in results:gmatch("[^\r\n]+") do
             local p = M.parse_csv_line(line, 2)
             if p and p[2] == "added" then added = added + 1
             elseif p and p[2] == "no_face" then no_face = no_face + 1
             elseif p and p[2] == "multiple_faces" then multi = multi + 1
-            elseif p and p[2] == "no_vehicle_whole_frame" then added = added + 1; whole = whole + 1
+            elseif p and p[2] == "no_vehicle" then no_car = no_car + 1
             elseif p then failed = failed + 1 end
         end
         local extra = {}
-        if whole > 0 then extra[#extra + 1] = string.format("%d used the whole frame", whole) end
+        if no_car > 0 then extra[#extra + 1] = string.format("%d had no car found, so weren't saved", no_car) end
         if no_face > 0 then extra[#extra + 1] = string.format("%d had no face", no_face) end
         if multi > 0 then extra[#extra + 1] = string.format("%d had several faces, so can't name one person", multi) end
         if n_skipped > 0 then extra[#extra + 1] = string.format("%d skipped", n_skipped) end
