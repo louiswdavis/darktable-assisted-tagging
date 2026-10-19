@@ -65,17 +65,11 @@ def audit(emb, entry, path, team, dup_sim):
             redundant, own_best, other_best)
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("collection_dir")
-    ap.add_argument("--dup-sim", type=float, default=0.97)
-    ap.add_argument("--top", type=int, default=40, help="rows per section")
-    a = ap.parse_args()
-    for need in ("entries.json", "index.npz"):
-        if not os.path.isfile(os.path.join(a.collection_dir, need)):
-            sys.exit(f"{a.collection_dir} has no {need}: pass the collection folder itself (the one holding entries.json)")
-    emb, entry, path, team, _ = load(a.collection_dir)
-    mislabel, copies, outliers, redundant, own_best, other_best = audit(emb, entry, path, team, a.dup_sim)
+def write_audit(collection_dir, dup_sim=0.97, top=40):
+    """Audits collection_dir's index.npz and writes ref-audit.txt beside it. Returns
+    (path written, {"references", "mislabel", "copies", "outliers"})."""
+    emb, entry, path, team, _ = load(collection_dir)
+    mislabel, copies, outliers, redundant, own_best, other_best = audit(emb, entry, path, team, dup_sim)
 
     out = [f"{len(entry)} references, {len(set(entry))} entries with 2+ refs (entries with fewer are skipped)",
            f"{len(mislabel)} mislabel suspects, {len(copies)} cross-entry copies, {len(outliers)} outliers", ""]
@@ -85,22 +79,35 @@ def main():
         return f"  {path[i]}  [{entry[i]}]  ~  {path[j]}  [{entry[j]}]{cross}  {extra}"
 
     out.append("## mislabel suspects (closer to another entry than to its own; check the first file)")
-    for m, i, j in mislabel[:a.top]:
+    for m, i, j in mislabel[:top]:
         out.append(row(i, j, f"margin {m:.3f}  own {own_best[i]:.3f}  other {other_best[i]:.3f}"))
     out.append("\n## cross-entry copies (near-identical crop filed under two entries; one is wrong)")
-    for s, i, j in copies[:a.top]:
+    for s, i, j in copies[:top]:
         out.append(row(i, j, f"sim {s:.3f}"))
     out.append("\n## outliers (far from the rest of their own entry; wrong car, background or partial crop)")
-    for z, i, j in outliers[:a.top]:
+    for z, i, j in outliers[:top]:
         out.append(f"  {path[i]}  [{entry[i]}]  z {z:.1f}  best own match {own_best[i]:.3f}")
     out.append("\n## redundant (refs with a near-duplicate in the same entry)")
-    for name, c in redundant[:a.top]:
+    for name, c in redundant[:top]:
         out.append(f"  {name}: {c}")
 
-    text = "\n".join(out) + "\n"
-    with open(os.path.join(a.collection_dir, "ref-audit.txt"), "w", encoding="utf-8") as f:
-        f.write(text)
-    print("\n".join(out[:2]) + f"\nwrote {os.path.join(a.collection_dir, 'ref-audit.txt')}")
+    report = os.path.join(collection_dir, "ref-audit.txt")
+    with open(report, "w", encoding="utf-8") as f:
+        f.write("\n".join(out) + "\n")
+    return report, {"references": len(entry), "mislabel": len(mislabel), "copies": len(copies), "outliers": len(outliers)}
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("collection_dir")
+    ap.add_argument("--dup-sim", type=float, default=0.97)
+    ap.add_argument("--top", type=int, default=40, help="rows per section")
+    a = ap.parse_args()
+    for need in ("entries.json", "index.npz"):
+        if not os.path.isfile(os.path.join(a.collection_dir, need)):
+            sys.exit(f"{a.collection_dir} has no {need}: pass the collection folder itself (the one holding entries.json)")
+    report, counts = write_audit(a.collection_dir, a.dup_sim, a.top)
+    print(f"{counts}\nwrote {report}")
 
 
 if __name__ == "__main__":
