@@ -205,6 +205,10 @@ def main():
         hist = unit(np.stack([hsv_hist(c) for c in imgs]))
         for w in (0.5, 1.0, 2.0):
             variants.append((f"centred + colour histogram x{w}, top-{a.topk}", unit(np.hstack([centred, w * hist])), a.topk))
+        # live matcher (reference_store.best_per_entry): centred, top-1, colour from the central half
+        hist_c = unit(np.stack([hsv_hist(c, 0.5) for c in imgs]))
+        for w in (0.5, 1.0, 1.5, 2.0):
+            variants.append((f"LIVE-LIKE centred + colour (centre half) x{w}, top-1", unit(np.hstack([centred, w * hist_c])), 1))
         stretched = stretch_embed(a.embedder, imgs)
         variants.append((f"stretched crop, centred, top-{a.topk}", unit(stretched - stretched.mean(axis=0)), a.topk))
     for label, x, k in variants:

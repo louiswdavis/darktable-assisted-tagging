@@ -29,6 +29,7 @@ from dataclasses import dataclass, replace
 
 from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect, detect_vehicles, detector_model, file_key, load_full, log
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
+from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
                    burst_consensus, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
@@ -102,6 +103,9 @@ class Rules:
     min_sim: float = 0.50
     margin: float = 0.05
     min_face_px: int = 48
+    # Motorsport: how much a car's colour histogram counts next to its embedding when scoring references
+    # (reference_store.best_per_entry). 0 turns colour off.
+    colour_weight: float = 0.0
 
 
 def _check_tags(tags, where: str, bad, allow_empty: bool = False):
@@ -120,11 +124,11 @@ def _load_rules(raw, bad) -> Rules:
         raise bad('"rules" must be an object')
     unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling",
                                   "blur_references", "sponsor_keywords", "partial_references",
-                                  "min_sim", "margin", "min_face_px"})
+                                  "min_sim", "margin", "min_face_px", "colour_weight"})
     if unknown:
         raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics, '
                    f'burst_livery_pooling, blur_references, sponsor_keywords, partial_references, '
-                   f'min_sim, margin, min_face_px)')
+                   f'min_sim, margin, min_face_px, colour_weight)')
     defaults = Rules()
     min_sim, margin, min_px = (raw.get("min_sim", defaults.min_sim), raw.get("margin", defaults.margin),
                                raw.get("min_face_px", defaults.min_face_px))
@@ -137,6 +141,9 @@ def _load_rules(raw, bad) -> Rules:
         raise bad("rules.margin must be at least 0 and under 1")
     if isinstance(min_px, bool) or not isinstance(min_px, int) or min_px < 1:
         raise bad("rules.min_face_px must be a whole number of pixels, at least 1")
+    colour_weight = raw.get("colour_weight", defaults.colour_weight)
+    if isinstance(colour_weight, bool) or not isinstance(colour_weight, (int, float)) or colour_weight < 0:
+        raise bad("rules.colour_weight must be a number, 0 or more (0 is off)")
     sponsors = raw.get("sponsor_keywords", {})
     if not isinstance(sponsors, dict) or not all(
             isinstance(k, str) and k.strip() and k == k.lower() and isinstance(v, str) and v.strip()
@@ -167,7 +174,8 @@ def _load_rules(raw, bad) -> Rules:
             raise bad(f'rules.diagnostics.{key} must be a tag name without , ; or " ("" for none)')
         diag[key] = name.strip()
     return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling, blur_refs,
-                 tuple(sponsors.items()), partial, min_sim=float(min_sim), margin=float(margin), min_face_px=min_px)
+                 tuple(sponsors.items()), partial, min_sim=float(min_sim), margin=float(margin), min_face_px=min_px,
+                 colour_weight=float(colour_weight))
 
 
 def load_collection(collection_dir: str) -> tuple:
@@ -388,7 +396,7 @@ def frame_key(filepath: str, models: dict) -> list:
         return [file_key(filepath), "people", *face_model_key(models["face_det"], models["face_rec"]), "face-1"]
     return [file_key(filepath),file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
-            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-2", "cand-1"]
+            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-2", "cand-1", *(["colour-1"] if models.get("colour") else [])]
 
 
 # ---------------------------------------------------------------- progress
@@ -442,14 +450,19 @@ def analyse_frame(filepath: str) -> dict:
 
 def _read_boxes(rgb, boxes: list) -> dict:
     """OCR candidates, pod reading and embedding of each box, in the analysis shape."""
-    ocr, trace, emb, pod = [], [], [], []
+    ocr, trace, emb, pod, hist = [], [], [], [], []
     for b in boxes:
         pod.append(pod_reading(rgb, b))
         crop = crop_box(rgb, b)
         ocr.append([[d, c] for d, c in _W["reader"].read(crop)])
         trace.append(_W["reader"].last_trace)
         emb.append(encode(_W["embedder"].embed(crop)))
-    return {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "pod": pod, "emb": emb}
+        if _W["models"].get("colour"):
+            hist.append(encode(colour_hist(crop)))
+    out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "pod": pod, "emb": emb}
+    if hist:
+        out["hist"] = hist
+    return out
 
 
 def rescue_frame(job: tuple):
@@ -715,7 +728,8 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
     burst pooling needs them."""
     results = []
     for i, ocr in enumerate(a["ocr"]):
-        sims = index.best_per_entry(decode(a["emb"][i]))
+        sims = index.best_per_entry(decode(a["emb"][i]),
+                                    decode(a["hist"][i]) if "hist" in a else None, rules.colour_weight)
         team_sims = [(team_of[k], s) for k, s in sims if k in team_of]
         sims = [(k, s) for k, s in sims if k in entries]
         trace = a["ocr_trace"][i]
@@ -777,7 +791,7 @@ def open_index(collection: str, models: dict, rules: Rules, embedder) -> Referen
         return ReferenceIndex.load(collection, embedder, face_model_key(models["face_det"], models["face_rec"]),
                                    dim=FACE_EMBED_DIM)
     return ReferenceIndex.load(collection, embedder, [embedder_key(models["embedder"]), rules.blur_references],
-                               rules.blur_references)
+                               rules.blur_references, colour=rules.colour_weight > 0)
 
 
 def identify_people(args, models: dict, entries: dict, rules: Rules, collection: str, face_model: FaceModel):
@@ -835,6 +849,7 @@ def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
     models["kind"] = rules.kind
+    models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     embedder = check_models(models)
     if rules.kind == "people":
         return identify_people(args, models, entries, rules, collection, embedder)
@@ -922,6 +937,7 @@ def run_reference_job(args, models: dict, handle_row):
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
     models["kind"] = rules.kind
+    models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     embedder = check_models(models)
     index = open_index(collection, models, rules, embedder)
     rows = read_manifest(args.manifest, 3)

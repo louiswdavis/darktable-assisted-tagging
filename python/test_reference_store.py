@@ -71,6 +71,27 @@ def run_tests():
     pruned = ReferenceIndex.load(d, FakeEmbedder(), ["model", 1])
     check("a deleted crop drops out of the index", pruned.count_by_entry(), {"Pérez": 1})
 
+    # colour: two samples with the same embedding, told apart only by colour
+    d2 = tempfile.mkdtemp(prefix="colour_")
+    plain = ReferenceIndex.load(d2, FakeEmbedder(), ["model", 1])
+    red, blue = np.zeros((40, 80, 3), np.uint8), np.zeros((40, 80, 3), np.uint8)
+    red[..., 0], blue[..., 2] = 200, 200
+    plain.add("RED", "1", red)
+    plain.add("BLUE", "2", blue)
+    plain.save()
+    emb3 = FakeEmbedder()
+    coloured = ReferenceIndex.load(d2, emb3, ["model", 1], colour=True)
+    check("turning colour on reads histograms from the crops without re-embedding", emb3.calls, 0)
+    from colour import colour_hist
+    best = coloured.best_per_entry(coloured.emb[0], colour_hist(blue), 1.0)
+    check("a blue query ranks the blue sample first when colour counts", best[0][0], "BLUE")
+    best = coloured.best_per_entry(coloured.emb[0], colour_hist(red), 1.0)
+    check("a red query ranks the red sample first when colour counts", best[0][0], "RED")
+    check("colour weight 0 ignores the histogram", len({round(s, 5) for _, s in
+          coloured.best_per_entry(coloured.emb[0], colour_hist(red), 0.0)}), 1)
+    again = ReferenceIndex.load(d2, FakeEmbedder(), ["model", 1], colour=True)
+    check("saved histograms reload", again.hist.shape, (2, 54))
+
     ham_dir = os.path.join(d, "refs", "HAM")
     os.makedirs(ham_dir)
     Image.fromarray(crop(77)).save(os.path.join(ham_dir, "99.jpg"))

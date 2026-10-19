@@ -8,6 +8,7 @@ import os
 import numpy as np
 from PIL import Image
 
+from colour import COLOUR_DIM, colour_hist
 from embed import EMBED_DIM, degrade
 from vehicles import log
 
@@ -16,39 +17,50 @@ CENTRE_MIN_REFS = 20  # fewer references than this: their mean says too little, 
 
 
 class ReferenceIndex:
-    def __init__(self, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM):
+    def __init__(self, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM,
+                 colour: bool = False):
         self.dir = collection_dir
         self.refs = os.path.join(collection_dir, "refs")
         self.embedder = embedder
         self.blur = blur
         self.key = json.dumps(key)
+        self.colour = colour  # also keep each crop's colour histogram (see best_per_entry)
         self.emb = np.zeros((0, dim), np.float32)
+        self.hist = np.zeros((0, COLOUR_DIM), np.float32)
         self.entry: list = []
         self.path: list = []
 
     @classmethod
-    def load(cls, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM) -> "ReferenceIndex":
-        idx = cls(collection_dir, embedder, key, blur, dim)
+    def load(cls, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM,
+             colour: bool = False) -> "ReferenceIndex":
+        idx = cls(collection_dir, embedder, key, blur, dim, colour)
         stored = idx._read()
         on_disk = idx._scan()
         changed = stored is None
         if stored is not None:
-            emb, entry, path, stored_key = stored
+            emb, entry, path, stored_key, hist = stored
             if stored_key == idx.key:
                 keep = [i for i, p in enumerate(path) if p in on_disk]
                 changed = len(keep) != len(path)
                 idx.emb, idx.entry, idx.path = emb[keep], [entry[i] for i in keep], [path[i] for i in keep]
+                if colour:
+                    if hist is not None and len(hist) == len(path):
+                        idx.hist = hist[keep]
+                    else:  # an index saved without colour: histograms come from the crops, no re-embedding
+                        idx.hist = np.stack([idx._hist_file(r) for r in idx.path]) if idx.path \
+                            else np.zeros((0, COLOUR_DIM), np.float32)
+                        changed = True
             else:
                 changed = True
         known = set(idx.path)
         for rel in sorted(on_disk):
             if rel not in known:
                 try:
-                    vec = idx._embed_file(rel)
+                    vec, h = idx._embed_file(rel)
                 except Exception as e:  # one unreadable crop mustn't stop every run
                     log(f"reference {rel} can't be read, skipped ({type(e).__name__}); delete or replace it")
                     continue
-                idx._append(rel.split("/")[1], rel, vec)
+                idx._append(rel.split("/")[1], rel, vec, h)
                 changed = True
         if changed:
             idx.save()
@@ -61,7 +73,8 @@ class ReferenceIndex:
         try:
             with np.load(p, allow_pickle=False) as z:
                 return (z["emb"].astype(np.float32), [str(s) for s in z["entry"]],
-                        [str(s) for s in z["path"]], str(z["key"]))
+                        [str(s) for s in z["path"]], str(z["key"]),
+                        z["hist"].astype(np.float32) if "hist" in z.files else None)
         except Exception:
             return None  # an unreadable index is rebuilt from the crops
 
@@ -77,16 +90,28 @@ class ReferenceIndex:
                         found.add(f"refs/{entry_id}/{name}")
         return found
 
-    def _embed_file(self, rel: str) -> np.ndarray:
+    def _read_crop(self, rel: str) -> np.ndarray:
         with Image.open(os.path.join(self.dir, *rel.split("/"))) as im:
-            crop = np.array(im.convert("RGB"))
-        return self.embedder.embed(degrade(crop) if self.blur else crop)
+            return np.array(im.convert("RGB"))
 
-    def _append(self, entry_id: str, rel: str, vec: np.ndarray):
+    def _hist_file(self, rel: str) -> np.ndarray:
+        return colour_hist(self._read_crop(rel))
+
+    def _embed_file(self, rel: str) -> tuple:
+        """(embedding, colour histogram or None when colour is off)."""
+        crop = self._read_crop(rel)
+        return (self.embedder.embed(degrade(crop) if self.blur else crop),
+                colour_hist(crop) if self.colour else None)
+
+    def _append(self, entry_id: str, rel: str, vec: np.ndarray, hist=None):
         if rel in self.path:
             i = self.path.index(rel)
             self.emb[i], self.entry[i] = vec, entry_id
+            if self.colour:
+                self.hist[i] = hist
             return
+        if self.colour:
+            self.hist = np.vstack([self.hist, np.asarray(hist, np.float32)[np.newaxis]])
         self.emb = np.vstack([self.emb, np.asarray(vec, np.float32)[np.newaxis]])
         self.entry.append(entry_id)
         self.path.append(rel)
@@ -100,32 +125,43 @@ class ReferenceIndex:
         for other in [p for p in self.path if p.endswith(f"/{image_id}.jpg") and p != rel]:
             i = self.path.index(other)
             self.emb = np.delete(self.emb, i, axis=0)
+            if self.colour:
+                self.hist = np.delete(self.hist, i, axis=0)
             del self.entry[i], self.path[i]
             try:
                 os.remove(os.path.join(self.dir, *other.split("/")))
             except OSError:
                 pass
         Image.fromarray(crop_rgb).save(os.path.join(self.dir, *rel.split("/")), quality=92)
-        self._append(entry_id, rel, self.embedder.embed(degrade(crop_rgb) if self.blur else crop_rgb))
+        self._append(entry_id, rel, self.embedder.embed(degrade(crop_rgb) if self.blur else crop_rgb),
+                     colour_hist(crop_rgb) if self.colour else None)
         return rel
 
     def save(self):
         os.makedirs(self.dir, exist_ok=True)
         tmp = os.path.join(self.dir, INDEX_NAME + ".tmp.npz")
+        extra = {"hist": self.hist} if self.colour else {}
         np.savez(tmp, emb=self.emb, entry=np.array(self.entry, dtype=str),
-                 path=np.array(self.path, dtype=str), key=np.array(self.key))
+                 path=np.array(self.path, dtype=str), key=np.array(self.key), **extra)
         os.replace(tmp, os.path.join(self.dir, INDEX_NAME))
 
-    def best_per_entry(self, vec: np.ndarray) -> list:
+    def best_per_entry(self, vec: np.ndarray, hist=None, colour_weight: float = 0.0) -> list:
         """[(entry_id, best cosine similarity)], most similar first. The embedder's vectors share a large
         common component (raw cosines sit at 0.92-0.97 for any two cars), so with CENTRE_MIN_REFS or more
-        references both sides are centred on the references' mean first; the index file stays raw."""
+        references both sides are centred on the references' mean first; the index file stays raw.
+        With a colour_weight and the query's colour histogram, each side becomes the unit-length join of
+        its embedding and weight x its histogram, so colour counts alongside the embedding."""
         if not self.entry:
             return []
         emb, vec = self.emb, np.asarray(vec, np.float32)
         if len(emb) >= CENTRE_MIN_REFS:
             mean = emb.mean(axis=0)
             emb, vec = emb - mean, vec - mean
+            emb = emb / np.maximum(np.linalg.norm(emb, axis=1, keepdims=True), 1e-9)
+            vec = vec / max(float(np.linalg.norm(vec)), 1e-9)
+        if colour_weight > 0 and hist is not None and self.colour:
+            emb = np.hstack([emb, colour_weight * self.hist])
+            vec = np.concatenate([vec, colour_weight * np.asarray(hist, np.float32)])
             emb = emb / np.maximum(np.linalg.norm(emb, axis=1, keepdims=True), 1e-9)
             vec = vec / max(float(np.linalg.norm(vec)), 1e-9)
         sims = emb @ vec

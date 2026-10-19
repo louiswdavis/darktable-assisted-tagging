@@ -45,6 +45,24 @@ Scope this as its own task once the motorsport pipeline (current F1 fix, `Number
 seen` diagnostic, in-panel editor) is tested and stable — don't bolt it onto the
 in-progress work.
 
+## One-off special liveries
+
+A team sometimes runs a one-off livery for a single race. Its cars look nothing like that
+team's reference crops, so livery similarity (embedding and the colour score) points away
+from the right team, and colour weight makes that worse. The user has photos from two events
+where this happens, which makes them the test set.
+
+Ideas, roughly in order of cost:
+
+- Number reading still works regardless of livery; check the number path wins over a
+  disagreeing livery score.
+- Per-event reference crops: let a reference be tagged with an event/season so a special-livery
+  set is used only for photos from that event (date range or folder), and the normal set
+  isn't polluted.
+- A "special livery" flag on an entry or team, so its refs are exempt from the colour term
+  and from centred-mean computation.
+- Evaluate on the two known events before choosing.
+
 ## Smaller known gaps
 
 - "Edit entries.json" button prints a mangled path instead of opening/editing the
