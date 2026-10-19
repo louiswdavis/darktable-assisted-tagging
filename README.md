@@ -51,7 +51,7 @@ python3 -m venv .venv
 
 ### 2. Models
 
-Download all four into a `models` folder in the repo. When the model preferences are empty the plugin looks there, `.gitignore` already skips `*.onnx`, and `git pull` leaves them alone. From the repo root (Windows 10+ ships `curl`):
+Download all four into a `models` folder in the repo. The plugin looks there, `.gitignore` already skips `*.onnx`, and `git pull` leaves them alone. From the repo root (Windows 10+ ships `curl`):
 
 ```
 mkdir models
@@ -90,7 +90,7 @@ echo require "contrib/assisted_tagging" >> "%LOCALAPPDATA%\darktable\luarc"
 
 ### 4. Point the plugin at the repo
 
-Start darktable, open **preferences → lua options**, and set **Assisted Tagging: identify.py** to `python/identify.py` in this repo. From that path the plugin finds the repo's `.venv` and `models` folder by itself. Set **Assisted Tagging: Python interpreter** or the model preferences only if yours live somewhere else.
+Start darktable, open **preferences → lua options**, and set **Assisted Tagging: plugin folder** to this repo's folder. From there the plugin finds `python/identify.py`, the `models` folder and the `.venv` by itself. Set **Assisted Tagging: Python interpreter** only if yours lives somewhere else.
 
 ## Starting a collection
 
@@ -248,11 +248,7 @@ All under **preferences → lua options**.
 | Preference | Default | What it does |
 |---|---|---|
 | Assisted Tagging: Python interpreter | empty (the repo's `.venv`) | Python with `requirements.txt` installed |
-| Assisted Tagging: identify.py | empty (auto-detect) | Path to the identifier; set it, and the venv and models are found from it |
-| Assisted Tagging: vehicle detector model | empty (`models/` in the repo) | YOLOX `.onnx` |
-| Assisted Tagging: number detection model | empty (`models/`) | PP-OCRv3 `.onnx` |
-| Assisted Tagging: number reading model | empty (`models/`) | CRNN `.onnx` |
-| Assisted Tagging: livery matching model | empty (`models/`) | DINOv2 `.onnx` |
+| Assisted Tagging: plugin folder | empty (auto-detect) | This repo's folder; `python/`, `models/`, `examples/` and `.venv` are all found inside it. A folder without `python/identify.py` is an error |
 | Assisted Tagging: collections folder | empty (`assisted_tagging/collections` in the config directory) | Where collections live |
 | Assisted Tagging: diagnostic tags | on | The `By number` / `By livery` / … tags above; off removes them on the next run |
 | Assisted Tagging: burst gap (seconds) | 2 | Photos closer together than this are one burst |

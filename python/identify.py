@@ -632,7 +632,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict",
-                          "pod": b.get("pod", {}), "hint": b.get("hint", {}), "rescued": b.get("rescued", {})})
+                          "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "rescued": b.get("rescued", {})})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes}
     return {"collection": collection,

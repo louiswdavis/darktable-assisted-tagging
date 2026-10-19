@@ -540,25 +540,9 @@ if dt.gui then
         "Assisted Tagging: Python interpreter",
         "Python executable with the packages in python/requirements.txt installed (e.g. .venv\\Scripts\\python.exe). Empty = auto-detect the repo's .venv",
         "")
-    dt.preferences.register("assisted_tagging", "identify_script", "file",
-        "Assisted Tagging: identify.py",
-        "Path to identify.py from darktable-assisted-tagging (empty = auto-detect)",
-        "")
-    dt.preferences.register("assisted_tagging", "detector_model", "file",
-        "Assisted Tagging: vehicle detector model (YOLOX .onnx)",
-        "Empty = models/" .. MODEL_FILES.detector_model .. " in the repo",
-        "")
-    dt.preferences.register("assisted_tagging", "ocr_detection_model", "file",
-        "Assisted Tagging: number detection model (PP-OCRv3 .onnx)",
-        "Empty = models/" .. MODEL_FILES.ocr_detection_model .. " in the repo",
-        "")
-    dt.preferences.register("assisted_tagging", "ocr_recognition_model", "file",
-        "Assisted Tagging: number reading model (CRNN .onnx)",
-        "Empty = models/" .. MODEL_FILES.ocr_recognition_model .. " in the repo",
-        "")
-    dt.preferences.register("assisted_tagging", "embedder_model", "file",
-        "Assisted Tagging: livery matching model (DINOv2 .onnx)",
-        "Empty = models/" .. MODEL_FILES.embedder_model .. " in the repo",
+    dt.preferences.register("assisted_tagging", "plugin_folder", "directory",
+        "Assisted Tagging: plugin folder",
+        "The darktable-assisted-tagging folder (holds python/, models/, examples/ and .venv). Empty = auto-detect",
         "")
     dt.preferences.register("assisted_tagging", "collections_root", "directory",
         "Assisted Tagging: collections folder",
@@ -596,11 +580,24 @@ local function read_file(path)
     return t
 end
 
+local function plugin_folder_pref()
+    local folder = (dt.preferences.read("assisted_tagging", "plugin_folder", "directory") or ""):gsub("[/\\]+$", "")
+    return folder
+end
+
+-- The script is found from the plugin folder preference alone when it's set; a
+-- wrong folder is an error rather than a quiet switch to some other copy.
 local function identify_script()
-    local pref = dt.preferences.read("assisted_tagging", "identify_script", "file") or ""
+    local folder = plugin_folder_pref()
+    if folder ~= "" then
+        local script = folder .. "/python/identify.py"
+        if not file_exists(script) then
+            error(string.format("Assisted Tagging: the plugin folder preference (%s) has no python/identify.py. Point it at the darktable-assisted-tagging folder, or clear it to auto-detect.", folder), 0)
+        end
+        return script
+    end
     local home = os.getenv("USERPROFILE") or os.getenv("HOME") or ""
     local found = first_existing({
-        pref,
         THIS_DIR .. "/identify.py",
         THIS_DIR .. "/python/identify.py",
         THIS_DIR .. "/../python/identify.py",
@@ -611,6 +608,8 @@ local function identify_script()
 end
 
 local function plugin_root(script)
+    local folder = plugin_folder_pref()
+    if folder ~= "" then return folder end
     local script_dir = (script and script:match("^(.*)[/\\]")) or THIS_DIR
     return script_dir:match("^(.*)[/\\]python$") or script_dir
 end
@@ -637,12 +636,10 @@ local function python_bin(script)
     return v
 end
 
--- A model preference, or the repo's models/ copy when it's empty. A missing
--- file is passed through as-is, so identify.py names it in its error.
-local function model_path(pref_name, script)
-    local pref = dt.preferences.read("assisted_tagging", pref_name, "file") or ""
-    if pref ~= "" then return pref end
-    return plugin_root(script) .. "/models/" .. MODEL_FILES[pref_name]
+-- A model in the plugin folder's models/. A missing file is passed through
+-- as-is, so identify.py names it in its error.
+local function model_path(name, script)
+    return plugin_root(script) .. "/models/" .. MODEL_FILES[name]
 end
 
 local function collections_root()
@@ -661,7 +658,7 @@ end
 -- The repo's shipped example collections (entries.json templates, no refs), a
 -- sibling of python/. Missing if the repo was trimmed down to just the plugin.
 local function examples_root()
-    return plugin_root(identify_script()) .. "/examples"
+    return plugin_root(plugin_folder_pref() == "" and identify_script() or nil) .. "/examples"
 end
 
 local function shell_quote(s)
