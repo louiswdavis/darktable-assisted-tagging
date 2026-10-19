@@ -160,6 +160,9 @@ def run_tests():
     check("hinted_match: low restricted similarity drops the hint", (r.entry_id, h["dropped"], h["reason"]), ("HAM", True, "below_min_sim"))
     r, h = Mt.hinted_match(0, [("44", 0.9)], sims, ENTRIES, ["F1|Red Bull"], "tag")
     check("hinted_match: a number outside the set drops the hint", (r.entry_id, h["reason"]), ("HAM", "number_outside"))
+    check("most_specific: an ancestor prefix is dropped", Mt.most_specific(["F1", "F1|Red Bull", "F1|Red Bull", "F2"]), ["F1|Red Bull", "F2"])
+    r, h = Mt.hinted_match(0, [], sims, ENTRIES, ["F1", "F1|Red Bull"], "tag")
+    check("hinted_match: a broad tag doesn't widen a team tag", (h["restricted"], h["prefixes"]), (2, ["F1|Red Bull"]))
     r, h = Mt.hinted_match(0, [], sims, ENTRIES, ["F1|Nobody"], "tag")
     check("hinted_match: a prefix matching no entry falls back", (r.entry_id, h["reason"]), ("HAM", "no_entries"))
 

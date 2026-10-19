@@ -86,6 +86,12 @@ def entries_under(entries: dict, prefixes: list) -> dict:
             if any(t == p or t.startswith(p + "|") for t in e.tags for p in prefixes)}
 
 
+def most_specific(prefixes: list) -> list:
+    """`prefixes` without any that is an ancestor of another (`F1` beside `F1|Alpine` keeps only
+    `F1|Alpine`), so a broad tag the user applied can't widen a narrower one back to everything."""
+    return [p for p in dict.fromkeys(prefixes) if not any(q.startswith(p + "|") for q in prefixes)]
+
+
 def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list, source: str) -> tuple:
     """(BoxResult, hint) matching only the entries under `prefixes`. The restriction is a soft
     prior: it is dropped (the full set is matched) when it holds no entries, every restricted
@@ -93,6 +99,7 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
     `hint` is {} without prefixes, else {prefixes, source, restricted, dropped, reason}."""
     if not prefixes:
         return match_box(box, ocr, sims, entries), {}
+    prefixes = most_specific(prefixes)
     inside = entries_under(entries, prefixes)
     hint = {"prefixes": list(prefixes), "source": source, "restricted": len(inside), "dropped": False, "reason": ""}
     reason = ""
