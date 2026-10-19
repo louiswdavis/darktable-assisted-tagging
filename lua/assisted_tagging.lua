@@ -751,10 +751,9 @@ local busy, orphan = false, false
 -- A run that shows no progress for this long is given up on (it may still be loading
 -- models or re-embedding references, so this is generous).
 local STALL_SECONDS = 300
-local identify_button, collection_combo, entry_combo, example_combo = nil, nil, nil, nil
+local verify_button, identify_button, collection_combo, entry_combo, example_combo = nil, nil, nil, nil, nil
 local identify_cancellable = false -- the identify button currently reads "Cancel"
 local replace_manual_check = nil
-local verify_only_check = nil
 local entries, entry_order, rules = {}, {}, M.default_rules()
 
 local function cancelled(job)
@@ -1554,7 +1553,8 @@ function M.create_collection(images, raw_name)
     M.add_references(active_images, nil)
 end
 
-local function start_identify(allow_cancel)
+-- verify_only: report disagreements with existing tags, change none (see M.identify_images).
+local function start_identify(allow_cancel, verify_only)
     if busy then
         if allow_cancel and identify_button and identify_cancellable then
             M.cancel_requested = true
@@ -1568,10 +1568,8 @@ local function start_identify(allow_cancel)
         return
     end
     -- One run only: read the box, then clear it so the next run is protected again.
-    local replace_manual = replace_manual_check and replace_manual_check.value or false
-    if replace_manual_check then replace_manual_check.value = false end
-    local verify_only = verify_only_check and verify_only_check.value or false
-    if verify_only_check then verify_only_check.value = false end
+    local replace_manual = not verify_only and replace_manual_check and replace_manual_check.value or false
+    if replace_manual_check and not verify_only then replace_manual_check.value = false end
     M.identify_images(dt.gui.action_images, replace_manual, verify_only)
 end
 
@@ -1728,10 +1726,10 @@ local function install_panel()
         tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let the next run replace them. It clears itself after the run."),
         value = false,
     }
-    verify_only_check = dt.new_widget("check_button") {
-        label = _("Verify only"),
-        tooltip = _("Identify fully tagged images too and report where the result differs from your tags (boxes.json and report.md), without changing any tags. It clears itself after the run."),
-        value = false,
+    verify_button = dt.new_widget("button") {
+        label = _("Verify selection"),
+        tooltip = _("Identify the selected images, fully tagged ones included, and report where the result differs from your tags (boxes.json and report.md). No tags are changed."),
+        clicked_callback = function() start_identify(false, true) end,
     }
     entry_combo = dt.new_widget("combobox") {
         label = _("entry"),
@@ -1779,7 +1777,7 @@ local function install_panel()
         cancel_entries_button,
         identify_button,
         replace_manual_check,
-        verify_only_check,
+        verify_button,
         dt.new_widget("section_label") { label = _("references") },
         entry_combo,
         add_button,
