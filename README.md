@@ -184,7 +184,7 @@ Every key is optional; leave one out for its default.
 |---|---|---|
 | `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
-| `diagnostics` | the five `Assisted Tagging\|Motorsport\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `team`, `none`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
+| `diagnostics` | the `Assisted Tagging\|Identification\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `pooled`, `team`, `none`, `number_seen`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
 
 | `sponsor_keywords` | `{}` | maps a lowercase sponsor word to the tag prefix of its team, e.g. `{"petronas": "Motorsport\|F1\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
 | `partial_references` | `false` | **Add tagged images as references** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only). |
@@ -215,11 +215,13 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 
 | Tag | Meaning |
 |---|---|
-| `Assisted Tagging\|Motorsport\|Identified\|By number` | its race number was read |
-| `Assisted Tagging\|Motorsport\|Identified\|By livery` | matched against reference samples |
-| `Assisted Tagging\|Motorsport\|Identified\|By burst` | the rest of its burst agreed on one entry |
-| `Assisted Tagging\|Motorsport\|Team only` | two teammates were too close to call; only their shared tags were added |
-| `Assisted Tagging\|Motorsport\|Unidentified` | no vehicle, or no confident match |
+| `Assisted Tagging\|Identification\|By number` | its race number was read |
+| `Assisted Tagging\|Identification\|By livery` | matched against reference samples |
+| `Assisted Tagging\|Identification\|By burst` | the rest of its burst agreed on one entry |
+| `Assisted Tagging\|Identification\|By pooled burst` | the experimental `burst_livery_pooling` rule resolved it from its burst's pooled livery similarity |
+| `Assisted Tagging\|Identification\|Team only` | two teammates were too close to call; only their shared tags were added |
+| `Assisted Tagging\|Identification\|Unidentified` | no vehicle, or no confident match |
+| `Assisted Tagging\|Identification\|Number seen\|<digits>` | OCR read these digits but they didn't resolve to one entry; added alongside the outcome tag |
 | `Assisted Tagging\|Identification\|Shot\|Solo` | one vehicle was found in the frame |
 | `Assisted Tagging\|Identification\|Shot\|Pack` | two or three vehicles were found |
 | `Assisted Tagging\|Identification\|Shot\|Crowded` | the detector's limit (`MAX_BOXES`) was reached, so there may be more cars than were identified |
@@ -264,7 +266,8 @@ assisted_tagging.lua groups the selection into bursts by capture time, writes ma
 identify.py, per frame:  decode at full resolution → YOLOX vehicle boxes (up to 4)
         |                → per box: crop → read numbers → DINOv2 embedding
         v
-per box:   one number matches one entry                 → number
+per box:   sponsor words on the car (or a team tag you applied) narrow the candidates to one team, then
+           one number matches one entry                 → number
            else best livery match clear of the next one → livery
            else best two are teammates                  → team (shared tags only)
            else                                         → none
@@ -272,18 +275,20 @@ per box:   one number matches one entry                 → number
         v
 per burst: frames with nothing identified take the burst's entry
            when 2+ frames agree on it and none disagree → burst
+           (experimental: pool livery similarity across the burst → pooled)
         |
         v
 assisted_tagging.lua reads results.csv and syncs tags
 ```
 
-Each outcome above is one of five methods, named consistently from `identify.py`'s `method` field through to the diagnostic tag it writes (see [Rules](#rules) to rename or drop one):
+Each outcome above is one of these methods, named consistently from `identify.py`'s `method` field through to the diagnostic tag it writes (see [Rules](#rules) to rename or drop one):
 
 | Method | Decided by | Diagnostic tag |
 |---|---|---|
-| `number` | OCR reading an entry's `number` | `…\|Identified\|By number` |
-| `livery` | the DINOv2 embedding, against reference samples | `…\|Identified\|By livery` |
-| `burst` | the rest of the burst agreeing, when number and livery didn't | `…\|Identified\|By burst` |
+| `number` | OCR reading an entry's `number` | `…\|By number` |
+| `livery` | the DINOv2 embedding, against reference samples | `…\|By livery` |
+| `burst` | the rest of the burst agreeing, when number and livery didn't | `…\|By burst` |
+| `pooled` | the burst's pooled livery similarity (experimental `burst_livery_pooling` rule) | `…\|By pooled burst` |
 | `team` | two teammates too close to call by livery (shared tags only) | `…\|Team only` |
 | `none` | nothing matched | `…\|Unidentified` |
 
@@ -303,11 +308,11 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 | `MIN_BOX_FRAC` | `vehicles.py` | 0.02 | the smallest vehicle, as a share of the frame, worth identifying |
 | `MAX_BOXES` | `vehicles.py` | 4 | vehicles identified per frame |
 | `CROP_DIM` | `vehicles.py` | 640 | the long side each vehicle crop is reduced to |
-| `DETECTOR_MIN_SCORE` | `vehicles.py` | 0.35 | the confidence a vehicle detection needs |
+| `DETECTOR_MIN_SCORE` | `vehicles.py` | 0.25 | the confidence a vehicle detection needs |
 
 The run log has one line per vehicle with the numbers read and the top two livery matches with their similarity, e.g. `box 0: livery VER (OCR -; livery VER 0.712, TSU 0.694)`. Read a few from a shoot to see where the right and wrong answers fall before changing `MATCH_MIN_SIM` or `MATCH_MIN_MARGIN`.
 
-After changing `OCR_MIN_SCORE`, `MIN_BOX_FRAC`, `CROP_DIM` or the detection, OCR or embedding code, bump `IDENTIFY_CACHE_VERSION` in `identify.py` (the three constants are already in the cache key; code changes aren't). Changes to `match.py` never need it.
+After changing `OCR_MIN_SCORE`, `MIN_BOX_FRAC`, `CROP_DIM` or the detection, OCR or embedding code, bump `IDENTIFY_CACHE_VERSION` in `identify.py` (`CROP_DIM`, `MIN_BOX_FRAC`, `BOX_MARGIN_TRIM`, `OCR_MIN_SCORE` and `DETECTOR_MIN_SCORE` are already in the cache key; code changes aren't). Changes to `match.py` never need it.
 
 ## Troubleshooting
 
@@ -329,11 +334,15 @@ From the repo root. The Python tests use synthetic images and stub models, so th
 ```
 # Linux / macOS
 .venv/bin/python python/test_match.py
+.venv/bin/python python/test_report.py
+.venv/bin/python python/test_sponsors.py
 .venv/bin/python python/test_identify.py
 .venv/bin/python python/test_reference_store.py
 
 # Windows
 .venv\Scripts\python python\test_match.py
+.venv\Scripts\python python\test_report.py
+.venv\Scripts\python python\test_sponsors.py
 .venv\Scripts\python python\test_identify.py
 .venv\Scripts\python python\test_reference_store.py
 ```
@@ -356,11 +365,11 @@ python python/identify.py manifest.csv results.csv --collections-root collection
 
 `results.csv` gets `id,box,method,entry_id,alt_entry_id,confidence,unmatched_number,shot` per vehicle (box −1 for a frame with no vehicle; method `skipped` or `conflict` as above). Exit codes: 0 ok, 2 bad input (the message is on stderr), 3 missing package, 130 cancelled.
 
-`--boxes-out PATH` also writes `boxes.json`, one record per vehicle: `{"collection", "thresholds", "entries": {id: {"team", "number", "tags", "refs"}}, "images": {id: {"shot", "status" (ok, no_vehicle or error), "file", "frame", "boxes": [{"box", "bbox", "entry", "alt_entry", "method", "confidence", "candidates" (top 5 entry/similarity), "ocr", "decided_by", "gap", "unmatched_number", "conflict", "hint" (prefixes, source, restricted, dropped, reason; {} without one)}]}}, "skipped": [ids]}`. For `none` boxes `decided_by` names the rule that failed (`no_references`, `below_min_sim`, `margin_too_small`) and `gap` how far short it fell. The plugin writes it to `last-run/<collection>.boxes.json` in its config directory; `--promote-boxes --boxes-in PATH` (same manifest, `id,filepath,""`) saves its confident boxes as references.
+`--boxes-out PATH` also writes `boxes.json`, one record per vehicle: `{"collection", "thresholds" ({min_sim, min_margin, reference_margin}), "sponsor_keywords" ({word: tag prefix}), "entries": {id: {"team", "number", "tags", "refs"}}, "images": {id: {"shot", "status" (ok, no_vehicle or error), "file", "frame", "burst", "time" (capture epoch seconds, null if EXIF is missing), "note" (the detector's text when it found no vehicle), "boxes": [{"box", "bbox", "score" (detector confidence), "entry", "alt_entry", "method", "confidence", "candidates" (top 5 entry/similarity), "ocr", "ocr_trace" (the five most confident text regions, [confidence, text]), "decided_by", "gap", "unmatched_number", "conflict", "hint" (prefixes, source, restricted, dropped, reason; {} without one)}]}}, "skipped": [ids]}`. For `none` boxes `decided_by` names the rule that failed (`no_references`, `below_min_sim`, `margin_too_small`) and `gap` how far short it fell. The plugin writes it to `last-run/<collection>.boxes.json` in its config directory; `--promote-boxes --boxes-in PATH` (same manifest, `id,filepath,""`) saves its confident boxes as references.
 
 ### Debug report
 
-Every run also writes `last-run/<collection>.report.md` and `.report.json` in the plugin's config directory (the path is logged as `report: …` in `assisted_tagging.log`). Each vehicle gets one category: `identified`, `team-obvious` (team clear, driver not separated), `weak-match`, `no-references`, `number-unmatched`, `conflict` (disagrees with a tag you applied), `already-tagged`, `no-vehicle`. The `.md` gives per-category counts and shares, the identified rate, median top-1 similarity and margin for `team-obvious` and `weak-match`, then the worst boxes per category with their candidates, the failing rule and a suggested lever. It has no images, so it pastes into chat as is. `--report-top N` (default 20) caps the boxes listed per category; the `.json` always has every row, each with its `category`. To rebuild a report from a saved `boxes.json` without re-identifying: `python report.py BOXES_JSON OUT_PREFIX --report-top N`. Photos that failed analysis are counted on a separate line, not in a category. Each `no-vehicle` image is listed with its burst and the detector's note (the strongest class and score it saw), which says whether a miss was a low score or a small box. `--archive-dir DIR` also copies `boxes.json` and the report into `DIR/<YYYYMMDD-HHMMSS>/` and keeps the newest 20 runs; the plugin passes `runs/` in its config directory, so earlier runs survive for comparison while `last-run/` stays the latest.
+Every run also writes `last-run/<collection>.report.md` and `.report.json` in the plugin's config directory (the path is logged as `report: …` in `assisted_tagging.log`). Each vehicle gets one category: `identified`, `team-obvious` (team clear, driver not separated), `weak-match`, `no-references`, `number-unmatched`, `conflict` (disagrees with a tag you applied), `already-tagged`, `no-vehicle`. The `.md` gives per-category counts and shares, the identified rate, median top-1 similarity and margin for `team-obvious` and `weak-match`, then the worst boxes per category with their candidates, the failing rule and a suggested lever. It has no images, so it pastes into chat as is. `--report-top N` (default 20) caps the boxes listed per category; the `.json` always has every row, each with its `category`. To rebuild a report from a saved `boxes.json` without re-identifying: `python report.py BOXES_JSON OUT_PREFIX --report-top N`. Photos that failed analysis are counted on a separate line, not in a category. Each `no-vehicle` image is listed with its burst and the detector's note (the strongest class and score it saw), which says whether a miss was a low score or a small box. Each box shows its detector score. Three more sections follow the summary (they appear when `--report-top` is above 0, and the `.json` carries them as `detector_bands`, `sponsor_suggestions` and `bursts`): `## detector score` (boxes and identified count per score band, to judge the `DETECTOR_MIN_SCORE` cutoff), `## sponsor keyword suggestions` (words OCR read on identified boxes of one tag prefix that aren't in `rules.sponsor_keywords` yet, with how many unidentified boxes each would hint), and `## bursts` (capture-time gaps within and between bursts, to judge burst splitting). `--archive-dir DIR` also copies `boxes.json` and the report into `DIR/<YYYYMMDD-HHMMSS>/` and keeps the newest 20 runs; the plugin passes `runs/` in its config directory, so earlier runs survive for comparison while `last-run/` stays the latest.
 
 ### Notes from the darktable source
 

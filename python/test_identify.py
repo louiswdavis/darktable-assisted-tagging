@@ -65,7 +65,7 @@ def run_tests():
     check("rules: renamed, dropped and default diagnostics", dict(rules.diagnostics),
           dict(I.DIAG_DEFAULTS, burst="", team="X|Team"))
     check("default diagnostics sit under Assisted Tagging|Motorsport",
-          all(v.startswith("Assisted Tagging|Motorsport|") for v in I.DIAG_DEFAULTS.values()), True)
+          all(v.startswith("Assisted Tagging|Identification|") for v in I.DIAG_DEFAULTS.values()), True)
 
     check("duplicate id is rejected", load_error([VER, VER]), 'entry "VER" appears twice')
     check("a comma in a tag is rejected", load_error([dict(VER, tags=["a,b"])]),
@@ -103,7 +103,7 @@ def run_tests():
     check("entries.csv rows", open(os.path.join(out, "e.csv"), encoding="utf-8").read().splitlines()[1],
           "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda")
     check("rules.csv rows", open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()[:3],
-          ["team_only,shared tags", "unidentified,F1|Check", "diag_number,Assisted Tagging|Motorsport|Identified|By number"])
+          ["team_only,shared tags", "unidentified,F1|Check", "diag_number,Assisted Tagging|Identification|By number"])
     plan = I.tag_plan("F1", entries, rules, {"VER": 3})
     check("the plan lists the teammates' shared tags", "  Red Bull (VER, TSU):\n      F1|Red Bull\n" in plan, True)
     check("the plan lists the unidentified tags", "rules.unidentified.\n      F1|Check" in plan, True)
@@ -201,7 +201,7 @@ def run_tests():
             return np.eye(384, dtype=np.float32)[0]
 
     real = (I.check_models, I.Embedder, I.run_frames)
-    I.check_models, I.Embedder = (lambda m: None), FakeEmbedder
+    I.check_models, I.Embedder = (lambda m: FakeEmbedder("fake")), FakeEmbedder
     I.run_frames = lambda paths, models, cache, progress: stub
     results = os.path.join(img, "results.csv")
     args = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "progress.txt"), cache="",

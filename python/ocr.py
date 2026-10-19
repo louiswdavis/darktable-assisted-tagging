@@ -54,6 +54,7 @@ def _ctc_greedy(out: np.ndarray) -> str:
 
 class NumberReader:
     def __init__(self, det_path: str, rec_path: str):
+        self.last_trace: list = []
         for label, p in (("OCR text detection", det_path), ("OCR text recognition", rec_path)):
             if not os.path.isfile(p):
                 raise FileNotFoundError(f"{label} model not found: {p}")

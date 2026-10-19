@@ -22,7 +22,9 @@ class Entry:
 @dataclass(frozen=True)
 class BoxResult:
     box: int  # -1: the frame had no vehicle
-    method: str  # number | livery | team | burst | none | error (couldn't analyse; tags left alone)
+    # number | livery | team | burst | pooled | none | conflict (disagrees with a hand-applied tag) |
+    # skipped (already fully tagged) | error (couldn't analyse; tags left alone)
+    method: str
     entry_id: str = ""
     alt_entry_id: str = ""
     confidence: float = 0.0

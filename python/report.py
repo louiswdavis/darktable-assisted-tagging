@@ -18,7 +18,7 @@ IDENTIFIED_METHODS = ("number", "livery", "burst", "pooled")
 # categories whose boxes are listed one by one; the rest are only counted
 DETAIL_CATEGORIES = ("team-obvious", "weak-match", "no-references", "number-unmatched", "conflict", "no-vehicle")
 MEDIAN_CATEGORIES = ("team-obvious", "weak-match")
-# detector score bands [from, to); the first starts at the DETECTOR_MIN_SCORE cutoff
+# detector score bands [from, to); the first band also holds everything below the cutoff
 DETECTOR_BANDS = ((0.0, 0.30), (0.30, 0.40), (0.40, 0.50), (0.50, 0.70), (0.70, 1.01))
 UNHINTED_CATEGORIES = ("team-obvious", "weak-match", "no-references")
 SUGGEST_MIN_LEN = 4  # shorter OCR words are mostly noise
@@ -214,7 +214,14 @@ def describe(r: dict) -> str:
     return "; ".join(parts)
 
 
-def render_md(data: dict, all_rows: list, summary: dict, top: int) -> str:
+def extras(data: dict, all_rows: list) -> dict:
+    """The sections beyond the per-box rows, computed once for both the .md and the .json."""
+    return {"bursts": burst_timing(data), "detector_bands": detector_bands(all_rows),
+            "sponsor_suggestions": sponsor_suggestions(data, all_rows)}
+
+
+def render_md(data: dict, all_rows: list, summary: dict, top: int, extra: dict = None) -> str:
+    extra = extra or extras(data, all_rows)
     t = data["thresholds"]
     out = [f"# Assisted Tagging report: `{data['collection']}`", "",
            f"thresholds: min_sim {t['min_sim']}, min_margin {t['min_margin']}, reference_margin {t['reference_margin']}",
@@ -228,17 +235,17 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int) -> str:
         out.append(f"- hints: {len(hinted)} applied, {sum(1 for h in hinted if h['dropped'])} dropped")
     if summary["errors"]:
         out.append(f"- images that failed analysis (not counted above): {summary['errors']}")
-    bands = detector_bands(all_rows)
+    bands = extra["detector_bands"]
     if bands and top > 0:
         out += ["", "## detector score", ""]
         out += [f"- {b['from']:.2f}-{min(b['to'], 1.0):.2f}: {b['boxes']} boxes, {b['identified']} identified" for b in bands]
-    suggestions = sponsor_suggestions(data, all_rows)
+    suggestions = extra["sponsor_suggestions"]
     if suggestions and top > 0:
         out += ["", "## sponsor keyword suggestions", "",
                 "words OCR read on identified boxes of one tag prefix only; add under `rules.sponsor_keywords` after checking:"]
         out += [f"- `{s['word']}` → `{s['prefix']}`: {s['identified']} identified, would hint {s['unhinted']} unidentified"
                 for s in suggestions[:top]]
-    timing = burst_timing(data)
+    timing = extra["bursts"]
     if timing["bursts"] and top > 0:
         out += ["", f"## bursts ({len(timing['bursts'])} timed, {timing['untimed']} without capture times)", "",
                 "within-burst largest gap (s) → bursts: " + ", ".join(f"{g}s ×{n}" for g, n in timing["max_gap_counts"].items()),
@@ -267,14 +274,12 @@ def write_report(data: dict, out_prefix: str, top: int) -> tuple:
     returns both paths."""
     all_rows = rows(data)
     summary = summarize(data, all_rows)
+    extra = extras(data, all_rows)
     paths = (out_prefix + ".md", out_prefix + ".json")
     os.makedirs(os.path.dirname(os.path.abspath(out_prefix)), exist_ok=True)
-    for path, text in ((paths[0], render_md(data, all_rows, summary, top)),
+    for path, text in ((paths[0], render_md(data, all_rows, summary, top, extra)),
                        (paths[1], json.dumps({"collection": data["collection"], "thresholds": data["thresholds"],
-                                              "summary": summary, "bursts": burst_timing(data),
-                                              "detector_bands": detector_bands(all_rows),
-                                              "sponsor_suggestions": sponsor_suggestions(data, all_rows),
-                                              "rows": all_rows}))):
+                                              "summary": summary, **extra, "rows": all_rows}))):
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(text)

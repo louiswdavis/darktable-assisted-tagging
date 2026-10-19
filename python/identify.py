@@ -31,7 +31,7 @@ from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, M
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
-                   burst_consensus, conflicts, decided_by, entries_under, hinted_match, match_box, match_livery,
+                   burst_consensus, conflicts, decided_by, entries_under, hinted_match, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from sponsors import sponsor_prefixes
 from report import write_report
@@ -432,8 +432,9 @@ def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) ->
     return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}; livery {top}{unmatched}{frac})"
 
 
-def check_models(models: dict):
-    """Every model exists and loads, so a bad one fails the run here, not per frame."""
+def check_models(models: dict) -> Embedder:
+    """Every model exists and loads, so a bad one fails the run here, not per frame. Returns the
+    loaded embedder for the run's reference index."""
     labels = (("object detector", "detector"), ("OCR text detection", "ocr_det"),
               ("OCR text recognition", "ocr_rec"), ("embedder", "embedder"))
     for label, key in labels:
@@ -442,12 +443,14 @@ def check_models(models: dict):
     loaders = (("object detector", "detector", lambda: detector_model(models["detector"])),
                ("OCR", "ocr_det", lambda: NumberReader(models["ocr_det"], models["ocr_rec"])),
                ("embedder", "embedder", lambda: Embedder(models["embedder"])))
+    loaded = {}
     for label, key, load in loaders:
         try:
-            load()
+            loaded[key] = load()
         except Exception as e:
             raise InputError(f"{label} model can't be loaded ({models[key]}): {type(e).__name__}: {e}. "
                              f"Download it again (see the README).") from e
+    return loaded["embedder"]
 
 
 def worker_count(cpus: int) -> int:
@@ -456,8 +459,9 @@ def worker_count(cpus: int) -> int:
 
 def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -> dict:
     """filepath → analysis (cached or fresh); a frame that fails to decode maps to None."""
-    done, total, out, todo = 0, len(paths), {}, []
-    for p in dict.fromkeys(paths):
+    unique = list(dict.fromkeys(paths))  # darktable duplicates and versions share a file
+    done, total, out, todo = 0, len(unique), {}, []
+    for p in unique:
         hit = cache.get(*frame_key(p, models))
         if hit is not None:
             out[p] = hit
@@ -482,6 +486,9 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
             try:
                 out[p] = fut.result()
                 cache.put(out[p], *frame_key(p, models))
+            except concurrent.futures.process.BrokenProcessPool as e:
+                raise InputError(f"an analysis worker died (out of memory or a crashed library?); "
+                                 f"frames finished so far are cached, rerun to continue: {e}") from e
             except Exception as e:
                 log(f"{p}: couldn't analyse ({type(e).__name__}: {e})")
                 out[p] = None
@@ -537,7 +544,7 @@ def archive_run(files: list, archive_dir: str, keep: int):
 
 def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entries: dict, counts: dict,
                 sponsor_keywords: tuple = ()) -> dict:
-    """The run's per-vehicle record (see the Stage A plan for the shape). `skipped` lists images
+    """The run's per-vehicle record (see the README for the shape). `skipped` lists images
     left alone because they already carry one entry's full tag set; each image's `status` is
     ok, no_vehicle or error. `entries` and `thresholds` give the debug report what it needs."""
     images, skipped = {}, []
@@ -564,7 +571,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
     return {"collection": collection,
             "thresholds": {"min_sim": MATCH_MIN_SIM, "min_margin": MATCH_MIN_MARGIN,
                            "reference_margin": REFERENCE_MIN_MARGIN},
-            "sponsor_keywords": {w: p for w, p in sponsor_keywords},
+            "sponsor_keywords": dict(sponsor_keywords),
             "entries": {e.id: {"team": e.team, "number": e.number, "tags": list(e.tags), "refs": counts.get(e.id, 0)}
                         for e in entries.values()},
             "images": images, "skipped": skipped}
@@ -579,17 +586,74 @@ def write_boxes(path: str, data: dict):
     os.replace(tmp, path)
 
 
+def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, rules: Rules, team_of: dict,
+                tag_hints: list, boxes_out: list, box0_sims: dict) -> list:
+    """One BoxResult per detected vehicle in the analysed frame `a`. Appends each box's detail
+    (bbox, detector score, sims, OCR, hint) to `boxes_out`, and box 0's sims to `box0_sims` when
+    burst pooling needs them."""
+    results = []
+    for i, ocr in enumerate(a["ocr"]):
+        sims = index.best_per_entry(decode(a["emb"][i]))
+        team_sims = [(team_of[k], s) for k, s in sims if k in team_of]
+        sims = [(k, s) for k, s in sims if k in entries]
+        trace = a["ocr_trace"][i]
+        prefixes, source = box_hint(tag_hints if len(a["boxes"]) == 1 else [],
+                                    sponsor_prefixes(trace, rules.sponsor_keywords))
+        r, hint = hinted_match(i, [tuple(c) for c in ocr], sims, entries, prefixes, source)
+        r = match_team(r, team_sims, entries)
+        log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
+            + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else ""))
+        results.append(r)
+        boxes_out.append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
+                          "ocr": ocr, "sims": sims, "ocr_trace": trace, "hint": hint})
+        if i == 0 and rules.burst_livery_pooling:
+            box0_sims[image_id] = sims
+    return results
+
+
+def write_results(path: str, frames: dict, shots: dict) -> dict:
+    """Writes the results.csv rows atomically and logs the burst and conflict decisions; returns
+    the count of vehicles per method."""
+    by_method: dict = {}
+    tmp = path + ".tmp"
+    with open(tmp, "w", newline="", encoding="utf-8") as f:
+        for image_id, results in frames.items():
+            for r in results:
+                if r.method == "burst":
+                    log(f"{image_id}: box {r.box}: burst {r.entry_id} ({r.confidence:.2f} of the burst agrees)")
+                if r.method == "conflict":
+                    log(f"{image_id}: box {r.box}: {r.entry_id} shares no tag with the ones you applied; left as you tagged it")
+                by_method[r.method] = by_method.get(r.method, 0) + 1
+                f.write(format_row(image_id, r, shots[image_id]) + "\n")
+    os.replace(tmp, path)
+    return by_method
+
+
+def write_run_outputs(args, data: dict):
+    """boxes.json, the report and the archive copy, as the run's flags ask."""
+    written = []
+    if args.boxes_out:
+        write_boxes(args.boxes_out, data)
+        written.append(args.boxes_out)
+    if args.report_out:
+        md_path, json_path = write_report(data, args.report_out, args.report_top)
+        written += [md_path, json_path]
+        log(f"report: {md_path}")
+    if args.archive_dir:
+        archive_run(written, args.archive_dir, ARCHIVE_KEEP)
+
+
 def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
-    check_models(models)
+    embedder = check_models(models)
     rows = read_manifest(args.manifest, 3, 3)
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     # 5th column: hand-applied tags that are a strict prefix of an entry's tags (team hints), ";"-joined.
     tag_hints_of = {r[0]: [t for t in r[4].split(";") if t] for r in rows}
     fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
-    index = ReferenceIndex.load(collection, Embedder(models["embedder"]),
+    index = ReferenceIndex.load(collection, embedder,
                                  [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
     counts = index.count_by_entry()
     if not counts:
@@ -629,25 +693,9 @@ def identify(args, models: dict):
             detail[image_id]["note"] = a["note"]
             frames[image_id] = [BoxResult(-1, "none")]
             continue
-        results = []
         detail[image_id]["frame"] = a["frame"]
-        for i, ocr in enumerate(a["ocr"]):
-            sims = index.best_per_entry(decode(a["emb"][i]))
-            team_sims = [(team_of[k], s) for k, s in sims if k in team_of]
-            sims = [(k, s) for k, s in sims if k in entries]
-            trace = a.get("ocr_trace", [[]] * len(a["ocr"]))[i]
-            prefixes, source = box_hint(tag_hints_of[image_id] if len(a["boxes"]) == 1 else [],
-                                        sponsor_prefixes(trace, rules.sponsor_keywords))
-            r, hint = hinted_match(i, [tuple(c) for c in ocr], sims, entries, prefixes, source)
-            r = match_team(r, team_sims, entries)
-            log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
-                + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else ""))
-            results.append(r)
-            detail[image_id]["boxes"].append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
-                                              "ocr": ocr, "sims": sims, "ocr_trace": trace, "hint": hint})
-            if i == 0 and rules.burst_livery_pooling:
-                box0_sims[image_id] = sims
-        frames[image_id] = results
+        frames[image_id] = match_frame(image_id, a, index, entries, rules, team_of, tag_hints_of[image_id],
+                                       detail[image_id]["boxes"], box0_sims)
     if rules.burst_livery_pooling:
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
     frames = burst_consensus(frames, burst_of, entries)
@@ -660,129 +708,107 @@ def identify(args, models: dict):
         frames[image_id] = [replace(r, method="conflict") if r.entry_id and conflicts(
             r.entry_id, protected_of[image_id], entries, n_boxes == 1) else r for r in results]
 
-    by_method: dict = {}
-    tmp = args.results + ".tmp"
-    with open(tmp, "w", newline="", encoding="utf-8") as f:
-        for image_id, results in frames.items():
-            for r in results:
-                if r.method == "burst":
-                    log(f"{image_id}: box {r.box}: burst {r.entry_id} ({r.confidence:.2f} of the burst agrees)")
-                if r.method == "conflict":
-                    log(f"{image_id}: box {r.box}: {r.entry_id} shares no tag with the ones you applied; left as you tagged it")
-                by_method[r.method] = by_method.get(r.method, 0) + 1
-                f.write(format_row(image_id, r, shots[image_id]) + "\n")
-    os.replace(tmp, args.results)
+    by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:
-        data = build_boxes(args.collection, frames, shots, detail, entries, counts, rules.sponsor_keywords)
-        written = []
-        if args.boxes_out:
-            write_boxes(args.boxes_out, data)
-            written.append(args.boxes_out)
-        if args.report_out:
-            md_path, json_path = write_report(data, args.report_out, args.report_top)
-            written += [md_path, json_path]
-            log(f"report: {md_path}")
-        if args.archive_dir:
-            archive_run(written, args.archive_dir, ARCHIVE_KEEP)
+        write_run_outputs(args, build_boxes(args.collection, frames, shots, detail, entries, counts, rules.sponsor_keywords))
     write_collection_outputs(args, collection, entries, rules)
     log("vehicles by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 
 
 # ---------------------------------------------------------------- add-reference / list modes
 
-def add_references(args, models: dict):
+def run_reference_job(args, models: dict, handle_row):
+    """Runs `handle_row(index, entries, rules, image_id, filepath, entry_id) -> status` over the
+    manifest rows, writing one `id,status` results row and a progress tick per row. References added
+    before a cancel are kept; the reference index is saved either way."""
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
-    check_models(models)
-    embedder = Embedder(models["embedder"])
+    embedder = check_models(models)
     index = ReferenceIndex.load(collection, embedder,
-                                 [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
+                                [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
     rows = read_manifest(args.manifest, 3)
     tmp = args.results + ".tmp"
+    cancelled = False
     with open(tmp, "w", newline="", encoding="utf-8") as f:
         for n, (image_id, filepath, entry_id) in enumerate(rows, 1):
             if cancel_requested(args.progress):
-                log("cancelled; references added so far are kept")
-                index.save()
-                sys.exit(130)
-            status = "failed"
-            # a team prefix instead of an entry id: a solo shot tagged only to team level
-            is_team = entry_id not in entries and entry_id in strict_prefixes(entries)
-            if entry_id not in entries and not is_team:
-                log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")
-            elif is_team and not rules.partial_references:
-                status = "team_refs_off"
-                log(f"{image_id}: only tagged to {entry_id}; set rules.partial_references to save team references")
-            else:
-                try:
-                    rgb = load_full(filepath)
-                    boxes, note = detect_vehicles(rgb, models["detector"])
-                    if is_team and len(boxes) != 1:
-                        status = "team_not_solo"
-                        log(f"{image_id}: {len(boxes)} vehicles found; only a solo shot can be a team reference")
-                        f.write(f"{image_id},{status}\n")
-                        write_progress(args.progress, n, len(rows))
-                        continue
-                    box = boxes[0] if boxes else (0, 0, rgb.shape[1], rgb.shape[0])
-                    rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop_box(rgb, box))
-                    status = "added" if boxes else "no_vehicle_whole_frame"
-                    log(f"{image_id}: reference {rel}" + ("" if boxes else f" (whole frame; {note})"))
-                except Exception as e:
-                    log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
-            f.write(f"{image_id},{status}\n")
+                cancelled = True
+                break
+            f.write(f"{image_id},{handle_row(index, entries, rules, image_id, filepath, entry_id)}\n")
             write_progress(args.progress, n, len(rows))
     index.save()
+    if cancelled:
+        log("cancelled; references added so far are kept")
+        os.remove(tmp)
+        sys.exit(130)
     os.replace(tmp, args.results)
     write_collection_outputs(args, collection, entries, rules)
+
+
+def add_references(args, models: dict):
+    teams = None
+
+    def handle(index, entries, rules, image_id, filepath, entry_id):
+        nonlocal teams
+        if teams is None:
+            teams = set(strict_prefixes(entries))
+        # a team prefix instead of an entry id: a solo shot tagged only to team level
+        is_team = entry_id not in entries and entry_id in teams
+        if entry_id not in entries and not is_team:
+            log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")
+            return "failed"
+        if is_team and not rules.partial_references:
+            log(f"{image_id}: only tagged to {entry_id}; set rules.partial_references to save team references")
+            return "team_refs_off"
+        try:
+            rgb = load_full(filepath)
+            boxes, note = detect_vehicles(rgb, models["detector"])
+            if is_team and len(boxes) != 1:
+                log(f"{image_id}: {len(boxes)} vehicles found; only a solo shot can be a team reference")
+                return "team_not_solo"
+            box = boxes[0] if boxes else (0, 0, rgb.shape[1], rgb.shape[0])
+            rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop_box(rgb, box))
+            log(f"{image_id}: reference {rel}" + ("" if boxes else f" (whole frame; {note})"))
+            return "added" if boxes else "no_vehicle_whole_frame"
+        except Exception as e:
+            log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
+            return "failed"
+
+    run_reference_job(args, models, handle)
 
 
 def promote_boxes(args, models: dict):
     """Save each manifest image's confident vehicles (match.promotable) from the last run's
     boxes.json as references, cropped from the box itself, so a pack shot's tags land on the
     right car. Re-promoting a box replaces its sample."""
-    collection = os.path.join(args.collections_root, args.collection)
-    entries, rules = load_collection(collection)
-    check_models(models)
     try:
         with open(args.boxes_in, encoding="utf-8") as f:
             run = json.load(f)
-    except (OSError, ValueError) as e:
-        raise InputError(f"{args.boxes_in}: can't read the last run's boxes ({e}); run Identify first")
-    if run.get("collection") != args.collection:
-        raise InputError(f"the last run was for collection {run.get('collection')!r}, not {args.collection!r}")
-    embedder = Embedder(models["embedder"])
-    index = ReferenceIndex.load(collection, embedder,
-                                 [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
-    rows = read_manifest(args.manifest, 3)
-    tmp = args.results + ".tmp"
-    with open(tmp, "w", newline="", encoding="utf-8") as f:
-        for n, (image_id, filepath, _entry) in enumerate(rows, 1):
-            if cancel_requested(args.progress):
-                log("cancelled; references added so far are kept")
-                index.save()
-                sys.exit(130)
-            status = "none_promotable"
-            record = run["images"].get(image_id)
-            wanted = [b for b in record["boxes"] if promotable(b) and b["entry"] in entries] if record else []
-            if wanted:
-                try:
-                    rgb = load_full(filepath)
-                    if [rgb.shape[1], rgb.shape[0]] != record["frame"]:
-                        status = "stale"
-                        log(f"{image_id}: the file no longer matches the last run (frame size changed), skipped")
-                    else:
-                        for b in wanted:
-                            rel = index.add(b["entry"], f"{image_id}_b{b['box']}", crop_box(rgb, b["bbox"]))
-                            log(f"{image_id}: box {b['box']} ({b['method']}) reference {rel}")
-                        status = "added"
-                except Exception as e:
-                    status = "failed"
-                    log(f"{image_id}: couldn't add references ({type(e).__name__}: {e})")
-            f.write(f"{image_id},{status}\n")
-            write_progress(args.progress, n, len(rows))
-    index.save()
-    os.replace(tmp, args.results)
-    write_collection_outputs(args, collection, entries, rules)
+        images, run_collection = run["images"], run["collection"]
+    except (OSError, ValueError, KeyError, TypeError) as e:
+        raise InputError(f"{args.boxes_in}: can't read the last run's boxes ({type(e).__name__}: {e}); run Identify first") from e
+    if run_collection != args.collection:
+        raise InputError(f"the last run was for collection {run_collection!r}, not {args.collection!r}")
+
+    def handle(index, entries, rules, image_id, filepath, _entry):
+        record = images.get(image_id)
+        wanted = [b for b in record["boxes"] if promotable(b) and b["entry"] in entries] if record else []
+        if not wanted:
+            return "none_promotable"
+        try:
+            rgb = load_full(filepath)
+            if [rgb.shape[1], rgb.shape[0]] != record["frame"]:
+                log(f"{image_id}: the file no longer matches the last run (frame size changed), skipped")
+                return "stale"
+            for b in wanted:
+                rel = index.add(b["entry"], f"{image_id}_b{b['box']}", crop_box(rgb, b["bbox"]))
+                log(f"{image_id}: box {b['box']} ({b['method']}) reference {rel}")
+            return "added"
+        except Exception as e:
+            log(f"{image_id}: couldn't add references ({type(e).__name__}: {e})")
+            return "failed"
+
+    run_reference_job(args, models, handle)
 
 
 def write_collection_outputs(args, collection: str, entries: dict, rules: Rules):

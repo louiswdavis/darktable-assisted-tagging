@@ -11,4 +11,4 @@ Each entry is just an `id`, a `number` and its `tags`. Add a `team` to entries t
 
 ## References
 
-Optional here. Every entry has a number, so it works with none, but only on frames where the number is readable. Once the first run's `Assisted Tagging|Motorsport|Unidentified` frames show which cars it struggles with, add 2–3 references for those: pick the entry in the **entry** list, select the frames, and click **Add as reference**.
+Optional here. Every entry has a number, so it works with none, but only on frames where the number is readable. Once the first run's `Assisted Tagging|Identification|Unidentified` frames show which cars it struggles with, add 2–3 references for those: pick the entry in the **entry** list, select the frames, and click **Add as reference**.

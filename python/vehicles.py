@@ -83,7 +83,7 @@ def load_full(filepath: str) -> np.ndarray:
 # letterboxed top-left onto a 114-grey 640² canvas; raw per-anchor grid outputs.
 DETECTOR_INPUT = 640
 DETECTOR_STRIDES = (8, 16, 32)
-DETECTOR_MIN_SCORE = 0.25  # was 0.35; dark liveries score 0.25-0.34 (F1 report: 65 of 143 misses)
+DETECTOR_MIN_SCORE = 0.25  # dark liveries score 0.25-0.34, below the usual 0.35
 DETECTOR_NMS = 0.5
 VEHICLE_CLASSES = [2, 3, 7]  # COCO car, motorcycle, truck (race cars are often called trucks)
 

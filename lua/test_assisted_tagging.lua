@@ -55,12 +55,12 @@ check("an entry may have no team or number", entries.SC.team .. "|" .. entries.S
 
 local defaults = T.default_rules()
 check("default rules share team tags", defaults.team_only, "shared tags")
-check("default diagnostics sit under Assisted Tagging|Motorsport", defaults.diag.livery,
-    "Assisted Tagging|Motorsport|Identified|By livery")
+check("default diagnostics sit under Assisted Tagging|Identification", defaults.diag.livery,
+    "Assisted Tagging|Identification|By livery")
 local rules = T.parse_rules_csv(table.concat({
     "team_only,none",
     "unidentified,F1|Check;F1|Check|Later",
-    "diag_number,Assisted Tagging|Motorsport|Identified|By number",
+    "diag_number,Assisted Tagging|Identification|By number",
     "diag_burst,",
     "diag_team,X|Team",
 }, "\n"))
@@ -68,19 +68,19 @@ check("rules: team_only", rules.team_only, "none")
 check("rules: unidentified tags", table.concat(rules.unidentified, ","), "F1|Check,F1|Check|Later")
 check("rules: an empty diagnostic is off", rules.diag.burst, "")
 check("rules: a renamed diagnostic", rules.diag.team, "X|Team")
-check("rules: unlisted diagnostics keep their default", rules.diag.none, "Assisted Tagging|Motorsport|Unidentified")
+check("rules: unlisted diagnostics keep their default", rules.diag.none, "Assisted Tagging|Identification|Unidentified")
 
 -- wanted_tags ---------------------------------------------------------------
 local function row(method, entry, alt) return { box = 0, method = method, entry_id = entry or "", alt_entry_id = alt or "" } end
 
 local w, d, ok = T.wanted_tags({ row("number", "VER") }, entries)
 check("a number result wants the entry's tags", keys(w), "F1|Red Bull + F1|Red Bull|Verstappen")
-check("a number result gets the By number diagnostic", keys(d), "Assisted Tagging|Motorsport|Identified|By number")
+check("a number result gets the By number diagnostic", keys(d), "Assisted Tagging|Identification|By number")
 check("a number result is identified", ok, true)
 
 w, d = T.wanted_tags({ row("team", "VER", "TSU") }, entries)
 check("team only wants just the shared tags", keys(w), "F1|Red Bull")
-check("team only gets the Team only diagnostic", keys(d), "Assisted Tagging|Motorsport|Team only")
+check("team only gets the Team only diagnostic", keys(d), "Assisted Tagging|Identification|Team only")
 w, d = T.wanted_tags({ row("team", "VER", "TSU") }, entries, rules)
 check("team_only none wants no collection tags", keys(w), "")
 check("team_only none still uses its diagnostic", keys(d), "X|Team")
@@ -92,7 +92,7 @@ check("two cars want both entries' tags", keys(w),
 
 w, d, ok = T.wanted_tags({ { box = -1, method = "none", entry_id = "", alt_entry_id = "" } }, entries)
 check("no vehicle wants nothing by default", keys(w), "")
-check("no vehicle gets the Unidentified diagnostic", keys(d), "Assisted Tagging|Motorsport|Unidentified")
+check("no vehicle gets the Unidentified diagnostic", keys(d), "Assisted Tagging|Identification|Unidentified")
 check("no vehicle is not identified", ok, false)
 w = T.wanted_tags({ row("none") }, entries, rules)
 check("unidentified rule tags are wanted", keys(w), "F1|Check + F1|Check|Later")
@@ -106,7 +106,7 @@ local owned = T.owned_tags(entries, rules)
 check("owned: entry tags", owned["F1|Ferrari|Hamilton"], true)
 check("owned: unidentified rule tags", owned["F1|Check"], true)
 check("owned: renamed diagnostics", owned["X|Team"], true)
-check("owned: default diagnostics stay owned after a rename", owned["Assisted Tagging|Motorsport|Team only"], true)
+check("owned: default diagnostics stay owned after a rename", owned["Assisted Tagging|Identification|Team only"], true)
 check("owned: the user's own tags are not", owned["Holiday"], nil)
 
 local attach, detach = T.tag_changes(
@@ -186,7 +186,7 @@ w, d, ok = T.wanted_tags({
 }, entries, rules)
 check("a pack still tags its other cars beside a conflict", keys(w), "F1|Ferrari + F1|Ferrari|Hamilton")
 check("a pack adds its shot diagnostic once", keys(d),
-    "Assisted Tagging|Identification|Shot|Pack + Assisted Tagging|Motorsport|Identified|By number")
+    "Assisted Tagging|Identification|By number + Assisted Tagging|Identification|Shot|Pack")
 
 -- utf16le (review fix 6: the .vbs launcher must survive a non-ASCII tmp path) --
 check("utf16le: ASCII", T.utf16le("a"), "a\0")
@@ -198,7 +198,7 @@ check("hierarchical_tags keeps only tags with a hierarchy", table.concat(T.hiera
     "F1|Red Bull|Verstappen", "Holiday", "F1|Red Bull",
 }), ","), "F1|Red Bull,F1|Red Bull|Verstappen")
 check("hierarchical_tags drops the plugin's own diagnostics", table.concat(T.hierarchical_tags({
-    "F1|Red Bull", "Assisted Tagging|Motorsport|Unidentified",
+    "F1|Red Bull", "Assisted Tagging|Identification|Unidentified",
 }), ","), "F1|Red Bull")
 check("hierarchical_tags drops a tag entries.json can't hold", table.concat(T.hierarchical_tags({
     "F1|Red Bull", 'F1|Red,Bull',
