@@ -63,3 +63,14 @@ C:\Users\Louis\Pictures\DarkTable\Import\2026-10-02\PXL_20261002_083755735.dng: 
     x 466-512 y 454-486  47x33  score 0.16  0.1% of frame  DROPPED: score,size,cap
     x 436-487 y 459-488  51x29  score 0.06  0.1% of frame  DROPPED: score,size,cap
     x 510-550 y 462-492  41x29  score 0.07  0.1% of frame  DROPPED: score,size,cap
+C:\Users\Louis\Pictures\DarkTable\Import\2026-10-02\PXL_20261002_083753543.dng: 964x1280, detector scale 0.50
+  NMS 0.5: 3 boxes
+    x 238-368 y 654-717  130x63  score 0.09  0.7% of frame  DROPPED: score
+    x 422-529 y 638-706  107x68  score 0.46  0.6% of frame  kept
+    x 614-718 y 627-688  103x62  score 0.20  0.5% of frame  DROPPED: score
+  NMS 0.8: 5 boxes
+    x 238-368 y 654-717  130x63  score 0.09  0.7% of frame  DROPPED: score
+    x 422-529 y 638-706  107x68  score 0.46  0.6% of frame  kept
+    x 614-718 y 627-688  103x62  score 0.20  0.5% of frame  DROPPED: score
+    x 425-518 y 642-703  93x61  score 0.12  0.5% of frame  DROPPED: score,size
+    x 632-697 y 634-686  65x52  score 0.06  0.3% of frame  DROPPED: score,size,cap
