@@ -11,6 +11,7 @@ Writes ref-audit.txt in COLLECTION_DIR. Sections:
   outliers           - far from the rest of its own entry (robust z-score, entries with 5+ refs)
   odd crops          - crop size or shape far from the entry's usual (distant car, whole frame, nose-only cut)
   colour outliers    - livery colours (hue/saturation, brightness ignored) unlike the entry's typical ones
+  whole frames       - refs where the detector finds no car, or one under 15% of the image (needs --detector)
   redundant          - near-duplicates inside one entry (add no variety)"""
 
 import argparse
@@ -27,6 +28,7 @@ MISLABEL_MIN_MARGIN = 0.2  # other-entry similarity must beat the own-entry one 
 CROP_MIN_Z = 4.0  # robust z of crop size or aspect ratio against the entry's median
 CROP_AREA_MAD_FLOOR = 0.15  # log scale, so 0.15 is about 16% in side length
 CROP_ASPECT_MAD_FLOOR = 0.08
+WHOLE_FRAME_MAX_FRAC = 0.15  # detected car's share of the ref image below this = whole frame or scenery
 COLOUR_MAD_FLOOR = 0.03  # entries whose refs agree closely would otherwise flag normal lighting variation
 
 
@@ -132,9 +134,28 @@ def crop_audit(collection_dir, entry, path):
     return sorted(found, reverse=True)
 
 
-def write_audit(collection_dir, dup_sim=0.97, top=40):
-    """Audits collection_dir's index.npz and writes ref-audit.txt beside it. Returns
-    (path written, {"references", "mislabel", "copies", "outliers"})."""
+def frame_audit(collection_dir, path, detector):
+    """Refs that are whole frames or mostly scenery rather than a tight car crop: the vehicle detector
+    finds no car in the ref, or one covering under WHOLE_FRAME_MAX_FRAC of it. A good ref is already
+    cropped to its car, so the car fills most of the image. Returns [(car share, i)], smallest first."""
+    from PIL import Image
+    from vehicles import detect_vehicles
+    found = []
+    for i, rel in enumerate(path):
+        with Image.open(os.path.join(collection_dir, *rel.split("/"))) as im:
+            rgb = np.array(im.convert("RGB"))
+        boxes, _ = detect_vehicles(rgb, detector)
+        h, w = rgb.shape[:2]
+        share = max(((b[2] - b[0]) * (b[3] - b[1]) / (w * h) for b in boxes), default=0.0)
+        if share < WHOLE_FRAME_MAX_FRAC:
+            found.append((share, i))
+    return sorted(found)
+
+
+def write_audit(collection_dir, dup_sim=0.97, top=40, detector=""):
+    """Audits collection_dir's index.npz and writes ref-audit.txt beside it. detector (YOLOX .onnx)
+    enables the whole-frame check; without it that section is skipped. Returns
+    (path written, {"references", "mislabel", "copies", "outliers", ...})."""
     emb, entry, path, team, _ = load(collection_dir)
     if len(set(entry)) < 2:
         sys.exit(f"{collection_dir} needs 2+ entries with 2+ references each to audit")
@@ -145,9 +166,11 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
     except ImportError:  # no cv2: the colour section is skipped
         colours = []
     crops = crop_audit(collection_dir, entry, path)
+    frames = frame_audit(collection_dir, path, detector) if detector else []
     out = [f"{len(entry)} references, {len(set(entry))} entries with 2+ refs (entries with fewer are skipped)",
            f"{len(mislabel)} mislabel suspects, {len(copies)} cross-entry copies, {len(outliers)} outliers, "
-           f"{len(colours)} colour outliers, {len(crops)} odd crops", ""]
+           f"{len(colours)} colour outliers, {len(crops)} odd crops, "
+           + (f"{len(frames)} whole frames" if detector else "whole-frame check skipped (no detector)"), ""]
 
     def row(i, j, extra):
         cross = " (same team)" if team.get(entry[j]) == team.get(entry[i]) else ""
@@ -156,7 +179,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
     flags = {}
     for label, items in (("mislabel", [(m, i) for m, i, _ in mislabel]), ("copy", [(s, i) for s, i, _ in copies]),
                          ("outlier", [(-z, i) for z, i, _ in outliers]), ("colour", [(-z, i) for z, i, *_ in colours]),
-                         ("crop", [(z, i) for z, i, *_ in crops])):
+                         ("crop", [(z, i) for z, i, *_ in crops]), ("frame", [(s, i) for s, i in frames])):
         for _, i in items:
             flags.setdefault(i, []).append(label)
     strongest = sorted((i for i, f in flags.items() if len(f) >= 2), key=lambda i: (-len(flags[i]), path[i]))
@@ -179,6 +202,10 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
     out.append("\n## odd crops (size or shape far from the entry's usual: distant car, whole frame, nose-only cut; these can be good refs too)")
     for z, i, (w, h), (mw, mh) in crops[:top]:
         out.append(f"  {path[i]}  [{entry[i]}]  {w}x{h}  entry median {mw}x{mh}  z {z:.1f}")
+    out.append(f"\n## whole frames (detected car covers under {WHOLE_FRAME_MAX_FRAC:.0%} of the ref: scenery drives its matches; re-crop or delete)")
+    for share, i in frames[:top]:
+        out.append(f"  {path[i]}  [{entry[i]}]  car share {share:.0%}")
+    out.append(f"  ({len(frames)} in total)")
     out.append("\n## redundant (refs with a near-duplicate in the same entry)")
     for name, c in redundant[:top]:
         out.append(f"  {name}: {c}")
@@ -187,7 +214,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
     with open(report, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
     return report, {"references": len(entry), "mislabel": len(mislabel), "copies": len(copies), "outliers": len(outliers),
-                    "colour": len(colours), "crops": len(crops), "strongest": len(strongest)}
+                    "colour": len(colours), "crops": len(crops), "frames": len(frames), "strongest": len(strongest)}
 
 
 def main():
@@ -195,11 +222,12 @@ def main():
     ap.add_argument("collection_dir")
     ap.add_argument("--dup-sim", type=float, default=0.97)
     ap.add_argument("--top", type=int, default=40, help="rows per section")
+    ap.add_argument("--detector", default="", help="YOLOX .onnx; enables the whole-frame check")
     a = ap.parse_args()
     for need in ("entries.json", "index.npz"):
         if not os.path.isfile(os.path.join(a.collection_dir, need)):
             sys.exit(f"{a.collection_dir} has no {need}: pass the collection folder itself (the one holding entries.json)")
-    report, counts = write_audit(a.collection_dir, a.dup_sim, a.top)
+    report, counts = write_audit(a.collection_dir, a.dup_sim, a.top, a.detector)
     print(f"{counts}\nwrote {report}")
 
 
