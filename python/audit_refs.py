@@ -101,6 +101,8 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
     """Audits collection_dir's index.npz and writes ref-audit.txt beside it. Returns
     (path written, {"references", "mislabel", "copies", "outliers"})."""
     emb, entry, path, team, _ = load(collection_dir)
+    if len(set(entry)) < 2:
+        sys.exit(f"{collection_dir} needs 2+ entries with 2+ references each to audit")
     mislabel, copies, outliers, redundant, own_best, other_best = audit(emb, entry, path, team, dup_sim)
 
     try:

@@ -68,15 +68,22 @@ curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2
 | `text_recognition_CRNN_EN_2021sep.onnx` | 34 MB | reads that text | OpenCV model zoo (CRNN), Apache-2.0 |
 | `dinov2_small.onnx` | 89 MB | livery matching | DINOv2 ViT-S/14 via onnx-community, Apache-2.0 |
 
-Optional, for pack shots with overlapping cars: a segmentation model. With it in `models`, a box that overlaps another is read through a car-shaped mask, with the background and the neighbouring car painted grey. Without it, nothing changes.
+Optional models. The plugin works without them:
+
+- **Segmentation**, for pack shots with overlapping cars. With it in `models`, a box that overlaps another is read through a car-shaped mask, with the background and the neighbouring car painted grey.
+- **Larger livery embedder.** Not used unless you set **Assisted Tagging: livery embedder model** (preferences → lua options) to `dinov2_base.onnx`; the next run then re-embeds every reference. Compare it first with `python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx`.
 
 ```
 curl -L -o models/image_segmentation_efficientsam_ti_2025april.onnx https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx
+curl -L -o models/dinov2_base.onnx https://huggingface.co/onnx-community/dinov2-base/resolve/main/onnx/model.onnx
 ```
 
-| File | Job | Source, licence |
-|---|---|---|
-| `image_segmentation_efficientsam_ti_2025april.onnx` | outlines an overlapped car | OpenCV model zoo (EfficientSAM), Apache-2.0 |
+| File | Size | Job | Source, licence |
+|---|---|---|---|
+| `image_segmentation_efficientsam_ti_2025april.onnx` | | outlines an overlapped car | OpenCV model zoo (EfficientSAM), Apache-2.0 |
+| `dinov2_base.onnx` | about 350 MB | livery matching, larger than `dinov2_small.onnx` | DINOv2 ViT-B/14 via onnx-community, Apache-2.0 |
+
+**Audit references** (panel button, `python/audit_refs.py`) needs nothing beyond the packages in `requirements.txt` and the models above.
 
 People collections (`"kind": "people"` in entries.json) also need these two. Motorsport collections don't:
 
@@ -275,6 +282,7 @@ All under **preferences → lua options**.
 | Assisted Tagging: Python interpreter | empty (the repo's `.venv`) | Python with `requirements.txt` installed |
 | Assisted Tagging: plugin folder | empty (auto-detect) | This repo's folder; `python/`, `models/`, `examples/` and `.venv` are all found inside it. A folder without `python/identify.py` is an error |
 | Assisted Tagging: collections folder | empty (`assisted_tagging/collections` in the config directory) | Where collections live |
+| Assisted Tagging: livery embedder model | empty (`dinov2_small.onnx`) | File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`. Changing it re-embeds every reference on the next run |
 | Assisted Tagging: diagnostic tags | on | The `By number` / `By livery` / … tags above; off removes them on the next run |
 | Assisted Tagging: burst gap (seconds) | 2 | Photos closer together than this are one burst |
 

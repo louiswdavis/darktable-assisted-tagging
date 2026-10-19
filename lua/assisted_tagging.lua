@@ -550,6 +550,10 @@ if dt.gui then
         "Assisted Tagging: collections folder",
         "Folder with one folder per collection (entries.json + refs). Empty = assisted_tagging/collections in darktable's config folder",
         "")
+    dt.preferences.register("assisted_tagging", "embedder_file", "string",
+        "Assisted Tagging: livery embedder model",
+        "File name in the plugin's models folder used to compare liveries (e.g. dinov2_base.onnx). Empty = dinov2_small.onnx. Changing it re-embeds every reference on the next run",
+        "")
     dt.preferences.register("assisted_tagging", "diagnostic_tags", "bool",
         "Assisted Tagging: diagnostic tags",
         "Tag how each image was identified (under Assisted Tagging|Identification: By number, By livery, By burst, Team only, Unidentified) for filtering and spot-checks; a collection's rules can rename them. Off removes them on the next run",
@@ -641,7 +645,12 @@ end
 -- A model in the plugin folder's models/. A missing file is passed through
 -- as-is, so identify.py names it in its error.
 local function model_path(name, script)
-    return plugin_root(script) .. "/models/" .. MODEL_FILES[name]
+    local file = MODEL_FILES[name]
+    if name == "embedder_model" then
+        local chosen = dt.preferences.read("assisted_tagging", "embedder_file", "string") or ""
+        if chosen ~= "" then file = chosen end
+    end
+    return plugin_root(script) .. "/models/" .. file
 end
 
 local function collections_root()

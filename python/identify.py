@@ -1172,7 +1172,9 @@ def audit_references(args, models: dict):
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["segmenter"] = ""
-    open_index(collection, models, rules, check_models(models))
+    index = open_index(collection, models, rules, check_models(models))
+    if len(set(index.entry)) < 2:
+        raise InputError(f"{args.collection} needs references for at least 2 entries to audit; add some first")
     report, counts = write_audit(collection)
     log(f"reference audit: {counts}; wrote {report}")
     with open(args.results, "w", newline="", encoding="utf-8") as f:
