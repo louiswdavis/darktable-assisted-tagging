@@ -27,7 +27,7 @@ import sys
 import time
 from dataclasses import dataclass, replace
 
-from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect, detect_vehicles, detector_model, file_key, load_full, log
+from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect, detect_vehicles, detector_model, file_key, load_full, load_hires, log
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
@@ -397,7 +397,7 @@ def frame_key(filepath: str, models: dict) -> list:
         return [file_key(filepath), "people", *face_model_key(models["face_det"], models["face_rec"]), "face-1"]
     return [file_key(filepath),file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
-            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-2", "cand-1", "overlap-1", *(["colour-1"] if models.get("colour") else [])]
+            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else [])]
 
 
 # ---------------------------------------------------------------- progress
@@ -449,13 +449,16 @@ def analyse_frame(filepath: str) -> dict:
     return out
 
 
-def _read_boxes(rgb, boxes: list) -> dict:
-    """OCR candidates, pod reading and embedding of each box, in the analysis shape."""
+def _read_boxes(rgb, boxes: list, hi=None) -> dict:
+    """OCR candidates, pod reading and embedding of each box, in the analysis shape. With `hi`, a
+    sharper decode of the same frame, the crops (OCR, embedding, colour) come from it; boxes stay in
+    `rgb`'s pixels."""
     ocr, trace, emb, pod, hist, overlap = [], [], [], [], [], []
+    scale = hi.shape[1] / rgb.shape[1] if hi is not None else 1.0
     for b, (seen, state) in zip(boxes, visible_boxes(boxes)):
         overlap.append(state)
         pod.append(pod_reading(rgb, seen))
-        crop = crop_box(rgb, seen)
+        crop = crop_box(rgb if hi is None else hi, tuple(v * scale for v in seen[:4]))
         ocr.append([[d, c] for d, c in _W["reader"].read(crop)])
         trace.append(_W["reader"].last_trace)
         emb.append(encode(_W["embedder"].embed(crop)))
@@ -480,6 +483,24 @@ def rescue_frame(job: tuple):
     out = _read_boxes(rgb, [box])
     out.update(note="", frame=[w, h], candidates=[], rescued={"from": os.path.basename(mate_path), "sim": round(sim, 4)})
     return out
+
+
+HIRES_MIN_GAIN = 1.3  # a sharper decode must be this much wider than the preview to be worth re-reading
+HIRES_ASPECT_TOL = 0.02  # ...and frame the same picture: aspect ratios within this share
+
+
+def hires_frame(job: tuple):
+    """(path, the analysis's boxes) → every box re-read from a sharper decode of the frame (the analysis
+    shape), or {} when there is none: not a RAW, not enough wider than the preview, or framed differently."""
+    path, boxes = job
+    hi = load_hires(path)
+    if hi is None:
+        return {}
+    rgb = load_full(path)
+    if hi.shape[1] < HIRES_MIN_GAIN * rgb.shape[1] or \
+            abs(hi.shape[1] / hi.shape[0] / (rgb.shape[1] / rgb.shape[0]) - 1) > HIRES_ASPECT_TOL:
+        return {}
+    return _read_boxes(rgb, [tuple(b) for b in boxes], hi)
 
 
 # ---------------------------------------------------------------- identify mode
@@ -630,6 +651,43 @@ def rescue_frames(rows: list, analyses: dict, models: dict) -> dict:
                 continue
             log(f"{job[0]}: rescued a vehicle from {result['rescued']['from']} (crop similarity {result['rescued']['sim']})")
             out[job[0]] = result
+    return out
+
+
+def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str) -> dict:
+    """analyses with the boxes in `wanted` (filepath → box indices) re-read from a sharper decode of
+    the frame: OCR, embedding and colour replace the first-pass ones, and `hires` lists the boxes
+    that changed. The re-read of a frame's every box is cached, so a rerun doesn't decode again."""
+    cache = IdentifyCache(cache_path)
+    try:
+        reads, todo = {}, []
+        for p in wanted:
+            hit = cache.get(*frame_key(p, models), "hires-1")
+            if hit is None:
+                todo.append(p)
+            else:
+                reads[p] = hit
+        log(f"refining: {len(wanted)} frames have boxes to re-read at higher detail, {len(reads)} from cache, {len(todo)} to decode")
+        if todo:
+            with concurrent.futures.ProcessPoolExecutor(max_workers=min(worker_count(os.cpu_count() or 2), len(todo)),
+                                                        initializer=_init_worker, initargs=(models,)) as executor:
+                jobs = [(p, analyses[p]["boxes"]) for p in todo]
+                for p, result in zip(todo, executor.map(hires_frame, jobs)):
+                    reads[p] = result
+                    cache.put(result, *frame_key(p, models), "hires-1")
+    finally:
+        cache.close()
+    out = dict(analyses)
+    for p, idx in wanted.items():
+        read = reads.get(p)
+        if not read:
+            continue
+        a = dict(analyses[p])
+        for key in ("ocr", "ocr_trace", "emb", "hist"):
+            if key in a and key in read:
+                a[key] = [read[key][i] if i in idx else v for i, v in enumerate(a[key])]
+        a["hires"] = [i in idx for i in range(len(a["boxes"]))]
+        out[p] = a
     return out
 
 

@@ -26,10 +26,14 @@ def states(boxes):
 check("a lone box is visible", states([(0, 0, 100, 50)]), [""])
 check("apart boxes are visible", states([(0, 0, 100, 50), (200, 0, 300, 50)]), ["", ""])
 
-# the right-hand car is level with and covers 20% of the left one's width: left is trimmed to 0..80
-pair = O.visible_boxes([(0, 0, 100, 50), (80, 0, 200, 50)])
-check("a small overlap trims the left box", pair[0], ((0, 0, 80, 50), "trimmed"))
-check("a small overlap trims the right box", pair[1], ((100, 0, 200, 50), "trimmed"))
+# level boxes: only the lower-scoring one is behind, so the pair never both lose the overlap
+pair = O.visible_boxes([(0, 0, 100, 50, 0.4, 2), (80, 0, 200, 50, 0.7, 2)])
+check("the weaker level box is trimmed", pair[0], ((0, 0, 80, 50, 0.4, 2), "trimmed"))
+check("the stronger level box stays whole", pair[1], ((80, 0, 200, 50, 0.7, 2), ""))
+check("with equal scores the earlier box stays whole",
+      states([(0, 0, 100, 50), (80, 0, 200, 50)]), ["", "trimmed"])
+check("two level boxes overlapping 63% hide only one",
+      states([(318, 769, 518, 851, 0.21, 2), (280, 784, 445, 850, 0.38, 2)]), ["hidden", ""])
 
 # a box 60% covered by a car in front of it is hidden
 check("a mostly covered box is hidden", states([(0, 0, 100, 50), (40, 0, 200, 60)]), ["hidden", ""])

@@ -79,6 +79,17 @@ def load_full(filepath: str) -> np.ndarray:
     return rgb
 
 
+def load_hires(filepath: str):
+    """A RAW decoded sharper than load_full's embedded preview (half-size demosaic, upright), or None
+    for any other file, which load_full already decodes in full. The same framing as load_full when
+    the preview is uncropped; the caller checks the aspect ratio."""
+    if Path(filepath).suffix.lower() not in RAW_EXTENSIONS:
+        return None
+    import rawpy
+    with rawpy.imread(filepath) as raw:
+        return raw.postprocess(half_size=True, use_camera_wb=True, no_auto_bright=True)
+
+
 # YOLOX as exported by opencv_zoo (object_detection_yolox_2022nov.onnx): RGB 0–255
 # letterboxed top-left onto a 114-grey 640² canvas; raw per-anchor grid outputs.
 DETECTOR_INPUT = 640
