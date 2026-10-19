@@ -116,7 +116,7 @@ def _yolox_anchors(size: int = DETECTOR_INPUT) -> tuple:
     return np.concatenate(grids), np.concatenate(strides)
 
 
-def decode_vehicles(raw: np.ndarray, scale: float, min_score: float = DETECTOR_MIN_SCORE) -> list:
+def decode_vehicles(raw: np.ndarray, scale: float, min_score: float = DETECTOR_MIN_SCORE, nms: float = DETECTOR_NMS) -> list:
     """Raw YOLOX output (anchors × 85) → [(x0, y0, x1, y1, score, coco_class)]
     vehicle boxes in source pixels after NMS. `scale` is the letterbox resize factor."""
     grid, stride = _yolox_anchors()
@@ -129,7 +129,7 @@ def decode_vehicles(raw: np.ndarray, scale: float, min_score: float = DETECTOR_M
         return []
     xy, wh, score, best = xy[keep] / scale, wh[keep] / scale, score[keep], best[keep]
     tl = xy - wh / 2
-    picked = cv2.dnn.NMSBoxes(np.hstack([tl, wh]).tolist(), score.tolist(), min_score, DETECTOR_NMS)
+    picked = cv2.dnn.NMSBoxes(np.hstack([tl, wh]).tolist(), score.tolist(), min_score, nms)
     return [(tl[i, 0], tl[i, 1], tl[i, 0] + wh[i, 0], tl[i, 1] + wh[i, 1], float(score[i]),
              VEHICLE_CLASSES[best[i]]) for i in np.asarray(picked).reshape(-1)]
 
