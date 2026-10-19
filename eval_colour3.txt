@@ -1,0 +1,43 @@
+1130 references, 22 entries with 2+; blur_references=False
+1130 references, 22 entries, 11 teams (colour histogram only, leave-one-out)
+centre fraction kept: team accuracy / entry accuracy
+  100%: 42.4% / 33.2%
+  70%: 46.3% / 34.8%
+  50%: 49.0% / 36.8%
+detail below is for the best team accuracy (50%); chance ~4.5% entry / 9.1% team
+
+per entry: refs, recall as entry, recall as team, most-confused-with
+  Albon            9     56%     67%  Hulkenburg x2, Russell x1
+  Alonso          27     22%     59%  Stroll x11, Bortoleto x3
+  Antonelli       68     32%     19%  Russell x14, Bortoleto x14
+  Bearman         17      0%     35%  Piastri x7, Ocon x4
+  Bortoleto       24     42%     50%  Lawson x5, Piastri x3
+  Bottas          19     16%     47%  Piastri x4, Lawson x3
+  Colapinto       66     24%     74%  Gasly x33, Bortoleto x6
+  Gasly           89     78%     85%  Colapinto x7, Bortoleto x6
+  Hadjar          78     50%     59%  Lawson x11, Verstappen x9
+  Hamilton       197     23%     57%  LeClerc x39, Piastri x34
+  Hulkenburg       5     40%     40%  Piastri x1, Ocon x1
+  Lawson          58     31%     22%  Hadjar x14, Verstappen x7
+  LeClerc        113     28%     57%  Piastri x23, Ocon x14
+  Lindblad        37      0%     27%  Lawson x10, Piastri x7
+  Norris         137     57%     51%  Piastri x13, Albon x8
+  Ocon            26     31%     38%  Russell x4, Piastri x3
+  Perez            8      0%     25%  Piastri x3, Ocon x2
+  Piastri         59     41%      2%  LeClerc x14, Ocon x6
+  Russell         18     44%     22%  Antonelli x3, Ocon x2
+  Sainz           19     32%     47%  Albon x5, Hulkenburg x2
+  Stroll          29     41%     59%  Alonso x5, Bortoleto x5
+  Verstappen      27     48%     26%  Russell x4, Lindblad x4
+
+team pairs colour confuses most (true -> predicted, count)
+  Ferrari -> Cadillac x37
+  Ferrari -> Haas x36
+  McLaren -> Cadillac x34
+  Racing Bulls -> Red Bull x33
+  Mercedes -> Aston Martin x29
+  Ferrari -> Red Bull x27
+  McLaren -> Ferrari x27
+  McLaren -> Red Bull x18
+
+References are cleaner than real in-race crops: read the ranking, not the absolute accuracy.
