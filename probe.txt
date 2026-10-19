@@ -1,0 +1,16 @@
+.venv\Scripts\python python\probe_detect.py models\object_detection_yolox_nov2022.onnx "C:\Users\Louis\Pictures\DarkTable\Imports\2026-10-02\PXL_20261002_083709285.dng" "C:\Users\Louis\Pictures\DarkTable\Imports\2026-10-02\PXL_20261002_083755385.dng" "C:\Users\Louis\Pictures\DarkTable\Imports\2026-10-02\PXL_20261002_083755735.dng" > probe.txt
+Traceback (most recent call last):
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\probe_detect.py", line 41, in <module>
+    probe(image, sys.argv[1])
+    ~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\probe_detect.py", line 17, in probe
+    rgb = load_full(path)
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicles.py", line 63, in load_full
+    with rawpy.imread(filepath) as raw:
+         ~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\.venv\Lib\site-packages\rawpy\__init__.py", line 123, in imread
+    d.open_file(pathOrFile)
+    ~~~~~~~~~~~^^^^^^^^^^^^
+  File "rawpy/_rawpy.pyx", line 494, in rawpy._rawpy.RawPy.open_file
+  File "rawpy/_rawpy.pyx", line 1115, in rawpy._rawpy.RawPy.handle_error
+rawpy._rawpy.LibRawIOError: b'Input/output error'
