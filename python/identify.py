@@ -956,7 +956,7 @@ def identify(args, models: dict):
     entries, rules = load_collection(collection)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
-    models["segmenter"] = segmenter_path(models["detector"], models.get("segmenter", "")) if rules.kind != "people" else ""
+    models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     embedder = check_models(models)
     if rules.kind == "people":
         return identify_people(args, models, entries, rules, collection, embedder)
@@ -1056,7 +1056,7 @@ def run_reference_job(args, models: dict, handle_row):
     entries, rules = load_collection(collection)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
-    models["segmenter"] = segmenter_path(models["detector"], models.get("segmenter", "")) if rules.kind != "people" else ""
+    models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     embedder = check_models(models)
     index = open_index(collection, models, rules, embedder)
     rows = read_manifest(args.manifest, 3)

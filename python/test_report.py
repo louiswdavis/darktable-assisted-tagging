@@ -58,7 +58,7 @@ def run_tests():
         return dict(box(method), entry=entry, pod={"yellow": yellow, "aspect": 3.0})
 
     pod_entries = {"a": dict(ENTRIES["a"], camera="yellow"), "b": dict(ENTRIES["b"], camera="black")}
-    pod_data = dict(data({"1": image([podbox("a", 0.01)]), "2": image([podbox("a", 0.001)]),
+    pod_data = dict(data({"1": image([podbox("a", 0.01)]), "2": image([podbox("a", 0.0007)]),
                           "3": image([podbox("b", 0.0)]), "4": image([podbox("b", 0.01)]),
                           "5": image([podbox("a", 0.01, "livery")])}), entries=pod_entries)
     stats = R.pod_stats(pod_data, R.rows(pod_data))
