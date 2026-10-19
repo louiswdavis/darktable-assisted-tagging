@@ -71,7 +71,7 @@ def report(label, names, scores, entry, team):
           f"wrong {(decided & ~right).sum() / n:.1%}, abstained {(~decided).sum() / n:.1%}")
     sweep = [f"{m:.2f}: {((s1 >= MATCH_MIN_SIM) & (margin >= m) & ok & right).sum() / n:.0%}/{((s1 >= MATCH_MIN_SIM) & (margin >= m) & ok & ~right).sum() / n:.1%}"
              for m in (0.05, 0.08, 0.10, 0.12, 0.15, 0.20)]
-    print("  margin gate → identified right/wrong  " + "   ".join(sweep))
+    print("  margin gate: identified right/wrong  " + "   ".join(sweep))
     by_margin = np.argsort(-margin[ok])
     hits = right[ok][by_margin]
     row = [f"{int(cov * 100)}%: {hits[:max(1, int(len(hits) * cov))].mean():.0%}" for cov in (0.25, 0.5, 0.75, 1.0)]
