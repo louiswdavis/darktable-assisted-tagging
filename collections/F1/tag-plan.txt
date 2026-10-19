@@ -31,7 +31,7 @@ Identified (by number, livery or burst): the vehicle's entry tags.
   Bearman (#87, Haas; 59 references)
       Sports|F1|Haas
       Sports|F1|Haas|Bearman
-  Verstappen (#3, Red Bull; 32 references)
+  Verstappen (#3, Red Bull; 29 references)
       Sports|F1|Red Bull
       Sports|F1|Red Bull|Verstappen
   Perez (#11, Cadillac; 79 references)
@@ -40,7 +40,7 @@ Identified (by number, livery or burst): the vehicle's entry tags.
   Hulkenburg (#27, Audi; 39 references)
       Sports|F1|Audi
       Sports|F1|Audi|Hulkenburg
-  Hadjar (#6, Red Bull; 88 references)
+  Hadjar (#6, Red Bull; 84 references)
       Sports|F1|Red Bull
       Sports|F1|Red Bull|Hadjar
   Colapinto (#43, Alpine; 68 references)
