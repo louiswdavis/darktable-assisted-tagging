@@ -12,7 +12,13 @@ Writes ref-audit.txt in COLLECTION_DIR. Sections:
   odd crops          - crop size or shape far from the entry's usual (distant car, whole frame, nose-only cut)
   colour outliers    - livery colours (hue/saturation, brightness ignored) unlike the entry's typical ones
   whole frames       - refs where the detector finds no car, or one under 15% of the image (needs --detector)
-  redundant          - near-duplicates inside one entry (add no variety)"""
+  redundant          - near-duplicates inside one entry (add no variety)
+  duplicate groups   - which file to keep and which to drop in each near-duplicate group
+
+  python audit_refs.py COLLECTION_DIR --quarantine-duplicates [--dry-run]
+
+The audit itself only reports. --quarantine-duplicates is the one opt-in change: it moves the extra
+copies of each duplicate group (one is kept) to COLLECTION_DIR/refs-quarantine/, deleting nothing."""
 
 import argparse
 import os
@@ -74,6 +80,56 @@ def audit(emb, entry, path, team, dup_sim):
 
     return (sorted(mislabel, reverse=True), sorted(copies, reverse=True), sorted(outliers),
             redundant, own_best, other_best)
+
+
+def duplicate_groups(collection_dir, emb, entry, path, dup_sim):
+    """Near-duplicate refs inside one entry (centred-embedding similarity >= dup_sim, chained). Returns
+    [(keep, [drop, ...])] as indexes into path, biggest group first. The ref kept is the one with the
+    most pixels (ties: first filename), since a larger crop keeps the most detail."""
+    from PIL import Image
+    x = unit(emb - emb.mean(axis=0))
+    sims = x @ x.T
+    ent = np.array(entry)
+    link = (sims >= dup_sim) & (ent[:, None] == ent[None, :])
+    seen, groups = set(), []
+    for start in range(len(entry)):
+        if start in seen or link[start].sum() < 2:
+            continue
+        group, todo = set(), [start]
+        while todo:
+            i = todo.pop()
+            if i not in group:
+                group.add(i)
+                todo += [int(j) for j in np.where(link[i])[0]]
+        seen |= group
+        area = {}
+        for i in group:
+            with Image.open(os.path.join(collection_dir, *path[i].split("/"))) as im:
+                area[i] = im.size[0] * im.size[1]
+        order = sorted(group, key=lambda i: (-area[i], path[i]))
+        groups.append((order[0], order[1:]))
+    return sorted(groups, key=lambda g: -len(g[1]))
+
+
+def quarantine_duplicates(collection_dir, dup_sim=0.97, dry_run=False):
+    """Moves each near-duplicate group's extra refs to <collection>/refs-quarantine/<entry>/, keeping
+    one per group. Nothing is deleted: the next index load drops the moved crops, and moving a file
+    back into refs/<entry>/ restores it. Appends every move to refs-quarantine/moved.txt.
+    Returns the list of (from, to) relative paths moved (or that would be, for dry_run)."""
+    emb, entry, path, _, _ = load(collection_dir)
+    moves = []
+    for keep, drops in duplicate_groups(collection_dir, emb, entry, path, dup_sim):
+        for i in drops:
+            moves.append((path[i], path[i].replace("refs/", "refs-quarantine/", 1), path[keep]))
+    if dry_run:
+        return [(a, b) for a, b, _ in moves]
+    for src, dst, keep in moves:
+        os.makedirs(os.path.dirname(os.path.join(collection_dir, *dst.split("/"))), exist_ok=True)
+        os.replace(os.path.join(collection_dir, *src.split("/")), os.path.join(collection_dir, *dst.split("/")))
+    if moves:
+        with open(os.path.join(collection_dir, "refs-quarantine", "moved.txt"), "a", encoding="utf-8") as f:
+            f.writelines(f"{src}  ->  {dst}  (kept {keep})\n" for src, dst, keep in moves)
+    return [(a, b) for a, b, _ in moves]
 
 
 def colour_audit(collection_dir, entry, path):
@@ -202,13 +258,16 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector=""):
     out.append("\n## odd crops (size or shape far from the entry's usual: distant car, whole frame, nose-only cut; these can be good refs too)")
     for z, i, (w, h), (mw, mh) in crops[:top]:
         out.append(f"  {path[i]}  [{entry[i]}]  {w}x{h}  entry median {mw}x{mh}  z {z:.1f}")
-    out.append(f"\n## whole frames (detected car covers under {WHOLE_FRAME_MAX_FRAC:.0%} of the ref: scenery drives its matches; re-crop or delete)")
+    out.append(f"\n## whole frames (detected car covers under {WHOLE_FRAME_MAX_FRAC:.0%} of the ref: scenery drives its matches, but it also fires when the detector misses a dark or blurred car, so look before deleting)")
     for share, i in frames[:top]:
         out.append(f"  {path[i]}  [{entry[i]}]  car share {share:.0%}")
     out.append(f"  ({len(frames)} in total)")
     out.append("\n## redundant (refs with a near-duplicate in the same entry)")
     for name, c in redundant[:top]:
         out.append(f"  {name}: {c}")
+    out.append("\n## duplicate groups (keep the first file, the rest add no variety; `--quarantine-duplicates` moves them aside)")
+    for keep, drops in duplicate_groups(collection_dir, emb, entry, path, dup_sim)[:top]:
+        out.append(f"  keep {path[keep]}  [{entry[keep]}]  drop {', '.join(path[i] for i in drops)}")
 
     report = os.path.join(collection_dir, "ref-audit.txt")
     with open(report, "w", encoding="utf-8") as f:
@@ -223,10 +282,18 @@ def main():
     ap.add_argument("--dup-sim", type=float, default=0.97)
     ap.add_argument("--top", type=int, default=40, help="rows per section")
     ap.add_argument("--detector", default="", help="YOLOX .onnx; enables the whole-frame check")
+    ap.add_argument("--quarantine-duplicates", action="store_true",
+                    help="instead of auditing, move near-duplicate refs (one kept per group) to refs-quarantine/")
+    ap.add_argument("--dry-run", action="store_true", help="with --quarantine-duplicates: list the moves, change nothing")
     a = ap.parse_args()
     for need in ("entries.json", "index.npz"):
         if not os.path.isfile(os.path.join(a.collection_dir, need)):
             sys.exit(f"{a.collection_dir} has no {need}: pass the collection folder itself (the one holding entries.json)")
+    if a.quarantine_duplicates:
+        moved = quarantine_duplicates(a.collection_dir, a.dup_sim, a.dry_run)
+        print("\n".join(f"{src}  ->  {dst}" for src, dst in moved))
+        print(f"{len(moved)} refs {'would be ' if a.dry_run else ''}moved to refs-quarantine/; run Audit references (or any Identify) to refresh the index")
+        return
     report, counts = write_audit(a.collection_dir, a.dup_sim, a.top, a.detector)
     print(f"{counts}\nwrote {report}")
 
