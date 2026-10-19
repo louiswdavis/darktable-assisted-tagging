@@ -182,7 +182,7 @@ def run_tests():
     with open(fake, "w") as f:
         f.write("<html>404</html>")
     try:
-        I.check_models({"detector": fake, "ocr_det": fake, "ocr_rec": fake, "embedder": fake})
+        I.check_models({"detector": fake, "ocr_det": fake, "ocr_rec": fake, "embedder": fake, "kind": "motorsport"})
         bad = "(no error)"
     except I.InputError as e:
         bad = str(e)
@@ -349,4 +349,11 @@ def run_tests():
 
 # Worker processes re-import this file on spawn; only the parent runs the tests.
 if __name__ == "__main__":
-    run_tests()
+    try:
+        run_tests()
+    except Exception:
+        # A crash stops the remaining checks, so say so in stdout with the traceback, not only on stderr.
+        import traceback
+        print("\nFAIL crashed before finishing; later checks did not run")
+        print(traceback.format_exc())
+        sys.exit(1)
