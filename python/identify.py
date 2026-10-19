@@ -749,7 +749,9 @@ def identify(args, models: dict):
     if cancel_requested(args.progress):
         log("cancelled")
         sys.exit(130)
-    analyses = rescue_frames(rows, analyses, models)
+    # --verify compares each frame's own reading with its tags: no inference from burst mates
+    if not verify:
+        analyses = rescue_frames(rows, analyses, models)
 
     frames, burst_of, box0_sims, detail = {}, {}, {}, {}
     for image_id, filepath, burst, _protected, _hints, taken in rows:
@@ -773,10 +775,11 @@ def identify(args, models: dict):
         detail[image_id]["frame"] = a["frame"]
         frames[image_id] = match_frame(image_id, a, index, entries, rules, team_of, tag_hints_of[image_id],
                                        detail[image_id]["boxes"], box0_sims)
-    if rules.burst_livery_pooling:
+    if rules.burst_livery_pooling and not verify:
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
     shooting_order = {i: (d["time"] if d["time"] is not None else 0, d["file"]) for i, d in detail.items()}
-    frames = burst_consensus(frames, burst_of, entries, shooting_order)
+    if not verify:
+        frames = burst_consensus(frames, burst_of, entries, shooting_order)
 
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
     shots = {}
