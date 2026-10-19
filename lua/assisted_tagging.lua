@@ -1233,7 +1233,7 @@ function M.identify_images(images, replace_manual, verify_only)
     M.cancel_requested = false
     identify_cancellable = true
     if identify_button then identify_button.label = _("Cancel") end
-    start_log("identify started", #images)
+    start_log(verify_only and "verify started" or "identify started", #images)
 
     local job, run = nil, nil
     local okr, err = pcall(function()
