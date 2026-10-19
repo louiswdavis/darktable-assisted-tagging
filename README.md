@@ -308,7 +308,7 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 | `MIN_BOX_FRAC` | `vehicles.py` | 0.02 | the smallest vehicle, as a share of the frame, worth identifying |
 | `MAX_BOXES` | `vehicles.py` | 4 | vehicles identified per frame |
 | `CROP_DIM` | `vehicles.py` | 640 | the long side each vehicle crop is reduced to |
-| `DETECTOR_MIN_SCORE` | `vehicles.py` | 0.25 | the confidence a vehicle detection needs |
+| `DETECTOR_MIN_SCORE` | `vehicles.py` | 0.20 | the confidence a vehicle detection needs |
 
 The run log has one line per vehicle with the numbers read and the top two livery matches with their similarity, e.g. `box 0: livery VER (OCR -; livery VER 0.712, TSU 0.694)`. Read a few from a shoot to see where the right and wrong answers fall before changing `MATCH_MIN_SIM` or `MATCH_MIN_MARGIN`.
 
