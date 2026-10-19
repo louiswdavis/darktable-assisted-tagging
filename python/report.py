@@ -208,6 +208,8 @@ def describe(r: dict) -> str:
         parts.append("ocr saw no text")
     if r.get("pod"):
         parts.append(f"pod {pod_colour(r['pod']) or 'unclear'} (yellow {r['pod']['yellow']:.3f}, aspect {r['pod']['aspect']:.1f})")
+    if r.get("rescued"):
+        parts.append(f"rescued from {r['rescued']['from']} (crop similarity {r['rescued']['sim']:.2f})")
     h = r.get("hint")
     if h:
         parts.append("hint " + ", ".join(f"`{p.rsplit('|', 1)[-1]}`" for p in h["prefixes"]) + f" ({h['source']})"

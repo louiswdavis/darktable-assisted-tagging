@@ -27,13 +27,14 @@ import sys
 import time
 from dataclasses import dataclass, replace
 
-from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect_vehicles, detector_model, file_key, load_full, log
+from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect, detect_vehicles, detector_model, file_key, load_full, log
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
                    burst_consensus, conflicts, decided_by, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from pod import pod_colour, pod_reading
+from rescue import RESCUE_MIN_SIM, plan_burst
 from sponsors import sponsor_prefixes
 from report import write_report
 from reference_store import ReferenceIndex
@@ -338,7 +339,7 @@ def frame_key(filepath: str, models: dict) -> list:
     """Cache key parts for a frame's analysis. Entries and references stay out of it."""
     return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
-            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-1"]
+            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-1", "cand-1"]
 
 
 # ---------------------------------------------------------------- progress
@@ -378,7 +379,15 @@ def _init_worker(models: dict):
 def analyse_frame(filepath: str) -> dict:
     """Boxes, OCR candidates and embeddings for one frame: the cached value."""
     rgb = load_full(filepath)
-    boxes, note = detect_vehicles(rgb, _W["models"]["detector"])
+    boxes, weak, note = detect(rgb, _W["models"]["detector"])
+    h, w = rgb.shape[:2]
+    out = _read_boxes(rgb, boxes)
+    out.update(note=note, frame=[w, h], candidates=[list(b) for b in weak])
+    return out
+
+
+def _read_boxes(rgb, boxes: list) -> dict:
+    """OCR candidates, pod reading and embedding of each box, in the analysis shape."""
     ocr, trace, emb, pod = [], [], [], []
     for b in boxes:
         pod.append(pod_reading(rgb, b))
@@ -386,9 +395,22 @@ def analyse_frame(filepath: str) -> dict:
         ocr.append([[d, c] for d, c in _W["reader"].read(crop)])
         trace.append(_W["reader"].last_trace)
         emb.append(encode(_W["embedder"].embed(crop)))
+    return {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "pod": pod, "emb": emb}
+
+
+def rescue_frame(job: tuple):
+    """(path, candidate box, mate path, mate's encoded embedding) → the frame's analysis with the
+    candidate as its one box, or None when its crop doesn't look like the mate's (the sim is under
+    RESCUE_MIN_SIM). The analysis carries `rescued` {from, sim}."""
+    path, box, mate_path, mate_emb = job
+    rgb = load_full(path)
+    sim = float((_W["embedder"].embed(crop_box(rgb, box)) * decode(mate_emb)).sum())
+    if sim < RESCUE_MIN_SIM:
+        return None
     h, w = rgb.shape[:2]
-    return {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "pod": pod, "emb": emb, "note": note,
-            "frame": [w, h]}
+    out = _read_boxes(rgb, [box])
+    out.update(note="", frame=[w, h], candidates=[], rescued={"from": os.path.basename(mate_path), "sim": round(sim, 4)})
+    return out
 
 
 # ---------------------------------------------------------------- identify mode
@@ -502,6 +524,37 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
     return out
 
 
+def rescue_frames(rows: list, analyses: dict, models: dict) -> dict:
+    """analyses with the frames the detector missed filled in from burst-mates: for a no-vehicle
+    frame in a burst that has vehicle frames, a weak candidate that tracks a mate's box becomes its
+    box when its crop looks like the mate's (rescue.py). Not cached: it depends on the burst."""
+    bursts: dict = {}
+    seen = set()
+    for _id, filepath, burst, *_rest, taken in rows:
+        if filepath in seen or filepath not in analyses:
+            continue
+        seen.add(filepath)
+        bursts.setdefault(burst, []).append((int(taken) if taken.isdigit() else 0, filepath))
+    jobs = []
+    for members in bursts.values():
+        ordered = [(p, analyses[p]) for _, p in sorted(members)]
+        for path, (box, mate) in plan_burst(ordered).items():
+            jobs.append((path, box, mate, analyses[mate]["emb"][0]))
+    if not jobs:
+        return analyses
+    log(f"rescue: {len(jobs)} frames with no vehicle have a candidate where a burst-mate's car is")
+    out = dict(analyses)
+    with concurrent.futures.ProcessPoolExecutor(max_workers=min(worker_count(os.cpu_count() or 2), len(jobs)),
+                                                initializer=_init_worker, initargs=(models,)) as executor:
+        for job, result in zip(jobs, executor.map(rescue_frame, jobs)):
+            if result is None:
+                log(f"{job[0]}: rescue candidate doesn't look like {os.path.basename(job[2])}'s car, left as no vehicle")
+                continue
+            log(f"{job[0]}: rescued a vehicle from {result['rescued']['from']} (crop similarity {result['rescued']['sim']})")
+            out[job[0]] = result
+    return out
+
+
 def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: dict) -> dict:
     """Experimental (rules.burst_livery_pooling): for each burst with 2+ frames, pool
     box-0 livery similarity across them and re-run the livery/team decision once on the
@@ -570,7 +623,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict",
-                          "pod": b.get("pod", {}), "hint": b.get("hint", {})})
+                          "pod": b.get("pod", {}), "hint": b.get("hint", {}), "rescued": b.get("rescued", {})})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes}
     return {"collection": collection,
@@ -612,7 +665,8 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
             + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else ""))
         results.append(r)
         boxes_out.append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
-                          "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "hint": hint})
+                          "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "hint": hint,
+                          "rescued": a.get("rescued", {})})
         if i == 0 and rules.burst_livery_pooling:
             box0_sims[image_id] = sims
     return results
@@ -680,6 +734,7 @@ def identify(args, models: dict):
     if cancel_requested(args.progress):
         log("cancelled")
         sys.exit(130)
+    analyses = rescue_frames(rows, analyses, models)
 
     frames, burst_of, box0_sims, detail = {}, {}, {}, {}
     for image_id, filepath, burst, _protected, _hints, taken in rows:

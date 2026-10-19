@@ -85,6 +85,8 @@ DETECTOR_INPUT = 640
 DETECTOR_STRIDES = (8, 16, 32)
 DETECTOR_MIN_SCORE = 0.20  # dark and distant liveries score 0.22-0.34, below the usual 0.35
 DETECTOR_NMS = 0.5
+CANDIDATE_MIN_SCORE = 0.03  # weaker detections kept as rescue candidates (see rescue.py)
+MAX_CANDIDATES = 5
 VEHICLE_CLASSES = [2, 3, 7]  # COCO car, motorcycle, truck (race cars are often called trucks)
 
 _DETECTORS: dict = {}
@@ -114,7 +116,7 @@ def _yolox_anchors(size: int = DETECTOR_INPUT) -> tuple:
     return np.concatenate(grids), np.concatenate(strides)
 
 
-def decode_vehicles(raw: np.ndarray, scale: float) -> list:
+def decode_vehicles(raw: np.ndarray, scale: float, min_score: float = DETECTOR_MIN_SCORE) -> list:
     """Raw YOLOX output (anchors × 85) → [(x0, y0, x1, y1, score, coco_class)]
     vehicle boxes in source pixels after NMS. `scale` is the letterbox resize factor."""
     grid, stride = _yolox_anchors()
@@ -122,12 +124,12 @@ def decode_vehicles(raw: np.ndarray, scale: float) -> list:
     wh = np.exp(raw[:, 2:4]) * stride
     cls = raw[:, 4:5] * raw[:, 5:][:, VEHICLE_CLASSES]
     score, best = cls.max(axis=1), cls.argmax(axis=1)
-    keep = score >= DETECTOR_MIN_SCORE
+    keep = score >= min_score
     if not keep.any():
         return []
     xy, wh, score, best = xy[keep] / scale, wh[keep] / scale, score[keep], best[keep]
     tl = xy - wh / 2
-    picked = cv2.dnn.NMSBoxes(np.hstack([tl, wh]).tolist(), score.tolist(), DETECTOR_MIN_SCORE, DETECTOR_NMS)
+    picked = cv2.dnn.NMSBoxes(np.hstack([tl, wh]).tolist(), score.tolist(), min_score, DETECTOR_NMS)
     return [(tl[i, 0], tl[i, 1], tl[i, 0] + wh[i, 0], tl[i, 1] + wh[i, 1], float(score[i]),
              VEHICLE_CLASSES[best[i]]) for i in np.asarray(picked).reshape(-1)]
 
@@ -163,9 +165,10 @@ def select_boxes(boxes: list, w: int, h: int) -> list:
     return out[:MAX_BOXES]
 
 
-def detect_vehicles(rgb: np.ndarray, model_path: str) -> tuple:
-    """(vehicle boxes as (x0, y0, x1, y1, score, coco) in rgb pixels, log note:
-    "" when at least one box passed)."""
+def detect(rgb: np.ndarray, model_path: str) -> tuple:
+    """(vehicle boxes as (x0, y0, x1, y1, score, coco) in rgb pixels, weaker candidate boxes in
+    the same form strongest first, log note: "" when at least one box passed). Candidates scored
+    CANDIDATE_MIN_SCORE up to DETECTOR_MIN_SCORE; they only matter to burst rescue."""
     h, w = rgb.shape[:2]
     scale = min(DETECTOR_INPUT / h, DETECTOR_INPUT / w)
     canvas = np.full((DETECTOR_INPUT, DETECTOR_INPUT, 3), 114.0, np.float32)
@@ -175,9 +178,18 @@ def detect_vehicles(rgb: np.ndarray, model_path: str) -> tuple:
     net.setInput(np.transpose(canvas, (2, 0, 1))[np.newaxis])
     raw = net.forward(net.getUnconnectedOutLayersNames())[0][0]
     boxes = select_boxes(decode_vehicles(raw, scale), w, h)
+    weak = [b for b in select_boxes(decode_vehicles(raw, scale, CANDIDATE_MIN_SCORE), w, h) if b[4] < DETECTOR_MIN_SCORE]
+    weak = sorted(weak, key=lambda b: b[4], reverse=True)[:MAX_CANDIDATES]
     if boxes:
-        return boxes, ""
-    return [], f"no vehicle at {DETECTOR_MIN_SCORE}: {strongest_detections(raw, scale, w, h)}"
+        return boxes, weak, ""
+    return [], weak, f"no vehicle at {DETECTOR_MIN_SCORE}: {strongest_detections(raw, scale, w, h)}"
+
+
+def detect_vehicles(rgb: np.ndarray, model_path: str) -> tuple:
+    """(vehicle boxes as (x0, y0, x1, y1, score, coco) in rgb pixels, log note:
+    "" when at least one box passed)."""
+    boxes, _, note = detect(rgb, model_path)
+    return boxes, note
 
 
 def crop_box(rgb: np.ndarray, box) -> np.ndarray:
