@@ -109,6 +109,25 @@ def run_tests():
         skipped = f"raised {type(e).__name__}"
     check("a zero-byte crop is skipped", skipped, {"VER": 1})
 
+    # a face index: 128-d vectors, raw similarities for every reference
+    class SmallEmbedder:
+        def embed(self, crop):
+            v = np.zeros(128, np.float32)
+            v[int(round(float(crop.mean()))) % 128] = 1.0
+            return v
+
+    f = tempfile.mkdtemp()
+    idx = ReferenceIndex.load(f, SmallEmbedder(), ["faces"], dim=128)
+    idx.add("A", "1", crop(10))
+    idx.add("A", "2", crop(11))
+    idx.add("B", "3", crop(10))
+    idx.save()
+    check("a 128-d index reloads at 128", ReferenceIndex.load(f, SmallEmbedder(), ["faces"], dim=128).emb.shape, (3, 128))
+    probe = SmallEmbedder().embed(crop(10))
+    check("all_sims gives one raw cosine per reference", sorted((e, round(s, 3)) for e, s in idx.all_sims(probe)),
+          [("A", 0.0), ("A", 1.0), ("B", 1.0)])
+    check("all_sims on an empty index", ReferenceIndex.load(tempfile.mkdtemp(), SmallEmbedder(), ["faces"], dim=128).all_sims(probe), [])
+
     print("")
     if failures == 0:
         print("all tests passed")

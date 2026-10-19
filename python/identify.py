@@ -37,6 +37,7 @@ from pod import pod_colour, pod_reading
 from rescue import RESCUE_MIN_SIM, plan_burst
 from sponsors import sponsor_prefixes
 from report import write_report
+from kinds import DEFAULT_KIND, check_entry_fields, check_kind
 from reference_store import ReferenceIndex
 
 IDENTIFY_CACHE_VERSION = 1
@@ -92,6 +93,13 @@ class Rules:
     sponsor_keywords: tuple = ()
     # Solo shots carrying only a team-prefix tag are accepted as team-level references.
     partial_references: bool = False
+    # Which pipeline the collection runs (kinds.KINDS). The three below only steer `people`: a face
+    # is tagged when its entry scores at least min_sim, leads the runner-up by margin, and is at
+    # least min_face_px wide.
+    kind: str = DEFAULT_KIND
+    min_sim: float = 0.50
+    margin: float = 0.05
+    min_face_px: int = 48
 
 
 def _check_tags(tags, where: str, bad, allow_empty: bool = False):
@@ -109,10 +117,24 @@ def _load_rules(raw, bad) -> Rules:
     if not isinstance(raw, dict):
         raise bad('"rules" must be an object')
     unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling",
-                                  "blur_references", "sponsor_keywords", "partial_references"})
+                                  "blur_references", "sponsor_keywords", "partial_references",
+                                  "min_sim", "margin", "min_face_px"})
     if unknown:
         raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics, '
-                   f'burst_livery_pooling, blur_references, sponsor_keywords, partial_references)')
+                   f'burst_livery_pooling, blur_references, sponsor_keywords, partial_references, '
+                   f'min_sim, margin, min_face_px)')
+    defaults = Rules()
+    min_sim, margin, min_px = (raw.get("min_sim", defaults.min_sim), raw.get("margin", defaults.margin),
+                               raw.get("min_face_px", defaults.min_face_px))
+    for name, v in (("min_sim", min_sim), ("margin", margin)):
+        if isinstance(v, bool) or not isinstance(v, (int, float)):
+            raise bad(f"rules.{name} must be a number")
+    if not 0 < min_sim <= 1:
+        raise bad("rules.min_sim must be above 0 and at most 1")
+    if not 0 <= margin < 1:
+        raise bad("rules.margin must be at least 0 and under 1")
+    if isinstance(min_px, bool) or not isinstance(min_px, int) or min_px < 1:
+        raise bad("rules.min_face_px must be a whole number of pixels, at least 1")
     sponsors = raw.get("sponsor_keywords", {})
     if not isinstance(sponsors, dict) or not all(
             isinstance(k, str) and k.strip() and k == k.lower() and isinstance(v, str) and v.strip()
@@ -143,7 +165,7 @@ def _load_rules(raw, bad) -> Rules:
             raise bad(f'rules.diagnostics.{key} must be a tag name without , ; or " ("" for none)')
         diag[key] = name.strip()
     return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling, blur_refs,
-                 tuple(sponsors.items()), partial)
+                 tuple(sponsors.items()), partial, min_sim=float(min_sim), margin=float(margin), min_face_px=min_px)
 
 
 def load_collection(collection_dir: str) -> tuple:
@@ -163,10 +185,16 @@ def load_collection(collection_dir: str) -> tuple:
         raise bad(f"not valid JSON ({e})")
     rules_raw = None
     if isinstance(data, dict):
-        unknown = sorted(set(data) - {"rules", "entries"})
+        unknown = sorted(set(data) - {"kind", "rules", "entries"})
         if unknown:
-            raise bad(f'unknown key "{unknown[0]}" (the file holds "rules" and "entries")')
-        rules_raw, data = data.get("rules"), data.get("entries")
+            raise bad(f'unknown key "{unknown[0]}" (the file holds "kind", "rules" and "entries")')
+        kind_raw, rules_raw, data = data.get("kind", DEFAULT_KIND), data.get("rules"), data.get("entries")
+    else:
+        kind_raw = DEFAULT_KIND
+    try:
+        kind = check_kind(kind_raw)
+    except ValueError as e:
+        raise bad(str(e))
     if not isinstance(data, list):
         raise bad('"entries" must be a list of entries')
     entries = {}
@@ -180,11 +208,15 @@ def load_collection(collection_dir: str) -> tuple:
             raise bad(f'entry "{eid}": id can\'t contain any of , ; " / \\ : * ? < > |')
         if eid in entries:
             raise bad(f'entry "{eid}" appears twice')
-        unknown = sorted(set(item) - {"id", "number", "team", "tags", "camera"})
+        unknown = check_entry_fields(kind, item)
         if unknown:
-            raise bad(f'entry "{eid}": unknown field "{unknown[0]}" (fields are id, number, team, tags, camera)')
+            fields = "id, tags" if kind == "people" else "id, number, team, tags, camera"
+            raise bad(f'entry "{eid}": unknown field "{unknown}" (fields are {fields})')
         tags = item.get("tags")
         _check_tags(tags, f'entry "{eid}": tags', bad)
+        if kind == "people":
+            entries[eid] = Entry(eid, "", "", tuple(tags))
+            continue
         number = item.get("number", "")
         number = str(number) if isinstance(number, int) and not isinstance(number, bool) else number
         if not isinstance(number, str) or (number and not re.fullmatch(r"\d{1,3}", number)):
@@ -196,7 +228,11 @@ def load_collection(collection_dir: str) -> tuple:
         if camera not in ("", "yellow", "black"):
             raise bad(f'entry "{eid}": camera must be "yellow" or "black"')
         entries[eid] = Entry(eid, number, team, tuple(tags), camera)
-    rules = _load_rules(rules_raw, bad)
+    rules = replace(_load_rules(rules_raw, bad), kind=kind)
+    if kind == "people":
+        if rules_raw is None:
+            log("warning: entries.json has no rules block, so the face thresholds use defaults")
+        return entries, rules
     teams: dict = {}
     for e in entries.values():
         if e.team:

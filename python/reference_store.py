@@ -16,19 +16,19 @@ CENTRE_MIN_REFS = 20  # fewer references than this: their mean says too little, 
 
 
 class ReferenceIndex:
-    def __init__(self, collection_dir: str, embedder, key, blur: bool = False):
+    def __init__(self, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM):
         self.dir = collection_dir
         self.refs = os.path.join(collection_dir, "refs")
         self.embedder = embedder
         self.blur = blur
         self.key = json.dumps(key)
-        self.emb = np.zeros((0, EMBED_DIM), np.float32)
+        self.emb = np.zeros((0, dim), np.float32)
         self.entry: list = []
         self.path: list = []
 
     @classmethod
-    def load(cls, collection_dir: str, embedder, key, blur: bool = False) -> "ReferenceIndex":
-        idx = cls(collection_dir, embedder, key, blur)
+    def load(cls, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM) -> "ReferenceIndex":
+        idx = cls(collection_dir, embedder, key, blur, dim)
         stored = idx._read()
         on_disk = idx._scan()
         changed = stored is None
@@ -134,6 +134,13 @@ class ReferenceIndex:
             if s > best.get(e, -2.0):
                 best[e] = s
         return sorted(best.items(), key=lambda kv: kv[1], reverse=True)
+
+    def all_sims(self, vec: np.ndarray) -> list:
+        """[(entry_id, raw cosine similarity)] for every reference, in index order. No centring: face
+        embeddings spread out already."""
+        if not self.entry:
+            return []
+        return list(zip(self.entry, (self.emb @ np.asarray(vec, np.float32)).tolist()))
 
     def count_by_entry(self) -> dict:
         counts: dict = {}

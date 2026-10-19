@@ -84,11 +84,28 @@ def run_tests():
         missing = str(e)
     check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
-          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references)')
+          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px)')
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
           'entry "VER": unknown field "tagz" (fields are id, number, team, tags, camera)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
-          'unknown key "entrys" (the file holds "rules" and "entries")')
+          'unknown key "entrys" (the file holds "kind", "rules" and "entries")')
+    LH = {"id": "Lando Norris", "tags": ["People|Professions|F1 Drivers|Lando Norris"]}
+    PX = {"id": "Max Verstappen", "tags": ["People|Professions|F1 Drivers|Max Verstappen"]}
+    check("kind defaults to motorsport", I.load_collection(collection([VER, TSU]))[1].kind, "motorsport")
+    p_entries, p_rules = I.load_collection(collection({"kind": "people", "entries": [LH, PX]}))
+    check("a people collection loads", (p_rules.kind, list(p_entries), p_entries["Lando Norris"].tags),
+          ("people", ["Lando Norris", "Max Verstappen"], ("People|Professions|F1 Drivers|Lando Norris",)))
+    check("people face rules have defaults", (p_rules.min_sim, p_rules.margin, p_rules.min_face_px), (0.50, 0.05, 48))
+    _, tuned = I.load_collection(collection({"kind": "people", "rules": {"min_sim": 0.6, "margin": 0, "min_face_px": 64},
+                                             "entries": [LH]}))
+    check("people face rules are read", (tuned.min_sim, tuned.margin, tuned.min_face_px), (0.6, 0.0, 64))
+    check("a people entry with a number is rejected", load_error({"kind": "people", "entries": [dict(LH, number="3")]}),
+          'entry "Lando Norris": unknown field "number" (fields are id, tags)')
+    check("an unknown kind lists the valid ones", load_error({"kind": "faces", "entries": []}),
+          "unknown kind 'faces' (kinds are motorsport, people)")
+    for bad_rule in ({"min_sim": 1.5}, {"margin": -0.1}, {"min_face_px": 0}):
+        name = next(iter(bad_rule))
+        check(f"rules.{name} out of range is rejected", name in load_error({"kind": "people", "rules": bad_rule, "entries": [LH]}), True)
     check("a bad team_only value is rejected", load_error({"rules": {"team_only": "both"}, "entries": []}),
           'rules.team_only must be "shared tags" or "none"')
     check("an unknown diagnostic is named", load_error({"rules": {"diagnostics": {"guess": "x"}}, "entries": []}),
