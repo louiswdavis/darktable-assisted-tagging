@@ -4,6 +4,7 @@ once, matched against all the others. Run from this folder:
 
   python eval_matching.py COLLECTION_DIR                      # embedding-only variants
   python eval_matching.py COLLECTION_DIR --embedder PATH.onnx  # also colour and stretch variants
+  python eval_matching.py COLLECTION_DIR --colour-only         # colour histograms alone; needs refs/, no model
 
 COLLECTION_DIR holds entries.json, index.npz and refs/. Near-duplicates of the query (cosine over
 --dup-sim, e.g. frames of one burst) are ignored as neighbours, so the numbers aren't flattered by
@@ -111,10 +112,70 @@ def stretch_embed(embedder_path, imgs):
     return np.stack([model.embed(c) for c in imgs])
 
 
+def colour_report(cdir, entry, path, team, blur):
+    """Colour-only leave-one-out: each reference's HSV histogram against the other references' mean
+    histogram per entry and per team. Shows which entries/teams colour alone separates, and which
+    it cannot. Written to colour-report.txt in the collection folder."""
+    missing = [p for p in path if not os.path.isfile(os.path.join(cdir, *p.split("/")))]
+    if missing:
+        sys.exit(f"{len(missing)} of {len(path)} reference crops are missing under {cdir} (first: {missing[0]}); --colour-only needs the refs/ images")
+    hist = unit(np.stack([hsv_hist(c) for c in crops(cdir, path, blur)]))
+    names = sorted(set(entry))
+    teams = sorted({team[e] for e in names})
+    idx = {n: i for i, n in enumerate(names)}
+    tidx = {t: i for i, t in enumerate(teams)}
+    e_of = np.array([idx[e] for e in entry])
+    t_of = np.array([tidx[team[e]] for e in entry])
+
+    def loo_scores(group, n):
+        sums = np.zeros((n, hist.shape[1]))
+        np.add.at(sums, group, hist)
+        count = np.bincount(group, minlength=n).astype(float)
+        scores = np.full((len(hist), n), -np.inf)
+        for g in range(n):
+            if count[g] == 0:
+                continue
+            cent = unit(sums[g][None])[0]
+            scores[:, g] = hist @ cent
+        for i, g in enumerate(group):
+            if count[g] > 1:
+                scores[i, g] = hist[i] @ unit((sums[g] - hist[i])[None])[0]
+            else:
+                scores[i, g] = -np.inf
+        return scores
+
+    lines = [f"{len(hist)} references, {len(names)} entries, {len(teams)} teams (colour histogram only, leave-one-out)"]
+    e_scores, t_scores = loo_scores(e_of, len(names)), loo_scores(t_of, len(teams))
+    e_top, t_top = e_scores.argmax(axis=1), t_scores.argmax(axis=1)
+    lines.append(f"entry accuracy {np.mean(e_top == e_of):.1%}, team accuracy {np.mean(t_top == t_of):.1%} "
+                 f"(chance ~{1 / len(names):.1%} / {1 / len(teams):.1%})")
+    lines.append("")
+    lines.append("per entry: refs, recall as entry, recall as team, most-confused-with")
+    for n in names:
+        sel = e_of == idx[n]
+        wrong = Counter(names[j] for j in e_top[sel] if j != idx[n])
+        confused = ", ".join(f"{k} x{v}" for k, v in wrong.most_common(2)) or "-"
+        flag = "  <5 refs" if sel.sum() < 5 else ""
+        lines.append(f"  {n:<14}{int(sel.sum()):>4}  {np.mean(e_top[sel] == idx[n]):>6.0%}  "
+                     f"{np.mean(t_top[sel] == tidx[team[n]]):>6.0%}  {confused}{flag}")
+    lines.append("")
+    lines.append("team pairs colour confuses most (true -> predicted, count)")
+    pairs = Counter((teams[a], teams[b]) for a, b in zip(t_of, t_top) if a != b)
+    for (a, b), c in pairs.most_common(8):
+        lines.append(f"  {a} -> {b} x{c}")
+    lines.append("")
+    lines.append("References are cleaner than real in-race crops: read the ranking, not the absolute accuracy.")
+    text = "\n".join(lines)
+    print(text)
+    with open(os.path.join(cdir, "colour-report.txt"), "w", encoding="utf-8") as f:
+        f.write(text + "\n")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("collection_dir")
     ap.add_argument("--embedder", default="", help="DINOv2 .onnx; adds the colour and stretch variants")
+    ap.add_argument("--colour-only", action="store_true", help="colour-histogram analysis of the refs/ images; no model")
     ap.add_argument("--dup-sim", type=float, default=0.97)
     ap.add_argument("--topk", type=int, default=3)
     a = ap.parse_args()
@@ -123,6 +184,9 @@ def main():
             sys.exit(f"{a.collection_dir} has no {need}: pass the collection folder itself (the one holding entries.json)")
     emb, entry, path, team, blur = load(a.collection_dir)
     print(f"{len(entry)} references, {len(set(entry))} entries with 2+; blur_references={blur}")
+    if a.colour_only:
+        colour_report(a.collection_dir, entry, path, team, blur)
+        return
     dup = dup_mask_of(emb, a.dup_sim)
     centred = unit(emb - emb.mean(axis=0))
     variants = [("baseline (max similarity)", emb, 1), (f"top-{a.topk} mean", emb, a.topk),
