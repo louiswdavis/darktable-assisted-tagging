@@ -8,7 +8,7 @@ ok   categorize: below min sim
 ok   categorize: small margin
 ok   pod_stats: right, unclear and wrong against the entry's camera
 ok   pod_stats: only number-identified frames count
-FAIL pod_stats: percentiles: got (0.0007, 0.01), want (0.001, 0.01)
+ok   pod_stats: percentiles
 ok   pod_stats: no camera colours, no stats
 ok   lever: shared tag, no team set
 ok   lever: no shared tag, runner-up has refs
@@ -32,4 +32,4 @@ ok   render: a dropped hint is listed and counted
 ok   render: no hint, no hint line
 ok   write_report: both files, every row carries its category
 
-1 test(s) failed
+all tests passed
