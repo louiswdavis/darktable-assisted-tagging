@@ -11,6 +11,9 @@ BURST_MAX_RANK = 2  # the burst's entry must be in the box's own top N by simila
 BURST_SIM_SLACK = 0.05  # ...or within this of its top-1
 REFERENCE_MIN_MARGIN = 0.10  # a livery match must lead by this much to be saved as a reference
 
+CONFUSABLE_DIGITS = {frozenset(p) for p in ("56", "17", "06", "08", "38", "35", "14")}  # pairs OCR swaps on race numbers
+MISREAD_TOP_N = 3  # a misread number only backs an entry in the livery's own top N
+
 IDENTIFIED = ("number", "livery")
 
 
@@ -88,6 +91,24 @@ def _fragment_of_livery(hit: str, ocr: list, sims: list, entries: dict) -> bool:
     return any(d != top.number and d in top.number for d in read)
 
 
+def _one_confusion_apart(read: str, number: str) -> bool:
+    """True when `read` is `number` with exactly one digit swapped for a look-alike."""
+    if len(read) != len(number):
+        return False
+    diff = [(a, b) for a, b in zip(read, number) if a != b]
+    return len(diff) == 1 and frozenset(diff[0]) in CONFUSABLE_DIGITS
+
+
+def _misread_number(ocr: list, sims: list, entries: dict):
+    """(entry_id, similarity) when exactly one of the livery's top MISREAD_TOP_N entries, at or above
+    MATCH_MIN_SIM, has a number one look-alike digit away from a number OCR read (a 5 read for a 6);
+    else None. Only called when the read matches no entry's number exactly."""
+    near = [(eid, s) for eid, s in sims[:MISREAD_TOP_N]
+            if s >= MATCH_MIN_SIM and eid in entries and entries[eid].number
+            and any(_one_confusion_apart(d, entries[eid].number) for d, _ in ocr)]
+    return near[0] if len(near) == 1 else None
+
+
 def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
     """ocr: [(digits, confidence)]; sims: [(entry_id, similarity)] most similar first."""
     by_number: dict = {}
@@ -102,6 +123,10 @@ def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
     if len(hits) == 1 and not _fragment_of_livery(next(iter(hits)), ocr, sims, entries):
         return BoxResult(box, "number", hits.pop(), "", best_conf)
     unmatched = ";".join(dict.fromkeys(digits for digits, _ in ocr))
+    if not hits:
+        fuzzy = _misread_number(ocr, sims, entries)
+        if fuzzy:
+            return BoxResult(box, "livery", fuzzy[0], "", fuzzy[1], unmatched)
     return match_livery(box, sims, entries, unmatched)
 
 

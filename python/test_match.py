@@ -58,6 +58,28 @@ def run_tests():
     check("an unmatched number falls through to livery",
           summary(Mt.match_box(0, [("99", 0.9)], [("HAM", 0.8), ("VER", 0.6)], ENTRIES)), ("livery", "HAM", ""))
 
+    # misread number: a look-alike digit off a number in the livery's top 3
+    close = [("HAM", 0.80), ("LEC", 0.79), ("VER", 0.70)]
+    check("a 15 read backs the 16 in the livery's top 3 despite a tie",
+          summary(Mt.match_box(0, [("15", 0.9)], close, ENTRIES)), ("livery", "LEC", ""))
+    check("the misread keeps the unmatched number for the diagnostic tag",
+          Mt.match_box(0, [("15", 0.9)], close, ENTRIES).unmatched_number, "15")
+    check("a misread's confidence is the entry's similarity",
+          Mt.match_box(0, [("15", 0.9)], close, ENTRIES).confidence, 0.79)
+    check("a 12 is not a look-alike of 16, so the teammate tie stands",
+          summary(Mt.match_box(0, [("12", 0.9)], close, ENTRIES)), ("team", "HAM", "LEC"))
+    check("a misread of an entry outside the livery's top 3 does nothing",
+          summary(Mt.match_box(0, [("15", 0.9)], [("HAM", 0.80), ("VER", 0.79), ("TSU", 0.78), ("LEC", 0.77)], ENTRIES)),
+          ("none", "", ""))
+    check("a misread of an entry under MATCH_MIN_SIM does nothing",
+          summary(Mt.match_box(0, [("15", 0.9)], [("HAM", 0.58), ("LEC", 0.57)], ENTRIES)), ("none", "", ""))
+    two = dict(ENTRIES, ALB=Entry("ALB", "15", "", ("F1|Williams",)))
+    check("an exact read of another entry's number beats the look-alike",
+          summary(Mt.match_box(0, [("15", 0.9)], close, two)), ("number", "ALB", ""))
+    twin = dict(ENTRIES, STR=Entry("STR", "13", "Aston Martin", ("F1|Aston Martin",)))
+    check("two entries a look-alike away from the read identify neither",
+          summary(Mt.match_box(0, [("15", 0.9)], [("LEC", 0.80), ("STR", 0.79)], twin)), ("none", "", ""))
+
     # livery rules
     check("a clear livery match identifies",
           summary(Mt.match_box(0, [], [("HAM", 0.85), ("VER", 0.65)], ENTRIES)), ("livery", "HAM", ""))
