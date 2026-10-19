@@ -54,6 +54,20 @@ def run_tests():
     check("categorize: below min sim", R.categorize(box(decided_by="below_min_sim", cands=(("a", 0.4),))), "weak-match")
     check("categorize: small margin", R.categorize(box()), "weak-match")
 
+    def podbox(entry, yellow, method="number"):
+        return dict(box(method), entry=entry, pod={"yellow": yellow, "aspect": 3.0})
+
+    pod_entries = {"a": dict(ENTRIES["a"], camera="yellow"), "b": dict(ENTRIES["b"], camera="black")}
+    pod_data = dict(data({"1": image([podbox("a", 0.01)]), "2": image([podbox("a", 0.001)]),
+                          "3": image([podbox("b", 0.0)]), "4": image([podbox("b", 0.01)]),
+                          "5": image([podbox("a", 0.01, "livery")])}), entries=pod_entries)
+    stats = R.pod_stats(pod_data, R.rows(pod_data))
+    check("pod_stats: right, unclear and wrong against the entry's camera", stats["verdicts"],
+          {"right": 2, "unclear": 1, "wrong": 1})
+    check("pod_stats: only number-identified frames count", sum(d["boxes"] for d in stats["drivers"]), 4)
+    check("pod_stats: percentiles", (stats["yellow_p10"], stats["black_p90"]), (0.001, 0.01))
+    check("pod_stats: no camera colours, no stats", R.pod_stats(data({"1": image([podbox("a", 0.01)])}), []), {})
+
     check("lever: shared tag, no team set", R.lever("weak-match", box(), ENTRIES), "set team on a and b")
     other = box(cands=(("a", 0.7), ("c", 0.69)))
     check("lever: no shared tag, runner-up has refs", R.lever("weak-match", other, ENTRIES), "")

@@ -152,6 +152,38 @@ def detector_bands(all_rows: list) -> list:
     return bands
 
 
+def quantile(values: list, q: float) -> float:
+    """The q-th quantile (0-1) of a non-empty list, nearest rank."""
+    s = sorted(values)
+    return s[min(int(q * len(s)), len(s) - 1)]
+
+
+def pod_stats(data: dict, all_rows: list) -> dict:
+    """How the camera-pod reading does on frames whose driver is known from the race number (the
+    only labelled data a run has), for the entries that have a `camera` colour:
+    {drivers: [{entry, camera, boxes, min, median, max}], verdicts: {right, unclear, wrong},
+    yellow_p10, black_p90}. `yellow_p10` is the 10th percentile yellow share over yellow-pod frames and
+    `black_p90` the 90th over black-pod side-on frames: YELLOW_MIN_FRAC should sit below the first and
+    above the second. Empty when no labelled frame has a pod reading."""
+    cameras = {eid: e.get("camera", "") for eid, e in data["entries"].items()}
+    labelled = [r for r in all_rows if r.get("method") == "number" and r.get("pod") and cameras.get(r["entry"])]
+    if not labelled:
+        return {}
+    by_entry: dict = {}
+    verdicts = {"right": 0, "unclear": 0, "wrong": 0}
+    for r in labelled:
+        by_entry.setdefault(r["entry"], []).append(r["pod"]["yellow"])
+        read = pod_colour(r["pod"])
+        verdicts["unclear" if not read else "right" if read == cameras[r["entry"]] else "wrong"] += 1
+    drivers = [{"entry": eid, "camera": cameras[eid], "boxes": len(v), "min": min(v),
+                "median": statistics.median(v), "max": max(v)} for eid, v in sorted(by_entry.items())]
+    yellow = [y for eid, v in by_entry.items() if cameras[eid] == "yellow" for y in v]
+    black = [r["pod"]["yellow"] for r in labelled if cameras[r["entry"]] == "black" and r["pod"]["aspect"] >= 2.0]
+    return {"drivers": drivers, "verdicts": verdicts,
+            "yellow_p10": quantile(yellow, 0.1) if yellow else None,
+            "black_p90": quantile(black, 0.9) if black else None}
+
+
 def sponsor_suggestions(data: dict, all_rows: list) -> list:
     """Words OCR read confidently on identified boxes that point at one tag prefix, not yet in
     `sponsor_keywords`: [{word, prefix, identified, other, unhinted}], best first. `prefix` is the
@@ -222,7 +254,7 @@ def describe(r: dict) -> str:
 def extras(data: dict, all_rows: list) -> dict:
     """The sections beyond the per-box rows, computed once for both the .md and the .json."""
     return {"bursts": burst_timing(data), "detector_bands": detector_bands(all_rows),
-            "sponsor_suggestions": sponsor_suggestions(data, all_rows)}
+            "sponsor_suggestions": sponsor_suggestions(data, all_rows), "pod": pod_stats(data, all_rows)}
 
 
 def render_md(data: dict, all_rows: list, summary: dict, top: int, extra: dict = None) -> str:
@@ -250,6 +282,17 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int, extra: dict =
                 "words OCR read on identified boxes of one tag prefix only; add under `rules.sponsor_keywords` after checking:"]
         out += [f"- `{s['word']}` → `{s['prefix']}`: {s['identified']} identified, would hint {s['unhinted']} unidentified"
                 for s in suggestions[:top]]
+    pod = extra.get("pod")
+    if pod and top > 0:
+        v = pod["verdicts"]
+        out += ["", "## camera pod (frames identified by number)", "",
+                f"read right {v['right']}, unclear {v['unclear']}, wrong {v['wrong']}",
+                "yellow share of the pod region per driver (min / median / max):"]
+        out += [f"- {d['entry']} ({d['camera']}, {d['boxes']} boxes): {d['min']:.4f} / {d['median']:.4f} / {d['max']:.4f}"
+                for d in pod["drivers"][:top]]
+        if pod["yellow_p10"] is not None and pod["black_p90"] is not None:
+            out.append(f"yellow-pod 10th percentile {pod['yellow_p10']:.4f}, black-pod side-on 90th percentile "
+                       f"{pod['black_p90']:.4f}: pod.YELLOW_MIN_FRAC should sit between them")
     timing = extra["bursts"]
     if timing["bursts"] and top > 0:
         out += ["", f"## bursts ({len(timing['bursts'])} timed, {timing['untimed']} without capture times)", "",
