@@ -184,6 +184,15 @@ def run_tests():
     check("hinted_match: restricts to the team", (r.method, r.entry_id, h["restricted"], h["dropped"]), ("livery", "VER", 2, False))
     r, h = Mt.hinted_match(0, [], [("HAM", 0.9), ("VER", 0.5), ("TSU", 0.4)], ENTRIES, ["F1|Red Bull"], "sponsor")
     check("hinted_match: low restricted similarity drops the hint", (r.entry_id, h["dropped"], h["reason"]), ("HAM", True, "below_min_sim"))
+    weak = [("HAM", 0.9), ("TSU", 0.5), ("VER", 0.45)]
+    r, h = Mt.hinted_match(0, [], weak, ENTRIES, ["F1|Red Bull"], "tag")
+    check("hinted_match: a weak livery under a tag gives the team", (r.method, r.entry_id, r.alt_entry_id, h["dropped"]), ("team", "TSU", "VER", False))
+    check("hinted_match: the pod then picks the driver", Mt.match_camera(
+        r, "yellow", dict(ENTRIES, VER=replace(ENTRIES["VER"], camera="yellow"), TSU=replace(ENTRIES["TSU"], camera="black"))).entry_id, "VER")
+    r, h = Mt.hinted_match(0, [("1", 0.9)], weak, ENTRIES, ["F1|Red Bull"], "tag")
+    check("hinted_match: a number inside the tagged set still wins", (r.method, r.entry_id), ("number", "VER"))
+    r, h = Mt.hinted_match(0, [], weak, ENTRIES, ["F1|Red Bull"], "sponsor")
+    check("hinted_match: a weak sponsor hint is still dropped", (r.method, h["dropped"]), ("livery", True))
     r, h = Mt.hinted_match(0, [("44", 0.9)], sims, ENTRIES, ["F1|Red Bull"], "tag")
     check("hinted_match: a number outside the set drops the hint", (r.entry_id, h["reason"]), ("HAM", "number_outside"))
     check("most_specific: an ancestor prefix is dropped", Mt.most_specific(["F1", "F1|Red Bull", "F1|Red Bull", "F2"]), ["F1|Red Bull", "F2"])
