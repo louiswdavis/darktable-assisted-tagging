@@ -1,0 +1,6 @@
+ok   yellow share over the line is yellow
+ok   no yellow on a side-on car is black
+ok   no yellow on a head-on car is unclear
+FAIL a trace of yellow is unclear: got 'yellow', want ''
+ok   no reading is unclear
+1 test(s) failed

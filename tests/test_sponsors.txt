@@ -1,0 +1,13 @@
+ok   exact keyword
+ok   one substitution on a long keyword
+ok   one deletion on a long keyword
+ok   one insertion on a long keyword
+ok   two edits is too far
+ok   a short keyword must match exactly
+ok   case is ignored
+ok   confidence under 0.90 is ignored
+ok   two words of one team collapse
+ok   sponsors of two teams give no hint
+ok   no trace, no hint
+
+all tests passed

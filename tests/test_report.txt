@@ -1,0 +1,35 @@
+ok   categorize: number, livery, burst and pooled are identified
+ok   categorize: team
+ok   categorize: conflict wins over the method
+ok   categorize: no references
+ok   categorize: no references wins over unmatched digits
+ok   categorize: unmatched number
+ok   categorize: below min sim
+ok   categorize: small margin
+FAIL pod_stats: right, unclear and wrong against the entry's camera: got {'right': 3, 'unclear': 0, 'wrong': 1}, want {'right': 2, 'unclear': 1, 'wrong': 1}
+ok   pod_stats: only number-identified frames count
+ok   pod_stats: percentiles
+ok   pod_stats: no camera colours, no stats
+ok   lever: shared tag, no team set
+ok   lever: no shared tag, runner-up has refs
+ok   lever: top entry without references
+ok   lever: below min sim
+ok   lever: unmatched number
+ok   lever: no references
+ok   lever: weak-match with no candidates
+ok   lever: identified has none
+ok   margin and top1 with one candidate
+ok   margin and top1 with none
+ok   rows: boxes, no-vehicle and already-tagged images; errors left out
+ok   summarize: total, errors, rate
+ok   summarize: medians only for populated categories
+ok   summarize: an empty run has zero shares and no medians
+ok   render: an empty run renders
+ok   render: top=1 lists the worst box and counts the rest
+ok   render: top=0 has summary only
+ok   render: ids with markdown characters sit in code spans
+ok   render: a dropped hint is listed and counted
+ok   render: no hint, no hint line
+ok   write_report: both files, every row carries its category
+
+1 test(s) failed

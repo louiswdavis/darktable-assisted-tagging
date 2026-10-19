@@ -1,0 +1,29 @@
+ok   an empty collection has no references
+ok   matching an empty index gives nothing
+ok   a sample is saved as refs/<entry>/<image id>.jpg
+ok   the sample file exists under a non-ASCII path
+ok   re-adding an image keeps one row for it
+ok   re-adding an image keeps one file
+ok   a reload reads the index without re-embedding
+ok   matching ranks the identical sample first
+ok   an identical sample scores 1
+ok   a deleted crop drops out of the index
+ok   turning colour on reads histograms from the crops without re-embedding
+ok   a blue query ranks the blue sample first when colour counts
+ok   a red query ranks the red sample first when colour counts
+ok   colour weight 0 ignores the histogram
+ok   saved histograms reload
+ok   a crop dropped in by hand is picked up and embedded
+ok   a new embedder key re-embeds every crop
+ok   an unreadable index is rebuilt from the crops
+ok   re-adding an image under another entry moves its sample
+ok   the old entry's file is removed
+ok   a zero-byte crop is skipped
+ok   a 128-d index reloads at 128
+ok   all_sims gives one raw cosine per reference
+ok   all_sims on an empty index
+
+all tests passed
+
+--- stderr ---
+17:12:44 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it

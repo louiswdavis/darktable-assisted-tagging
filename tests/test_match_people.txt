@@ -1,0 +1,15 @@
+ok   entry_scores: top-3 mean ignores the fourth sim, two-reference entry uses both
+ok   entry_scores: most similar first
+ok   entry_scores: no sims
+ok   width under min_face_px is too_small
+ok   width equal to min_face_px is scored
+ok   no scores is unknown
+ok   best under min_sim is unknown
+ok   best equal to min_sim with room over the runner-up is tagged
+ok   lead under margin is ambiguous
+ok   lead equal to margin is tagged
+ok   single entry needs only the floor
+ok   duplicates: higher similarity keeps the entry
+ok   duplicates: non-tagged faces are untouched
+ok   duplicates: a tie keeps the first face
+all tests passed
