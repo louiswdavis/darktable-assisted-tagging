@@ -654,7 +654,7 @@ def rescue_frames(rows: list, analyses: dict, models: dict) -> dict:
     return out
 
 
-def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str) -> dict:
+def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, progress: str = "") -> dict:
     """analyses with the boxes in `wanted` (filepath → box indices) re-read from a sharper decode of
     the frame: OCR, embedding and colour replace the first-pass ones, and `hires` lists the boxes
     that changed. The re-read of a frame's every box is cached, so a rerun doesn't decode again."""
@@ -671,10 +671,25 @@ def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str) -
         if todo:
             with concurrent.futures.ProcessPoolExecutor(max_workers=min(worker_count(os.cpu_count() or 2), len(todo)),
                                                         initializer=_init_worker, initargs=(models,)) as executor:
-                jobs = [(p, analyses[p]["boxes"]) for p in todo]
-                for p, result in zip(todo, executor.map(hires_frame, jobs)):
-                    reads[p] = result
-                    cache.put(result, *frame_key(p, models), "hires-1")
+                futures = {executor.submit(hires_frame, (p, analyses[p]["boxes"])): p for p in todo}
+                done, started = 0, time.time()
+                write_progress(progress, 0, len(todo))
+                for fut in concurrent.futures.as_completed(futures):
+                    if cancel_requested(progress):
+                        log("cancelled")
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        cache.close()
+                        sys.exit(130)
+                    p = futures[fut]
+                    try:
+                        reads[p] = fut.result()
+                        cache.put(reads[p], *frame_key(p, models), "hires-1")
+                    except Exception as e:
+                        log(f"{p}: couldn't re-read at higher detail ({type(e).__name__}: {e}), first pass kept")
+                    done += 1
+                    write_progress(progress, done, len(todo))
+                    if done % 10 == 0 or done == len(todo):
+                        log(f"refining: {done}/{len(todo)} done, {time.time() - started:.0f}s")
     finally:
         cache.close()
     out = dict(analyses)
@@ -994,7 +1009,7 @@ def identify(args, models: dict):
     frames, burst_of, box0_sims, detail = match_all(analyses, quiet=True)
     wanted = hires_wanted(frames, detail, analyses)
     if wanted and not cancel_requested(args.progress):
-        analyses = refine_frames(wanted, analyses, models, args.cache)
+        analyses = refine_frames(wanted, analyses, models, args.cache, args.progress)
     frames, burst_of, box0_sims, detail = match_all(analyses)
     if rules.burst_livery_pooling and not verify:
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
