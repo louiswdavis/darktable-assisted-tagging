@@ -1,0 +1,39 @@
+645 references, 22 entries with 2+; blur_references=False
+645 references, 22 entries, 11 teams (colour histogram only, leave-one-out)
+entry accuracy 48.4%, team accuracy 61.7% (chance ~4.5% / 9.1%)
+
+per entry: refs, recall as entry, recall as team, most-confused-with
+  Albon            8     12%     50%  Bottas x2, Sainz x2
+  Alonso          27     30%     48%  Stroll x6, Verstappen x4
+  Antonelli       59     14%     47%  Stroll x25, Bortoleto x15
+  Bearman          4      0%     50%  Verstappen x1, Hamilton x1  <5 refs
+  Bortoleto       24     42%     42%  Lawson x5, Perez x3
+  Bottas           4     75%     50%  Piastri x1  <5 refs
+  Colapinto       66     47%     74%  Gasly x18, Bortoleto x8
+  Gasly           89     66%     85%  Colapinto x17, Bortoleto x5
+  Hadjar          59     63%     64%  Lawson x8, Bortoleto x6
+  Hamilton        60     60%     60%  Verstappen x4, Perez x4
+  Hulkenburg       5      0%      0%  Perez x2, Ocon x1
+  Lawson          31     71%     71%  Hadjar x4, Bottas x2
+  LeClerc          9      0%     22%  Hulkenburg x3, Hamilton x1
+  Lindblad        18      0%     56%  Lawson x10, Bottas x2
+  Norris          99     73%     75%  Bortoleto x12, Verstappen x2
+  Ocon             5      0%     80%  Piastri x3, Bearman x1
+  Perez            5      0%     40%  Bottas x2, Ocon x1
+  Piastri         13     23%      0%  Ocon x3, Hulkenburg x2
+  Russell          4      0%      0%  Bottas x2, Piastri x1  <5 refs
+  Sainz           19     21%     53%  Albon x4, Gasly x3
+  Stroll          29     55%     55%  Bortoleto x10, Piastri x1
+  Verstappen       8     25%      0%  Piastri x3, Hulkenburg x2
+
+team pairs colour confuses most (true -> predicted, count)
+  Mercedes -> Aston Martin x15
+  McLaren -> Audi x13
+  Ferrari -> Haas x11
+  Ferrari -> Cadillac x11
+  McLaren -> Haas x9
+  Aston Martin -> Mercedes x8
+  Red Bull -> Racing Bulls x8
+  Racing Bulls -> Cadillac x8
+
+References are cleaner than real in-race crops: read the ranking, not the absolute accuracy.
