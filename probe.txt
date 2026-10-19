@@ -1,16 +1,65 @@
-.venv\Scripts\python python\probe_detect.py models\object_detection_yolox_nov2022.onnx "C:\Users\Louis\Pictures\DarkTable\Imports\2026-10-02\PXL_20261002_083709285.dng" "C:\Users\Louis\Pictures\DarkTable\Imports\2026-10-02\PXL_20261002_083755385.dng" "C:\Users\Louis\Pictures\DarkTable\Imports\2026-10-02\PXL_20261002_083755735.dng" > probe.txt
-Traceback (most recent call last):
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\probe_detect.py", line 41, in <module>
-    probe(image, sys.argv[1])
-    ~~~~~^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\probe_detect.py", line 17, in probe
-    rgb = load_full(path)
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicles.py", line 63, in load_full
-    with rawpy.imread(filepath) as raw:
-         ~~~~~~~~~~~~^^^^^^^^^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\.venv\Lib\site-packages\rawpy\__init__.py", line 123, in imread
-    d.open_file(pathOrFile)
-    ~~~~~~~~~~~^^^^^^^^^^^^
-  File "rawpy/_rawpy.pyx", line 494, in rawpy._rawpy.RawPy.open_file
-  File "rawpy/_rawpy.pyx", line 1115, in rawpy._rawpy.RawPy.handle_error
-rawpy._rawpy.LibRawIOError: b'Input/output error'
+C:\Users\Louis\Pictures\DarkTable\Import\2026-10-02\PXL_20261002_083709285.dng: 964x1280, detector scale 0.50
+  NMS 0.5: 1 boxes
+    x 576-797 y 667-868  221x202  score 0.45  3.6% of frame  kept
+  NMS 0.8: 1 boxes
+    x 576-797 y 667-868  221x202  score 0.45  3.6% of frame  kept
+C:\Users\Louis\Pictures\DarkTable\Import\2026-10-02\PXL_20261002_083755385.dng: 964x1280, detector scale 0.50
+  NMS 0.5: 10 boxes
+    x 467-795 y 797-872  328x74  score 0.25  2.0% of frame  kept
+    x 286-532 y 762-841  246x79  score 0.56  1.6% of frame  kept
+    x 282-414 y 770-839  133x69  score 0.37  0.7% of frame  DROPPED: size
+    x 398-534 y 774-840  135x65  score 0.15  0.7% of frame  DROPPED: score,size
+    x 201-324 y 768-814  123x46  score 0.31  0.5% of frame  DROPPED: size,cap
+    x 205-277 y 775-813  72x38  score 0.10  0.2% of frame  DROPPED: score,size,cap
+    x 447-517 y 778-803  70x25  score 0.07  0.1% of frame  DROPPED: score,size,cap
+    x 190-237 y 429-465  47x35  score 0.10  0.1% of frame  DROPPED: score,size,cap
+    x 152-206 y 443-468  54x25  score 0.07  0.1% of frame  DROPPED: score,size,cap
+    x 221-265 y 444-470  44x27  score 0.08  0.1% of frame  DROPPED: score,size,cap
+  NMS 0.8: 19 boxes
+    x 450-788 y 778-866  338x88  score 0.06  2.4% of frame  DROPPED: score
+    x 467-795 y 797-872  328x74  score 0.25  2.0% of frame  kept
+    x 286-532 y 762-841  246x79  score 0.56  1.6% of frame  kept
+    x 378-547 y 772-840  168x68  score 0.09  0.9% of frame  DROPPED: score,size
+    x 285-431 y 762-837  146x75  score 0.10  0.9% of frame  DROPPED: score,size,cap
+    x 396-553 y 777-836  157x59  score 0.05  0.8% of frame  DROPPED: score,size,cap
+    x 282-414 y 770-839  133x69  score 0.37  0.7% of frame  DROPPED: size,cap
+    x 398-534 y 774-840  135x65  score 0.15  0.7% of frame  DROPPED: score,size,cap
+    x 392-517 y 779-839  125x61  score 0.14  0.6% of frame  DROPPED: score,size,cap
+    x 412-538 y 777-835  126x58  score 0.07  0.6% of frame  DROPPED: score,size,cap
+    x 425-553 y 777-833  128x56  score 0.06  0.6% of frame  DROPPED: score,size,cap
+    x 289-405 y 778-838  116x60  score 0.08  0.6% of frame  DROPPED: score,size,cap
+    x 201-324 y 768-814  123x46  score 0.31  0.5% of frame  DROPPED: size,cap
+    x 205-277 y 775-813  72x38  score 0.10  0.2% of frame  DROPPED: score,size,cap
+    x 447-517 y 778-803  70x25  score 0.07  0.1% of frame  DROPPED: score,size,cap
+    x 190-237 y 429-465  47x35  score 0.10  0.1% of frame  DROPPED: score,size,cap
+    x 191-236 y 429-459  45x30  score 0.06  0.1% of frame  DROPPED: score,size,cap
+    x 152-206 y 443-468  54x25  score 0.07  0.1% of frame  DROPPED: score,size,cap
+    x 221-265 y 444-470  44x27  score 0.08  0.1% of frame  DROPPED: score,size,cap
+C:\Users\Louis\Pictures\DarkTable\Import\2026-10-02\PXL_20261002_083755735.dng: 964x1280, detector scale 0.50
+  NMS 0.5: 8 boxes
+    x 433-731 y 785-875  298x91  score 0.58  2.2% of frame  kept
+    x 249-481 y 759-839  232x79  score 0.69  1.5% of frame  kept
+    x 362-489 y 771-842  128x71  score 0.11  0.7% of frame  DROPPED: score,size
+    x 0-70 y 461-504  70x43  score 0.09  0.2% of frame  DROPPED: score,size
+    x 429-485 y 452-488  56x36  score 0.09  0.2% of frame  DROPPED: score,size,cap
+    x 473-522 y 447-485  49x38  score 0.23  0.2% of frame  DROPPED: size,cap
+    x 63-113 y 456-493  50x38  score 0.63  0.2% of frame  DROPPED: size,cap
+    x 510-550 y 462-492  41x29  score 0.07  0.1% of frame  DROPPED: score,size,cap
+  NMS 0.8: 17 boxes
+    x 403-728 y 771-875  325x104  score 0.16  2.7% of frame  DROPPED: score
+    x 433-731 y 785-875  298x91  score 0.58  2.2% of frame  kept
+    x 427-700 y 776-870  273x93  score 0.09  2.1% of frame  DROPPED: score
+    x 474-733 y 800-876  260x77  score 0.23  1.6% of frame  kept
+    x 249-481 y 759-839  232x79  score 0.69  1.5% of frame  DROPPED: cap
+    x 257-443 y 762-837  186x75  score 0.31  1.1% of frame  DROPPED: size,cap
+    x 362-489 y 771-842  128x71  score 0.11  0.7% of frame  DROPPED: score,size,cap
+    x 0-70 y 461-504  70x43  score 0.09  0.2% of frame  DROPPED: score,size,cap
+    x 424-476 y 443-486  52x43  score 0.07  0.2% of frame  DROPPED: score,size,cap
+    x 479-538 y 453-486  60x34  score 0.11  0.2% of frame  DROPPED: score,size,cap
+    x 429-485 y 452-488  56x36  score 0.09  0.2% of frame  DROPPED: score,size,cap
+    x 473-522 y 447-485  49x38  score 0.23  0.2% of frame  DROPPED: size,cap
+    x 63-113 y 456-493  50x38  score 0.63  0.2% of frame  DROPPED: size,cap
+    x 65-112 y 460-494  47x34  score 0.23  0.1% of frame  DROPPED: size,cap
+    x 466-512 y 454-486  47x33  score 0.16  0.1% of frame  DROPPED: score,size,cap
+    x 436-487 y 459-488  51x29  score 0.06  0.1% of frame  DROPPED: score,size,cap
+    x 510-550 y 462-492  41x29  score 0.07  0.1% of frame  DROPPED: score,size,cap
