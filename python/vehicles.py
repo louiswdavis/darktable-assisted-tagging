@@ -21,7 +21,7 @@ except ImportError as _e:
 
 RAW_EXTENSIONS = {".cr2", ".cr3", ".nef", ".arw", ".rw2", ".dng", ".raf", ".orf"}
 
-MIN_BOX_FRAC = 0.012  # boxes smaller than this share of the frame are background traffic
+MIN_BOX_FRAC = 0.005  # boxes smaller than this share of the frame are background traffic
 MAX_BOXES = 4
 CROP_DIM = 640
 BOX_MARGIN_TRIM = 0.1  # trimmed off each edge of a detected box before cropping, so a loose
