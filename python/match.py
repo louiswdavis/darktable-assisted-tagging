@@ -279,6 +279,22 @@ def _split_burst(ids: list, frames: dict) -> list:
     return spans
 
 
+def _smooth_spikes(ids: list, frames: dict) -> dict:
+    """`frames` with each isolated `livery` anchor set to the entry its neighbouring anchors agree on:
+    a livery call is weaker than a number, and one flanked on both sides by the same other car is
+    a misread of that car, not a car passing for one frame."""
+    anchors = [(fid, [r for r in frames[fid] if r.box == 0 and r.method in IDENTIFIED]) for fid in ids]
+    anchors = [(fid, rs[0]) for fid, rs in anchors if rs]
+    out = dict(frames)
+    for n in range(1, len(anchors) - 1):
+        fid, r = anchors[n]
+        before, after = anchors[n - 1][1].entry_id, anchors[n + 1][1].entry_id
+        if r.method == "livery" and before == after != r.entry_id:
+            out[fid] = [replace(x, method="burst", entry_id=before, alt_entry_id="") if x.box == 0 else x
+                        for x in frames[fid]]
+    return out
+
+
 def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None) -> dict:
     """frames: image id → [BoxResult]. A frame none of whose boxes was identified
     takes its burst's entry on its largest box when at least BURST_MIN_AGREE
@@ -298,9 +314,11 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
                 agree[eid] = agree.get(eid, 0) + 1
         if len(agree) > 1:
             ordered = sorted(ids, key=order.__getitem__) if order else ids
-            for eid, span, n in _split_burst(ordered, frames):
+            smoothed = _smooth_spikes(ordered, frames)
+            out.update({fid: smoothed[fid] for fid in ids})
+            for eid, span, n in _split_burst(ordered, smoothed):
                 for fid in span:
-                    out[fid] = _burst_fill(frames, fid, eid, n / len(span), entries)
+                    out[fid] = _burst_fill(smoothed, fid, eid, n / len(span), entries)
             continue
         if len(agree) != 1:
             continue

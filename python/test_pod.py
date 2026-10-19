@@ -22,7 +22,7 @@ def check(name, got, want):
 check("yellow share over the line is yellow", P.pod_colour({"yellow": 0.05, "aspect": 1.0}), "yellow")
 check("no yellow on a side-on car is black", P.pod_colour({"yellow": 0.0, "aspect": 3.0}), "black")
 check("no yellow on a head-on car is unclear", P.pod_colour({"yellow": 0.0, "aspect": 1.0}), "")
-check("a trace of yellow is unclear", P.pod_colour({"yellow": 0.01, "aspect": 3.0}), "")
+check("a trace of yellow is unclear", P.pod_colour({"yellow": 0.0015, "aspect": 3.0}), "")
 check("no reading is unclear", P.pod_colour({}), "")
 
 if failures:

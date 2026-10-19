@@ -3,14 +3,14 @@ teammate tie-break. Measured on the full frame, not the trimmed crop: the pod si
 the detector box, where crop_box trims. Only the raw numbers are cached; `pod_colour` applies the
 thresholds at match time, so tuning them needs no re-analysis."""
 
-REGION_X = (0.30, 0.70)  # share of the box width, centred
-REGION_Y = (0.0, 0.35)  # share of the box height, from the top
+REGION_X = (0.35, 0.65)  # share of the box width, centred
+REGION_Y = (-0.15, 0.30)  # share of the box height from the top; negative reaches above a box that cut the pod off
 REGION_MAX_DIM = 320  # the region is downscaled to this long side before measuring
 HUE = (20, 35)  # OpenCV hue is 0-179; this is yellow
 MIN_SAT = 120
 MIN_VAL = 120
-YELLOW_MIN_FRAC = 0.03  # at least this share of the region yellow → a yellow pod
-BLACK_MAX_FRAC = 0.002  # at most this much yellow on a side-on car → a black pod
+YELLOW_MIN_FRAC = 0.0025  # at least this share of the region yellow → a yellow pod
+BLACK_MAX_FRAC = 0.0005  # at most this much yellow on a side-on car → a black pod
 SIDE_ON_ASPECT = 2.0  # box width / height; a head-on or rear view hides the pod
 
 

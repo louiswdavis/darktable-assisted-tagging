@@ -117,6 +117,20 @@ def run_tests():
     out = Mt.burst_consensus(shuffled, {k: "x" for k in shuffled}, None, {"a": 1, "d": 2, "c": 3, "b": 4, "e": 5})
     check("the order argument decides the shooting sequence", summary(out["c"][0]), ("none", "", ""))
 
+    def livery(eid):
+        return [BoxResult(0, "livery", eid, "", 0.7)]
+
+    spike = {"1": ident("COL"), "2": livery("GAS"), "3": ident("COL"), "4": livery("GAS"), "5": ident("COL")}
+    out = Mt.burst_consensus(spike, {k: "b" for k in spike})
+    check("a livery call flanked by another car's numbers takes that car", summary(out["2"][0]), ("burst", "COL", ""))
+    check("every flanked livery call is fixed", summary(out["4"][0]), ("burst", "COL", ""))
+    edge = {"1": livery("GAS"), "2": ident("COL"), "3": ident("COL"), "4": ident("COL")}
+    out = Mt.burst_consensus(edge, {k: "b" for k in edge})
+    check("a livery call at the burst's edge is left alone", summary(out["1"][0]), ("livery", "GAS", ""))
+    numbered = {"1": ident("COL"), "2": ident("GAS"), "3": ident("COL"), "4": ident("COL")}
+    out = Mt.burst_consensus(numbered, {k: "b" for k in numbered})
+    check("a number is never overridden", summary(out["2"][0]), ("number", "GAS", ""))
+
     split = Mt.burst_consensus(frames, {"1": "a", "2": "a", "3": "c", "4": "a", "5": "a"})
     check("consensus stays within its own burst", summary(split["3"][0]), ("none", "", ""))
 

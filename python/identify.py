@@ -348,7 +348,7 @@ def frame_key(filepath: str, models: dict) -> list:
     """Cache key parts for a frame's analysis. Entries and references stay out of it."""
     return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
-            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-1", "cand-1"]
+            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-2", "cand-1"]
 
 
 # ---------------------------------------------------------------- progress
