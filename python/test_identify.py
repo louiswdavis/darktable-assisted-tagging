@@ -86,7 +86,7 @@ def run_tests():
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
           'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics)')
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
-          'entry "VER": unknown field "tagz" (fields are id, number, team, tags)')
+          'entry "VER": unknown field "tagz" (fields are id, number, team, tags, camera)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
           'unknown key "entrys" (the file holds "rules" and "entries")')
     check("a bad team_only value is rejected", load_error({"rules": {"team_only": "both"}, "entries": []}),

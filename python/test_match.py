@@ -52,7 +52,7 @@ def run_tests():
 
     # livery rules
     check("a clear livery match identifies",
-          summary(Mt.match_box(0, [], [("HAM", 0.80), ("VER", 0.70)], ENTRIES)), ("livery", "HAM", ""))
+          summary(Mt.match_box(0, [], [("HAM", 0.85), ("VER", 0.65)], ENTRIES)), ("livery", "HAM", ""))
     check("teammates too close to call give team only, with the runner-up",
           summary(Mt.match_box(0, [], [("VER", 0.80), ("TSU", 0.78)], ENTRIES)), ("team", "VER", "TSU"))
     check("different teams too close to call give none",
@@ -129,7 +129,7 @@ def run_tests():
     rule, gap = Mt.decided_by(BoxResult(0, "none"), sims_none, ENTRIES)
     check("decided_by: below the minimum similarity", (rule, round(gap, 3)), ("below_min_sim", 0.05))
     rule, gap = Mt.decided_by(BoxResult(0, "none"), [("VER", 0.91), ("HAM", 0.908)], ENTRIES)
-    check("decided_by: margin too small", (rule, round(gap, 3)), ("margin_too_small", 0.048))
+    check("decided_by: margin too small", (rule, round(gap, 3)), ("margin_too_small", 0.148))
 
     check("already_tagged: a team tag alone is no one", Mt.already_tagged({"F1|Red Bull"}, ENTRIES), "")
     check("already_tagged: a driver's whole chain", Mt.already_tagged({"F1|Red Bull", "F1|Red Bull|Tsunoda"}, ENTRIES), "TSU")
@@ -152,7 +152,7 @@ def run_tests():
     # ---- Stage B: hints
     check("entries_under: prefix boundary", list(Mt.entries_under(ENTRIES, ["F1|Red"])), [])
     check("entries_under: team prefix", list(Mt.entries_under(ENTRIES, ["F1|Red Bull"])), ["VER", "TSU"])
-    sims = [("HAM", 0.90), ("VER", 0.80), ("TSU", 0.70)]
+    sims = [("HAM", 0.90), ("VER", 0.70), ("TSU", 0.50)]
     r, h = Mt.hinted_match(0, [], sims, ENTRIES, [], "")
     check("hinted_match: no prefixes is plain match_box", (r.method, h), ("livery", {}))
     r, h = Mt.hinted_match(0, [], sims, ENTRIES, ["F1|Red Bull"], "tag")

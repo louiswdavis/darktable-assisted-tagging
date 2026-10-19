@@ -12,6 +12,7 @@ from embed import EMBED_DIM, degrade
 from vehicles import log
 
 INDEX_NAME = "index.npz"
+CENTRE_MIN_REFS = 20  # fewer references than this: their mean says too little, so similarity stays raw
 
 
 class ReferenceIndex:
@@ -116,10 +117,18 @@ class ReferenceIndex:
         os.replace(tmp, os.path.join(self.dir, INDEX_NAME))
 
     def best_per_entry(self, vec: np.ndarray) -> list:
-        """[(entry_id, best cosine similarity)], most similar first."""
+        """[(entry_id, best cosine similarity)], most similar first. The embedder's vectors share a large
+        common component (raw cosines sit at 0.92-0.97 for any two cars), so with CENTRE_MIN_REFS or more
+        references both sides are centred on the references' mean first; the index file stays raw."""
         if not self.entry:
             return []
-        sims = self.emb @ np.asarray(vec, np.float32)
+        emb, vec = self.emb, np.asarray(vec, np.float32)
+        if len(emb) >= CENTRE_MIN_REFS:
+            mean = emb.mean(axis=0)
+            emb, vec = emb - mean, vec - mean
+            emb = emb / np.maximum(np.linalg.norm(emb, axis=1, keepdims=True), 1e-9)
+            vec = vec / max(float(np.linalg.norm(vec)), 1e-9)
+        sims = emb @ vec
         best: dict = {}
         for e, s in zip(self.entry, sims.tolist()):
             if s > best.get(e, -2.0):
