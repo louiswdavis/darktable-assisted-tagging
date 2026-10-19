@@ -85,6 +85,32 @@ only masks the crop for OCR, the embedding and colour. Still to do: run it on Wi
 (`cv2.dnn` loading, speed per box), check the masked crops against the four pack frames,
 then consider masks in `overlap.py`, the pod crop and the reference crops.
 
+## Viewpoint-aware references
+
+A front three-quarter reference matches a rear shot of the same car poorly, and can look
+closer to another team's car seen from the same angle. That likely feeds the teammate and
+look-alike confusions (Hamilton/LeClerc, Audi/Aston Martin).
+
+Idea: estimate each crop's view (front, rear, side, three-quarter left/right; aspect ratio
+for a first cut, a small classifier later), store it in `index.npz`, and at match time
+compare a query mainly to refs of a similar view. `audit_refs.py` could report view
+coverage per entry ("Gasly: no rear refs").
+
+Costs: the auto-labelling, a matching change, a cache token, and thinner per-view ref
+counts (Hulkenburg has 5 refs in total). Measure with `eval_matching.py` before wiring.
+
+## Stronger models
+
+In order of payoff for effort:
+
+1. Larger embedder (DINOv2 base or large) in place of `dinov2_small`. The index now takes
+   the model's own width (`ReferenceIndex._append`), so a 768-dim model works; the first
+   run after a model change re-embeds every ref. Check with `eval_matching.py` first.
+2. Fine-tune the embedder on the refs so teammates separate.
+3. A vision-language model as a tiebreaker on abstained or near-tie boxes. Per-image cost,
+   latency, and photos leaving the machine: the user's decision.
+4. Stronger number reading (the `1`/`14`/`44` misreads), by a better OCR or a VLM.
+
 ## Smaller known gaps
 
 - "Edit entries.json" button prints a mangled path instead of opening/editing the

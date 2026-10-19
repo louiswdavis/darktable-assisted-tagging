@@ -112,7 +112,9 @@ class ReferenceIndex:
             return
         if self.colour:
             self.hist = np.vstack([self.hist, np.asarray(hist, np.float32)[np.newaxis]])
-        self.emb = np.vstack([self.emb, np.asarray(vec, np.float32)[np.newaxis]])
+        row = np.asarray(vec, np.float32)[np.newaxis]
+        # an empty index takes the embedder's own width, so a model of another size (DINOv2 base: 768) works
+        self.emb = row if len(self.emb) == 0 else np.vstack([self.emb, row])
         self.entry.append(entry_id)
         self.path.append(rel)
 
