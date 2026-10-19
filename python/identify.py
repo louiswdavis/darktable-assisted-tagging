@@ -660,12 +660,15 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         r, hint = hinted_match(i, [tuple(c) for c in ocr], sims, entries, prefixes, source)
         r = match_team(r, team_sims, entries)
         pod = a["pod"][i]
+        before = r.entry_id
         r = match_camera(r, pod_colour(pod), entries)
+        if r.entry_id != before:
+            log(f"{image_id}: pod {pod_colour(pod)} moved {before} -> {r.entry_id}")
         log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
             + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else ""))
         results.append(r)
         boxes_out.append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
-                          "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "hint": hint,
+                          "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "pod_colour": pod_colour(pod), "hint": hint,
                           "rescued": a.get("rescued", {})})
         if i == 0 and rules.burst_livery_pooling:
             box0_sims[image_id] = sims
