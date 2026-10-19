@@ -1,0 +1,25 @@
+559 references, 22 entries with 2+; blur_references=False
+
+baseline (max similarity)
+  entry accuracy 66.2%   team accuracy 77.8%   median margin 0.015
+  current rule (sim>=0.6, margin>=0.05): identified right 8.8%, wrong 0.5%, abstained 90.7%
+  precision at coverage (most confident first)  25%: 91%   50%: 85%   75%: 76%   100%: 66%
+  commonest confusions: Lindblad->Lawson x10, Lawson->Lindblad x8, Alonso->Stroll x5, Stroll->Alonso x5, Hadjar->Verstappen x4
+
+top-3 mean
+  entry accuracy 66.0%   team accuracy 74.2%   median margin 0.015
+  current rule (sim>=0.6, margin>=0.05): identified right 10.2%, wrong 0.4%, abstained 89.4%
+  precision at coverage (most confident first)  25%: 91%   50%: 84%   75%: 75%   100%: 66%
+  commonest confusions: Lindblad->Lawson x9, Stroll->Alonso x9, Verstappen->Hadjar x5, Antonelli->Hadjar x4, Bortoleto->Colapinto x4
+
+centred embeddings
+  entry accuracy 65.5%   team accuracy 76.9%   median margin 0.068
+  current rule (sim>=0.6, margin>=0.05): identified right 49.9%, wrong 8.6%, abstained 41.5%
+  precision at coverage (most confident first)  25%: 99%   50%: 89%   75%: 77%   100%: 65%
+  commonest confusions: Lindblad->Lawson x9, Lawson->Lindblad x7, Colapinto->Norris x5, Alonso->Stroll x4, Hadjar->Verstappen x4
+
+centred + top-3 mean
+  entry accuracy 66.2%   team accuracy 74.8%   median margin 0.075
+  current rule (sim>=0.6, margin>=0.05): identified right 49.2%, wrong 7.7%, abstained 43.1%
+  precision at coverage (most confident first)  25%: 97%   50%: 87%   75%: 77%   100%: 66%
+  commonest confusions: Lindblad->Lawson x9, Stroll->Alonso x8, Colapinto->Norris x6, Colapinto->Antonelli x5, Hadjar->Norris x5
