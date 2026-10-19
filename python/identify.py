@@ -947,28 +947,39 @@ def identify(args, models: dict):
     if not verify:
         analyses = rescue_frames(rows, analyses, models)
 
-    frames, burst_of, box0_sims, detail = {}, {}, {}, {}
-    for image_id, filepath, burst, _protected, _hints, taken in rows:
-        burst_of[image_id] = burst
-        detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst,
-                            "time": int(taken) if taken.isdigit() else None}
-        if image_id in fully_tagged and not verify:
-            log(f"{image_id}: already carries all of {already_tagged(protected_of[image_id], entries)}'s tags, skipped")
-            frames[image_id] = [BoxResult(-1, "skipped")]
-            continue
-        a = analyses.get(filepath)
-        if a is None:
-            # an error row: assisted_tagging.lua leaves this image's tags alone
-            frames[image_id] = [BoxResult(-1, "error")]
-            continue
-        if not a["boxes"]:
-            log(f"{image_id}: {a['note']}")
-            detail[image_id]["note"] = a["note"]
-            frames[image_id] = [BoxResult(-1, "none")]
-            continue
-        detail[image_id]["frame"] = a["frame"]
-        frames[image_id] = match_frame(image_id, a, index, entries, rules, team_of, tag_hints_of[image_id],
-                                       detail[image_id]["boxes"], box0_sims)
+    def match_all(analyses: dict, quiet: bool = False) -> tuple:
+        frames, burst_of, box0_sims, detail = {}, {}, {}, {}
+        for image_id, filepath, burst, _protected, _hints, taken in rows:
+            burst_of[image_id] = burst
+            detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst,
+                                "time": int(taken) if taken.isdigit() else None}
+            if image_id in fully_tagged and not verify:
+                if not quiet:
+                    log(f"{image_id}: already carries all of {already_tagged(protected_of[image_id], entries)}'s tags, skipped")
+                frames[image_id] = [BoxResult(-1, "skipped")]
+                continue
+            a = analyses.get(filepath)
+            if a is None:
+                # an error row: assisted_tagging.lua leaves this image's tags alone
+                frames[image_id] = [BoxResult(-1, "error")]
+                continue
+            if not a["boxes"]:
+                if not quiet:
+                    log(f"{image_id}: {a['note']}")
+                detail[image_id]["note"] = a["note"]
+                frames[image_id] = [BoxResult(-1, "none")]
+                continue
+            detail[image_id]["frame"] = a["frame"]
+            frames[image_id] = match_frame(image_id, a, index, entries, rules, team_of, tag_hints_of[image_id],
+                                           detail[image_id]["boxes"], box0_sims)
+        return frames, burst_of, box0_sims, detail
+
+    # first pass on the cheap analysis; boxes it can't identify are then re-read at higher detail
+    frames, burst_of, box0_sims, detail = match_all(analyses, quiet=True)
+    wanted = hires_wanted(frames, detail, analyses)
+    if wanted and not cancel_requested(args.progress):
+        analyses = refine_frames(wanted, analyses, models, args.cache)
+    frames, burst_of, box0_sims, detail = match_all(analyses)
     if rules.burst_livery_pooling and not verify:
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
     shooting_order = {i: (d["time"] if d["time"] is not None else 0, d["file"]) for i, d in detail.items()}
