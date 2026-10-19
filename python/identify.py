@@ -31,7 +31,7 @@ from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, M
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
-                   burst_consensus, conflicts, decided_by, entries_under, hinted_match, match_camera, match_livery,
+                   burst_consensus, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from pod import pod_colour, pod_reading
 from rescue import RESCUE_MIN_SIM, plan_burst
@@ -727,6 +727,7 @@ def identify(args, models: dict):
     # 5th column: hand-applied tags that are a strict prefix of an entry's tags (team hints), ";"-joined.
     tag_hints_of = {r[0]: [t for t in r[4].split(";") if t] for r in rows}
     fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
+    verify = getattr(args, "verify", False)
     index = ReferenceIndex.load(collection, embedder,
                                  [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
     counts = index.count_by_entry()
@@ -741,7 +742,7 @@ def identify(args, models: dict):
 
     cache = IdentifyCache(args.cache)
     try:
-        analyses = run_frames([r[1] for r in rows if r[0] not in fully_tagged], models, cache, args.progress)
+        analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache, args.progress)
     finally:
         cache.close()
     if cancel_requested(args.progress):
@@ -754,7 +755,7 @@ def identify(args, models: dict):
         burst_of[image_id] = burst
         detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst,
                             "time": int(taken) if taken.isdigit() else None}
-        if image_id in fully_tagged:
+        if image_id in fully_tagged and not verify:
             log(f"{image_id}: already carries all of {already_tagged(protected_of[image_id], entries)}'s tags, skipped")
             frames[image_id] = [BoxResult(-1, "skipped")]
             continue
@@ -781,8 +782,9 @@ def identify(args, models: dict):
     for image_id, results in frames.items():
         n_boxes = sum(1 for r in results if r.box >= 0)
         shots[image_id] = shot_type(n_boxes, MAX_BOXES)
-        frames[image_id] = [replace(r, method="conflict") if r.entry_id and conflicts(
-            r.entry_id, protected_of[image_id], entries, n_boxes == 1) else r for r in results]
+        frames[image_id] = [replace(r, method="conflict") if r.entry_id and (
+            disagrees(r, already_tagged(protected_of[image_id], entries), n_boxes == 1) if verify and image_id in fully_tagged
+            else conflicts(r.entry_id, protected_of[image_id], entries, n_boxes == 1)) else r for r in results]
 
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:
@@ -934,6 +936,8 @@ def main(argv=None):
                         help="Add each manifest image's confident vehicles from --boxes-in as references")
     parser.add_argument("--add-reference", action="store_true", help="Add each manifest image as a reference")
     parser.add_argument("--list", action="store_true", help="List collections (and entries) only")
+    parser.add_argument("--verify", action="store_true",
+                        help="Also analyse fully tagged images and flag the ones whose result differs from their tags (the plugin then changes no tags)")
     args = parser.parse_args(argv)
     models = {"detector": args.detector, "ocr_det": args.ocr_det, "ocr_rec": args.ocr_rec,
               "embedder": args.embedder}

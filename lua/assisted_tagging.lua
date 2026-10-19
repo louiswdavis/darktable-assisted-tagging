@@ -552,6 +552,10 @@ if dt.gui then
         "Assisted Tagging: diagnostic tags",
         "Tag how each image was identified (under Assisted Tagging|Identification: By number, By livery, By burst, Team only, Unidentified) for filtering and spot-checks; a collection's rules can rename them. Off removes them on the next run",
         true)
+    dt.preferences.register("assisted_tagging", "verify_only", "bool",
+        "Assisted Tagging: verify only",
+        "Identify fully tagged images too and report where the result differs from your tags (boxes.json and report.md), without changing any tags",
+        false)
     dt.preferences.register("assisted_tagging", "burst_gap_seconds", "integer",
         "Assisted Tagging: burst gap (seconds)",
         "Photos taken closer together than this are one burst, and share an identification when the rest of the burst agrees",
@@ -640,6 +644,10 @@ end
 -- as-is, so identify.py names it in its error.
 local function model_path(name, script)
     return plugin_root(script) .. "/models/" .. MODEL_FILES[name]
+end
+
+local function verify_only()
+    return dt.preferences.read("assisted_tagging", "verify_only", "bool") and true or false
 end
 
 local function collections_root()
@@ -1132,6 +1140,17 @@ local function apply_results(run, job)
     refresh_entry_combo()
     -- an image identify.py couldn't analyse has no rows, so its tags are left alone
     local rows_of, _errors, skipped = M.read_results(read_file(RESULTS_PATH))
+    if verify_only() then
+        local n_checked, n_differ = 0, 0
+        for _, results in pairs(rows_of) do
+            n_checked = n_checked + 1
+            for _, r in ipairs(results) do
+                if r.method == "conflict" then n_differ = n_differ + 1; break end
+            end
+        end
+        say(string.format("Assisted Tagging: verify only, no tags changed. %d images checked, %d differ from their tags (see the report's conflict section).", n_checked, n_differ))
+        return
+    end
 
     local owned = M.owned_tags(entries, rules)
     local owned_prefixes = (rules.diag.number_seen and rules.diag.number_seen ~= "")
@@ -1238,7 +1257,7 @@ function M.identify_images(images, replace_manual)
         job.percent = 0.0
         local script = identify_script()
         local code, why = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
-            .. collection_args() .. model_args(script)
+            .. collection_args() .. model_args(script) .. (verify_only() and " --verify" or "")
             .. " --cache " .. shell_quote(CACHE_PATH)
             .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH)
             .. " --boxes-out " .. shell_quote(boxes_path())

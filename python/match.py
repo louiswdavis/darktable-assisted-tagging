@@ -230,6 +230,14 @@ def conflicts(entry_id: str, protected: set, entries: dict, solo: bool) -> bool:
     return not any(t in protected for t in entries[entry_id].tags)
 
 
+def disagrees(result: BoxResult, tagged: str, solo: bool) -> bool:
+    """--verify: a solo shot whose result names a different entry than the one its tags already
+    spell out (`tagged`). A team result agrees when it still lists that entry."""
+    if not solo or not result.entry_id:
+        return False
+    return tagged not in (result.entry_id, result.alt_entry_id)
+
+
 def promotable(record: dict) -> bool:
     """A boxes.json box record confident enough to become a reference: number-read, or a
     livery match whose lead over the runner-up is at least REFERENCE_MIN_MARGIN. Burst,
