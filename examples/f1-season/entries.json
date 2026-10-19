@@ -3,7 +3,13 @@
     "team_only": "shared tags",
     "unidentified": [],
     "sponsor_keywords": {
-      "petronas": "Motorsport|F1|Mercedes"
+      "petronas": "Motorsport|F1|Mercedes",
+      "ineos": "Motorsport|F1|Mercedes",
+      "mercedes": "Motorsport|F1|Mercedes",
+      "ferrari": "Motorsport|F1|Ferrari",
+      "santander": "Motorsport|F1|Ferrari",
+      "shell": "Motorsport|F1|Ferrari",
+      "hp": "Motorsport|F1|Ferrari"
     },
     "diagnostics": {
       "number": "Assisted Tagging|Identification|By number",
