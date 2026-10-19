@@ -1026,7 +1026,7 @@ end
 local WRITE_ROWS_FAILED = "couldn't write the image list to darktable's tmp folder (disk full or no write access?)"
 
 -- A run's preconditions; prints why and returns false when it can't start.
-local function can_start(images)
+local function can_start(images, needs_no_images)
     if busy then
         dt.print(_("Assisted Tagging: another job is still running. Wait for it to finish, or cancel it first."))
         return false
@@ -1035,7 +1035,7 @@ local function can_start(images)
         dt.print(_("Assisted Tagging: the last run is still stopping. Try again in a moment."))
         return false
     end
-    if not images or #images == 0 then
+    if not needs_no_images and (not images or #images == 0) then
         dt.print(_("Assisted Tagging: select some images first"))
         return false
     end
@@ -1424,6 +1424,29 @@ function M.promote_references(images)
     finish_reference_job(state, okr, err)
 end
 
+-- Refreshes the collection's reference index from refs/ and writes ref-audit.txt beside it.
+-- Needs no selected images.
+function M.audit_references()
+    if not can_start(nil, true) then return end
+    busy = true
+    M.cancel_requested = false
+    start_log("audit references", 0)
+
+    local state = {}
+    local okr, err = pcall(function()
+        local results = run_reference_job(state, {}, " --audit-refs")
+        if not results then return end
+        local c, report = {}, ""
+        for line in results:gmatch("[^\r\n]+") do
+            local k, v = line:match("^([^,]+),(.*)$")
+            if k == "report" then report = v elseif k then c[k] = tonumber(v) or 0 end
+        end
+        say(string.format("Assisted Tagging: audited %d references: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers. Details in %s",
+            c.references or 0, c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, report))
+    end)
+    finish_reference_job(state, okr, err)
+end
+
 local BAD_FOLDER_CHARS = '[/\\:*?"<>|]'
 
 -- Validates a typed collection name and that it doesn't already exist, printing
@@ -1770,6 +1793,11 @@ local function install_panel()
         tooltip = _("Save each vehicle the last Identify run was sure of (number read, or a clear livery match) as a reference of the entry it found. Works for pack shots too: only that car's crop is saved."),
         clicked_callback = function() M.promote_references(dt.gui.action_images) end,
     }
+    local audit_button = dt.new_widget("button") {
+        label = _("Audit references"),
+        tooltip = _("Refresh the collection's reference index from refs/, then write ref-audit.txt in the collection folder listing refs that look wrongly filed. Nothing is moved or deleted."),
+        clicked_callback = function() M.audit_references() end,
+    }
 
     local panel_box = dt.new_widget("box") {
         orientation = "vertical",
@@ -1795,6 +1823,7 @@ local function install_panel()
         add_button,
         add_tagged_button,
         promote_button,
+        audit_button,
     }
 
     dt.register_lib(

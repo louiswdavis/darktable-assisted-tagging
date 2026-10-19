@@ -1163,6 +1163,23 @@ def promote_boxes(args, models: dict):
     run_reference_job(args, models, handle)
 
 
+def audit_references(args, models: dict):
+    """Reconciles the collection's index with refs/ (deleted or moved crops, changed models), then
+    writes ref-audit.txt beside it. results is one `name,count` line per audit total plus `report,<path>`."""
+    from audit_refs import write_audit
+    collection = os.path.join(args.collections_root, args.collection)
+    entries, rules = load_collection(collection)
+    models["kind"] = rules.kind
+    models["colour"] = rules.kind != "people" and rules.colour_weight > 0
+    models["segmenter"] = ""
+    open_index(collection, models, rules, check_models(models))
+    report, counts = write_audit(collection)
+    log(f"reference audit: {counts}; wrote {report}")
+    with open(args.results, "w", newline="", encoding="utf-8") as f:
+        f.writelines(f"{k},{v}\n" for k, v in counts.items())
+        f.write(f"report,{report}\n")
+
+
 def write_collection_outputs(args, collection: str, entries: dict, rules: Rules):
     """entries.csv and rules.csv for assisted_tagging.lua, and the collection's tag-plan.txt for the user."""
     if args.entries_out:
@@ -1212,6 +1229,8 @@ def main(argv=None):
     parser.add_argument("--promote-boxes", action="store_true",
                         help="Add each manifest image's confident vehicles from --boxes-in as references")
     parser.add_argument("--add-reference", action="store_true", help="Add each manifest image as a reference")
+    parser.add_argument("--audit-refs", action="store_true",
+                        help="Refresh the reference index, then write ref-audit.txt listing refs that look wrongly filed")
     parser.add_argument("--list", action="store_true", help="List collections (and entries) only")
     parser.add_argument("--verify", action="store_true",
                         help="Also analyse fully tagged images and flag the ones whose result differs from their tags (the plugin then changes no tags)")
@@ -1226,6 +1245,8 @@ def main(argv=None):
             add_references(args, models)
         elif args.promote_boxes:
             promote_boxes(args, models)
+        elif args.audit_refs:
+            audit_references(args, models)
         else:
             identify(args, models)
     except InputError as e:
