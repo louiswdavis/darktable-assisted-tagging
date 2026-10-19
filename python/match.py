@@ -154,16 +154,24 @@ def match_team(result: BoxResult, team_sims: list, entries: dict) -> BoxResult:
 
 
 def match_camera(result: BoxResult, colour: str, entries: dict) -> BoxResult:
-    """A `team` result narrowed to one driver by the camera pod colour read off the car. Applies
-    only when exactly one entry of that team has this pod colour and it is one of the two
-    candidates; anything else returns the result as is."""
-    if result.method != "team" or not colour or result.entry_id not in entries:
+    """The camera pod colour read off the car as a teammate tie-break. A `team` result is narrowed
+    to the one driver of that team with this pod colour when he is one of the two candidates. A
+    `livery` result whose driver has the other colour moves to his teammate with this one: teammates
+    share a livery, so the pod outweighs a close livery call. Anything else, or any case without
+    exactly one owner of the colour in the team, returns the result as is."""
+    if result.method not in ("team", "livery") or not colour or result.entry_id not in entries:
         return result
     team = entries[result.entry_id].team
     owners = [e.id for e in entries.values() if team and e.team == team and e.camera == colour]
-    if len(owners) != 1 or owners[0] not in (result.entry_id, result.alt_entry_id):
+    if len(owners) != 1:
         return result
-    return replace(result, method="livery", entry_id=owners[0], alt_entry_id="")
+    if result.method == "team":
+        if owners[0] not in (result.entry_id, result.alt_entry_id):
+            return result
+        return replace(result, method="livery", entry_id=owners[0], alt_entry_id="")
+    if not entries[result.entry_id].camera or entries[result.entry_id].camera == colour:
+        return result
+    return replace(result, entry_id=owners[0])
 
 
 def shot_type(n_boxes: int, max_boxes: int) -> str:
