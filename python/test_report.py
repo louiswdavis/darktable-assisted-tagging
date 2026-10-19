@@ -65,7 +65,7 @@ def run_tests():
     check("pod_stats: right, unclear and wrong against the entry's camera", stats["verdicts"],
           {"right": 2, "unclear": 1, "wrong": 1})
     check("pod_stats: only number-identified frames count", sum(d["boxes"] for d in stats["drivers"]), 4)
-    check("pod_stats: percentiles", (stats["yellow_p10"], stats["black_p90"]), (0.001, 0.01))
+    check("pod_stats: percentiles", (stats["yellow_p10"], stats["black_p90"]), (0.0007, 0.01))
     check("pod_stats: no camera colours, no stats", R.pod_stats(data({"1": image([podbox("a", 0.01)])}), []), {})
 
     check("lever: shared tag, no team set", R.lever("weak-match", box(), ENTRIES), "set team on a and b")

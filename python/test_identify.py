@@ -218,9 +218,10 @@ def run_tests():
         def embed(self, crop):
             return np.eye(384, dtype=np.float32)[0]
 
-    real = (I.check_models, I.Embedder, I.run_frames)
+    real = (I.check_models, I.Embedder, I.run_frames, I.refine_frames)
     I.check_models, I.Embedder = (lambda m: FakeEmbedder("fake")), FakeEmbedder
     I.run_frames = lambda paths, models, cache, progress: stub
+    I.refine_frames = lambda wanted, analyses, models, cache, progress="": analyses  # the re-read needs real files
     results = os.path.join(img, "results.csv")
     args = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "progress.txt"), cache="",
                      collections_root=root, collection=os.path.basename(coll), entries_out=os.path.join(img, "e.csv"),
@@ -316,7 +317,7 @@ def run_tests():
         code = e.code
     check("a cancelled run exits 130", code, 130)
     check("a cancelled run writes no results", os.path.exists(results) or os.path.exists(results + ".tmp"), False)
-    I.check_models, I.Embedder, I.run_frames = real
+    I.check_models, I.Embedder, I.run_frames, I.refine_frames = real
 
     # ---- Stage B: hints
     mf = os.path.join(tempfile.mkdtemp(), "m.csv")
