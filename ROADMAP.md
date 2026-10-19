@@ -63,6 +63,28 @@ Ideas, roughly in order of cost:
   and from centred-mean computation.
 - Evaluate on the two known events before choosing.
 
+## Car-shaped outlines instead of boxes
+
+YOLOX (`vehicles.py`) returns only rectangles, so a box includes background and the
+neighbouring car in pack shots. An instance-segmentation model (YOLOv8-seg or Mask R-CNN
+as ONNX, or SAM prompted with each box) would give a mask or polygon per car.
+
+What it would improve:
+
+- `overlap.py` could trim a covered car to its visible pixels instead of a rectangle span.
+- The DINOv2 livery crop would drop the background and the car next to it.
+- The camera pod crop would be more reliable.
+
+Costs: another model download (roughly 40–150 MB), slower detection, a new detection cache
+token, and masks stored in boxes.json and the reports. The `cv2.dnn` path for a
+segmentation ONNX is untested on Windows.
+
+Cheaper first step, built but untested (`segment.py`, EfficientSAM from opencv_zoo): YOLOX
+still finds the cars, and the mask model runs only on boxes that overlap another box. It
+only masks the crop for OCR, the embedding and colour. Still to do: run it on Windows
+(`cv2.dnn` loading, speed per box), check the masked crops against the four pack frames,
+then consider masks in `overlap.py`, the pod crop and the reference crops.
+
 ## Smaller known gaps
 
 - "Edit entries.json" button prints a mangled path instead of opening/editing the

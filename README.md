@@ -68,6 +68,16 @@ curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2
 | `text_recognition_CRNN_EN_2021sep.onnx` | 34 MB | reads that text | OpenCV model zoo (CRNN), Apache-2.0 |
 | `dinov2_small.onnx` | 89 MB | livery matching | DINOv2 ViT-S/14 via onnx-community, Apache-2.0 |
 
+Optional, for pack shots with overlapping cars: a segmentation model. With it in `models`, a box that overlaps another is read through a car-shaped mask, with the background and the neighbouring car painted grey. Without it, nothing changes.
+
+```
+curl -L -o models/image_segmentation_efficientsam_ti_2025april.onnx https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx
+```
+
+| File | Job | Source, licence |
+|---|---|---|
+| `image_segmentation_efficientsam_ti_2025april.onnx` | outlines an overlapped car | OpenCV model zoo (EfficientSAM), Apache-2.0 |
+
 People collections (`"kind": "people"` in entries.json) also need these two. Motorsport collections don't:
 
 ```
@@ -325,6 +335,8 @@ The run log has one line per vehicle with the numbers read and the top two liver
 After changing `OCR_MIN_SCORE`, `MIN_BOX_FRAC`, `CROP_DIM` or the detection, OCR or embedding code, bump `IDENTIFY_CACHE_VERSION` in `identify.py` (`CROP_DIM`, `MIN_BOX_FRAC`, `BOX_MARGIN_TRIM`, `OCR_MIN_SCORE` and `DETECTOR_MIN_SCORE` are already in the cache key; code changes aren't). Changes to `match.py` never need it.
 
 **Higher-detail re-read.** Frames are first analysed from the RAW's embedded preview (fast). After the first match, each box left unidentified (`none`, or `team` with the driver not separated; overlapped boxes excluded) is re-read from a half-size decode of the RAW itself, which gives OCR and the embedding several times the pixels on a small car. Boxes stay in preview coordinates; only their crops come from the sharper decode. Non-RAW files and previews already near full width are left alone. A re-read replaces that box's OCR, embedding and colour only, and the box record carries `"hires": true`. The re-read of a frame is cached separately (`hires-1`), so a rerun doesn't decode again. Reference crops are still taken from previews.
+
+**Car-shaped masks.** When the segmentation model is present, each box that overlaps another (`overlap.py` geometry, hidden boxes excluded) is outlined by EfficientSAM, prompted with three points on the car body. The crop used for OCR, the embedding and colour has everything outside the outline painted grey. The mask must not contain the centre of an overlapping box and must cover at least 15% of the visible box, otherwise the plain crop is used. The box record carries `"masked": true`. Pod readings and reference crops are unmasked. Having the model adds `mask-1` to the cache key, so the first run with it re-reads every frame.
 
 ## Troubleshooting
 
