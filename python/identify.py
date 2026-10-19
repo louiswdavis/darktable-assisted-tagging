@@ -197,6 +197,15 @@ def load_collection(collection_dir: str) -> tuple:
             raise bad(f'entry "{eid}": camera must be "yellow" or "black"')
         entries[eid] = Entry(eid, number, team, tuple(tags), camera)
     rules = _load_rules(rules_raw, bad)
+    teams: dict = {}
+    for e in entries.values():
+        if e.team:
+            teams.setdefault(e.team, []).append(e)
+    no_pod = [e.id for es in teams.values() if len(es) > 1 for e in es if not e.camera]
+    if no_pod:
+        log(f"warning: teammates without a camera colour, so the pod can't separate them: {', '.join(no_pod)}")
+    if rules_raw is None:
+        log("warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults")
     for word, prefix in rules.sponsor_keywords:
         if not entries_under(entries, [prefix]):
             raise bad(f'rules.sponsor_keywords.{word}: no entry has a tag under "{prefix}"')
