@@ -535,7 +535,8 @@ def archive_run(files: list, archive_dir: str, keep: int):
         log(f"could not archive the run: {e}")
 
 
-def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entries: dict, counts: dict) -> dict:
+def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entries: dict, counts: dict,
+                sponsor_keywords: tuple = ()) -> dict:
     """The run's per-vehicle record (see the Stage A plan for the shape). `skipped` lists images
     left alone because they already carry one entry's full tag set; each image's `status` is
     ok, no_vehicle or error. `entries` and `thresholds` give the debug report what it needs."""
@@ -552,7 +553,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                 continue
             b = d["boxes"][r.box]
             rule, gap = decided_by(r, b["sims"], entries)
-            boxes.append({"box": r.box, "bbox": b["bbox"], "entry": r.entry_id, "alt_entry": r.alt_entry_id,
+            boxes.append({"box": r.box, "bbox": b["bbox"], "score": round(b["score"], 3), "entry": r.entry_id, "alt_entry": r.alt_entry_id,
                           "method": r.method, "confidence": round(r.confidence, 4),
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
@@ -563,6 +564,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
     return {"collection": collection,
             "thresholds": {"min_sim": MATCH_MIN_SIM, "min_margin": MATCH_MIN_MARGIN,
                            "reference_margin": REFERENCE_MIN_MARGIN},
+            "sponsor_keywords": {w: p for w, p in sponsor_keywords},
             "entries": {e.id: {"team": e.team, "number": e.number, "tags": list(e.tags), "refs": counts.get(e.id, 0)}
                         for e in entries.values()},
             "images": images, "skipped": skipped}
@@ -641,8 +643,8 @@ def identify(args, models: dict):
             log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
                 + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else ""))
             results.append(r)
-            detail[image_id]["boxes"].append({"bbox": [float(v) for v in a["boxes"][i][:4]], "ocr": ocr, "sims": sims,
-                                              "ocr_trace": trace, "hint": hint})
+            detail[image_id]["boxes"].append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
+                                              "ocr": ocr, "sims": sims, "ocr_trace": trace, "hint": hint})
             if i == 0 and rules.burst_livery_pooling:
                 box0_sims[image_id] = sims
         frames[image_id] = results
@@ -671,7 +673,7 @@ def identify(args, models: dict):
                 f.write(format_row(image_id, r, shots[image_id]) + "\n")
     os.replace(tmp, args.results)
     if args.boxes_out or args.report_out:
-        data = build_boxes(args.collection, frames, shots, detail, entries, counts)
+        data = build_boxes(args.collection, frames, shots, detail, entries, counts, rules.sponsor_keywords)
         written = []
         if args.boxes_out:
             write_boxes(args.boxes_out, data)

@@ -10,12 +10,19 @@ import os
 import statistics
 import sys
 
+from sponsors import SPONSOR_MIN_CONF
+
 CATEGORIES = ("identified", "team-obvious", "weak-match", "no-references", "number-unmatched",
               "conflict", "already-tagged", "no-vehicle")
 IDENTIFIED_METHODS = ("number", "livery", "burst", "pooled")
 # categories whose boxes are listed one by one; the rest are only counted
 DETAIL_CATEGORIES = ("team-obvious", "weak-match", "no-references", "number-unmatched", "conflict", "no-vehicle")
 MEDIAN_CATEGORIES = ("team-obvious", "weak-match")
+# detector score bands [from, to); the first starts at the DETECTOR_MIN_SCORE cutoff
+DETECTOR_BANDS = ((0.0, 0.30), (0.30, 0.40), (0.40, 0.50), (0.50, 0.70), (0.70, 1.01))
+UNHINTED_CATEGORIES = ("team-obvious", "weak-match", "no-references")
+SUGGEST_MIN_LEN = 4  # shorter OCR words are mostly noise
+SUGGEST_MIN_BOXES = 2  # identified boxes a word must appear on
 
 
 def top1_of(box: dict) -> float:
@@ -79,7 +86,8 @@ def rows(data: dict) -> list:
             cat = categorize(box)
             out.append({"image": image_id, "box": box["box"], "category": cat, "shot": img["shot"],
                         "entry": box["entry"], "alt_entry": box["alt_entry"], "method": box["method"],
-                        "decided_by": box["decided_by"], "gap": box["gap"], "top1": round(top1_of(box), 4),
+                        "score": box.get("score"), "decided_by": box["decided_by"], "gap": box["gap"],
+                        "top1": round(top1_of(box), 4),
                         "margin": round(margin_of(box), 4), "candidates": box["candidates"],
                         "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []), "hint": box.get("hint", {}),
                         "lever": lever(cat, box, entries)})
@@ -131,6 +139,55 @@ def burst_timing(data: dict) -> dict:
             "max_gap_counts": {str(g): within.count(g) for g in sorted(set(within))}}
 
 
+def detector_bands(all_rows: list) -> list:
+    """Boxes grouped by detector score band, with how many were identified: shows what the
+    DETECTOR_MIN_SCORE cutoff is letting in. Boxes without a score (older boxes.json) are left out."""
+    bands = []
+    for lo, hi in DETECTOR_BANDS:
+        sel = [r for r in all_rows if r.get("score") is not None and lo <= r["score"] < hi]
+        if sel:
+            bands.append({"from": lo, "to": hi, "boxes": len(sel),
+                          "identified": sum(1 for r in sel if r["category"] == "identified")})
+    return bands
+
+
+def sponsor_suggestions(data: dict, all_rows: list) -> list:
+    """Words OCR read confidently on identified boxes that point at one tag prefix, not yet in
+    `sponsor_keywords`: [{word, prefix, identified, other, unhinted}], best first. `prefix` is the
+    entry's shallowest tag; `other` counts identified boxes of a different prefix carrying the word;
+    `unhinted` counts team-obvious/weak-match/no-references boxes that carry it (what it would hint)."""
+    known = data.get("sponsor_keywords", {})
+    entries = data["entries"]
+    seen = {}
+    for r in all_rows:
+        if r["category"] == "no-vehicle" or "ocr_trace" not in r:
+            continue
+        words = {t.lower() for c, t in r["ocr_trace"] if c >= SPONSOR_MIN_CONF and len(t) >= SUGGEST_MIN_LEN and t.isalpha()}
+        prefix = None
+        if r["category"] == "identified":
+            tags = entries[r["entry"]]["tags"]
+            prefix = min(tags, key=lambda t: t.count("|")) if tags else None
+        for w in words:
+            seen.setdefault(w, []).append((r["category"], prefix))
+    out = []
+    for w, hits in seen.items():
+        if w in known:
+            continue
+        counts = {}
+        for cat, p in hits:
+            if p:
+                counts[p] = counts.get(p, 0) + 1
+        if not counts:
+            continue
+        prefix, n = max(counts.items(), key=lambda kv: kv[1])
+        other = sum(counts.values()) - n
+        if n >= SUGGEST_MIN_BOXES and other == 0:
+            out.append({"word": w, "prefix": prefix, "identified": n, "other": other,
+                        "unhinted": sum(1 for cat, p in hits if cat in UNHINTED_CATEGORIES)})
+    out.sort(key=lambda s: (-s["unhinted"], -s["identified"], s["word"]))
+    return out
+
+
 def pct(x: float) -> str:
     return f"{x * 100:.0f}%"
 
@@ -140,6 +197,8 @@ def describe(r: dict) -> str:
         return f"`{r['image']}` burst {r['burst']}: {r['note'] or 'no detector note'}"
     cands = ", ".join(f"`{e}` {s:.3f}" for e, s in r["candidates"][:3]) or "no candidates"
     parts = [f"`{r['image']}` box {r['box']}: {cands}", f"{r['decided_by']}" + (f", short by {r['gap']:.3f}" if r["gap"] else "")]
+    if r.get("score") is not None:
+        parts.append(f"detector {r['score']:.2f}")
     if r["ocr"]:
         parts.append("read " + ", ".join(f"`{d}`" for d, _ in r["ocr"]))
     elif r.get("ocr_trace"):
@@ -169,6 +228,16 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int) -> str:
         out.append(f"- hints: {len(hinted)} applied, {sum(1 for h in hinted if h['dropped'])} dropped")
     if summary["errors"]:
         out.append(f"- images that failed analysis (not counted above): {summary['errors']}")
+    bands = detector_bands(all_rows)
+    if bands and top > 0:
+        out += ["", "## detector score", ""]
+        out += [f"- {b['from']:.2f}-{min(b['to'], 1.0):.2f}: {b['boxes']} boxes, {b['identified']} identified" for b in bands]
+    suggestions = sponsor_suggestions(data, all_rows)
+    if suggestions and top > 0:
+        out += ["", "## sponsor keyword suggestions", "",
+                "words OCR read on identified boxes of one tag prefix only; add under `rules.sponsor_keywords` after checking:"]
+        out += [f"- `{s['word']}` → `{s['prefix']}`: {s['identified']} identified, would hint {s['unhinted']} unidentified"
+                for s in suggestions[:top]]
     timing = burst_timing(data)
     if timing["bursts"] and top > 0:
         out += ["", f"## bursts ({len(timing['bursts'])} timed, {timing['untimed']} without capture times)", "",
@@ -202,7 +271,10 @@ def write_report(data: dict, out_prefix: str, top: int) -> tuple:
     os.makedirs(os.path.dirname(os.path.abspath(out_prefix)), exist_ok=True)
     for path, text in ((paths[0], render_md(data, all_rows, summary, top)),
                        (paths[1], json.dumps({"collection": data["collection"], "thresholds": data["thresholds"],
-                                              "summary": summary, "bursts": burst_timing(data), "rows": all_rows}))):
+                                              "summary": summary, "bursts": burst_timing(data),
+                                              "detector_bands": detector_bands(all_rows),
+                                              "sponsor_suggestions": sponsor_suggestions(data, all_rows),
+                                              "rows": all_rows}))):
         tmp = path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             f.write(text)
