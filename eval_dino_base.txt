@@ -1,0 +1,86 @@
+2128 references, 22 entries with 2+; blur_references=False
+re-embedded 2128 references with dinov2_base.onnx (768 dims); index.npz untouched
+
+baseline (max similarity)
+  entry accuracy 67.6%   team accuracy 84.2%   median margin 0.008
+  current rule (sim>=0.6, margin>=0.1): identified right 0.4%, wrong 0.0%, abstained 99.6%
+  margin gate: identified right/wrong  0.05: 2%/0.2%   0.08: 1%/0.0%   0.10: 0%/0.0%   0.12: 0%/0.0%   0.15: 0%/0.0%   0.20: 0%/0.0%
+  precision at coverage (most confident first)  25%: 92%   50%: 83%   75%: 74%   100%: 68%
+  commonest confusions: LeClerc->Hamilton x33, Gasly->Colapinto x29, Stroll->Alonso x27, Russell->Antonelli x25, Hamilton->LeClerc x23
+
+top-3 mean
+  entry accuracy 67.8%   team accuracy 83.2%   median margin 0.009
+  current rule (sim>=0.6, margin>=0.1): identified right 0.5%, wrong 0.2%, abstained 99.3%
+  margin gate: identified right/wrong  0.05: 2%/0.3%   0.08: 1%/0.2%   0.10: 0%/0.2%   0.12: 0%/0.1%   0.15: 0%/0.1%   0.20: 0%/0.1%
+  precision at coverage (most confident first)  25%: 92%   50%: 84%   75%: 76%   100%: 68%
+  commonest confusions: LeClerc->Hamilton x32, Gasly->Colapinto x31, Albon->Sainz x27, Alonso->Stroll x23, Lindblad->Lawson x23
+
+centred embeddings
+  entry accuracy 68.0%   team accuracy 84.2%   median margin 0.047
+  current rule (sim>=0.6, margin>=0.1): identified right 25.0%, wrong 1.9%, abstained 73.1%
+  margin gate: identified right/wrong  0.05: 41%/5.9%   0.08: 31%/2.7%   0.10: 25%/1.9%   0.12: 20%/1.2%   0.15: 12%/0.6%   0.20: 4%/0.1%
+  precision at coverage (most confident first)  25%: 93%   50%: 86%   75%: 76%   100%: 68%
+  commonest confusions: LeClerc->Hamilton x34, Gasly->Colapinto x31, Russell->Antonelli x25, Alonso->Stroll x24, Colapinto->Gasly x22
+
+centred + top-3 mean
+  entry accuracy 67.8%   team accuracy 83.0%   median margin 0.051
+  current rule (sim>=0.6, margin>=0.1): identified right 27.0%, wrong 2.0%, abstained 71.0%
+  margin gate: identified right/wrong  0.05: 42%/5.8%   0.08: 33%/3.0%   0.10: 27%/2.0%   0.12: 21%/1.4%   0.15: 14%/0.9%   0.20: 5%/0.3%
+  precision at coverage (most confident first)  25%: 94%   50%: 87%   75%: 77%   100%: 68%
+  commonest confusions: LeClerc->Hamilton x32, Gasly->Colapinto x31, Albon->Sainz x27, Alonso->Stroll x23, Lindblad->Lawson x23
+
+centred + colour histogram x0.5, top-3
+  entry accuracy 69.8%   team accuracy 84.0%   median margin 0.050
+  current rule (sim>=0.6, margin>=0.1): identified right 24.6%, wrong 1.6%, abstained 73.8%
+  margin gate: identified right/wrong  0.05: 44%/5.3%   0.08: 31%/2.4%   0.10: 25%/1.6%   0.12: 19%/1.2%   0.15: 11%/0.5%   0.20: 3%/0.2%
+  precision at coverage (most confident first)  25%: 94%   50%: 89%   75%: 79%   100%: 70%
+  commonest confusions: Gasly->Colapinto x31, LeClerc->Hamilton x30, Albon->Sainz x25, Lindblad->Lawson x22, Alonso->Stroll x21
+
+centred + colour histogram x1.0, top-3
+  entry accuracy 71.1%   team accuracy 83.7%   median margin 0.042
+  current rule (sim>=0.6, margin>=0.1): identified right 18.8%, wrong 1.1%, abstained 80.2%
+  margin gate: identified right/wrong  0.05: 41%/4.0%   0.08: 27%/1.5%   0.10: 19%/1.1%   0.12: 13%/0.5%   0.15: 5%/0.2%   0.20: 1%/0.1%
+  precision at coverage (most confident first)  25%: 95%   50%: 89%   75%: 81%   100%: 71%
+  commonest confusions: LeClerc->Hamilton x25, Albon->Sainz x24, Gasly->Colapinto x23, Lindblad->Lawson x21, Colapinto->Gasly x20
+
+centred + colour histogram x2.0, top-3
+  entry accuracy 72.4%   team accuracy 83.6%   median margin 0.030
+  current rule (sim>=0.6, margin>=0.1): identified right 5.0%, wrong 0.4%, abstained 94.6%
+  margin gate: identified right/wrong  0.05: 31%/2.2%   0.08: 12%/0.6%   0.10: 5%/0.4%   0.12: 1%/0.1%   0.15: 0%/0.0%   0.20: 0%/0.0%
+  precision at coverage (most confident first)  25%: 95%   50%: 91%   75%: 82%   100%: 72%
+  commonest confusions: Albon->Sainz x22, LeClerc->Hamilton x21, Lindblad->Lawson x21, Colapinto->Gasly x19, Russell->Antonelli x18
+
+LIVE-LIKE centred + colour (centre half) x0.5, top-1
+  entry accuracy 70.2%   team accuracy 86.2%   median margin 0.049
+  current rule (sim>=0.6, margin>=0.1): identified right 25.7%, wrong 1.5%, abstained 72.8%
+  margin gate: identified right/wrong  0.05: 44%/5.5%   0.08: 32%/2.4%   0.10: 26%/1.5%   0.12: 20%/0.8%   0.15: 13%/0.4%   0.20: 4%/0.1%
+  precision at coverage (most confident first)  25%: 95%   50%: 88%   75%: 79%   100%: 70%
+  commonest confusions: Gasly->Colapinto x29, LeClerc->Hamilton x27, Russell->Antonelli x25, Colapinto->Gasly x24, Hamilton->LeClerc x24
+
+LIVE-LIKE centred + colour (centre half) x1.0, top-1
+  entry accuracy 72.0%   team accuracy 86.7%   median margin 0.041
+  current rule (sim>=0.6, margin>=0.1): identified right 21.3%, wrong 1.0%, abstained 77.7%
+  margin gate: identified right/wrong  0.05: 41%/4.0%   0.08: 28%/1.7%   0.10: 21%/1.0%   0.12: 16%/0.4%   0.15: 7%/0.2%   0.20: 1%/0.1%
+  precision at coverage (most confident first)  25%: 95%   50%: 90%   75%: 81%   100%: 72%
+  commonest confusions: Gasly->Colapinto x27, LeClerc->Hamilton x26, Russell->Antonelli x24, Colapinto->Gasly x23, Hamilton->LeClerc x21
+
+LIVE-LIKE centred + colour (centre half) x1.5, top-1
+  entry accuracy 73.7%   team accuracy 87.0%   median margin 0.035
+  current rule (sim>=0.6, margin>=0.1): identified right 13.5%, wrong 0.5%, abstained 85.9%
+  margin gate: identified right/wrong  0.05: 35%/2.8%   0.08: 22%/1.2%   0.10: 14%/0.5%   0.12: 8%/0.3%   0.15: 3%/0.2%   0.20: 0%/0.0%
+  precision at coverage (most confident first)  25%: 94%   50%: 90%   75%: 82%   100%: 74%
+  commonest confusions: LeClerc->Hamilton x25, Russell->Antonelli x23, Gasly->Colapinto x22, Colapinto->Gasly x20, Albon->Sainz x18
+
+LIVE-LIKE centred + colour (centre half) x2.0, top-1
+  entry accuracy 74.7%   team accuracy 87.4%   median margin 0.030
+  current rule (sim>=0.6, margin>=0.1): identified right 8.0%, wrong 0.3%, abstained 91.7%
+  margin gate: identified right/wrong  0.05: 32%/2.3%   0.08: 15%/0.4%   0.10: 8%/0.3%   0.12: 4%/0.2%   0.15: 1%/0.0%   0.20: 0%/0.0%
+  precision at coverage (most confident first)  25%: 94%   50%: 89%   75%: 83%   100%: 75%
+  commonest confusions: LeClerc->Hamilton x24, Russell->Antonelli x22, Gasly->Colapinto x20, Lawson->Lindblad x20, Colapinto->Gasly x19
+
+stretched crop, centred, top-3
+  entry accuracy 68.8%   team accuracy 82.9%   median margin 0.060
+  current rule (sim>=0.6, margin>=0.1): identified right 30.1%, wrong 2.3%, abstained 67.6%
+  margin gate: identified right/wrong  0.05: 47%/7.0%   0.08: 37%/3.4%   0.10: 30%/2.3%   0.12: 24%/1.6%   0.15: 17%/0.8%   0.20: 6%/0.3%
+  precision at coverage (most confident first)  25%: 93%   50%: 88%   75%: 80%   100%: 69%
+  commonest confusions: LeClerc->Hamilton x32, Gasly->Colapinto x28, Albon->Sainz x23, Lindblad->Lawson x21, Alonso->Stroll x20
