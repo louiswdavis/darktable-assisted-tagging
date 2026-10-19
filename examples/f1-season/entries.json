@@ -24,12 +24,14 @@
       "id": "LEC",
       "number": "16",
       "team": "Ferrari",
+      "camera": "black",
       "tags": ["Motorsport|F1|Ferrari", "Motorsport|F1|Ferrari|Charles Leclerc"]
     },
     {
       "id": "HAM",
       "number": "44",
       "team": "Ferrari",
+      "camera": "yellow",
       "tags": ["Motorsport|F1|Ferrari", "Motorsport|F1|Ferrari|Lewis Hamilton"]
     },
     {
@@ -41,12 +43,14 @@
       "id": "RUS",
       "number": "63",
       "team": "Mercedes",
+      "camera": "black",
       "tags": ["Motorsport|F1|Mercedes", "Motorsport|F1|Mercedes|George Russell"]
     },
     {
       "id": "ANT",
       "number": "12",
       "team": "Mercedes",
+      "camera": "yellow",
       "tags": ["Motorsport|F1|Mercedes", "Motorsport|F1|Mercedes|Kimi Antonelli"]
     },
     {

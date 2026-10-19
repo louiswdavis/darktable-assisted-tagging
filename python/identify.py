@@ -31,8 +31,9 @@ from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, M
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
-                   burst_consensus, conflicts, decided_by, entries_under, hinted_match, match_livery,
+                   burst_consensus, conflicts, decided_by, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
+from pod import pod_colour, pod_reading
 from sponsors import sponsor_prefixes
 from report import write_report
 from reference_store import ReferenceIndex
@@ -178,9 +179,9 @@ def load_collection(collection_dir: str) -> tuple:
             raise bad(f'entry "{eid}": id can\'t contain any of , ; " / \\ : * ? < > |')
         if eid in entries:
             raise bad(f'entry "{eid}" appears twice')
-        unknown = sorted(set(item) - {"id", "number", "team", "tags"})
+        unknown = sorted(set(item) - {"id", "number", "team", "tags", "camera"})
         if unknown:
-            raise bad(f'entry "{eid}": unknown field "{unknown[0]}" (fields are id, number, team, tags)')
+            raise bad(f'entry "{eid}": unknown field "{unknown[0]}" (fields are id, number, team, tags, camera)')
         tags = item.get("tags")
         _check_tags(tags, f'entry "{eid}": tags', bad)
         number = item.get("number", "")
@@ -190,7 +191,10 @@ def load_collection(collection_dir: str) -> tuple:
         team = item.get("team", "")
         if not isinstance(team, str) or _BAD_TAG.search(team):
             raise bad(f'entry "{eid}": team must be text without , ; or "')
-        entries[eid] = Entry(eid, number, team, tuple(tags))
+        camera = item.get("camera", "")
+        if camera not in ("", "yellow", "black"):
+            raise bad(f'entry "{eid}": camera must be "yellow" or "black"')
+        entries[eid] = Entry(eid, number, team, tuple(tags), camera)
     rules = _load_rules(rules_raw, bad)
     for word, prefix in rules.sponsor_keywords:
         if not entries_under(entries, [prefix]):
@@ -334,7 +338,7 @@ def frame_key(filepath: str, models: dict) -> list:
     """Cache key parts for a frame's analysis. Entries and references stay out of it."""
     return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
-            DETECTOR_MIN_SCORE, "ocr-trace-1"]
+            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-1"]
 
 
 # ---------------------------------------------------------------- progress
@@ -375,14 +379,15 @@ def analyse_frame(filepath: str) -> dict:
     """Boxes, OCR candidates and embeddings for one frame: the cached value."""
     rgb = load_full(filepath)
     boxes, note = detect_vehicles(rgb, _W["models"]["detector"])
-    ocr, trace, emb = [], [], []
+    ocr, trace, emb, pod = [], [], [], []
     for b in boxes:
+        pod.append(pod_reading(rgb, b))
         crop = crop_box(rgb, b)
         ocr.append([[d, c] for d, c in _W["reader"].read(crop)])
         trace.append(_W["reader"].last_trace)
         emb.append(encode(_W["embedder"].embed(crop)))
     h, w = rgb.shape[:2]
-    return {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "emb": emb, "note": note,
+    return {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "pod": pod, "emb": emb, "note": note,
             "frame": [w, h]}
 
 
@@ -565,7 +570,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict",
-                          "hint": b.get("hint", {})})
+                          "pod": b.get("pod", {}), "hint": b.get("hint", {})})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes}
     return {"collection": collection,
@@ -601,11 +606,13 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
                                     sponsor_prefixes(trace, rules.sponsor_keywords))
         r, hint = hinted_match(i, [tuple(c) for c in ocr], sims, entries, prefixes, source)
         r = match_team(r, team_sims, entries)
+        pod = a["pod"][i]
+        r = match_camera(r, pod_colour(pod), entries)
         log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
             + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else ""))
         results.append(r)
         boxes_out.append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
-                          "ocr": ocr, "sims": sims, "ocr_trace": trace, "hint": hint})
+                          "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "hint": hint})
         if i == 0 and rules.burst_livery_pooling:
             box0_sims[image_id] = sims
     return results

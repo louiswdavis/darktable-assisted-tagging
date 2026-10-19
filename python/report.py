@@ -10,6 +10,7 @@ import os
 import statistics
 import sys
 
+from pod import pod_colour
 from sponsors import SPONSOR_MIN_CONF
 
 CATEGORIES = ("identified", "team-obvious", "weak-match", "no-references", "number-unmatched",
@@ -89,7 +90,7 @@ def rows(data: dict) -> list:
                         "score": box.get("score"), "decided_by": box["decided_by"], "gap": box["gap"],
                         "top1": round(top1_of(box), 4),
                         "margin": round(margin_of(box), 4), "candidates": box["candidates"],
-                        "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []), "hint": box.get("hint", {}),
+                        "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []), "pod": box.get("pod", {}), "hint": box.get("hint", {}),
                         "lever": lever(cat, box, entries)})
     return out
 
@@ -205,6 +206,8 @@ def describe(r: dict) -> str:
         parts.append("ocr saw " + ", ".join(f"`{t}` {c:.2f}" for c, t in r["ocr_trace"][:3]))
     elif "ocr_trace" in r:
         parts.append("ocr saw no text")
+    if r.get("pod"):
+        parts.append(f"pod {pod_colour(r['pod']) or 'unclear'} (yellow {r['pod']['yellow']:.3f}, aspect {r['pod']['aspect']:.1f})")
     h = r.get("hint")
     if h:
         parts.append("hint " + ", ".join(f"`{p.rsplit('|', 1)[-1]}`" for p in h["prefixes"]) + f" ({h['source']})"

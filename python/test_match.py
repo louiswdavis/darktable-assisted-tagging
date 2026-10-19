@@ -3,6 +3,7 @@
 
 import os
 import sys
+from dataclasses import replace
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import match as Mt
@@ -23,8 +24,8 @@ def check(name, got, want):
 ENTRIES = {
     "VER": Entry("VER", "1", "Red Bull", ("F1|Red Bull", "F1|Red Bull|Verstappen")),
     "TSU": Entry("TSU", "22", "Red Bull", ("F1|Red Bull", "F1|Red Bull|Tsunoda")),
-    "HAM": Entry("HAM", "44", "Ferrari", ("F1|Ferrari|Hamilton",)),
-    "LEC": Entry("LEC", "16", "Ferrari", ("F1|Ferrari|Leclerc",)),
+    "HAM": Entry("HAM", "44", "Ferrari", ("F1|Ferrari|Hamilton",), "yellow"),
+    "LEC": Entry("LEC", "16", "Ferrari", ("F1|Ferrari|Leclerc",), "black"),
     "SC": Entry("SC", "", "", ("F1|Safety Car",)),
 }
 
@@ -176,6 +177,16 @@ def run_tests():
     check("team_key avoids the path separator", Mt.team_key("F1|Red Bull"), "@team@F1__Red Bull")
 
     print("")
+    team_r = Mt.BoxResult(0, "team", "HAM", "LEC", 0.9)
+    r = Mt.match_camera(team_r, "black", ENTRIES)
+    check("match_camera: black pod picks the black driver", (r.method, r.entry_id, r.alt_entry_id), ("livery", "LEC", ""))
+    check("match_camera: yellow pod picks the yellow driver", Mt.match_camera(team_r, "yellow", ENTRIES).entry_id, "HAM")
+    check("match_camera: unknown colour is a no-op", Mt.match_camera(team_r, "", ENTRIES), team_r)
+    check("match_camera: only team results change", Mt.match_camera(replace(team_r, method="livery"), "black", ENTRIES).method, "livery")
+    two_yellow = dict(ENTRIES, X=Entry("X", "", "Ferrari", ("F1|Ferrari",), "yellow"))
+    check("match_camera: two owners of a colour is a no-op", Mt.match_camera(team_r, "yellow", two_yellow), team_r)
+    check("match_camera: owner outside the candidates is a no-op", Mt.match_camera(replace(team_r, alt_entry_id="X"), "black", two_yellow).method, "team")
+
     if failures == 0:
         print("all tests passed")
         sys.exit(0)

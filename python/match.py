@@ -17,6 +17,7 @@ class Entry:
     number: str
     team: str
     tags: tuple
+    camera: str = ""  # onboard camera pod colour ("yellow" / "black"), a teammate tie-break; "" when unknown
 
 
 @dataclass(frozen=True)
@@ -136,6 +137,19 @@ def match_team(result: BoxResult, team_sims: list, entries: dict) -> BoxResult:
     if s1 < MATCH_MIN_SIM or s1 - s2 < MATCH_MIN_MARGIN or len(members) < 2:
         return result
     return replace(result, method="team", entry_id=members[0], alt_entry_id=members[1], confidence=s1)
+
+
+def match_camera(result: BoxResult, colour: str, entries: dict) -> BoxResult:
+    """A `team` result narrowed to one driver by the camera pod colour read off the car. Applies
+    only when exactly one entry of that team has this pod colour and it is one of the two
+    candidates; anything else returns the result as is."""
+    if result.method != "team" or not colour or result.entry_id not in entries:
+        return result
+    team = entries[result.entry_id].team
+    owners = [e.id for e in entries.values() if team and e.team == team and e.camera == colour]
+    if len(owners) != 1 or owners[0] not in (result.entry_id, result.alt_entry_id):
+        return result
+    return replace(result, method="livery", entry_id=owners[0], alt_entry_id="")
 
 
 def shot_type(n_boxes: int, max_boxes: int) -> str:
