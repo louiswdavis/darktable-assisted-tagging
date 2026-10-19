@@ -552,10 +552,6 @@ if dt.gui then
         "Assisted Tagging: diagnostic tags",
         "Tag how each image was identified (under Assisted Tagging|Identification: By number, By livery, By burst, Team only, Unidentified) for filtering and spot-checks; a collection's rules can rename them. Off removes them on the next run",
         true)
-    dt.preferences.register("assisted_tagging", "verify_only", "bool",
-        "Assisted Tagging: verify only",
-        "Identify fully tagged images too and report where the result differs from your tags (boxes.json and report.md), without changing any tags",
-        false)
     dt.preferences.register("assisted_tagging", "burst_gap_seconds", "integer",
         "Assisted Tagging: burst gap (seconds)",
         "Photos taken closer together than this are one burst, and share an identification when the rest of the burst agrees",
@@ -644,10 +640,6 @@ end
 -- as-is, so identify.py names it in its error.
 local function model_path(name, script)
     return plugin_root(script) .. "/models/" .. MODEL_FILES[name]
-end
-
-local function verify_only()
-    return dt.preferences.read("assisted_tagging", "verify_only", "bool") and true or false
 end
 
 local function collections_root()
@@ -762,6 +754,7 @@ local STALL_SECONDS = 300
 local identify_button, collection_combo, entry_combo, example_combo = nil, nil, nil, nil
 local identify_cancellable = false -- the identify button currently reads "Cancel"
 local replace_manual_check = nil
+local verify_only_check = nil
 local entries, entry_order, rules = {}, {}, M.default_rules()
 
 local function cancelled(job)
@@ -1140,7 +1133,7 @@ local function apply_results(run, job)
     refresh_entry_combo()
     -- an image identify.py couldn't analyse has no rows, so its tags are left alone
     local rows_of, _errors, skipped = M.read_results(read_file(RESULTS_PATH))
-    if verify_only() then
+    if run.verify_only then
         local n_checked, n_differ = 0, 0
         for _, results in pairs(rows_of) do
             n_checked = n_checked + 1
@@ -1234,7 +1227,8 @@ local function apply_results(run, job)
 end
 
 -- replace_manual: lift the protection of tags the user applied by hand, for this run only.
-function M.identify_images(images, replace_manual)
+-- verify_only: analyse fully tagged images too and report disagreements, changing no tags.
+function M.identify_images(images, replace_manual, verify_only)
     if not can_start(images) then return end
     busy = true
     M.cancel_requested = false
@@ -1246,6 +1240,7 @@ function M.identify_images(images, replace_manual)
     local okr, err = pcall(function()
         local rows
         run, rows = prepare_run(images, replace_manual)
+        run.verify_only = verify_only
         pcall(os.remove, RESULTS_PATH)
         pcall(os.remove, ENTRIES_PATH)
         pcall(os.remove, RULES_PATH)
@@ -1257,7 +1252,7 @@ function M.identify_images(images, replace_manual)
         job.percent = 0.0
         local script = identify_script()
         local code, why = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
-            .. collection_args() .. model_args(script) .. (verify_only() and " --verify" or "")
+            .. collection_args() .. model_args(script) .. (verify_only and " --verify" or "")
             .. " --cache " .. shell_quote(CACHE_PATH)
             .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH)
             .. " --boxes-out " .. shell_quote(boxes_path())
@@ -1575,7 +1570,9 @@ local function start_identify(allow_cancel)
     -- One run only: read the box, then clear it so the next run is protected again.
     local replace_manual = replace_manual_check and replace_manual_check.value or false
     if replace_manual_check then replace_manual_check.value = false end
-    M.identify_images(dt.gui.action_images, replace_manual)
+    local verify_only = verify_only_check and verify_only_check.value or false
+    if verify_only_check then verify_only_check.value = false end
+    M.identify_images(dt.gui.action_images, replace_manual, verify_only)
 end
 
 local function selected_entry_id()
@@ -1731,6 +1728,11 @@ local function install_panel()
         tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let the next run replace them. It clears itself after the run."),
         value = false,
     }
+    verify_only_check = dt.new_widget("check_button") {
+        label = _("Verify only"),
+        tooltip = _("Identify fully tagged images too and report where the result differs from your tags (boxes.json and report.md), without changing any tags. It clears itself after the run."),
+        value = false,
+    }
     entry_combo = dt.new_widget("combobox") {
         label = _("entry"),
         tooltip = _("The entry Add as reference saves the selected images under"),
@@ -1777,6 +1779,7 @@ local function install_panel()
         cancel_entries_button,
         identify_button,
         replace_manual_check,
+        verify_only_check,
         dt.new_widget("section_label") { label = _("references") },
         entry_combo,
         add_button,
