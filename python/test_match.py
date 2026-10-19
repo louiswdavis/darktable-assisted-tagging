@@ -216,7 +216,14 @@ def run_tests():
     check("match_camera: black pod picks the black driver", (r.method, r.entry_id, r.alt_entry_id), ("livery", "LEC", ""))
     check("match_camera: yellow pod picks the yellow driver", Mt.match_camera(team_r, "yellow", ENTRIES).entry_id, "HAM")
     check("match_camera: unknown colour is a no-op", Mt.match_camera(team_r, "", ENTRIES), team_r)
-    check("match_camera: only team results change", Mt.match_camera(replace(team_r, method="livery"), "black", ENTRIES).method, "livery")
+    check("match_camera: a livery result keeps its driver when the pod agrees", Mt.match_camera(
+        Mt.BoxResult(0, "livery", "LEC", "", 0.7), "black", ENTRIES).entry_id, "LEC")
+    check("match_camera: a livery result moves to the teammate whose pod matches", Mt.match_camera(
+        Mt.BoxResult(0, "livery", "HAM", "", 0.7), "black", ENTRIES).entry_id, "LEC")
+    check("match_camera: a livery result with an unknown pod is left alone", Mt.match_camera(
+        Mt.BoxResult(0, "livery", "HAM", "", 0.7), "", ENTRIES).entry_id, "HAM")
+    check("match_camera: number results never change", Mt.match_camera(
+        Mt.BoxResult(0, "number", "HAM", "", 0.9), "black", ENTRIES).entry_id, "HAM")
     two_yellow = dict(ENTRIES, X=Entry("X", "", "Ferrari", ("F1|Ferrari",), "yellow"))
     check("match_camera: two owners of a colour is a no-op", Mt.match_camera(team_r, "yellow", two_yellow), team_r)
     check("match_camera: owner outside the candidates is a no-op", Mt.match_camera(replace(team_r, alt_entry_id="X"), "black", two_yellow).method, "team")
