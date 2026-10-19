@@ -26,4 +26,4 @@ ok   all_sims on an empty index
 all tests passed
 
 --- stderr ---
-17:24:31 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
+21:40:22 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
