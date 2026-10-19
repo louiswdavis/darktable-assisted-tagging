@@ -84,12 +84,18 @@ def run_tests():
         "4": [BoxResult(0, "team", "VER", "TSU", 0.7)],
         "5": [BoxResult(-1, "none")],
     }
+    frames.pop("5")
     burst_of = {k: "b" for k in frames}
     out = Mt.burst_consensus(frames, burst_of)
     check("an agreeing burst fills an unidentified frame", summary(out["3"][0]), ("burst", "VER", ""))
     check("an agreeing burst upgrades a team-only frame", summary(out["4"][0]), ("burst", "VER", ""))
-    check("burst confidence is the agreeing share of the burst", out["3"][0].confidence, 2 / 5)
-    check("a frame with no vehicle stays none", summary(out["5"][0]), ("none", "", ""))
+    check("burst confidence is the agreeing share of the burst", out["3"][0].confidence, 2 / 4)
+    novehicle = dict(frames, **{"5": [BoxResult(-1, "none")]})
+    check("a frame with no vehicle stays none", summary(Mt.burst_consensus(novehicle, {k: "b" for k in novehicle})["5"][0]),
+          ("none", "", ""))
+    sparse = dict(frames, **{k: [BoxResult(0, "none")] for k in "567"})
+    check("a burst fill under the confidence floor is not written",
+          summary(Mt.burst_consensus(sparse, {k: "b" for k in sparse})["3"][0]), ("none", "", ""))
     check("identified frames are left alone", summary(out["2"][0]), ("livery", "VER", ""))
     check("the input is not mutated", summary(frames["3"][0]), ("none", "", ""))
 
@@ -115,6 +121,17 @@ def run_tests():
     check("a split fills a gap inside the other run", summary(out["5"][0]), ("burst", "HAM", ""))
     check("a split fills the burst's trailing edge from the last run", summary(out["7"][0]), ("burst", "HAM", ""))
     check("split confidence is the run's share of its span", round(out["2"][0].confidence, 3), round(2 / 3, 3))
+    # a pack's largest box need not be the burst's car: the box's own sims must back the entry
+    pack = {"1": ident("VER"), "2": ident("VER"), "3": gap(), "4": gap()}
+    pack_burst = {k: "b" for k in pack}
+    sims = {"3": [("HAM", 0.80), ("NOR", 0.78), ("VER", 0.70)], "4": [("HAM", 0.80), ("VER", 0.76)]}
+    out = Mt.burst_consensus(pack, pack_burst, None, None, sims)
+    check("a burst entry far down the box's own sims is not filled", summary(out["3"][0]), ("none", "", ""))
+    check("a burst entry within the slack of the box's top-1 is filled", summary(out["4"][0]), ("burst", "VER", ""))
+    out = Mt.burst_consensus(pack, pack_burst, None, None, {"3": [("VER", 0.5)]})
+    check("a burst entry the box ranks first is filled", summary(out["3"][0]), ("burst", "VER", ""))
+    check("a frame with no sims is not filled when sims are given", summary(out["4"][0]), ("none", "", ""))
+
     between = {"1": ident("VER"), "2": ident("VER"), "3": gap(), "4": ident("HAM"), "5": ident("HAM")}
     out = Mt.burst_consensus(between, {k: "b" for k in between})
     check("a gap between two runs belongs to neither", summary(out["3"][0]), ("none", "", ""))

@@ -6,6 +6,9 @@ from dataclasses import dataclass, replace
 MATCH_MIN_SIM = 0.60
 MATCH_MIN_MARGIN = 0.10  # on centred similarities (reference_store.best_per_entry); eval_matching.py sweeps it
 BURST_MIN_AGREE = 2
+BURST_MIN_CONFIDENCE = 0.5  # a burst fill below this share of its span is not written
+BURST_MAX_RANK = 2  # the burst's entry must be in the box's own top N by similarity...
+BURST_SIM_SLACK = 0.05  # ...or within this of its top-1
 REFERENCE_MIN_MARGIN = 0.10  # a livery match must lead by this much to be saved as a reference
 
 IDENTIFIED = ("number", "livery")
@@ -276,11 +279,25 @@ def promotable(record: dict) -> bool:
     return cands[0][1] - s2 >= REFERENCE_MIN_MARGIN
 
 
-def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries) -> list:
+def _supported(sims: list, eid: str) -> bool:
+    """Whether a box's own similarities back the burst's entry: top BURST_MAX_RANK, or within
+    BURST_SIM_SLACK of the top-1. In a pack the largest box is often not the car that anchored the burst."""
+    if not sims:
+        return False
+    top = sims[0][1]
+    return any(e == eid and (rank < BURST_MAX_RANK or top - s <= BURST_SIM_SLACK) for rank, (e, s) in enumerate(sims))
+
+
+def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, box0_sims: dict = None) -> list:
     """The frame's rows with box 0 set to the burst's entry, or the rows unchanged when the frame is
-    already identified, has no box 0, or shows a team-only result for another team (a different car)."""
+    already identified, has no box 0, shows a team-only result for another team (a different car), the
+    confidence is under BURST_MIN_CONFIDENCE, or (with `box0_sims`) box 0's own similarities don't back the entry."""
     rows = frames[fid]
     if any(r.method in IDENTIFIED for r in rows) or not any(r.box == 0 for r in rows):
+        return rows
+    if confidence < BURST_MIN_CONFIDENCE:
+        return rows
+    if box0_sims is not None and not _supported(box0_sims.get(fid, []), eid):
         return rows
     if entries and eid in entries and any(
             r.method == "team" and r.entry_id in entries and entries[r.entry_id].team != entries[eid].team
@@ -333,14 +350,15 @@ def _smooth_spikes(ids: list, frames: dict) -> dict:
     return out
 
 
-def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None) -> dict:
+def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None, box0_sims: dict = None) -> dict:
     """frames: image id → [BoxResult]. A frame none of whose boxes was identified
     takes its burst's entry on its largest box when at least BURST_MIN_AGREE
     frames agree on that entry and no frame names another. With `entries`, a
     frame whose team-only result names another team is left alone: that's
     evidence of a different car. A burst that names several entries is split at the identity
     changes (see _split_burst) using `order` (image id → sort key, shooting order; default the
-    order of `frames`), so each stretch fills only from its own car."""
+    order of `frames`), so each stretch fills only from its own car. With `box0_sims` (image id → box 0's
+    [(entry id, sim)]) a frame is filled only when its own box backs the entry; see _supported."""
     members: dict = {}
     for fid in frames:
         members.setdefault(burst_of.get(fid, fid), []).append(fid)
@@ -356,7 +374,7 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
             out.update({fid: smoothed[fid] for fid in ids})
             for eid, span, n in _split_burst(ordered, smoothed):
                 for fid in span:
-                    out[fid] = _burst_fill(smoothed, fid, eid, n / len(span), entries)
+                    out[fid] = _burst_fill(smoothed, fid, eid, n / len(span), entries, box0_sims)
             continue
         if len(agree) != 1:
             continue
@@ -364,5 +382,5 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
         if n < BURST_MIN_AGREE:
             continue
         for fid in ids:
-            out[fid] = _burst_fill(frames, fid, eid, n / len(ids), entries)
+            out[fid] = _burst_fill(frames, fid, eid, n / len(ids), entries, box0_sims)
     return out

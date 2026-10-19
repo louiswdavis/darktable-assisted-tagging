@@ -748,7 +748,7 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         boxes_out.append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
                           "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "pod_colour": pod_colour(pod), "hint": hint,
                           "rescued": a.get("rescued", {})})
-        if i == 0 and rules.burst_livery_pooling:
+        if i == 0:
             box0_sims[image_id] = sims
     return results
 
@@ -910,7 +910,7 @@ def identify(args, models: dict):
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
     shooting_order = {i: (d["time"] if d["time"] is not None else 0, d["file"]) for i, d in detail.items()}
     if not verify:
-        frames = burst_consensus(frames, burst_of, entries, shooting_order)
+        frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims)
 
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
     shots = {}
