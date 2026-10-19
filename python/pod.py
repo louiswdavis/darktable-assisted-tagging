@@ -9,7 +9,7 @@ REGION_MAX_DIM = 320  # the region is downscaled to this long side before measur
 HUE = (20, 35)  # OpenCV hue is 0-179; this is yellow
 MIN_SAT = 120
 MIN_VAL = 120
-YELLOW_MIN_FRAC = 0.0025  # at least this share of the region yellow → a yellow pod
+YELLOW_MIN_FRAC = 0.0010  # at least this share of the region yellow → a yellow pod
 BLACK_MAX_FRAC = 0.0005  # at most this much yellow on a side-on car → a black pod
 SIDE_ON_ASPECT = 1.4  # box width / height; a near head-on or rear view hides the pod
 
