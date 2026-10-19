@@ -724,10 +724,11 @@ def identify(args, models: dict):
     rows = read_manifest(args.manifest, 3, 3)
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
-    # 5th column: hand-applied tags that are a strict prefix of an entry's tags (team hints), ";"-joined.
-    tag_hints_of = {r[0]: [t for t in r[4].split(";") if t] for r in rows}
-    fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
     verify = getattr(args, "verify", False)
+    # 5th column: hand-applied tags that are a strict prefix of an entry's tags (team hints), ";"-joined.
+    # --verify checks the tags, so they must not steer the match.
+    tag_hints_of = {r[0]: [] if verify else [t for t in r[4].split(";") if t] for r in rows}
+    fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
     index = ReferenceIndex.load(collection, embedder,
                                  [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
     counts = index.count_by_entry()
