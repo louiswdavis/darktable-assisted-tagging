@@ -1,48 +1,48 @@
 2121 references, 22 entries with 2+ refs (entries with fewer are skipped)
-61 mislabel suspects, 0 cross-entry copies, 115 outliers, 281 colour outliers, 90 odd crops
+61 mislabel suspects, 0 cross-entry copies, 115 outliers, 281 colour outliers, 90 odd crops, 856 whole frames
 
 ## strongest candidates (flagged by 2+ checks; look at these first)
+  refs/Antonelli/149014.jpg  [Antonelli]  mislabel, outlier, colour, frame
+  refs/Antonelli/149018.jpg  [Antonelli]  mislabel, outlier, colour, frame
+  refs/Antonelli/180601.jpg  [Antonelli]  outlier, colour, crop, frame
+  refs/Bearman/152268.jpg  [Bearman]  mislabel, outlier, colour, frame
+  refs/Colapinto/148002.jpg  [Colapinto]  mislabel, outlier, colour, frame
+  refs/Colapinto/180341.jpg  [Colapinto]  outlier, colour, crop, frame
   refs/Colapinto/180625.jpg  [Colapinto]  mislabel, outlier, colour, crop
-  refs/Antonelli/149014.jpg  [Antonelli]  mislabel, outlier, colour
+  refs/Hulkenburg/145400.jpg  [Hulkenburg]  mislabel, outlier, colour, frame
+  refs/Lawson/180691.jpg  [Lawson]  mislabel, outlier, colour, frame
+  refs/Lindblad/180129.jpg  [Lindblad]  mislabel, outlier, colour, frame
+  refs/Norris/149412.jpg  [Norris]  mislabel, outlier, colour, frame
+  refs/Norris/152531.jpg  [Norris]  mislabel, outlier, colour, frame
+  refs/Perez/180598.jpg  [Perez]  mislabel, outlier, colour, frame
+  refs/Piastri/195942.jpg  [Piastri]  mislabel, outlier, crop, frame
+  refs/Russell/149028.jpg  [Russell]  mislabel, outlier, colour, frame
+  refs/Sainz/148630.jpg  [Sainz]  mislabel, outlier, colour, frame
+  refs/Sainz/180005.jpg  [Sainz]  mislabel, outlier, colour, frame
+  refs/Stroll/148582.jpg  [Stroll]  mislabel, outlier, colour, frame
+  refs/Albon/180506.jpg  [Albon]  mislabel, outlier, frame
+  refs/Antonelli/148084.jpg  [Antonelli]  outlier, colour, frame
+  refs/Antonelli/148508.jpg  [Antonelli]  outlier, colour, frame
   refs/Antonelli/149016.jpg  [Antonelli]  mislabel, outlier, colour
-  refs/Antonelli/149018.jpg  [Antonelli]  mislabel, outlier, colour
-  refs/Antonelli/180601.jpg  [Antonelli]  outlier, colour, crop
-  refs/Bearman/152268.jpg  [Bearman]  mislabel, outlier, colour
-  refs/Colapinto/148002.jpg  [Colapinto]  mislabel, outlier, colour
+  refs/Bortoleto/149662.jpg  [Bortoleto]  mislabel, outlier, frame
+  refs/Bortoleto/188265.jpg  [Bortoleto]  mislabel, outlier, frame
+  refs/Colapinto/148004.jpg  [Colapinto]  mislabel, outlier, frame
+  refs/Colapinto/148006.jpg  [Colapinto]  outlier, colour, frame
   refs/Colapinto/180087.jpg  [Colapinto]  outlier, colour, crop
-  refs/Colapinto/180341.jpg  [Colapinto]  outlier, colour, crop
-  refs/Hulkenburg/145400.jpg  [Hulkenburg]  mislabel, outlier, colour
-  refs/Lawson/180691.jpg  [Lawson]  mislabel, outlier, colour
-  refs/LeClerc/188353.jpg  [LeClerc]  mislabel, colour, crop
-  refs/Lindblad/180129.jpg  [Lindblad]  mislabel, outlier, colour
-  refs/Norris/149412.jpg  [Norris]  mislabel, outlier, colour
-  refs/Norris/152531.jpg  [Norris]  mislabel, outlier, colour
-  refs/Perez/180598.jpg  [Perez]  mislabel, outlier, colour
-  refs/Piastri/195942.jpg  [Piastri]  mislabel, outlier, crop
-  refs/Russell/149024.jpg  [Russell]  mislabel, outlier, colour
-  refs/Russell/149028.jpg  [Russell]  mislabel, outlier, colour
-  refs/Sainz/148630.jpg  [Sainz]  mislabel, outlier, colour
-  refs/Sainz/180005.jpg  [Sainz]  mislabel, outlier, colour
-  refs/Stroll/148582.jpg  [Stroll]  mislabel, outlier, colour
-  refs/Verstappen/188373.jpg  [Verstappen]  mislabel, outlier, colour
-  refs/Albon/180506.jpg  [Albon]  mislabel, outlier
-  refs/Antonelli/148082.jpg  [Antonelli]  outlier, colour
-  refs/Antonelli/148084.jpg  [Antonelli]  outlier, colour
-  refs/Antonelli/148324.jpg  [Antonelli]  outlier, colour
-  refs/Antonelli/148508.jpg  [Antonelli]  outlier, colour
-  refs/Antonelli/180606.jpg  [Antonelli]  outlier, colour
-  refs/Antonelli/180609.jpg  [Antonelli]  outlier, colour
-  refs/Antonelli/197406.jpg  [Antonelli]  outlier, colour
-  refs/Bearman/148066.jpg  [Bearman]  mislabel, outlier
-  refs/Bearman/197402.jpg  [Bearman]  outlier, colour
-  refs/Bortoleto/139846.jpg  [Bortoleto]  mislabel, outlier
-  refs/Bortoleto/149188.jpg  [Bortoleto]  outlier, colour
-  refs/Bortoleto/149662.jpg  [Bortoleto]  mislabel, outlier
-  refs/Bortoleto/188265.jpg  [Bortoleto]  mislabel, outlier
-  refs/Colapinto/148004.jpg  [Colapinto]  mislabel, outlier
-  refs/Colapinto/148006.jpg  [Colapinto]  outlier, colour
-  refs/Colapinto/186809.jpg  [Colapinto]  colour, crop
-  (105 in total)
+  refs/Colapinto/186809.jpg  [Colapinto]  colour, crop, frame
+  refs/Gasly/149204.jpg  [Gasly]  outlier, colour, frame
+  refs/Gasly/179880.jpg  [Gasly]  colour, crop, frame
+  refs/Gasly/180149.jpg  [Gasly]  colour, crop, frame
+  refs/Gasly/186817.jpg  [Gasly]  colour, crop, frame
+  refs/Gasly/186829.jpg  [Gasly]  colour, crop, frame
+  refs/Gasly/188599.jpg  [Gasly]  colour, crop, frame
+  refs/Hamilton/188579.jpg  [Hamilton]  colour, crop, frame
+  refs/Hulkenburg/148204.jpg  [Hulkenburg]  mislabel, outlier, frame
+  refs/Lawson/148618.jpg  [Lawson]  colour, crop, frame
+  refs/Lawson/148620.jpg  [Lawson]  colour, crop, frame
+  refs/Lawson/148622.jpg  [Lawson]  colour, crop, frame
+  refs/Lawson/148624.jpg  [Lawson]  colour, crop, frame
+  (307 in total)
 
 ## mislabel suspects (closer to another entry than to its own; check the first file)
   refs/Lindblad/149420.jpg  [Lindblad]  ~  refs/Lawson/149416.jpg  [Lawson] (same team)  margin 0.659  own 0.296  other 0.955
@@ -213,6 +213,49 @@
   refs/Piastri/149126.jpg  [Piastri]  640x179  entry median 640x308  z 5.0
   refs/LeClerc/188377.jpg  [LeClerc]  297x100  entry median 427x427  z 5.0
   refs/LeClerc/152547.jpg  [LeClerc]  239x127  entry median 427x427  z 4.9
+
+## whole frames (detected car covers under 15% of the ref: scenery drives its matches; re-crop or delete)
+  refs/Albon/179943.jpg  [Albon]  car share 0%
+  refs/Albon/180081.jpg  [Albon]  car share 0%
+  refs/Albon/180139.jpg  [Albon]  car share 0%
+  refs/Alonso/180028.jpg  [Alonso]  car share 0%
+  refs/Alonso/183174.jpg  [Alonso]  car share 0%
+  refs/Alonso/185639.jpg  [Alonso]  car share 0%
+  refs/Alonso/185660.jpg  [Alonso]  car share 0%
+  refs/Alonso/185939.jpg  [Alonso]  car share 0%
+  refs/Alonso/185943.jpg  [Alonso]  car share 0%
+  refs/Alonso/185947.jpg  [Alonso]  car share 0%
+  refs/Antonelli/148084.jpg  [Antonelli]  car share 0%
+  refs/Antonelli/148510.jpg  [Antonelli]  car share 0%
+  refs/Antonelli/180153.jpg  [Antonelli]  car share 0%
+  refs/Antonelli/180601.jpg  [Antonelli]  car share 0%
+  refs/Antonelli/185899.jpg  [Antonelli]  car share 0%
+  refs/Antonelli/185903.jpg  [Antonelli]  car share 0%
+  refs/Antonelli/185931.jpg  [Antonelli]  car share 0%
+  refs/Antonelli/189251.jpg  [Antonelli]  car share 0%
+  refs/Antonelli/189969.jpg  [Antonelli]  car share 0%
+  refs/Antonelli/189973.jpg  [Antonelli]  car share 0%
+  refs/Antonelli/190024.jpg  [Antonelli]  car share 0%
+  refs/Bortoleto/148244.jpg  [Bortoleto]  car share 0%
+  refs/Bortoleto/148580.jpg  [Bortoleto]  car share 0%
+  refs/Bortoleto/181601.jpg  [Bortoleto]  car share 0%
+  refs/Bortoleto/181624.jpg  [Bortoleto]  car share 0%
+  refs/Bortoleto/181629.jpg  [Bortoleto]  car share 0%
+  refs/Bortoleto/181893.jpg  [Bortoleto]  car share 0%
+  refs/Colapinto/148002.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/148004.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/148006.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/179922.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/181020.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/181053.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/181061.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/181066.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/181170.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/181174.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/181178.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/181182.jpg  [Colapinto]  car share 0%
+  refs/Colapinto/181251.jpg  [Colapinto]  car share 0%
+  (856 in total)
 
 ## redundant (refs with a near-duplicate in the same entry)
   Hamilton: 7
