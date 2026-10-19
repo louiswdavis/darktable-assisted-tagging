@@ -115,6 +115,9 @@ def main():
     ap.add_argument("--dup-sim", type=float, default=0.97)
     ap.add_argument("--topk", type=int, default=3)
     a = ap.parse_args()
+    for need in ("entries.json", "index.npz"):
+        if not os.path.isfile(os.path.join(a.collection_dir, need)):
+            sys.exit(f"{a.collection_dir} has no {need}: pass the collection folder itself (the one holding entries.json)")
     emb, entry, path, team, blur = load(a.collection_dir)
     print(f"{len(entry)} references, {len(set(entry))} entries with 2+; blur_references={blur}")
     dup = dup_mask_of(emb, a.dup_sim)
@@ -122,6 +125,12 @@ def main():
     variants = [("baseline (max similarity)", emb, 1), (f"top-{a.topk} mean", emb, a.topk),
                 ("centred embeddings", centred, 1), (f"centred + top-{a.topk} mean", centred, a.topk)]
     if a.embedder:
+        if not os.path.isfile(a.embedder):
+            sys.exit(f"embedder model not found: {a.embedder}")
+        missing = [p for p in path if not os.path.isfile(os.path.join(a.collection_dir, *p.split("/")))]
+        if missing:
+            sys.exit(f"{len(missing)} of {len(path)} reference crops are missing under {a.collection_dir} (first: {missing[0]}); "
+                     f"the colour and stretch variants need the refs/ images. Run without --embedder for the embedding-only variants")
         imgs = crops(a.collection_dir, path, blur)
         hist = unit(np.stack([hsv_hist(c) for c in imgs]))
         for w in (0.5, 1.0, 2.0):
