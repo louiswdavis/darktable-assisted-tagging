@@ -145,7 +145,7 @@ function M.wanted_tags(rows, entries, rules)
         if r.shot and r.shot ~= "" then shot = r.shot end
         if r.method == "conflict" then
             held = true
-        elseif e and (r.method == "number" or r.method == "livery" or r.method == "burst" or r.method == "pooled") then
+        elseif e and (r.method == "number" or r.method == "livery" or r.method == "burst" or r.method == "pooled" or r.method == "face") then
             for _, t in ipairs(e.tags) do wanted[t] = true end
             note(r.method)
             identified = true
@@ -533,6 +533,8 @@ local MODEL_FILES = {
     ocr_detection_model = "text_detection_en_ppocrv3_2023may.onnx",
     ocr_recognition_model = "text_recognition_CRNN_EN_2021sep.onnx",
     embedder_model = "dinov2_small.onnx",
+    face_detector_model = "face_detection_yunet_2023mar.onnx",
+    face_recognizer_model = "face_recognition_sface_2021dec.onnx",
 }
 
 if dt.gui then
@@ -849,10 +851,16 @@ local function failure_message(code)
 end
 
 local function model_args(script)
-    return " --detector " .. shell_quote(model_path("detector_model", script))
+    local args = " --detector " .. shell_quote(model_path("detector_model", script))
         .. " --ocr-det " .. shell_quote(model_path("ocr_detection_model", script))
         .. " --ocr-rec " .. shell_quote(model_path("ocr_recognition_model", script))
         .. " --embedder " .. shell_quote(model_path("embedder_model", script))
+    -- face models are optional: only people collections need them, so a missing file is left unset
+    for flag, name in pairs({ ["--face-detector"] = "face_detector_model", ["--face-recognizer"] = "face_recognizer_model" }) do
+        local path = model_path(name, script)
+        if file_exists(path) then args = args .. " " .. flag .. " " .. shell_quote(path) end
+    end
+    return args
 end
 
 local function collection_args()
@@ -1151,7 +1159,7 @@ local function apply_results(run, job)
     local tag_objs, writes, failed, first_error = {}, 0, 0, nil
     local n_tagged, n_unidentified, n_missing = 0, 0, 0
     local n_skipped, n_conflict = 0, 0
-    local by_method = { number = 0, livery = 0, burst = 0, team = 0, pooled = 0 }
+    local by_method = { number = 0, livery = 0, burst = 0, team = 0, pooled = 0, face = 0 }
     local function tag_named(name)
         tag_objs[name] = tag_objs[name] or tags.create(name)
         return tag_objs[name]
@@ -1211,7 +1219,7 @@ local function apply_results(run, job)
 
     local parts = {}
     for _, m in ipairs({ { "number", "by number" }, { "livery", "by livery" }, { "burst", "by burst" },
-                         { "team", "team only" }, { "pooled", "by pooled burst" } }) do
+                         { "team", "team only" }, { "pooled", "by pooled burst" }, { "face", "by face" } }) do
         if by_method[m[1]] > 0 then parts[#parts + 1] = string.format("%d %s", by_method[m[1]], m[2]) end
     end
     local msg = string.format("Assisted Tagging: done. %d of %d images tagged", n_tagged, #primaries)
@@ -1358,15 +1366,19 @@ function M.add_references(images, entry_id)
         end
         local results = run_reference_job(state, rows, " --add-reference")
         if not results then return end
-        local added, whole, failed = 0, 0, 0
+        local added, whole, failed, no_face, multi = 0, 0, 0, 0, 0
         for line in results:gmatch("[^\r\n]+") do
             local p = M.parse_csv_line(line, 2)
             if p and p[2] == "added" then added = added + 1
+            elseif p and p[2] == "no_face" then no_face = no_face + 1
+            elseif p and p[2] == "multiple_faces" then multi = multi + 1
             elseif p and p[2] == "no_vehicle_whole_frame" then added = added + 1; whole = whole + 1
             elseif p then failed = failed + 1 end
         end
         local extra = {}
         if whole > 0 then extra[#extra + 1] = string.format("%d used the whole frame", whole) end
+        if no_face > 0 then extra[#extra + 1] = string.format("%d had no face", no_face) end
+        if multi > 0 then extra[#extra + 1] = string.format("%d had several faces, so can't name one person", multi) end
         if n_skipped > 0 then extra[#extra + 1] = string.format("%d skipped", n_skipped) end
         if failed > 0 then extra[#extra + 1] = string.format("%d failed, see log", failed) end
         say(string.format("Assisted Tagging: added %d references to %s%s. Each sample's crop is in %s/refs.",

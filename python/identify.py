@@ -39,6 +39,8 @@ from sponsors import sponsor_prefixes
 from report import write_report
 from kinds import DEFAULT_KIND, check_entry_fields, check_kind
 from reference_store import ReferenceIndex
+from people import FACE_EMBED_DIM, FaceModel, face_model_key
+from people_run import analyse_frame_people, build_boxes_people, match_frame_people, reference_face
 
 IDENTIFY_CACHE_VERSION = 1
 MAX_WORKERS = 4  # each worker holds every model plus a full-resolution decode
@@ -382,7 +384,9 @@ class IdentifyCache:
 
 def frame_key(filepath: str, models: dict) -> list:
     """Cache key parts for a frame's analysis. Entries and references stay out of it."""
-    return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
+    if models["kind"] == "people":
+        return [file_key(filepath), "people", *face_model_key(models["face_det"], models["face_rec"]), "face-1"]
+    return [file_key(filepath),file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
             DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-2", "cand-1"]
 
@@ -417,6 +421,9 @@ def _init_worker(models: dict):
     except Exception:
         pass
     _W["models"] = models
+    if models["kind"] == "people":
+        _W["faces"] = FaceModel(models["face_det"], models["face_rec"])
+        return
     _W["reader"] = NumberReader(models["ocr_det"], models["ocr_rec"])
     _W["embedder"] = Embedder(models["embedder"])
 
@@ -424,6 +431,8 @@ def _init_worker(models: dict):
 def analyse_frame(filepath: str) -> dict:
     """Boxes, OCR candidates and embeddings for one frame: the cached value."""
     rgb = load_full(filepath)
+    if _W["models"]["kind"] == "people":
+        return analyse_frame_people(rgb, _W["faces"])
     boxes, weak, note = detect(rgb, _W["models"]["detector"])
     h, w = rgb.shape[:2]
     out = _read_boxes(rgb, boxes)
@@ -504,10 +513,19 @@ def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) ->
     return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}; livery {top}{unmatched}{frac})"
 
 
-def check_models(models: dict) -> Embedder:
+def check_models(models: dict):
     """Every model exists and loads, so a bad one fails the run here, not per frame. Returns the
-    loaded embedder for the run's reference index."""
-    labels = (("object detector", "detector"), ("OCR text detection", "ocr_det"),
+    loaded embedder (a FaceModel for people collections) for the run's reference index."""
+    if models["kind"] == "people":
+        for label, key in (("face detector", "face_det"), ("face recognizer", "face_rec")):
+            if not models[key] or not os.path.isfile(models[key]):
+                raise InputError(f"{label} model not found: {models[key] or '(not set)'}")
+        try:
+            return FaceModel(models["face_det"], models["face_rec"])
+        except Exception as e:
+            raise InputError(f"face models can't be loaded: {type(e).__name__}: {e}. "
+                             f"Download them again (see the README).") from e
+    labels =(("object detector", "detector"), ("OCR text detection", "ocr_det"),
               ("OCR text recognition", "ocr_rec"), ("embedder", "embedder"))
     for label, key in labels:
         if not models[key] or not os.path.isfile(models[key]):
@@ -753,10 +771,73 @@ def write_run_outputs(args, data: dict):
         archive_run(written, args.archive_dir, ARCHIVE_KEEP)
 
 
+def open_index(collection: str, models: dict, rules: Rules, embedder) -> ReferenceIndex:
+    """The collection's reference index, keyed on whichever models embed its references."""
+    if rules.kind == "people":
+        return ReferenceIndex.load(collection, embedder, face_model_key(models["face_det"], models["face_rec"]),
+                                   dim=FACE_EMBED_DIM)
+    return ReferenceIndex.load(collection, embedder, [embedder_key(models["embedder"]), rules.blur_references],
+                               rules.blur_references)
+
+
+def identify_people(args, models: dict, entries: dict, rules: Rules, collection: str, face_model: FaceModel):
+    rows = read_manifest(args.manifest, 3, 3)
+    protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
+    verify = getattr(args, "verify", False)
+    fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
+    index = open_index(collection, models, rules, face_model)
+    counts = index.count_by_entry()
+    if not counts:
+        log(f"collection {args.collection} has no face references yet: nothing can be identified")
+    else:
+        log("references: " + ", ".join(f"{e} {counts.get(e, 0)}" for e in entries))
+    cache = IdentifyCache(args.cache)
+    try:
+        analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache, args.progress)
+    finally:
+        cache.close()
+    if cancel_requested(args.progress):
+        log("cancelled")
+        sys.exit(130)
+    frames, detail, shots = {}, {}, {}
+    for image_id, filepath, burst, _protected, _hints, taken in rows:
+        detail[image_id] = {"file": filepath, "frame": [], "faces": [], "note": "", "burst": burst,
+                            "time": int(taken) if taken.isdigit() else None}
+        if image_id in fully_tagged and not verify:
+            log(f"{image_id}: already carries all of {already_tagged(protected_of[image_id], entries)}'s tags, skipped")
+            frames[image_id] = [BoxResult(-1, "skipped")]
+            continue
+        a = analyses.get(filepath)
+        if a is None:
+            frames[image_id] = [BoxResult(-1, "error")]
+            continue
+        detail[image_id]["frame"] = a["frame"]
+        if not a["boxes"]:
+            log(f"{image_id}: {a['note']}")
+            detail[image_id]["note"] = a["note"]
+            frames[image_id] = [BoxResult(-1, "none")]
+            continue
+        frames[image_id] = match_frame_people(image_id, a, index, entries, rules, detail[image_id]["faces"])
+    for image_id, results in frames.items():
+        n_faces = sum(1 for r in results if r.box >= 0)
+        shots[image_id] = shot_type(n_faces, MAX_BOXES)
+        frames[image_id] = [replace(r, method="conflict") if r.entry_id and (
+            disagrees(r, already_tagged(protected_of[image_id], entries), n_faces == 1) if verify and image_id in fully_tagged
+            else conflicts(r.entry_id, protected_of[image_id], entries, n_faces == 1)) else r for r in results]
+    by_method = write_results(args.results, frames, shots)
+    if args.boxes_out or args.report_out:
+        write_run_outputs(args, build_boxes_people(args.collection, frames, shots, detail, entries, counts, rules))
+    write_collection_outputs(args, collection, entries, rules)
+    log("faces by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
+
+
 def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
+    models["kind"] = rules.kind
     embedder = check_models(models)
+    if rules.kind == "people":
+        return identify_people(args, models, entries, rules, collection, embedder)
     rows = read_manifest(args.manifest, 3, 3)
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
@@ -765,8 +846,7 @@ def identify(args, models: dict):
     # --verify checks the tags, so they must not steer the match.
     tag_hints_of = {r[0]: [] if verify else [t for t in r[4].split(";") if t] for r in rows}
     fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
-    index = ReferenceIndex.load(collection, embedder,
-                                 [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
+    index = open_index(collection, models, rules, embedder)
     counts = index.count_by_entry()
     if not counts:
         log(f"collection {args.collection} has no references yet: only numbers can identify a car")
@@ -841,9 +921,9 @@ def run_reference_job(args, models: dict, handle_row):
     before a cancel are kept; the reference index is saved either way."""
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
+    models["kind"] = rules.kind
     embedder = check_models(models)
-    index = ReferenceIndex.load(collection, embedder,
-                                [embedder_key(models["embedder"]), rules.blur_references], rules.blur_references)
+    index = open_index(collection, models, rules, embedder)
     rows = read_manifest(args.manifest, 3)
     tmp = args.results + ".tmp"
     cancelled = False
@@ -866,8 +946,25 @@ def run_reference_job(args, models: dict, handle_row):
 def add_references(args, models: dict):
     teams = None
 
+    def handle_people(index, entries, rules, image_id, filepath, entry_id):
+        if entry_id not in entries:
+            log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")
+            return "failed"
+        try:
+            crop, status = reference_face(load_full(filepath), index.embedder)
+            if crop is None:
+                log(f"{image_id}: {status.replace('_', ' ')}; a face reference needs a photo with exactly one face")
+                return status
+            log(f"{image_id}: reference {index.add(entry_id, image_id, crop)}")
+            return "added"
+        except Exception as e:
+            log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
+            return "failed"
+
     def handle(index, entries, rules, image_id, filepath, entry_id):
         nonlocal teams
+        if rules.kind == "people":
+            return handle_people(index, entries, rules, image_id, filepath, entry_id)
         if teams is None:
             teams = set(strict_prefixes(entries))
         # a team prefix instead of an entry id: a solo shot tagged only to team level
@@ -907,6 +1004,8 @@ def promote_boxes(args, models: dict):
         raise InputError(f"{args.boxes_in}: can't read the last run's boxes ({type(e).__name__}: {e}); run Identify first") from e
     if run_collection != args.collection:
         raise InputError(f"the last run was for collection {run_collection!r}, not {args.collection!r}")
+    if run.get("kind") == "people":
+        raise InputError("promoting boxes isn't available for people collections; add face references from hand-tagged photos")
 
     def handle(index, entries, rules, image_id, filepath, _entry):
         record = images.get(image_id)
@@ -962,6 +1061,8 @@ def main(argv=None):
     parser.add_argument("--ocr-det", default="", help="PP-OCRv3 text detection .onnx")
     parser.add_argument("--ocr-rec", default="", help="CRNN text recognition .onnx")
     parser.add_argument("--embedder", default="", help="DINOv2 .onnx")
+    parser.add_argument("--face-detector", default="", help="YuNet .onnx (people collections)")
+    parser.add_argument("--face-recognizer", default="", help="SFace .onnx (people collections)")
     parser.add_argument("--entries-out", default="", help="Write the collection's entries.csv here")
     parser.add_argument("--rules-out", default="", help="Write the collection's rules.csv here")
     parser.add_argument("--collections-out", default="", help="--list: write collection names here")
@@ -980,7 +1081,8 @@ def main(argv=None):
                         help="Also analyse fully tagged images and flag the ones whose result differs from their tags (the plugin then changes no tags)")
     args = parser.parse_args(argv)
     models = {"detector": args.detector, "ocr_det": args.ocr_det, "ocr_rec": args.ocr_rec,
-              "embedder": args.embedder}
+              "embedder": args.embedder, "face_det": args.face_detector, "face_rec": args.face_recognizer,
+              "kind": DEFAULT_KIND}
     try:
         if args.list:
             list_mode(args)

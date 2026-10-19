@@ -317,9 +317,51 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int, extra: dict =
     return "\n".join(out) + "\n"
 
 
+def people_rows(data: dict) -> list:
+    """One row per face of a people run's boxes.json."""
+    return [{"image": image_id, "shot": img["shot"], **f}
+            for image_id, img in data["images"].items() for f in img["faces"]]
+
+
+def render_people_md(data: dict, all_rows: list, top: int) -> str:
+    t = data["thresholds"]
+    by_status: dict = {}
+    for r in all_rows:
+        by_status[r["status"]] = by_status.get(r["status"], 0) + 1
+    out = [f"# People report: {data['collection']}", "",
+           f"Thresholds: min_sim {t['min_sim']}, margin {t['margin']}, min_face_px {t['min_face_px']}", "",
+           f"{len(data['images'])} images, {len(all_rows)} faces, {len(data['skipped'])} skipped",
+           "", "Faces by status: " + ", ".join(f"{s} {n}" for s, n in sorted(by_status.items())), ""]
+    no_face = [i for i, img in data["images"].items() if img["status"] == "no_face"]
+    out.append(f"Images with no face: {len(no_face)}")
+    for status in ("ambiguous", "unknown", "too_small"):
+        sel = [r for r in all_rows if r["status"] == status]
+        if not sel:
+            continue
+        out += ["", f"## {status} ({len(sel)})"]
+        for r in sel[:top]:
+            best = ", ".join(f"{e} {s:.2f}" for e, s in r["candidates"][:3]) or "no candidates"
+            out.append(f"- {r['image']} face {r['face']}: {r['width_px']:.0f}px wide; {best}")
+        if len(sel) > top:
+            out.append(f"- … {len(sel) - top} more in report.json")
+    return "\n".join(out) + "\n"
+
+
 def write_report(data: dict, out_prefix: str, top: int) -> tuple:
     """Writes OUT_PREFIX.md (capped at `top` boxes per category) and OUT_PREFIX.json (every row);
     returns both paths."""
+    if data.get("kind") == "people":
+        all_rows = people_rows(data)
+        paths = (out_prefix + ".md", out_prefix + ".json")
+        os.makedirs(os.path.dirname(os.path.abspath(out_prefix)), exist_ok=True)
+        for path, text in ((paths[0], render_people_md(data, all_rows, top)),
+                           (paths[1], json.dumps({"kind": "people", "collection": data["collection"],
+                                                  "thresholds": data["thresholds"], "rows": all_rows}))):
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(text)
+            os.replace(tmp, path)
+        return paths
     all_rows = rows(data)
     summary = summarize(data, all_rows)
     extra = extras(data, all_rows)

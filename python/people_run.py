@@ -1,10 +1,7 @@
 """Frame analysis, matching and reference selection for `people` collections. Orchestration
 (manifest, cache, results rows) stays in identify.py."""
 
-from dataclasses import replace
-
 from embed import decode, encode
-from match import BoxResult
 from match_people import entry_scores, match_face, resolve_duplicates
 from vehicles import log
 

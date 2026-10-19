@@ -68,6 +68,20 @@ curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2
 | `text_recognition_CRNN_EN_2021sep.onnx` | 34 MB | reads that text | OpenCV model zoo (CRNN), Apache-2.0 |
 | `dinov2_small.onnx` | 89 MB | livery matching | DINOv2 ViT-S/14 via onnx-community, Apache-2.0 |
 
+People collections (`"kind": "people"` in entries.json) also need these two. Motorsport collections don't:
+
+```
+curl -L -o models/face_detection_yunet_2023mar.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+curl -L -o models/face_recognition_sface_2021dec.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx
+```
+
+| File | Job | Source, licence |
+|---|---|---|
+| `face_detection_yunet_2023mar.onnx` | finds faces | OpenCV model zoo (YuNet), MIT |
+| `face_recognition_sface_2021dec.onnx` | turns each face into a 128-number fingerprint | OpenCV model zoo (SFace), Apache-2.0 |
+
+A people entry has only `id` and `tags`; references are photos with exactly one face, so tag those photos by hand first. Choose `rules.min_sim`, `margin` and `min_face_px` with `python python/eval_people.py <collection> --face-detector … --face-recognizer …`.
+
 ### 3. darktable side
 
 darktable's config directory is `~/.config/darktable` on Linux/macOS and `%LOCALAPPDATA%\darktable` on Windows. Link the plugin into it and load it from `luarc`.

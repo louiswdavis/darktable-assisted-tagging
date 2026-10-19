@@ -13,7 +13,7 @@ Other domains that would fit the same pipeline with different identifying
 attributes instead of race number / team:
 
 - **Other sports** (jersey number stands in directly for race number)
-- **People** — no number; livery embedding alone, maybe swapped for a face-embedding model
+- **People** — built as the `people` collection kind (YuNet + SFace face embeddings); thresholds still to be set from a Windows `eval_people.py` run
 - **Landmarks** — no number, no "team" grouping concept at all
 - **Flowers / birds / animals** — species/genus grouping could replace "team"
   (e.g. a "same species, can't tell which individual" tie-break)
