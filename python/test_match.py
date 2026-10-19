@@ -176,7 +176,7 @@ def run_tests():
     rule, gap = Mt.decided_by(BoxResult(0, "none"), sims_none, ENTRIES)
     check("decided_by: below the minimum similarity", (rule, round(gap, 3)), ("below_min_sim", 0.05))
     rule, gap = Mt.decided_by(BoxResult(0, "none"), [("VER", 0.91), ("HAM", 0.908)], ENTRIES)
-    check("decided_by: margin too small", (rule, round(gap, 3)), ("margin_too_small", 0.148))
+    check("decided_by: margin too small", (rule, round(gap, 3)), ("margin_too_small", 0.098))
 
     check("already_tagged: a team tag alone is no one", Mt.already_tagged({"F1|Red Bull"}, ENTRIES), "")
     check("already_tagged: a driver's whole chain", Mt.already_tagged({"F1|Red Bull", "F1|Red Bull|Tsunoda"}, ENTRIES), "TSU")

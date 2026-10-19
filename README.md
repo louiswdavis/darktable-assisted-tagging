@@ -312,7 +312,7 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 |---|---|---|---|
 | `OCR_MIN_SCORE` | `ocr.py` | 0.80 | how sure the text detector must be before a number is read |
 | `MATCH_MIN_SIM` | `match.py` | 0.60 | the livery similarity a match needs at all |
-| `MATCH_MIN_MARGIN` | `match.py` | 0.15 | how far the best entry must be ahead of the next one. Similarities are centred on the references' mean once a collection has 20+ references, which spreads them out, so the gate is wider than it looks; `python/eval_matching.py` sweeps it on your own references |
+| `MATCH_MIN_MARGIN` | `match.py` | 0.10 | how far the best entry must be ahead of the next one. Similarities are centred on the references' mean once a collection has 20+ references, which spreads them out, so the gate is wider than it looks; `python/eval_matching.py` sweeps it on your own references |
 | `BURST_MIN_AGREE` | `match.py` | 2 | frames that must agree before a burst fills in the rest |
 | `REFERENCE_MIN_MARGIN` | `match.py` | 0.10 | how far a livery match must lead to be saved by **Add confident vehicles from last run** |
 | `MIN_BOX_FRAC` | `vehicles.py` | 0.02 | the smallest vehicle, as a share of the frame, worth identifying |

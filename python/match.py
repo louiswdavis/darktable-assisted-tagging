@@ -4,7 +4,7 @@ consensus. Pure functions over OCR candidates and similarities."""
 from dataclasses import dataclass, replace
 
 MATCH_MIN_SIM = 0.60
-MATCH_MIN_MARGIN = 0.15  # on centred similarities (reference_store.best_per_entry); eval_matching.py sweeps it
+MATCH_MIN_MARGIN = 0.10  # on centred similarities (reference_store.best_per_entry); eval_matching.py sweeps it
 BURST_MIN_AGREE = 2
 REFERENCE_MIN_MARGIN = 0.10  # a livery match must lead by this much to be saved as a reference
 
