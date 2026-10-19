@@ -97,6 +97,8 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
     """(BoxResult, hint) matching only the entries under `prefixes`. The restriction is a soft
     prior: it is dropped (the full set is matched) when it holds no entries, every restricted
     similarity is under MATCH_MIN_SIM, or OCR read a number that belongs to an entry outside it.
+    The exception is a weak livery under a user-applied tag (`source` "tag") whose entries all share
+    one team: that gives a `team` result instead, since the user already said which team.
     `hint` is {} without prefixes, else {prefixes, source, restricted, dropped, reason}."""
     if not prefixes:
         return match_box(box, ocr, sims, entries), {}
@@ -112,6 +114,18 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
             reason = "number_outside"
         elif not any(s >= MATCH_MIN_SIM for eid, s in sims if eid in inside):
             reason = "below_min_sim"
+    if reason == "below_min_sim" and source == "tag":
+        # The user tagged this photo to the set, so a weak livery is no reason to look outside it.
+        # A number inside still identifies; otherwise one team's worth of entries gives a team
+        # result, which the camera pod can narrow to a driver.
+        restricted = [(eid, s) for eid, s in sims if eid in inside]
+        r = match_box(box, ocr, restricted, inside)
+        teams = {e.team for e in inside.values()}
+        if r.method == "number":
+            return r, hint
+        if len(teams) == 1 and "" not in teams and len(restricted) >= 2:
+            (e1, s1), (e2, _) = restricted[0], restricted[1]
+            return replace(r, method="team", entry_id=e1, alt_entry_id=e2, confidence=s1), hint
     if reason:
         hint.update(dropped=True, reason=reason)
         return match_box(box, ocr, sims, entries), hint
