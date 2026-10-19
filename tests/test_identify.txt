@@ -55,18 +55,24 @@ Traceback (most recent call last):
   File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 228, in run_tests
     I.identify(args, {"embedder": "fake"})
     ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 959, in identify
-    models["segmenter"] = segmenter_path(models["detector"], models.get("segmenter", "")) if rules.kind != "people" else ""
-                                         ~~~~~~^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 1025, in identify
+    analyses = refine_frames(wanted, analyses, models, args.cache, args.progress)
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 676, in refine_frames
+    hit = cache.get(*frame_key(p, models), "hires-1")
+                     ~~~~~~~~~^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 399, in frame_key
+    return [file_key(filepath),file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
+                                        ~~~~~~^^^^^^^^^^^^
 KeyError: 'detector'
 
 
 --- stderr ---
-17:12:42 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-17:12:42 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-17:12:42 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-17:12:42 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-17:12:42 py: warning: entries.json has no rules block, so the face thresholds use defaults
-17:12:42 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-17:12:42 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-17:12:42 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+17:15:38 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+17:15:38 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+17:15:39 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+17:15:39 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+17:15:39 py: warning: entries.json has no rules block, so the face thresholds use defaults
+17:15:39 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+17:15:39 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+17:15:39 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+17:15:39 py: collection tmp7ytd0xc1 has no references yet: only numbers can identify a car

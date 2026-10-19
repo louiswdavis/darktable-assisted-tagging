@@ -6,9 +6,9 @@ ok   categorize: no references wins over unmatched digits
 ok   categorize: unmatched number
 ok   categorize: below min sim
 ok   categorize: small margin
-FAIL pod_stats: right, unclear and wrong against the entry's camera: got {'right': 3, 'unclear': 0, 'wrong': 1}, want {'right': 2, 'unclear': 1, 'wrong': 1}
+ok   pod_stats: right, unclear and wrong against the entry's camera
 ok   pod_stats: only number-identified frames count
-ok   pod_stats: percentiles
+FAIL pod_stats: percentiles: got (0.0007, 0.01), want (0.001, 0.01)
 ok   pod_stats: no camera colours, no stats
 ok   lever: shared tag, no team set
 ok   lever: no shared tag, runner-up has refs
