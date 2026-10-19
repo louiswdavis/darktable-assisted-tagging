@@ -96,6 +96,11 @@ for a first cut, a small classifier later), store it in `index.npz`, and at matc
 compare a query mainly to refs of a similar view. `audit_refs.py` could report view
 coverage per entry ("Gasly: no rear refs").
 
+Evidence (first `audit_refs.py` run on F1, 2026-10-19): the top candidates were all correctly
+filed. They looked wrong only because of an unusual angle (low, hazy, from behind), a distant
+or uncropped shot, one-off aero paint, or a nose-only crop. The embedding and colour checks
+can't tell "wrong car" from "unusual view", so view-awareness would also cut audit noise.
+
 Costs: the auto-labelling, a matching change, a cache token, and thinner per-view ref
 counts (Hulkenburg has 5 refs in total). Measure with `eval_matching.py` before wiring.
 

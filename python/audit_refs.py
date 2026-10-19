@@ -5,7 +5,8 @@ it never moves or deletes anything. Run from this folder:
   python audit_refs.py COLLECTION_DIR [--dup-sim 0.97] [--top 40]
 
 Writes ref-audit.txt in COLLECTION_DIR. Sections:
-  mislabel suspects  - closer to another entry's refs than to its own (margin = other - own)
+  strongest candidates - refs flagged by 2+ of the checks below; start here
+  mislabel suspects  - closer to another entry's refs than to its own (margin = other - own, 0.2+)
   cross-entry copies - near-identical to a ref filed under a different entry
   outliers           - far from the rest of its own entry (robust z-score, entries with 5+ refs)
   colour outliers    - livery colours (hue/saturation, brightness ignored) unlike the entry's typical ones
@@ -20,6 +21,9 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from eval_matching import load, unit
+
+MISLABEL_MIN_MARGIN = 0.2  # other-entry similarity must beat the own-entry one by this much
+COLOUR_MAD_FLOOR = 0.03  # entries whose refs agree closely would otherwise flag normal lighting variation
 
 
 def audit(emb, entry, path, team, dup_sim):
@@ -39,7 +43,7 @@ def audit(emb, entry, path, team, dup_sim):
         j = other_arg[i]
         if other_best[i] >= dup_sim:
             copies.append((other_best[i], i, j))
-        if other_best[i] > own_best[i]:
+        if other_best[i] - own_best[i] >= MISLABEL_MIN_MARGIN:
             mislabel.append((other_best[i] - own_best[i], i, j))
 
     outliers = []
@@ -87,7 +91,7 @@ def colour_audit(collection_dir, entry, path):
             continue
         sims = hists[idx] @ cent[n]
         med = np.median(sims)
-        mad = max(np.median(np.abs(sims - med)), 0.01)
+        mad = max(np.median(np.abs(sims - med)), COLOUR_MAD_FLOOR)
         for k, i in enumerate(idx):
             z = (sims[k] - med) / (1.4826 * mad)
             if z < -3.0:
@@ -117,6 +121,16 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
         cross = " (same team)" if team.get(entry[j]) == team.get(entry[i]) else ""
         return f"  {path[i]}  [{entry[i]}]  ~  {path[j]}  [{entry[j]}]{cross}  {extra}"
 
+    flags = {}
+    for label, items in (("mislabel", [(m, i) for m, i, _ in mislabel]), ("copy", [(s, i) for s, i, _ in copies]),
+                         ("outlier", [(-z, i) for z, i, _ in outliers]), ("colour", [(-z, i) for z, i, *_ in colours])):
+        for _, i in items:
+            flags.setdefault(i, []).append(label)
+    strongest = sorted((i for i, f in flags.items() if len(f) >= 2), key=lambda i: (-len(flags[i]), path[i]))
+    out.append("## strongest candidates (flagged by 2+ checks; look at these first)")
+    for i in strongest[:top]:
+        out.append(f"  {path[i]}  [{entry[i]}]  {', '.join(flags[i])}")
+    out.append(f"  ({len(strongest)} in total)\n")
     out.append("## mislabel suspects (closer to another entry than to its own; check the first file)")
     for m, i, j in mislabel[:top]:
         out.append(row(i, j, f"margin {m:.3f}  own {own_best[i]:.3f}  other {other_best[i]:.3f}"))
@@ -137,7 +151,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40):
     with open(report, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
     return report, {"references": len(entry), "mislabel": len(mislabel), "copies": len(copies), "outliers": len(outliers),
-                    "colour": len(colours)}
+                    "colour": len(colours), "strongest": len(strongest)}
 
 
 def main():
