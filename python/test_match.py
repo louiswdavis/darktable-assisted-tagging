@@ -36,6 +36,14 @@ def summary(r):
 
 def run_tests():
     # number rule
+    check("a number read that is part of the livery's longer number yields to the livery",
+          summary(Mt.match_box(0, [("1", 0.9)], [("LEC", 0.95), ("VER", 0.50)], ENTRIES)), ("livery", "LEC", ""))
+    check("a fragment read still wins when the livery is close and above the floor",
+          summary(Mt.match_box(0, [("1", 0.9)], [("LEC", 0.70), ("VER", 0.62)], ENTRIES)), ("number", "VER", ""))
+    check("a fragment read the livery does not back identifies nothing",
+          summary(Mt.match_box(0, [("1", 0.9)], [("LEC", 0.52), ("VER", 0.45)], ENTRIES)), ("none", "", ""))
+    check("a different number is not a fragment, so it wins over a clear livery",
+          summary(Mt.match_box(0, [("44", 0.9)], [("LEC", 0.95), ("HAM", 0.50)], ENTRIES)), ("number", "HAM", ""))
     check("a read number identifies its entry",
           summary(Mt.match_box(0, [("44", 0.9)], [], ENTRIES)), ("number", "HAM", ""))
     check("number confidence is the best matching candidate's",

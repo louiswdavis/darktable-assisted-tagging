@@ -64,6 +64,27 @@ def pool_sims(sims_list: list) -> list:
     return pooled
 
 
+def _fragment_of_livery(hit: str, ocr: list, sims: list, entries: dict) -> bool:
+    """True when the number read for `hit` is probably part of a longer number (a `1` from a `12`
+    or `31`) and the livery does not back `hit`: either it clearly points to another entry whose
+    number contains the digits (MATCH_MIN_SIM, leading `hit` by MATCH_MIN_MARGIN), or `hit`'s own
+    livery similarity is below MATCH_MIN_SIM. A real other-team car with the right number still wins."""
+    if not sims or sims[0][0] == hit:
+        return False
+    read = {d for d, _ in ocr if hit in {e.id for e in entries.values() if e.number == d}}
+    if not any(d != e.number and d in e.number for d in read for e in entries.values() if e.number):
+        return False
+    sim = dict(sims)
+    if sim.get(hit, 0.0) < MATCH_MIN_SIM:
+        return True
+    top = entries.get(sims[0][0])
+    if top is None or not top.number or sims[0][1] < MATCH_MIN_SIM:
+        return False
+    if sims[0][1] - sim[hit] < MATCH_MIN_MARGIN:
+        return False
+    return any(d != top.number and d in top.number for d in read)
+
+
 def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
     """ocr: [(digits, confidence)]; sims: [(entry_id, similarity)] most similar first."""
     by_number: dict = {}
@@ -75,7 +96,7 @@ def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
         for eid in by_number.get(digits, []):
             hits.add(eid)
             best_conf = max(best_conf, conf)
-    if len(hits) == 1:
+    if len(hits) == 1 and not _fragment_of_livery(next(iter(hits)), ocr, sims, entries):
         return BoxResult(box, "number", hits.pop(), "", best_conf)
     unmatched = ";".join(dict.fromkeys(digits for digits, _ in ocr))
     return match_livery(box, sims, entries, unmatched)
