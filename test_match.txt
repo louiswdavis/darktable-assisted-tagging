@@ -1,0 +1,102 @@
+ok   a number read that is part of the livery's longer number yields to the livery
+ok   a fragment read still wins when the livery is close and above the floor
+ok   a fragment read the livery does not back identifies nothing
+ok   a different number is not a fragment, so it wins over a clear livery
+ok   a read number identifies its entry
+ok   number confidence is the best matching candidate's
+ok   a number two entries share identifies neither
+ok   two different numbers read identify neither
+ok   an entry without a number never matches by number
+ok   an unmatched number falls through to livery
+ok   a clear livery match identifies
+ok   teammates too close to call give team only, with the runner-up
+ok   different teams too close to call give none
+ok   below MATCH_MIN_SIM gives none even when clear
+ok   a single reference entry counts the runner-up as 0
+ok   an entry with no team never gives team only
+ok   references for entries no longer in entries.json are ignored
+ok   no references and no number gives none
+ok   an agreeing burst fills an unidentified frame
+ok   an agreeing burst upgrades a team-only frame
+ok   burst confidence is the agreeing share of the burst
+ok   a frame with no vehicle stays none
+ok   identified frames are left alone
+ok   the input is not mutated
+ok   a single agreeing frame fills nothing
+ok   a burst naming two entries fills nothing
+ok   a split fills a gap inside a run
+ok   a split fills a gap inside the other run
+ok   a split fills the burst's trailing edge from the last run
+ok   split confidence is the run's share of its span
+ok   a gap between two runs belongs to neither
+ok   a single frame of another entry starts no run
+ok   the order argument decides the shooting sequence
+ok   a livery call flanked by another car's numbers takes that car
+ok   every flanked livery call is fixed
+ok   a livery call at the burst's edge is left alone
+ok   a number is never overridden
+ok   consensus stays within its own burst
+ok   consensus fills only the largest box
+ok   a frame with one identified box isn't filled
+ok   burst doesn't override a team-only result for another team
+ok   burst does upgrade a team-only result for its own team
+ok   shot: no boxes
+ok   shot: one box is solo
+ok   shot: two boxes is a pack
+ok   shot: the cap reached is crowded
+ok   decided_by passes a method through
+ok   decided_by: no vehicle
+ok   decided_by: no references
+ok   decided_by: below the minimum similarity
+ok   decided_by: margin too small
+ok   already_tagged: a team tag alone is no one
+ok   already_tagged: a driver's whole chain
+ok   already_tagged: two drivers are no one
+ok   conflict: a solo shot sharing no tag
+ok   conflict: never in a pack
+ok   conflict: nothing protected
+ok   conflict: a shared tag agrees
+ok   promotable: number
+ok   promotable: wide livery margin
+ok   promotable: narrow livery margin
+ok   promotable: never burst
+ok   promotable: never team
+ok   promotable: never pooled
+ok   promotable: never conflict
+ok   promotable: never none
+ok   promotable: no entry
+ok   entries_under: prefix boundary
+ok   entries_under: team prefix
+ok   hinted_match: no prefixes is plain match_box
+ok   hinted_match: restricts to the team
+ok   hinted_match: low restricted similarity drops the hint
+ok   hinted_match: a weak livery under a tag gives the team
+ok   hinted_match: the pod then picks the driver
+ok   hinted_match: a number inside the tagged set still wins
+ok   hinted_match: a weak sponsor hint is still dropped
+ok   hinted_match: a number outside the set drops the hint
+ok   hinted_match: a number outside is ignored when the livery clearly points inside a tagged set
+ok   hinted_match: a sponsor hint still yields to an outside number
+ok   disagrees: a solo shot of another entry
+ok   disagrees: the tagged entry agrees
+ok   disagrees: a team result listing it agrees
+ok   disagrees: packs and unidentified boxes never disagree
+ok   most_specific: an ancestor prefix is dropped
+ok   hinted_match: a broad tag doesn't widen a team tag
+ok   hinted_match: a prefix matching no entry falls back
+ok   match_team: a clear team lead becomes team
+ok   match_team: a narrow lead stays none
+ok   match_team: a one-entry team stays none
+ok   match_team: identified results are untouched
+ok   team_key avoids the path separator
+
+ok   match_camera: black pod picks the black driver
+ok   match_camera: yellow pod picks the yellow driver
+ok   match_camera: unknown colour is a no-op
+ok   match_camera: a livery result keeps its driver when the pod agrees
+ok   match_camera: a livery result moves to the teammate whose pod matches
+ok   match_camera: a livery result with an unknown pod is left alone
+ok   match_camera: number results never change
+ok   match_camera: two owners of a colour is a no-op
+ok   match_camera: owner outside the candidates is a no-op
+all tests passed
