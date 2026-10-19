@@ -96,8 +96,13 @@ def crops(cdir, paths, blur):
     return out
 
 
-def hsv_hist(crop):
+def hsv_hist(crop, frac=1.0):
+    """frac < 1 keeps only the central frac of height and width, dropping the track/sky around the car."""
     import cv2
+    if frac < 1.0:
+        h, w = crop.shape[:2]
+        dy, dx = int(h * (1 - frac) / 2), int(w * (1 - frac) / 2)
+        crop = crop[dy:h - dy, dx:w - dx]
     hsv = cv2.cvtColor(crop, cv2.COLOR_RGB2HSV)
     h = cv2.calcHist([hsv], [0, 1], None, [18, 3], [0, 180, 0, 256]).ravel()
     return np.sqrt(h / max(h.sum(), 1.0))
@@ -119,7 +124,7 @@ def colour_report(cdir, entry, path, team, blur):
     missing = [p for p in path if not os.path.isfile(os.path.join(cdir, *p.split("/")))]
     if missing:
         sys.exit(f"{len(missing)} of {len(path)} reference crops are missing under {cdir} (first: {missing[0]}); --colour-only needs the refs/ images")
-    hist = unit(np.stack([hsv_hist(c) for c in crops(cdir, path, blur)]))
+    imgs = crops(cdir, path, blur)
     names = sorted(set(entry))
     teams = sorted({team[e] for e in names})
     idx = {n: i for i, n in enumerate(names)}
@@ -127,28 +132,26 @@ def colour_report(cdir, entry, path, team, blur):
     e_of = np.array([idx[e] for e in entry])
     t_of = np.array([tidx[team[e]] for e in entry])
 
-    def loo_scores(group, n):
+    def loo_scores(hist, group, n):
         sums = np.zeros((n, hist.shape[1]))
         np.add.at(sums, group, hist)
-        count = np.bincount(group, minlength=n).astype(float)
-        scores = np.full((len(hist), n), -np.inf)
-        for g in range(n):
-            if count[g] == 0:
-                continue
-            cent = unit(sums[g][None])[0]
-            scores[:, g] = hist @ cent
+        scores = np.stack([hist @ unit(sums[g][None])[0] for g in range(n)], axis=1)
         for i, g in enumerate(group):
-            if count[g] > 1:
-                scores[i, g] = hist[i] @ unit((sums[g] - hist[i])[None])[0]
-            else:
-                scores[i, g] = -np.inf
+            scores[i, g] = hist[i] @ unit((sums[g] - hist[i])[None])[0]
         return scores
 
-    lines = [f"{len(hist)} references, {len(names)} entries, {len(teams)} teams (colour histogram only, leave-one-out)"]
-    e_scores, t_scores = loo_scores(e_of, len(names)), loo_scores(t_of, len(teams))
-    e_top, t_top = e_scores.argmax(axis=1), t_scores.argmax(axis=1)
-    lines.append(f"entry accuracy {np.mean(e_top == e_of):.1%}, team accuracy {np.mean(t_top == t_of):.1%} "
-                 f"(chance ~{1 / len(names):.1%} / {1 / len(teams):.1%})")
+    results = []
+    for frac in (1.0, 0.7, 0.5):
+        hist = unit(np.stack([hsv_hist(c, frac) for c in imgs]))
+        e_top = loo_scores(hist, e_of, len(names)).argmax(axis=1)
+        t_top = loo_scores(hist, t_of, len(teams)).argmax(axis=1)
+        results.append((np.mean(t_top == t_of), frac, e_top, t_top))
+    lines = [f"{len(imgs)} references, {len(names)} entries, {len(teams)} teams (colour histogram only, leave-one-out)",
+             "centre fraction kept: team accuracy / entry accuracy"]
+    for t_acc, frac, e_top, _ in results:
+        lines.append(f"  {frac:.0%}: {t_acc:.1%} / {np.mean(e_top == e_of):.1%}")
+    t_acc, frac, e_top, t_top = max(results, key=lambda r: r[0])
+    lines.append(f"detail below is for the best team accuracy ({frac:.0%}); chance ~{1 / len(names):.1%} entry / {1 / len(teams):.1%} team")
     lines.append("")
     lines.append("per entry: refs, recall as entry, recall as team, most-confused-with")
     for n in names:
