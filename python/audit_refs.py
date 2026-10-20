@@ -11,7 +11,7 @@ Writes ref-audit.txt in COLLECTION_DIR. Sections:
   cross-entry copies - near-identical to a ref filed under a different entry
   outliers           - far from the rest of its own entry (robust z-score, entries with 5+ refs)
   odd crops          - crop size or shape far from the entry's usual (distant car, whole frame, nose-only cut)
-  colour outliers    - livery colours (hue/saturation, brightness ignored) unlike the entry's typical ones
+  colour outliers    - livery colours (hue/saturation, brightness ignored) unlike the entry's typical ones from the same event (ids close together = one weekend)
   whole frames       - refs where the detector finds no car, or one under 15% of the image (needs --detector)
   redundant          - near-duplicates inside one entry (add no variety)
   duplicate groups   - the near-duplicate files together with their similarity; often harmless burst frames"""
@@ -36,6 +36,8 @@ FRAME_CACHE_NAME = "frame-share-cache.json"
 FRAME_FULL_LIST_NAME = "ref-audit-frames.txt"  # every flagged whole frame; the report shows only the first `top`
 FRAME_SHARE_BUCKETS = [0.05, 0.10, 0.15, 0.25, 0.50]  # histogram band edges for the car-share spread
 ATTRACTOR_MIN_PULLS = 3  # wrong-entry queries a ref must win before it is listed as an attractor
+EVENT_GAP = 1000  # ref ids further apart than this belong to different events (race weekends)
+COLOUR_MIN_EVENT_REFS = 4  # an entry's refs from one event needed to score its colours against that event alone
 COLOUR_MAD_FLOOR = 0.03 # entries whose refs agree closely would otherwise flag normal lighting variation
 
 
@@ -141,10 +143,29 @@ def duplicate_groups(collection_dir, emb, entry, path, dup_sim):
     return sorted(groups, key=lambda g: -len(g[1]))
 
 
-def colour_audit(collection_dir, entry, path):
+def ref_events(path):
+    """Groups refs into events (race weekends). The file stem is the photo's darktable id, which follows
+    import order, and a weekend's photos are imported together, so ids split into events wherever two
+    consecutive ids across all refs are more than EVENT_GAP apart. Returns ([event number per ref],
+    [(lowest id, highest id, refs)] per event)."""
+    ids = [int(os.path.splitext(os.path.basename(p))[0]) for p in path]
+    event_of, event, prev = {}, 0, None
+    for v in sorted(set(ids)):
+        if prev is not None and v - prev > EVENT_GAP:
+            event += 1
+        event_of[v], prev = event, v
+    events = [event_of[v] for v in ids]
+    ranges = [(min(v for v, e in zip(ids, events) if e == k), max(v for v, e in zip(ids, events) if e == k),
+               events.count(k)) for k in range(event + 1)]
+    return events, ranges
+
+
+def colour_audit(collection_dir, entry, path, events):
     """Refs whose hue/saturation signature (colour.colour_hist, brightness-blind) is far from their
-    entry's typical one. Returns [(z, i, own_sim, other_entry, other_sim)], worst first; an entry needs
-    4+ refs. other_entry is the entry whose typical colours the ref matches best, if that beats its own."""
+    entry's typical one. Liveries change between weekends, so a ref is scored against the same entry's
+    refs from its own event (ref_events) when that has COLOUR_MIN_EVENT_REFS+ refs, else against the
+    whole entry. Returns [(z, i, own_sim, other_entry, other_sim)], worst first; an entry needs 4+ refs.
+    other_entry is the entry whose typical colours the ref matches best, if that beats its own."""
     from PIL import Image
     from colour import colour_hist
     hists = []
@@ -154,21 +175,26 @@ def colour_audit(collection_dir, entry, path):
     hists = np.stack(hists)
     ent = np.array(entry)
     names = sorted(set(entry))
+    ev = np.array(events)
     cent = {n: unit(np.median(hists[ent == n], axis=0)) for n in names}
     found = []
     for n in names:
         idx = np.where(ent == n)[0]
         if len(idx) < 4:
             continue
-        sims = hists[idx] @ cent[n]
-        med = np.median(sims)
-        mad = max(np.median(np.abs(sims - med)), COLOUR_MAD_FLOOR)
-        for k, i in enumerate(idx):
-            z = (sims[k] - med) / (1.4826 * mad)
-            if z < -3.0:
-                others = {m: float(hists[i] @ cent[m]) for m in names if m != n}
-                best = max(others, key=others.get)
-                found.append((float(z), i, float(sims[k]), best if others[best] > sims[k] else "", others[best]))
+        for e in sorted(set(ev[idx])):
+            sub = idx[ev[idx] == e]
+            group = sub if len(sub) >= COLOUR_MIN_EVENT_REFS else idx
+            centre = unit(np.median(hists[group], axis=0))
+            med = np.median(hists[group] @ centre)
+            mad = max(np.median(np.abs(hists[group] @ centre - med)), COLOUR_MAD_FLOOR)
+            for i in sub:
+                own = float(hists[i] @ centre)
+                z = (own - med) / (1.4826 * mad)
+                if z < -3.0:
+                    others = {m: float(hists[i] @ cent[m]) for m in names if m != n}
+                    best = max(others, key=others.get)
+                    found.append((float(z), i, own, best if others[best] > own else "", others[best]))
     return sorted(found)
 
 
@@ -267,8 +293,9 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
         sys.exit(f"{collection_dir} needs 2+ entries with 2+ references each to audit")
     mislabel, copies, outliers, redundant, own_best, other_best = audit(emb, entry, dup_sim)
 
+    events, event_ranges = ref_events(path)
     try:
-        colours = colour_audit(collection_dir, entry, path)
+        colours = colour_audit(collection_dir, entry, path, events)
     except ImportError:  # no cv2: the colour section is skipped
         colours = []
     crops = crop_audit(collection_dir, entry, path)
@@ -280,7 +307,9 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     out = [f"{len(entry)} references, {len(set(entry))} entries with 2+ refs (entries with fewer are skipped)",
            f"{len(mislabel)} mislabel suspects, {len(copies)} cross-entry copies, {len(outliers)} outliers, "
            f"{len(colours)} colour outliers, {len(crops)} odd crops, {len(attractors)} attractors, "
-           + (f"{len(frames)} whole frames" if detector else "whole-frame check skipped (no detector)"), ""]
+           + (f"{len(frames)} whole frames" if detector else "whole-frame check skipped (no detector)"),
+           f"events (ids more than {EVENT_GAP} apart split; colour outliers are judged within an event): "
+           + ", ".join(f"{lo}-{hi} ({c})" for lo, hi, c in event_ranges), ""]
 
     def row(i, j, extra):
         cross = " (same team)" if team.get(entry[j]) == team.get(entry[i]) else ""
@@ -289,7 +318,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     flags = {}
     for label, items in (("mislabel", [(m, i) for m, i, _ in mislabel]), ("copy", [(s, i) for s, i, _ in copies]),
                          ("outlier", [(-z, i) for z, i, _ in outliers]), ("colour", [(-z, i) for z, i, *_ in colours]),
-                         ("crop", [(z, i) for z, i, *_ in crops]), ("frame", [(s, i) for s, i in frames])):
+                         ("crop", [(z, i) for z, i, *_ in crops]), ("frame", [(s, i) for s, i in frames if s > 0.0])):
         for _, i in items:
             flags.setdefault(i, []).append(label)
     strongest = sorted((i for i, f in flags.items() if len(f) >= 2), key=lambda i: (-len(flags[i]), path[i]))
