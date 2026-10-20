@@ -17,6 +17,7 @@ Writes ref-audit.txt in COLLECTION_DIR. Sections:
   duplicate groups   - the near-duplicate files together with their similarity; often harmless burst frames"""
 
 import argparse
+import json
 import os
 import sys
 from collections import Counter
@@ -31,6 +32,9 @@ CROP_MIN_Z = 4.0  # robust z of crop size or aspect ratio against the entry's me
 CROP_AREA_MAD_FLOOR = 0.15  # log scale, so 0.15 is about 16% in side length
 CROP_ASPECT_MAD_FLOOR = 0.08
 WHOLE_FRAME_MAX_FRAC = 0.15  # detected car's share of the ref image below this = whole frame or scenery
+FRAME_CACHE_NAME = "frame-share-cache.json"
+FRAME_FULL_LIST_NAME = "ref-audit-frames.txt"  # every flagged whole frame; the report shows only the first `top`
+FRAME_SHARE_BUCKETS = [0.05, 0.10, 0.15, 0.25, 0.50]  # histogram band edges for the car-share spread
 ATTRACTOR_MIN_PULLS = 3  # wrong-entry queries a ref must win before it is listed as an attractor
 COLOUR_MAD_FLOOR = 0.03 # entries whose refs agree closely would otherwise flag normal lighting variation
 
@@ -199,25 +203,58 @@ class AuditCancelled(Exception):
     """on_progress returned False: the caller wants the audit stopped."""
 
 
+def _file_stamp(p):
+    st = os.stat(p)
+    return f"{st.st_size}:{st.st_mtime_ns}"
+
+
 def frame_audit(collection_dir, path, detector, on_progress=None):
-    """Refs that are whole frames or mostly scenery rather than a tight car crop: the vehicle detector
-    finds no car in the ref, or one covering under WHOLE_FRAME_MAX_FRAC of it. A good ref is already
-    cropped to its car, so the car fills most of the image. on_progress(done, total) is called per ref;
-    a False return raises AuditCancelled. Returns [(car share, i)], smallest first."""
+    """Each ref's car share: the largest detected vehicle's fraction of the ref image (0 when the
+    detector finds none). A good ref is already cropped to its car, so the car fills most of the image.
+    Shares are cached in FRAME_CACHE_NAME beside the index, keyed by each ref file's size and mtime and
+    by the detector file and threshold, so a re-run only detects new or changed refs. on_progress(done,
+    total) is called per ref; a False return raises AuditCancelled (shares found so far stay cached).
+    Returns a list of shares aligned with `path`."""
     from PIL import Image
-    from vehicles import detect_vehicles
-    found = []
-    for i, rel in enumerate(path):
-        if on_progress and not on_progress(i, len(path)):
-            raise AuditCancelled()
-        with Image.open(os.path.join(collection_dir, *rel.split("/"))) as im:
-            rgb = np.array(im.convert("RGB"))
-        boxes, _ = detect_vehicles(rgb, detector)
-        h, w = rgb.shape[:2]
-        share = max(((b[2] - b[0]) * (b[3] - b[1]) / (w * h) for b in boxes), default=0.0)
-        if share < WHOLE_FRAME_MAX_FRAC:
-            found.append((share, i))
-    return sorted(found)
+    from vehicles import DETECTOR_MIN_SCORE, detect_vehicles
+    cache_path = os.path.join(collection_dir, FRAME_CACHE_NAME)
+    detector_id = f"{os.path.basename(detector)}:{_file_stamp(detector)}:{DETECTOR_MIN_SCORE}"
+    cached = {}
+    if os.path.exists(cache_path):
+        with open(cache_path, encoding="utf-8") as f:
+            saved = json.load(f)
+        if saved.get("detector") == detector_id:
+            cached = saved.get("refs", {})
+    shares = []
+    try:
+        for i, rel in enumerate(path):
+            if on_progress and not on_progress(i, len(path)):
+                raise AuditCancelled()
+            file = os.path.join(collection_dir, *rel.split("/"))
+            stamp = _file_stamp(file)
+            hit = cached.get(rel)
+            if hit and hit["stamp"] == stamp:
+                shares.append(hit["share"])
+                continue
+            with Image.open(file) as im:
+                rgb = np.array(im.convert("RGB"))
+            boxes, _ = detect_vehicles(rgb, detector)
+            h, w = rgb.shape[:2]
+            share = max(((b[2] - b[0]) * (b[3] - b[1]) / (w * h) for b in boxes), default=0.0)
+            cached[rel] = {"stamp": stamp, "share": share}
+            shares.append(share)
+    finally:
+        with open(cache_path, "w", encoding="utf-8") as f:
+            json.dump({"detector": detector_id, "refs": cached}, f)
+    return shares
+
+
+def share_histogram(shares):
+    """Counts of shares per FRAME_SHARE_BUCKETS band, as report lines."""
+    lines = [f"  no car found: {sum(1 for s in shares if s == 0.0)}"]
+    for lo, hi in zip([0.0] + FRAME_SHARE_BUCKETS, FRAME_SHARE_BUCKETS + [1.01]):
+        lines.append(f"  {lo:.0%} to {min(hi, 1.0):.0%}: {sum(1 for s in shares if s > 0.0 and lo <= s < hi)}")
+    return lines
 
 
 def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=None):
@@ -236,7 +273,10 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
         colours = []
     crops = crop_audit(collection_dir, entry, path)
     attractors = attractor_audit(emb, entry, team, dup_sim)
-    frames =frame_audit(collection_dir, path, detector, on_progress) if detector else []
+    shares = frame_audit(collection_dir, path, detector, on_progress) if detector else []
+    # a small car was found (likely real scenery) before no car found (often a detector miss); the nearest-to-cutoff first
+    frames = sorted(((s, i) for i, s in enumerate(shares) if s < WHOLE_FRAME_MAX_FRAC),
+                    key=lambda t: (t[0] == 0.0, -t[0], path[t[1]]))
     out = [f"{len(entry)} references, {len(set(entry))} entries with 2+ refs (entries with fewer are skipped)",
            f"{len(mislabel)} mislabel suspects, {len(copies)} cross-entry copies, {len(outliers)} outliers, "
            f"{len(colours)} colour outliers, {len(crops)} odd crops, {len(attractors)} attractors, "
@@ -277,10 +317,16 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     out.append("\n## odd crops (size or shape far from the entry's usual: distant car, whole frame, nose-only cut; these can be good refs too)")
     for z, i, (w, h), (mw, mh) in crops[:top]:
         out.append(f"  {path[i]}  [{entry[i]}]  {w}x{h}  entry median {mw}x{mh}  z {z:.1f}")
-    out.append(f"\n## whole frames (detected car covers under {WHOLE_FRAME_MAX_FRAC:.0%} of the ref: scenery drives its matches, but it also fires when the detector misses a dark or blurred car, so look before deleting)")
+    out.append(f"\n## whole frames (detected car covers under {WHOLE_FRAME_MAX_FRAC:.0%} of the ref: scenery drives its matches, but it also fires when the detector misses a dark or blurred car, so look before deleting. A small car found comes first, nearest the cutoff; 'no car found' refs follow and are the likelier detector misses. Every one is in {FRAME_FULL_LIST_NAME})")
+    if detector:
+        out.append("  car share across all refs:")
+        out += ["  " + line for line in share_histogram(shares)]
     for share, i in frames[:top]:
-        out.append(f"  {path[i]}  [{entry[i]}]  car share {share:.0%}")
+        out.append(f"  {path[i]}  [{entry[i]}]  car share {share:.1%}")
     out.append(f"  ({len(frames)} in total)")
+    if detector:
+        with open(os.path.join(collection_dir, FRAME_FULL_LIST_NAME), "w", encoding="utf-8") as f:
+            f.writelines(f"{path[i]}\t{entry[i]}\t{share:.4f}\n" for share, i in frames)
     out.append("\n## redundant (refs with a near-duplicate in the same entry)")
     for name, c in redundant[:top]:
         out.append(f"  {name}: {c}")
