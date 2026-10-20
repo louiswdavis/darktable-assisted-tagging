@@ -2,7 +2,7 @@
 query once, matched against the others (centred embeddings, as the live matcher does). Reports only;
 it never moves or deletes anything. Run from this folder:
 
-  python audit_refs.py COLLECTION_DIR [--dup-sim 0.97] [--top 40]
+  python audit_refs.py COLLECTION_DIR [--dup-sim 0.97] [--top 40] [--detector PATH.onnx]
 
 Writes ref-audit.txt in COLLECTION_DIR. Sections:
   strongest candidates - refs flagged by 2+ of the checks below; start here
@@ -35,7 +35,7 @@ ATTRACTOR_MIN_PULLS = 3  # wrong-entry queries a ref must win before it is liste
 COLOUR_MAD_FLOOR = 0.03 # entries whose refs agree closely would otherwise flag normal lighting variation
 
 
-def audit(emb, entry, path, team, dup_sim):
+def audit(emb, entry, dup_sim):
     """Returns (mislabel, copies, outliers, redundant) lists, each worst first."""
     x = unit(emb - emb.mean(axis=0))
     sims = x @ x.T
@@ -224,7 +224,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     emb, entry, path, team, _ = load(collection_dir)
     if len(set(entry)) < 2:
         sys.exit(f"{collection_dir} needs 2+ entries with 2+ references each to audit")
-    mislabel, copies, outliers, redundant, own_best, other_best = audit(emb, entry, path, team, dup_sim)
+    mislabel, copies, outliers, redundant, own_best, other_best = audit(emb, entry, dup_sim)
 
     try:
         colours = colour_audit(collection_dir, entry, path)
