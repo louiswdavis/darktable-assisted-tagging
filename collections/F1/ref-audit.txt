@@ -236,6 +236,9 @@ events (ids more than 1000 apart split; colour outliers are judged within an eve
   refs/Antonelli/189254.jpg  [Antonelli]  car share 0.0%
   (342 in total)
 
+## suggested crops (a wide ref with exactly one car found, re-cut to it: copies in ref-audit-crops/<entry>/. Look at each; if it is the right car, copy it over the ref in refs/<entry>/. Nothing in refs/ was changed. Skipped: 342 with no car found, 0 with several cars)
+  (0 in total)
+
 ## redundant (refs with a near-duplicate in the same entry)
   Hamilton: 5
   Bottas: 3
