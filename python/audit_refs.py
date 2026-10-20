@@ -19,6 +19,7 @@ Writes ref-audit.txt in COLLECTION_DIR. Sections:
 import argparse
 import json
 import os
+import re
 import sys
 from collections import Counter
 
@@ -148,7 +149,7 @@ def ref_events(path):
     import order, and a weekend's photos are imported together, so ids split into events wherever two
     consecutive ids across all refs are more than EVENT_GAP apart. Returns ([event number per ref],
     [(lowest id, highest id, refs)] per event)."""
-    ids = [int(os.path.splitext(os.path.basename(p))[0]) for p in path]
+    ids = [int(re.match(r"\d+", os.path.basename(p)).group()) for p in path]  # stems like 139712_b0 carry a box suffix
     event_of, event, prev = {}, 0, None
     for v in sorted(set(ids)):
         if prev is not None and v - prev > EVENT_GAP:
