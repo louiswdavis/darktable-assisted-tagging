@@ -8,6 +8,7 @@ Modes:
   identify.py MANIFEST RESULTS --add-reference id,filepath,entry_id → id,status
   identify.py MANIFEST RESULTS --promote-boxes --boxes-in F   id,filepath,"" → id,status
                                               (confident vehicles from a run's boxes.json become references)
+  identify.py MANIFEST RESULTS --audit-refs   (manifest unused) → name,count per audit total, then report,<ref-audit.txt path>
   identify.py - - --list                      collection names (+ entries.csv, rules.csv)
 
 Every mode that reads a collection also writes its tag-plan.txt: the exact tags
