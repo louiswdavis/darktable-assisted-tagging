@@ -164,14 +164,21 @@ def crop_audit(collection_dir, entry, path):
     return sorted(found, reverse=True)
 
 
-def frame_audit(collection_dir, path, detector):
+class AuditCancelled(Exception):
+    """on_progress returned False: the caller wants the audit stopped."""
+
+
+def frame_audit(collection_dir, path, detector, on_progress=None):
     """Refs that are whole frames or mostly scenery rather than a tight car crop: the vehicle detector
     finds no car in the ref, or one covering under WHOLE_FRAME_MAX_FRAC of it. A good ref is already
-    cropped to its car, so the car fills most of the image. Returns [(car share, i)], smallest first."""
+    cropped to its car, so the car fills most of the image. on_progress(done, total) is called per ref;
+    a False return raises AuditCancelled. Returns [(car share, i)], smallest first."""
     from PIL import Image
     from vehicles import detect_vehicles
     found = []
     for i, rel in enumerate(path):
+        if on_progress and not on_progress(i, len(path)):
+            raise AuditCancelled()
         with Image.open(os.path.join(collection_dir, *rel.split("/"))) as im:
             rgb = np.array(im.convert("RGB"))
         boxes, _ = detect_vehicles(rgb, detector)
@@ -182,9 +189,10 @@ def frame_audit(collection_dir, path, detector):
     return sorted(found)
 
 
-def write_audit(collection_dir, dup_sim=0.97, top=40, detector=""):
+def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=None):
     """Audits collection_dir's index.npz and writes ref-audit.txt beside it. detector (YOLOX .onnx)
-    enables the whole-frame check; without it that section is skipped. Returns
+    enables the whole-frame check; without it that section is skipped. on_progress is passed to
+    frame_audit (the slow step); AuditCancelled propagates and no report is written. Returns
     (path written, {"references", "mislabel", "copies", "outliers", ...})."""
     emb, entry, path, team, _ = load(collection_dir)
     if len(set(entry)) < 2:
@@ -196,7 +204,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector=""):
     except ImportError:  # no cv2: the colour section is skipped
         colours = []
     crops = crop_audit(collection_dir, entry, path)
-    frames = frame_audit(collection_dir, path, detector) if detector else []
+    frames = frame_audit(collection_dir, path, detector, on_progress) if detector else []
     out = [f"{len(entry)} references, {len(set(entry))} entries with 2+ refs (entries with fewer are skipped)",
            f"{len(mislabel)} mislabel suspects, {len(copies)} cross-entry copies, {len(outliers)} outliers, "
            f"{len(colours)} colour outliers, {len(crops)} odd crops, "

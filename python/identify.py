@@ -1166,7 +1166,7 @@ def promote_boxes(args, models: dict):
 def audit_references(args, models: dict):
     """Reconciles the collection's index with refs/ (deleted or moved crops, changed models), then
     writes ref-audit.txt beside it. results is one `name,count` line per audit total plus `report,<path>`."""
-    from audit_refs import write_audit
+    from audit_refs import AuditCancelled, write_audit
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
     models["kind"] = rules.kind
@@ -1175,7 +1175,15 @@ def audit_references(args, models: dict):
     index = open_index(collection, models, rules, check_models(models))
     if len(set(index.entry)) < 2:
         raise InputError(f"{args.collection} needs references for at least 2 entries to audit; add some first")
-    report, counts = write_audit(collection, detector=models["detector"])
+    def on_progress(done, total):
+        write_progress(args.progress, done, total)
+        return not cancel_requested(args.progress)
+
+    try:
+        report, counts = write_audit(collection, detector=models["detector"], on_progress=on_progress)
+    except AuditCancelled:
+        log("cancelled; no audit written")
+        sys.exit(130)
     log(f"reference audit: {counts}; wrote {report}")
     with open(args.results, "w", newline="", encoding="utf-8") as f:
         f.writelines(f"{k},{v}\n" for k, v in counts.items())

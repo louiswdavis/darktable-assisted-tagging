@@ -759,6 +759,8 @@ end
 -- `orphan` is a cancelled or stalled process that hadn't exited when its run gave up
 -- waiting; nothing starts until its done file appears.
 local busy, orphan = false, false
+-- Jobs clicked while another runs: { label = "...", run = function() ... end }, started in order as each finishes.
+local queue = {}
 -- A run that shows no progress for this long is given up on (it may still be loading
 -- models or re-embedding references, so this is generous).
 local STALL_SECONDS = 300
@@ -1010,9 +1012,17 @@ local function set_idle_label()
     if identify_button then identify_button.label = _("Identify selection") end
 end
 
+-- Drops every queued job; a cancel means "stop what I started", not "run the rest".
+local function clear_queue()
+    if #queue == 0 then return end
+    dt.print(string.format(_("Assisted Tagging: %d queued jobs dropped."), #queue))
+    queue = {}
+end
+
 local function stop_job(job)
     M.cancel_requested = true
     request_cancel()
+    clear_queue()
     end_job(job)
 end
 
@@ -1033,6 +1043,29 @@ local function write_rows(path, rows)
 end
 
 local WRITE_ROWS_FAILED = "couldn't write the image list to darktable's tmp folder (disk full or no write access?)"
+
+-- While a job runs, remembers `run` to start when it finishes and returns true. Returns false
+-- (do nothing) when nothing is running or there is nothing to queue (`has_input` false), so the
+-- caller's normal checks print their own message.
+local function queue_if_busy(label, has_input, run)
+    if not busy or not has_input then return false end
+    queue[#queue + 1] = { label = label, run = run }
+    dt.print(string.format(_("Assisted Tagging: %s queued (%d waiting); it starts when the current job finishes."),
+        label, #queue))
+    return true
+end
+
+-- Starts the oldest queued job. Called by every job as it finishes, after busy is cleared.
+local function run_next()
+    if busy or #queue == 0 then return end
+    if not orphan_gone() then
+        clear_queue() -- the stopped process still holds the tmp files; nothing safe to start
+        return
+    end
+    local nxt = table.remove(queue, 1)
+    log("starting queued job: " .. nxt.label)
+    nxt.run()
+end
 
 -- A run's preconditions; prints why and returns false when it can't start.
 local function can_start(images, needs_no_images)
@@ -1245,6 +1278,8 @@ end
 -- replace_manual: lift the protection of tags the user applied by hand, for this run only.
 -- verify_only: analyse fully tagged images too and report disagreements, changing no tags.
 function M.identify_images(images, replace_manual, verify_only)
+    local label = verify_only and _("Verify") or _("Identify")
+    if queue_if_busy(label, images and #images > 0, function() M.identify_images(images, replace_manual, verify_only) end) then return end
     if not can_start(images) then return end
     busy = true
     M.cancel_requested = false
@@ -1301,21 +1336,23 @@ function M.identify_images(images, replace_manual, verify_only)
     cleanup_tmp()
     log("run finished")
     flush_log()
+    run_next()
 end
 
 -- Writes the manifest and runs identify.py in a reference mode (`mode_args`). Sets state.job for
 -- finish_reference_job. Returns results.csv's text, or nil once a cancel, stall or failure has been reported.
-local function run_reference_job(state, rows, mode_args)
+-- what: the job-area title and progress hint, e.g. "auditing references".
+local function run_reference_job(state, rows, mode_args, what)
     pcall(os.remove, RESULTS_PATH)
     if not write_rows(MANIFEST_PATH, rows) then
         error(WRITE_ROWS_FAILED, 0)
     end
-    state.job = dt.gui.create_job(_("Assisted Tagging: adding references"), true, stop_job)
+    state.job = dt.gui.create_job("Assisted Tagging: " .. what, true, stop_job)
     state.job.percent = 0.0
     local code, why = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
         .. mode_args .. collection_args() .. model_args(identify_script())
         .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH),
-        state.job, 0, 1, "adding references")
+        state.job, 0, 1, what)
     flush_log()
     dt.print_hinter(" ")
     if why == "cancelled" or code == 130 then
@@ -1337,11 +1374,13 @@ local function finish_reference_job(state, okr, err)
     cleanup_tmp()
     log("run finished")
     flush_log()
+    run_next()
 end
 
 -- entry_id: the entry every image becomes a reference of, or nil to take each
 -- image's entry from the tags it already carries.
 function M.add_references(images, entry_id)
+    if queue_if_busy(_("Add references"), images and #images > 0, function() M.add_references(images, entry_id) end) then return end
     if not can_start(images) then return end
     if entry_id == nil and #entry_order == 0 then
         dt.print(_("Assisted Tagging: the collection has no entries yet. Add them to its entries.json, then click Reload."))
@@ -1373,7 +1412,7 @@ function M.add_references(images, entry_id)
             say(_("Assisted Tagging: no selected image carries all of one entry's tags, so nothing was added."))
             return
         end
-        local results = run_reference_job(state, rows, " --add-reference")
+        local results = run_reference_job(state, rows, " --add-reference", "adding references")
         if not results then return end
         local added, whole, failed, no_face, multi = 0, 0, 0, 0, 0
         for line in results:gmatch("[^\r\n]+") do
@@ -1400,6 +1439,7 @@ end
 -- Saves the confident vehicles (number-read, or a clear livery match) that the last
 -- Identify run recorded for these images as references of the entries it found.
 function M.promote_references(images)
+    if queue_if_busy(_("Add confident vehicles"), images and #images > 0, function() M.promote_references(images) end) then return end
     if not can_start(images) then return end
     local boxes = boxes_path()
     if not file_exists(boxes) then
@@ -1416,7 +1456,7 @@ function M.promote_references(images)
         for _, img in ipairs(images) do
             rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, "" }
         end
-        local results = run_reference_job(state, rows, " --promote-boxes --boxes-in " .. shell_quote(boxes))
+        local results = run_reference_job(state, rows, " --promote-boxes --boxes-in " .. shell_quote(boxes), "saving vehicles as references")
         if not results then return end
         local counts = { added = 0, none_promotable = 0, stale = 0, failed = 0 }
         for line in results:gmatch("[^\r\n]+") do
@@ -1436,6 +1476,7 @@ end
 -- Refreshes the collection's reference index from refs/ and writes ref-audit.txt beside it.
 -- Needs no selected images.
 function M.audit_references()
+    if queue_if_busy(_("Audit references"), true, M.audit_references) then return end
     if not can_start(nil, true) then return end
     busy = true
     M.cancel_requested = false
@@ -1443,7 +1484,7 @@ function M.audit_references()
 
     local state = {}
     local okr, err = pcall(function()
-        local results = run_reference_job(state, {}, " --audit-refs")
+        local results = run_reference_job(state, {}, " --audit-refs", "auditing references")
         if not results then return end
         local c, report = {}, ""
         for line in results:gmatch("[^\r\n]+") do
@@ -1605,11 +1646,10 @@ local function start_identify(allow_cancel, verify_only)
             request_cancel()
             identify_cancellable = false
             identify_button.label = _("Cancelling...")
+            clear_queue()
             dt.print(_("Assisted Tagging: cancelling, finishing the current step..."))
-        else
-            dt.print(_("Assisted Tagging: another job is still running. Wait for it to finish, or cancel it first."))
+            return
         end
-        return
     end
     -- One run only: read the box, then clear it so the next run is protected again.
     local replace_manual = not verify_only and replace_manual_check and replace_manual_check.value or false
@@ -1683,7 +1723,7 @@ local function install_panel()
         changed_callback = function(self)
             local name = self.value
             if not name or name == "" or name == _("(no collections)") or name == current_collection() then return end
-            if busy or orphan then
+            if busy or orphan or #queue > 0 then
                 -- a run is using the stored collection's entries; switch back
                 dt.print(_("Assisted Tagging: busy, switch collections when the current run finishes."))
                 for i = 1, #self do
