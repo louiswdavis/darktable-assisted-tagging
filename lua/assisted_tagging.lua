@@ -768,6 +768,9 @@ local verify_button, identify_button, collection_combo, entry_combo, example_com
 local identify_cancellable = false -- the identify button currently reads "Cancel"
 local replace_manual_check = nil
 local entries, entry_order, rules = {}, {}, M.default_rules()
+local lists_loaded = false -- reload_lists has filled the collection and entry lists at least once
+-- Starting identify.py imports numpy and cv2, so the first load waits until darktable has opened.
+local STARTUP_RELOAD_DELAY_MS = 5000
 
 local function cancelled(job)
     return M.cancel_requested or (job and not job.valid) or file_exists(CANCEL_PATH)
@@ -962,6 +965,7 @@ local function reload_lists(quiet, show_plan)
                 dt.preferences.write("assisted_tagging", "last_collection", "string", names[1])
             else
                 load_entries_csv()
+                lists_loaded = true
                 fill_combo(collection_combo, #names > 0 and names or { _("(no collections)") }, sel or 1)
                 refresh_entry_combo()
                 if #names == 0 then
@@ -1883,7 +1887,10 @@ local function install_panel()
         { [dt.gui.views.lighttable] = { "DT_UI_CONTAINER_PANEL_RIGHT_CENTER", 100 } },
         panel_box
     )
-    dt.control.dispatch(reload_lists, true)
+    dt.control.dispatch(function()
+        dt.control.sleep(STARTUP_RELOAD_DELAY_MS)
+        if not lists_loaded then reload_lists(true) end
+    end)
     reload_examples()
 end
 
