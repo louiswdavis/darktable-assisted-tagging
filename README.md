@@ -260,6 +260,8 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 
 Filter on `Assisted Tagging|Identification|By livery` and `Assisted Tagging|Identification|Unidentified` in the **collections** module to spot-check the uncertain ones; an image it got wrong is often a good new reference.
 
+Tick **Tag each run** in the panel to also stamp every image a run writes with `Assisted Tagging|Run|YYYY-MM-DD HH:MM`, so the latest run's photos can be filtered apart from earlier ones. Stamps are never removed by later runs; delete old ones in darktable's tag manager.
+
 Re-running is safe: each image's entry and diagnostic tags are synced to the new result, so a frame that moves from one driver to another loses the old driver's tags. Tags that aren't in the active collection are never touched.
 
 ### Tags you apply by hand

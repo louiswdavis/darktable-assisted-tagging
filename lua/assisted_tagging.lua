@@ -558,10 +558,6 @@ if dt.gui then
         "Assisted Tagging: diagnostic tags",
         "Tag how each image was identified (under Assisted Tagging|Identification: By number, By livery, By burst, Team only, Unidentified) for filtering and spot-checks; a collection's rules can rename them. Off removes them on the next run",
         true)
-    dt.preferences.register("assisted_tagging", "run_tags", "bool",
-        "Assisted Tagging: tag each run",
-        "Add a timestamp tag (Assisted Tagging|Run|YYYY-MM-DD HH:MM) to every image a run writes, so the latest run's photos can be filtered apart from earlier ones. Stamps accumulate; remove old ones in darktable's tag manager",
-        false)
     dt.preferences.register("assisted_tagging", "burst_gap_seconds", "integer",
         "Assisted Tagging: burst gap (seconds)",
         "Photos taken closer together than this are one burst, and share an identification when the rest of the burst agrees",
@@ -771,6 +767,7 @@ local STALL_SECONDS = 300
 local verify_button, identify_button, collection_combo, entry_combo, example_combo = nil, nil, nil, nil, nil
 local identify_cancellable = false -- the identify button currently reads "Cancel"
 local replace_manual_check = nil
+local run_tag_check = nil
 local suggest_crops_check = nil
 local quarantine_check = nil
 local entries, entry_order, rules = {}, {}, M.default_rules()
@@ -1209,7 +1206,7 @@ local function apply_results(run, job)
         and { rules.diag.number_seen .. "|" } or {}
     local diag_on = dt.preferences.read("assisted_tagging", "diagnostic_tags", "bool")
     -- one stamp per run; never owned, so later runs leave earlier stamps in place
-    local run_tag = dt.preferences.read("assisted_tagging", "run_tags", "bool")
+    local run_tag = run_tag_check and run_tag_check.value
         and os.date("Assisted Tagging|Run|%Y-%m-%d %H:%M") or nil
     local tag_objs, writes, failed, first_error = {}, 0, 0, nil
     local n_tagged, n_unidentified, n_missing = 0, 0, 0
@@ -1865,6 +1862,11 @@ local function install_panel()
         tooltip = _("Save each vehicle the last Identify run was sure of (number read, or a clear livery match) as a reference of the entry it found. Works for pack shots too: only that car's crop is saved."),
         clicked_callback = function() M.promote_references(dt.gui.action_images) end,
     }
+    run_tag_check = dt.new_widget("check_button") {
+        label = _("Tag each run"),
+        tooltip = _("Add a timestamp tag (Assisted Tagging|Run|YYYY-MM-DD HH:MM) to every image a run writes, so the latest run's photos can be filtered apart from earlier ones. Stamps accumulate; remove old ones in darktable's tag manager."),
+        value = false,
+    }
     suggest_crops_check = dt.new_widget("check_button") {
         label = _("Audit: suggest re-crops"),
         tooltip = _("Also write re-cut copies of wide references (one car found) into ref-audit-crops in the collection folder, for you to review. Nothing in refs/ is changed. The first audit with this ticked is slow (about 8 minutes for 2000 refs); later ones are fast."),
@@ -1900,6 +1902,7 @@ local function install_panel()
         verify_button,
         identify_button,
         replace_manual_check,
+        run_tag_check,
         dt.new_widget("section_label") { label = _("references") },
         entry_combo,
         add_button,
