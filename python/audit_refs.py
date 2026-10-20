@@ -2,7 +2,7 @@
 query once, matched against the others (centred embeddings, as the live matcher does). Reports only;
 it never moves or deletes anything. Run from this folder:
 
-  python audit_refs.py COLLECTION_DIR [--dup-sim 0.97] [--top 40] [--detector PATH.onnx]
+  python audit_refs.py COLLECTION_DIR [--dup-sim 0.97] [--top 40] [--detector PATH.onnx] [--suggest-crops]
 
 Writes ref-audit.txt in COLLECTION_DIR. Sections:
   strongest candidates - refs flagged by 2+ of the checks below; start here
@@ -34,6 +34,7 @@ CROP_AREA_MAD_FLOOR = 0.15  # log scale, so 0.15 is about 16% in side length
 CROP_ASPECT_MAD_FLOOR = 0.08
 WHOLE_FRAME_MAX_FRAC = 0.15  # detected car's share of the ref image below this = whole frame or scenery
 FRAME_CACHE_NAME = "frame-share-cache.json"
+CROP_SUGGEST_DIR = "ref-audit-crops"  # --suggest-crops writes re-cropped copies of wide refs here, one folder per entry
 FRAME_FULL_LIST_NAME = "ref-audit-frames.txt"  # every flagged whole frame; the report shows only the first `top`
 FRAME_SHARE_BUCKETS = [0.05, 0.10, 0.15, 0.25, 0.50]  # histogram band edges for the car-share spread
 ATTRACTOR_MIN_PULLS = 3  # wrong-entry queries a ref must win before it is listed as an attractor
@@ -235,13 +236,15 @@ def _file_stamp(p):
     return f"{st.st_size}:{st.st_mtime_ns}"
 
 
-def frame_audit(collection_dir, path, detector, on_progress=None):
+def frame_audit(collection_dir, path, detector, on_progress=None, need_boxes=False):
     """Each ref's car share: the largest detected vehicle's fraction of the ref image (0 when the
     detector finds none). A good ref is already cropped to its car, so the car fills most of the image.
-    Shares are cached in FRAME_CACHE_NAME beside the index, keyed by each ref file's size and mtime and
-    by the detector file and threshold, so a re-run only detects new or changed refs. on_progress(done,
-    total) is called per ref; a False return raises AuditCancelled (shares found so far stay cached).
-    Returns a list of shares aligned with `path`."""
+    Shares and the detected boxes are cached in FRAME_CACHE_NAME beside the index, keyed by each ref
+    file's size and mtime and by the detector file and threshold, so a re-run only detects new or changed
+    refs. need_boxes also re-detects refs cached without boxes (caches from before boxes were stored).
+    on_progress(done, total) is called per ref; a False return raises AuditCancelled (results found so
+    far stay cached). Returns (shares, boxes), each aligned with `path`; a ref's boxes are
+    [x0, y0, x1, y1] lists in its own pixels."""
     from PIL import Image
     from vehicles import DETECTOR_MIN_SCORE, detect_vehicles
     cache_path = os.path.join(collection_dir, FRAME_CACHE_NAME)
@@ -252,7 +255,7 @@ def frame_audit(collection_dir, path, detector, on_progress=None):
             saved = json.load(f)
         if saved.get("detector") == detector_id:
             cached = saved.get("refs", {})
-    shares = []
+    shares, all_boxes = [], []
     try:
         for i, rel in enumerate(path):
             if on_progress and not on_progress(i, len(path)):
@@ -260,20 +263,51 @@ def frame_audit(collection_dir, path, detector, on_progress=None):
             file = os.path.join(collection_dir, *rel.split("/"))
             stamp = _file_stamp(file)
             hit = cached.get(rel)
-            if hit and hit["stamp"] == stamp:
+            if hit and hit["stamp"] == stamp and (not need_boxes or "boxes" in hit):
                 shares.append(hit["share"])
+                all_boxes.append(hit.get("boxes", []))
                 continue
             with Image.open(file) as im:
                 rgb = np.array(im.convert("RGB"))
             boxes, _ = detect_vehicles(rgb, detector)
             h, w = rgb.shape[:2]
             share = max(((b[2] - b[0]) * (b[3] - b[1]) / (w * h) for b in boxes), default=0.0)
-            cached[rel] = {"stamp": stamp, "share": share}
+            plain = [[float(v) for v in b[:4]] for b in boxes]
+            cached[rel] = {"stamp": stamp, "share": share, "boxes": plain}
             shares.append(share)
+            all_boxes.append(plain)
     finally:
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump({"detector": detector_id, "refs": cached}, f)
-    return shares
+    return shares, all_boxes
+
+
+def suggest_crops(collection_dir, path, entry, frames, boxes):
+    """Writes a re-cropped copy of each wide ref where the detector found exactly one car (vehicles.
+    crop_box, as saved refs are cut) into CROP_SUGGEST_DIR/<entry>/, replacing any earlier suggestions.
+    Refs with no car or several cars are skipped: with several, which one is the entry is unknown.
+    frames is [(share, i)] as in write_audit. Returns ([i of each written ref], count skipped for no
+    car, count skipped for several cars). Never touches the refs themselves."""
+    import shutil
+    from PIL import Image
+    from vehicles import crop_box
+    out_dir = os.path.join(collection_dir, CROP_SUGGEST_DIR)
+    shutil.rmtree(out_dir, ignore_errors=True)
+    written, no_car, several = [], 0, 0
+    for share, i in frames:
+        if share == 0.0 or not boxes[i]:
+            no_car += 1
+            continue
+        if len(boxes[i]) > 1:
+            several += 1
+            continue
+        with Image.open(os.path.join(collection_dir, *path[i].split("/"))) as im:
+            rgb = np.array(im.convert("RGB"))
+        dest = os.path.join(out_dir, entry[i], os.path.basename(path[i]))
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        Image.fromarray(crop_box(rgb, boxes[i])).save(dest, quality=95)
+        written.append(i)
+    return written, no_car, several
 
 
 def share_histogram(shares):
@@ -284,9 +318,11 @@ def share_histogram(shares):
     return lines
 
 
-def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=None):
+def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=None, crops_wanted=False):
     """Audits collection_dir's index.npz and writes ref-audit.txt beside it. detector (YOLOX .onnx)
-    enables the whole-frame check; without it that section is skipped. on_progress is passed to
+    enables the whole-frame check; without it that section is skipped. crops_wanted (needs the
+    detector) also writes suggested re-crops of wide refs to CROP_SUGGEST_DIR; the first such run
+    re-detects refs cached without boxes, so it is slow. on_progress is passed to
     frame_audit (the slow step); AuditCancelled propagates and no report is written. Returns
     (path written, {"references", "mislabel", "copies", "outliers", ...})."""
     emb, entry, path, team, _ = load(collection_dir)
@@ -301,7 +337,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
         colours = []
     crops = crop_audit(collection_dir, entry, path)
     attractors = attractor_audit(emb, entry, team, dup_sim)
-    shares = frame_audit(collection_dir, path, detector, on_progress) if detector else []
+    shares, boxes = frame_audit(collection_dir, path, detector, on_progress, crops_wanted) if detector else ([], [])
     # a small car was found (likely real scenery) before no car found (often a detector miss); the nearest-to-cutoff first
     frames = sorted(((s, i) for i, s in enumerate(shares) if s < WHOLE_FRAME_MAX_FRAC),
                     key=lambda t: (t[0] == 0.0, -t[0], path[t[1]]))
@@ -357,6 +393,13 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     if detector:
         with open(os.path.join(collection_dir, FRAME_FULL_LIST_NAME), "w", encoding="utf-8") as f:
             f.writelines(f"{path[i]}\t{entry[i]}\t{share:.4f}\n" for share, i in frames)
+    suggested = []
+    if detector and crops_wanted:
+        suggested, no_car, several = suggest_crops(collection_dir, path, entry, frames, boxes)
+        out.append(f"\n## suggested crops (a wide ref with exactly one car found, re-cut to it: copies in {CROP_SUGGEST_DIR}/<entry>/. Look at each; if it is the right car, copy it over the ref in refs/<entry>/. Nothing in refs/ was changed. Skipped: {no_car} with no car found, {several} with several cars)")
+        for i in suggested[:top]:
+            out.append(f"  {path[i]}  [{entry[i]}]")
+        out.append(f"  ({len(suggested)} in total)")
     out.append("\n## redundant (refs with a near-duplicate in the same entry)")
     for name, c in redundant[:top]:
         out.append(f"  {name}: {c}")
@@ -368,7 +411,8 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     with open(report, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
     return report, {"references": len(entry), "mislabel": len(mislabel), "copies": len(copies), "outliers": len(outliers),
-                    "colour": len(colours), "crops": len(crops), "attractors": len(attractors), "frames": len(frames), "strongest": len(strongest)}
+                    "colour": len(colours), "crops": len(crops), "attractors": len(attractors), "frames": len(frames), "strongest": len(strongest),
+                    "suggested": len(suggested)}
 
 
 def main():
@@ -377,11 +421,15 @@ def main():
     ap.add_argument("--dup-sim", type=float, default=0.97)
     ap.add_argument("--top", type=int, default=40, help="rows per section")
     ap.add_argument("--detector", default="", help="YOLOX .onnx; enables the whole-frame check")
+    ap.add_argument("--suggest-crops", action="store_true",
+                    help=f"also write re-cropped copies of wide refs to {CROP_SUGGEST_DIR}/ (needs --detector)")
     a = ap.parse_args()
+    if a.suggest_crops and not a.detector:
+        sys.exit("--suggest-crops needs --detector")
     for need in ("entries.json", "index.npz"):
         if not os.path.isfile(os.path.join(a.collection_dir, need)):
             sys.exit(f"{a.collection_dir} has no {need}: pass the collection folder itself (the one holding entries.json)")
-    report, counts = write_audit(a.collection_dir, a.dup_sim, a.top, a.detector)
+    report, counts = write_audit(a.collection_dir, a.dup_sim, a.top, a.detector, crops_wanted=a.suggest_crops)
     print(f"{counts}\nwrote {report}")
 
 
