@@ -1367,10 +1367,11 @@ local function run_reference_job(state, rows, mode_args, what)
     return read_file(RESULTS_PATH) or ""
 end
 
-local function finish_reference_job(state, okr, err)
+-- failure: the sentence a crash is reported with, e.g. "couldn't audit references."
+local function finish_reference_job(state, okr, err, failure)
     end_job(state.job)
     busy = false
-    if not okr then notify_error(_("Assisted Tagging: couldn't add references. ") .. tostring(err)) end
+    if not okr then notify_error("Assisted Tagging: " .. failure .. " " .. tostring(err)) end
     cleanup_tmp()
     log("run finished")
     flush_log()
@@ -1414,10 +1415,11 @@ function M.add_references(images, entry_id)
         end
         local results = run_reference_job(state, rows, " --add-reference", "adding references")
         if not results then return end
-        local added, whole, failed, no_face, multi = 0, 0, 0, 0, 0
+        local added, whole, failed, no_face, multi, team_rule = 0, 0, 0, 0, 0, 0
         for line in results:gmatch("[^\r\n]+") do
             local p = M.parse_csv_line(line, 2)
             if p and p[2] == "added" then added = added + 1
+            elseif p and (p[2] == "team_refs_off" or p[2] == "team_not_solo") then team_rule = team_rule + 1
             elseif p and p[2] == "no_face" then no_face = no_face + 1
             elseif p and p[2] == "multiple_faces" then multi = multi + 1
             elseif p and p[2] == "no_vehicle_whole_frame" then added = added + 1; whole = whole + 1
@@ -1427,13 +1429,14 @@ function M.add_references(images, entry_id)
         if whole > 0 then extra[#extra + 1] = string.format("%d used the whole frame", whole) end
         if no_face > 0 then extra[#extra + 1] = string.format("%d had no face", no_face) end
         if multi > 0 then extra[#extra + 1] = string.format("%d had several faces, so can't name one person", multi) end
+        if team_rule > 0 then extra[#extra + 1] = string.format("%d tagged only to team level, not saved (the team-reference rule is off or the shot isn't solo)", team_rule) end
         if n_skipped > 0 then extra[#extra + 1] = string.format("%d skipped", n_skipped) end
         if failed > 0 then extra[#extra + 1] = string.format("%d failed, see log", failed) end
         say(string.format("Assisted Tagging: added %d references to %s%s. Each sample's crop is in %s/refs.",
             added, entry_id or "their entries", #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "",
             current_collection()))
     end)
-    finish_reference_job(state, okr, err)
+    finish_reference_job(state, okr, err, "couldn't add references.")
 end
 
 -- Saves the confident vehicles (number-read, or a clear livery match) that the last
@@ -1470,7 +1473,7 @@ function M.promote_references(images)
         say(string.format("Assisted Tagging: saved vehicles from %d images as references%s. Crops are in %s/refs.",
             counts.added, #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "", current_collection()))
     end)
-    finish_reference_job(state, okr, err)
+    finish_reference_job(state, okr, err, "couldn't save vehicles as references.")
 end
 
 -- Refreshes the collection's reference index from refs/ and writes ref-audit.txt beside it.
@@ -1494,7 +1497,7 @@ function M.audit_references()
         say(string.format("Assisted Tagging: audited %d references: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers, %d odd crops; %d flagged by 2+ checks (start there). Details in %s",
             c.references or 0, c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, c.crops or 0, c.strongest or 0, report))
     end)
-    finish_reference_job(state, okr, err)
+    finish_reference_job(state, okr, err, "couldn't audit references.")
 end
 
 local BAD_FOLDER_CHARS = '[/\\:*?"<>|]'
