@@ -1,5 +1,5 @@
 2121 references, 22 entries with 2+ refs (entries with fewer are skipped)
-61 mislabel suspects, 0 cross-entry copies, 115 outliers, 281 colour outliers, 90 odd crops, 31 attractors, 856 whole frames
+61 mislabel suspects, 0 cross-entry copies, 115 outliers, 281 colour outliers, 90 odd crops, 11 attractors, 856 whole frames
 
 ## strongest candidates (flagged by 2+ checks; look at these first)
   refs/Antonelli/149014.jpg  [Antonelli]  mislabel, outlier, colour, frame
@@ -44,39 +44,19 @@
   refs/Lawson/148624.jpg  [Lawson]  colour, crop, frame
   (307 in total)
 
-## attractors (correctly filed, but the closest match for 3+ refs of other entries and more of those than of its own: an odd angle or size that pulls other cars toward this entry. Removing one costs its own entry some coverage, so check 'pulls' against 'own')
-  refs/Gasly/181465.jpg  [Gasly]  wrong pulls 4  own 0  pulled: Colapinto x2, Lawson x1, Sainz x1
-  refs/Lindblad/148174.jpg  [Lindblad]  wrong pulls 4  own 0  pulled: Lawson x2, Perez x1, Piastri x1
-  refs/LeClerc/148494.jpg  [LeClerc]  wrong pulls 4  own 0  pulled: Norris x2, Ocon x1, Verstappen x1
-  refs/LeClerc/149138.jpg  [LeClerc]  wrong pulls 4  own 1  pulled: Hamilton x4
-  refs/Norris/185190.jpg  [Norris]  wrong pulls 4  own 1  pulled: Hamilton x1, Albon x1, Russell x1, Antonelli x1
-  refs/Hadjar/148530.jpg  [Hadjar]  wrong pulls 4  own 1  pulled: Stroll x1, Verstappen x1, Russell x1, Lawson x1
-  refs/Hadjar/148526.jpg  [Hadjar]  wrong pulls 3  own 0  pulled: Bortoleto x1, Russell x1, Piastri x1
-  refs/Hulkenburg/181830.jpg  [Hulkenburg]  wrong pulls 3  own 0  pulled: Bortoleto x3
-  refs/Hadjar/148754.jpg  [Hadjar]  wrong pulls 3  own 0  pulled: Bottas x3
-  refs/Verstappen/148310.jpg  [Verstappen]  wrong pulls 3  own 0  pulled: Hadjar x3
-  refs/Hulkenburg/181838.jpg  [Hulkenburg]  wrong pulls 3  own 0  pulled: Bortoleto x2, Hadjar x1
-  refs/LeClerc/140628_b0.jpg  [LeClerc]  wrong pulls 3  own 0  pulled: Hamilton x3
-  refs/Albon/182248.jpg  [Albon]  wrong pulls 3  own 0  pulled: Sainz x3
-  refs/Colapinto/192641.jpg  [Colapinto]  wrong pulls 3  own 0  pulled: Gasly x3
-  refs/Lindblad/148172.jpg  [Lindblad]  wrong pulls 3  own 0  pulled: Lawson x3
-  refs/Albon/188713.jpg  [Albon]  wrong pulls 3  own 0  pulled: Norris x2, Lindblad x1
-  refs/Lawson/181343.jpg  [Lawson]  wrong pulls 3  own 0  pulled: Lindblad x3
-  refs/Lindblad/190911.jpg  [Lindblad]  wrong pulls 3  own 0  pulled: Lawson x3
-  refs/Lindblad/188485.jpg  [Lindblad]  wrong pulls 3  own 0  pulled: Lawson x3
-  refs/LeClerc/188453.jpg  [LeClerc]  wrong pulls 3  own 0  pulled: Verstappen x2, Gasly x1
-  refs/Norris/188646.jpg  [Norris]  wrong pulls 3  own 0  pulled: Hadjar x2, LeClerc x1
-  refs/Gasly/181369.jpg  [Gasly]  wrong pulls 3  own 0  pulled: Bearman x1, Antonelli x1, Russell x1
-  refs/Stroll/185630.jpg  [Stroll]  wrong pulls 3  own 0  pulled: Antonelli x3
-  refs/Russell/185849.jpg  [Russell]  wrong pulls 3  own 1  pulled: Antonelli x1, Albon x1, LeClerc x1
-  refs/Russell/185862.jpg  [Russell]  wrong pulls 3  own 1  pulled: Antonelli x2, Bortoleto x1
-  refs/Hulkenburg/185358.jpg  [Hulkenburg]  wrong pulls 3  own 1  pulled: Bortoleto x3
-  refs/Norris/148616.jpg  [Norris]  wrong pulls 3  own 1  pulled: Hamilton x1, Verstappen x1, Ocon x1
-  refs/Russell/148522.jpg  [Russell]  wrong pulls 3  own 1  pulled: Antonelli x2, Verstappen x1
-  refs/Bearman/182292.jpg  [Bearman]  wrong pulls 3  own 1  pulled: Ocon x2, Sainz x1
-  refs/Albon/148816.jpg  [Albon]  wrong pulls 3  own 2  pulled: Sainz x1, Hadjar x1, Norris x1
-  refs/Ocon/182052.jpg  [Ocon]  wrong pulls 3  own 2  pulled: Bearman x3
-  (31 in total)
+## attractors (correctly filed, but the closest match for 3+ refs of other teams' entries and more of those than of its own: an odd angle or size that pulls other cars toward this entry. Teammates' cars look alike, so their pulls are shown but not counted. Removing one costs its own entry some coverage, so check 'pulls' against 'own')
+  refs/LeClerc/148494.jpg  [LeClerc]  other-team pulls 4  own 0  teammate pulls 0  pulled: Norris x2, Ocon x1, Verstappen x1
+  refs/Norris/185190.jpg  [Norris]  other-team pulls 4  own 1  teammate pulls 0  pulled: Hamilton x1, Albon x1, Russell x1, Antonelli x1
+  refs/Hadjar/148526.jpg  [Hadjar]  other-team pulls 3  own 0  teammate pulls 0  pulled: Bortoleto x1, Russell x1, Piastri x1
+  refs/Hadjar/148754.jpg  [Hadjar]  other-team pulls 3  own 0  teammate pulls 0  pulled: Bottas x3
+  refs/Albon/188713.jpg  [Albon]  other-team pulls 3  own 0  teammate pulls 0  pulled: Norris x2, Lindblad x1
+  refs/LeClerc/188453.jpg  [LeClerc]  other-team pulls 3  own 0  teammate pulls 0  pulled: Verstappen x2, Gasly x1
+  refs/Norris/188646.jpg  [Norris]  other-team pulls 3  own 0  teammate pulls 0  pulled: Hadjar x2, LeClerc x1
+  refs/Gasly/181369.jpg  [Gasly]  other-team pulls 3  own 0  teammate pulls 0  pulled: Bearman x1, Antonelli x1, Russell x1
+  refs/Stroll/185630.jpg  [Stroll]  other-team pulls 3  own 0  teammate pulls 0  pulled: Antonelli x3
+  refs/Hadjar/148530.jpg  [Hadjar]  other-team pulls 3  own 1  teammate pulls 1  pulled: Stroll x1, Russell x1, Lawson x1
+  refs/Norris/148616.jpg  [Norris]  other-team pulls 3  own 1  teammate pulls 0  pulled: Hamilton x1, Verstappen x1, Ocon x1
+  (11 in total)
 
 ## mislabel suspects (closer to another entry than to its own; check the first file)
   refs/Lindblad/149420.jpg  [Lindblad]  ~  refs/Lawson/149416.jpg  [Lawson] (same team)  margin 0.659  own 0.296  other 0.955
@@ -248,47 +228,55 @@
   refs/LeClerc/188377.jpg  [LeClerc]  297x100  entry median 427x427  z 5.0
   refs/LeClerc/152547.jpg  [LeClerc]  239x127  entry median 427x427  z 4.9
 
-## whole frames (detected car covers under 15% of the ref: scenery drives its matches, but it also fires when the detector misses a dark or blurred car, so look before deleting)
-  refs/Albon/179943.jpg  [Albon]  car share 0%
-  refs/Albon/180081.jpg  [Albon]  car share 0%
-  refs/Albon/180139.jpg  [Albon]  car share 0%
-  refs/Alonso/180028.jpg  [Alonso]  car share 0%
-  refs/Alonso/183174.jpg  [Alonso]  car share 0%
-  refs/Alonso/185639.jpg  [Alonso]  car share 0%
-  refs/Alonso/185660.jpg  [Alonso]  car share 0%
-  refs/Alonso/185939.jpg  [Alonso]  car share 0%
-  refs/Alonso/185943.jpg  [Alonso]  car share 0%
-  refs/Alonso/185947.jpg  [Alonso]  car share 0%
-  refs/Antonelli/148084.jpg  [Antonelli]  car share 0%
-  refs/Antonelli/148510.jpg  [Antonelli]  car share 0%
-  refs/Antonelli/180153.jpg  [Antonelli]  car share 0%
-  refs/Antonelli/180601.jpg  [Antonelli]  car share 0%
-  refs/Antonelli/185899.jpg  [Antonelli]  car share 0%
-  refs/Antonelli/185903.jpg  [Antonelli]  car share 0%
-  refs/Antonelli/185931.jpg  [Antonelli]  car share 0%
-  refs/Antonelli/189251.jpg  [Antonelli]  car share 0%
-  refs/Antonelli/189969.jpg  [Antonelli]  car share 0%
-  refs/Antonelli/189973.jpg  [Antonelli]  car share 0%
-  refs/Antonelli/190024.jpg  [Antonelli]  car share 0%
-  refs/Bortoleto/148244.jpg  [Bortoleto]  car share 0%
-  refs/Bortoleto/148580.jpg  [Bortoleto]  car share 0%
-  refs/Bortoleto/181601.jpg  [Bortoleto]  car share 0%
-  refs/Bortoleto/181624.jpg  [Bortoleto]  car share 0%
-  refs/Bortoleto/181629.jpg  [Bortoleto]  car share 0%
-  refs/Bortoleto/181893.jpg  [Bortoleto]  car share 0%
-  refs/Colapinto/148002.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/148004.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/148006.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/179922.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/181020.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/181053.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/181061.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/181066.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/181170.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/181174.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/181178.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/181182.jpg  [Colapinto]  car share 0%
-  refs/Colapinto/181251.jpg  [Colapinto]  car share 0%
+## whole frames (detected car covers under 15% of the ref: scenery drives its matches, but it also fires when the detector misses a dark or blurred car, so look before deleting. A small car found comes first, nearest the cutoff; 'no car found' refs follow and are the likelier detector misses. Every one is in ref-audit-frames.txt)
+  car share across all refs:
+    no car found: 603
+    0% to 5%: 136
+    5% to 10%: 107
+    10% to 15%: 10
+    15% to 25%: 21
+    25% to 50%: 22
+    50% to 100%: 1222
+  refs/LeClerc/149692.jpg  [LeClerc]  car share 15.0%
+  refs/Hadjar/152527.jpg  [Hadjar]  car share 14.4%
+  refs/Russell/148606.jpg  [Russell]  car share 13.7%
+  refs/Ocon/148128.jpg  [Ocon]  car share 13.2%
+  refs/Ocon/152467.jpg  [Ocon]  car share 13.0%
+  refs/Colapinto/180341.jpg  [Colapinto]  car share 12.9%
+  refs/Piastri/149260.jpg  [Piastri]  car share 12.1%
+  refs/LeClerc/152505.jpg  [LeClerc]  car share 12.0%
+  refs/Hadjar/152498.jpg  [Hadjar]  car share 12.0%
+  refs/Bottas/148112.jpg  [Bottas]  car share 10.6%
+  refs/Alonso/185098.jpg  [Alonso]  car share 9.4%
+  refs/Perez/185721.jpg  [Perez]  car share 9.2%
+  refs/Alonso/185091.jpg  [Alonso]  car share 9.1%
+  refs/Alonso/185987.jpg  [Alonso]  car share 8.9%
+  refs/Lawson/152444.jpg  [Lawson]  car share 8.8%
+  refs/Bottas/186939.jpg  [Bottas]  car share 8.7%
+  refs/Antonelli/186752.jpg  [Antonelli]  car share 8.6%
+  refs/Alonso/186865.jpg  [Alonso]  car share 8.6%
+  refs/Alonso/186861.jpg  [Alonso]  car share 8.6%
+  refs/Alonso/185106.jpg  [Alonso]  car share 8.6%
+  refs/Stroll/185008.jpg  [Stroll]  car share 8.5%
+  refs/Lawson/152442.jpg  [Lawson]  car share 8.3%
+  refs/Albon/182267.jpg  [Albon]  car share 8.3%
+  refs/Albon/182264.jpg  [Albon]  car share 8.2%
+  refs/Perez/181244.jpg  [Perez]  car share 8.2%
+  refs/Bottas/186944.jpg  [Bottas]  car share 8.2%
+  refs/Bortoleto/181881.jpg  [Bortoleto]  car share 8.1%
+  refs/Alonso/185115.jpg  [Alonso]  car share 8.0%
+  refs/Antonelli/183589.jpg  [Antonelli]  car share 7.9%
+  refs/Perez/181240.jpg  [Perez]  car share 7.9%
+  refs/Antonelli/183594.jpg  [Antonelli]  car share 7.9%
+  refs/Sainz/189920.jpg  [Sainz]  car share 7.9%
+  refs/Bortoleto/181889.jpg  [Bortoleto]  car share 7.9%
+  refs/Colapinto/181303.jpg  [Colapinto]  car share 7.9%
+  refs/Stroll/182167.jpg  [Stroll]  car share 7.8%
+  refs/Perez/181231.jpg  [Perez]  car share 7.8%
+  refs/Stroll/182176.jpg  [Stroll]  car share 7.8%
+  refs/Albon/191026.jpg  [Albon]  car share 7.7%
+  refs/Antonelli/183585.jpg  [Antonelli]  car share 7.7%
+  refs/Alonso/185648.jpg  [Alonso]  car share 7.7%
   (856 in total)
 
 ## redundant (refs with a near-duplicate in the same entry)
