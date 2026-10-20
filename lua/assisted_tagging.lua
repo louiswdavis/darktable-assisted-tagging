@@ -471,10 +471,48 @@ local function json_string(s)
     return '"' .. tostring(s):gsub('\\', '\\\\'):gsub('"', '\\"') .. '"'
 end
 
--- A bare entries.json list (default rules apply). Entries already carry only
--- ids/tags/numbers that passed sanitize_id/hierarchical_tags/the digit check, so this
--- never needs to reject input.
+-- The shared prefix and each entry's name when every entry's tags are exactly
+-- prefix|team and prefix|team|name (prefix|name with no team) under one prefix, which
+-- is what rules.tag_prefix rebuilds; nil when any entry doesn't fit.
+function M.prefix_form(entries)
+    local prefix, names = nil, {}
+    for i, e in ipairs(entries) do
+        local team = e.team or ""
+        local deepest = e.tags[1]
+        for _, t in ipairs(e.tags) do
+            if tag_depth(t) > tag_depth(deepest) then deepest = t end
+        end
+        local name = tag_leaf(deepest)
+        local parent = deepest:match("^(.*)|[^|]*$")
+        if not parent or #e.tags ~= (team ~= "" and 2 or 1) then return nil end
+        if team ~= "" then
+            if tag_leaf(parent) ~= team then return nil end
+            local team_tag = false
+            for _, t in ipairs(e.tags) do if t == parent then team_tag = true end end
+            parent = parent:match("^(.*)|[^|]*$")
+            if not team_tag or not parent then return nil end
+        end
+        if prefix and prefix ~= parent then return nil end
+        prefix, names[i] = parent, name
+    end
+    return prefix, names
+end
+
+-- An entries.json for derived entries. Entries already carry only ids/tags/numbers that
+-- passed sanitize_id/hierarchical_tags/the digit check, so this never needs to reject
+-- input. With prefix_form it is the {rules, entries} object using rules.tag_prefix and
+-- `name`; otherwise a bare list of entries with full tags (default rules apply).
 function M.entries_json(entries)
+    local prefix, names = M.prefix_form(entries)
+    if prefix then
+        local parts = {}
+        for i, e in ipairs(entries) do
+            parts[#parts + 1] = string.format('    { "id": %s, "number": %s, "team": %s, "name": %s }',
+                json_string(e.id), json_string(e.number or ""), json_string(e.team or ""), json_string(names[i]))
+        end
+        return string.format('{\n  "rules": { "tag_prefix": %s },\n  "entries": [\n%s\n  ]\n}\n',
+            json_string(prefix), table.concat(parts, ",\n"))
+    end
     local parts = {}
     for _, e in ipairs(entries) do
         local tag_parts = {}

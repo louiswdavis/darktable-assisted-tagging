@@ -2,7 +2,7 @@
 
 The smallest working collection: a bare list of entries, no `rules` block, so every rule takes its default. Good for a club race where you only care which car is in the frame.
 
-Each entry is just an `id`, a `number` and its `tags`. Add a `team` to entries that share one, and a `rules` block when a default doesn't suit you (see the other examples).
+Each entry is just an `id`, a `number` and its `tags`, written in full here. The other examples build tags from `rules.tag_prefix`, `team` and `name` instead. Add a `team` to entries that share one, and a `rules` block when a default doesn't suit you (see the other examples).
 
 ## Using it
 

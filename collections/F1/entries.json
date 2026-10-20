@@ -1,5 +1,6 @@
 {
   "rules": {
+    "tag_prefix": "Sports|F1",
     "team_only": "shared tags",
     "unidentified": [],
     "colour_weight": 1.5,
@@ -18,220 +19,154 @@
       "id": "Lawson",
       "number": "30",
       "team": "Racing Bulls",
-      "tags": [
-        "Sports|F1|Racing Bulls",
-        "Sports|F1|Racing Bulls|Lawson"
-      ],
+      "name": "Lawson",
       "camera": "yellow"
     },
     {
       "id": "Piastri",
       "number": "81",
       "team": "McLaren",
-      "tags": [
-        "Sports|F1|McLaren",
-        "Sports|F1|McLaren|Piastri"
-      ],
+      "name": "Piastri",
       "camera": "black"
     },
     {
       "id": "Bottas",
       "number": "77",
       "team": "Cadillac",
-      "tags": [
-        "Sports|F1|Cadillac",
-        "Sports|F1|Cadillac|Bottas"
-      ],
+      "name": "Bottas",
       "camera": "yellow"
     },
     {
       "id": "LeClerc",
       "number": "16",
       "team": "Ferrari",
-      "tags": [
-        "Sports|F1|Ferrari",
-        "Sports|F1|Ferrari|LeClerc"
-      ],
+      "name": "LeClerc",
       "camera": "black"
     },
     {
       "id": "Lindblad",
       "number": "41",
       "team": "Racing Bulls",
-      "tags": [
-        "Sports|F1|Racing Bulls",
-        "Sports|F1|Racing Bulls|Lindblad"
-      ],
+      "name": "Lindblad",
       "camera": "black"
     },
     {
       "id": "Hamilton",
       "number": "44",
       "team": "Ferrari",
-      "tags": [
-        "Sports|F1|Ferrari",
-        "Sports|F1|Ferrari|Hamilton"
-      ],
+      "name": "Hamilton",
       "camera": "yellow"
     },
     {
       "id": "Norris",
       "number": "1",
       "team": "McLaren",
-      "tags": [
-        "Sports|F1|McLaren",
-        "Sports|F1|McLaren|Norris"
-      ],
+      "name": "Norris",
       "camera": "yellow"
     },
     {
       "id": "Stroll",
       "number": "18",
       "team": "Aston Martin",
-      "tags": [
-        "Sports|F1|Aston Martin",
-        "Sports|F1|Aston Martin|Stroll"
-      ],
+      "name": "Stroll",
       "camera": "black"
     },
     {
       "id": "Bortoleto",
       "number": "5",
       "team": "Audi",
-      "tags": [
-        "Sports|F1|Audi",
-        "Sports|F1|Audi|Bortoleto"
-      ],
+      "name": "Bortoleto",
       "camera": "yellow"
     },
     {
       "id": "Bearman",
       "number": "87",
       "team": "Haas",
-      "tags": [
-        "Sports|F1|Haas",
-        "Sports|F1|Haas|Bearman"
-      ],
+      "name": "Bearman",
       "camera": "yellow"
     },
     {
       "id": "Verstappen",
       "number": "3",
       "team": "Red Bull",
-      "tags": [
-        "Sports|F1|Red Bull",
-        "Sports|F1|Red Bull|Verstappen"
-      ],
+      "name": "Verstappen",
       "camera": "black"
     },
     {
       "id": "Perez",
       "number": "11",
       "team": "Cadillac",
-      "tags": [
-        "Sports|F1|Cadillac",
-        "Sports|F1|Cadillac|Perez"
-      ],
+      "name": "Perez",
       "camera": "black"
     },
     {
       "id": "Hulkenburg",
       "number": "27",
       "team": "Audi",
-      "tags": [
-        "Sports|F1|Audi",
-        "Sports|F1|Audi|Hulkenburg"
-      ],
+      "name": "Hulkenburg",
       "camera": "black"
     },
     {
       "id": "Hadjar",
       "number": "6",
       "team": "Red Bull",
-      "tags": [
-        "Sports|F1|Red Bull",
-        "Sports|F1|Red Bull|Hadjar"
-      ],
+      "name": "Hadjar",
       "camera": "yellow"
     },
     {
       "id": "Colapinto",
       "number": "43",
       "team": "Alpine",
-      "tags": [
-        "Sports|F1|Alpine",
-        "Sports|F1|Alpine|Colapinto"
-      ],
+      "name": "Colapinto",
       "camera": "yellow"
     },
     {
       "id": "Gasly",
       "number": "10",
       "team": "Alpine",
-      "tags": [
-        "Sports|F1|Alpine",
-        "Sports|F1|Alpine|Gasly"
-      ],
+      "name": "Gasly",
       "camera": "black"
     },
     {
       "id": "Antonelli",
       "number": "12",
       "team": "Mercedes",
-      "tags": [
-        "Sports|F1|Mercedes",
-        "Sports|F1|Mercedes|Antonelli"
-      ],
+      "name": "Antonelli",
       "camera": "yellow"
     },
     {
       "id": "Alonso",
       "number": "14",
       "team": "Aston Martin",
-      "tags": [
-        "Sports|F1|Aston Martin",
-        "Sports|F1|Aston Martin|Alonso"
-      ],
+      "name": "Alonso",
       "camera": "yellow"
     },
     {
       "id": "Russell",
       "number": "63",
       "team": "Mercedes",
-      "tags": [
-        "Sports|F1|Mercedes",
-        "Sports|F1|Mercedes|Russell"
-      ],
+      "name": "Russell",
       "camera": "black"
     },
     {
       "id": "Sainz",
       "number": "55",
       "team": "Williams",
-      "tags": [
-        "Sports|F1|Williams",
-        "Sports|F1|Williams|Sainz"
-      ],
+      "name": "Sainz",
       "camera": "yellow"
     },
     {
       "id": "Albon",
       "number": "23",
       "team": "Williams",
-      "tags": [
-        "Sports|F1|Williams",
-        "Sports|F1|Williams|Albon"
-      ],
+      "name": "Albon",
       "camera": "black"
     },
     {
       "id": "Ocon",
       "number": "31",
       "team": "Haas",
-      "tags": [
-        "Sports|F1|Haas",
-        "Sports|F1|Haas|Ocon"
-      ],
+      "name": "Ocon",
       "camera": "black"
     }
   ]

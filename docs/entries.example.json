@@ -1,5 +1,6 @@
 {
   "rules": {
+    "tag_prefix": "Motorsport|F1",
     "team_only": "shared tags",
     "unidentified": [],
     "diagnostics": {
@@ -15,17 +16,17 @@
       "id": "VER",
       "number": "1",
       "team": "Red Bull",
-      "tags": ["Motorsport|F1|Red Bull", "Motorsport|F1|Red Bull|Max Verstappen"]
+      "name": "Max Verstappen"
     },
     {
       "id": "TSU",
       "number": "22",
       "team": "Red Bull",
-      "tags": ["Motorsport|F1|Red Bull", "Motorsport|F1|Red Bull|Yuki Tsunoda"]
+      "name": "Yuki Tsunoda"
     },
     {
       "id": "SAFETY",
-      "tags": ["Motorsport|F1|Safety Car"]
+      "name": "Safety Car"
     }
   ]
 }

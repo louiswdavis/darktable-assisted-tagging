@@ -176,17 +176,20 @@ Write `entries.json` yourself for more control than tags alone give you: a race 
 ```json
 {
   "rules": {
+    "tag_prefix": "Motorsport|F1",
     "team_only": "shared tags",
     "unidentified": ["Motorsport|F1|Unidentified"],
     "diagnostics": { "burst": "" }
   },
   "entries": [
-    { "id": "VER", "number": "1",  "team": "Red Bull", "tags": ["Motorsport|F1|Red Bull", "Motorsport|F1|Red Bull|Max Verstappen"] },
-    { "id": "TSU", "number": "22", "team": "Red Bull", "tags": ["Motorsport|F1|Red Bull", "Motorsport|F1|Red Bull|Yuki Tsunoda"] },
-    { "id": "SAFETY", "tags": ["Motorsport|F1|Safety Car"] }
+    { "id": "VER", "number": "1",  "team": "Red Bull", "name": "Max Verstappen" },
+    { "id": "TSU", "number": "22", "team": "Red Bull", "name": "Yuki Tsunoda" },
+    { "id": "SAFETY", "name": "Safety Car" }
   ]
 }
 ```
+
+Here VER gets `Motorsport|F1|Red Bull` and `Motorsport|F1|Red Bull|Max Verstappen`, and SAFETY gets `Motorsport|F1|Safety Car`. Add a `tags` list to an entry for extra tags on top; without `tag_prefix`, `tags` is the full list as before.
 
 A file that's just the `[ … ]` list of entries works too, with the default rules — this is exactly the shape **Create collection from tagged images** writes, so you can build one that way and then hand-edit it in to add numbers or rules.
 

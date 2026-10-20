@@ -1,5 +1,6 @@
 {
   "rules": {
+    "tag_prefix": "Motorsport|F1",
     "team_only": "shared tags",
     "unidentified": [],
     "sponsor_keywords": {
@@ -25,41 +26,41 @@
       "number": "16",
       "team": "Ferrari",
       "camera": "black",
-      "tags": ["Motorsport|F1|Ferrari", "Motorsport|F1|Ferrari|Charles Leclerc"]
+      "name": "Charles Leclerc"
     },
     {
       "id": "HAM",
       "number": "44",
       "team": "Ferrari",
       "camera": "yellow",
-      "tags": ["Motorsport|F1|Ferrari", "Motorsport|F1|Ferrari|Lewis Hamilton"]
+      "name": "Lewis Hamilton"
     },
     {
       "id": "HAM-special",
       "team": "Ferrari",
-      "tags": ["Motorsport|F1|Ferrari", "Motorsport|F1|Ferrari|Lewis Hamilton"]
+      "name": "Lewis Hamilton"
     },
     {
       "id": "RUS",
       "number": "63",
       "team": "Mercedes",
       "camera": "black",
-      "tags": ["Motorsport|F1|Mercedes", "Motorsport|F1|Mercedes|George Russell"]
+      "name": "George Russell"
     },
     {
       "id": "ANT",
       "number": "12",
       "team": "Mercedes",
       "camera": "yellow",
-      "tags": ["Motorsport|F1|Mercedes", "Motorsport|F1|Mercedes|Kimi Antonelli"]
+      "name": "Kimi Antonelli"
     },
     {
       "id": "SAFETY",
-      "tags": ["Motorsport|F1|Safety Car"]
+      "name": "Safety Car"
     },
     {
       "id": "MEDICAL",
-      "tags": ["Motorsport|F1|Medical Car"]
+      "name": "Medical Car"
     }
   ]
 }

@@ -254,13 +254,29 @@ local dup = T.derive_entries({
 check("a colliding id gets a numeric suffix", dup[1].id .. "," .. dup[2].id, "X,X-2")
 
 local j = T.entries_json({
-    { id = "VER", number = "1", team = "Red Bull", tags = { "F1|Red Bull", "F1|Red Bull|Verstappen" } },
+    { id = "VER", number = "1", team = "Red Bull", tags = { "F1|Red Bull", "F1|Red Bull|Verstappen", "F1|Champion" } },
 })
 check("entries_json emits a bare list", j:match("^%[") ~= nil, true)
 check("entries_json quotes every field", j:find('"id": "VER"', 1, true) ~= nil, true)
 check("entries_json emits the number field", j:find('"number": "1"', 1, true) ~= nil, true)
-check("entries_json emits the tag array", j:find('"tags": ["F1|Red Bull", "F1|Red Bull|Verstappen"]', 1, true) ~= nil,
+check("entries_json emits the tag array", j:find('"tags": ["F1|Red Bull", "F1|Red Bull|Verstappen", "F1|Champion"]', 1, true) ~= nil,
     true)
+
+local pj = T.entries_json({
+    { id = "VER", number = "1", team = "Red Bull", tags = { "Sports|F1|Red Bull", "Sports|F1|Red Bull|Verstappen" } },
+    { id = "NOR", number = "4", team = "McLaren", tags = { "Sports|F1|McLaren", "Sports|F1|McLaren|Norris" } },
+})
+check("a shared prefix emits the object form", pj:match("^{") ~= nil, true)
+check("the shared prefix becomes rules.tag_prefix", pj:find('"tag_prefix": "Sports|F1"', 1, true) ~= nil, true)
+check("the driver leaf becomes name", pj:find('"name": "Norris"', 1, true) ~= nil, true)
+check("prefix form drops explicit tags", pj:find('"tags"', 1, true), nil)
+check("differing prefixes fall back to the bare list", T.entries_json({
+    { id = "A", number = "", team = "X", tags = { "P|X", "P|X|A" } },
+    { id = "B", number = "", team = "Y", tags = { "Q|Y", "Q|Y|B" } },
+}):match("^%[") ~= nil, true)
+check("extra tags fall back to the bare list", T.entries_json({
+    { id = "A", number = "", team = "X", tags = { "P|X", "P|X|A", "P|Other" } },
+}):match("^%[") ~= nil, true)
 
 print("")
 if failures == 0 then

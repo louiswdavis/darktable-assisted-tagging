@@ -1,5 +1,6 @@
 {
   "rules": {
+    "tag_prefix": "Motorsport|BTCC",
     "team_only": "none",
     "unidentified": ["Shoot|Check me"],
     "diagnostics": { "burst": "" }
@@ -9,28 +10,29 @@
       "id": "car-7",
       "number": "7",
       "team": "Team Alpha",
-      "tags": ["Motorsport|BTCC|Team Alpha", "Motorsport|BTCC|Team Alpha|Driver Seven"]
+      "name": "Driver Seven"
     },
     {
       "id": "car-27",
       "number": "27",
       "team": "Team Alpha",
-      "tags": ["Motorsport|BTCC|Team Alpha", "Motorsport|BTCC|Team Alpha|Driver Twenty-Seven"]
+      "name": "Driver Twenty-Seven"
     },
     {
       "id": "car-33",
       "number": "33",
       "team": "Team Bravo",
-      "tags": ["Motorsport|BTCC|Team Bravo", "Motorsport|BTCC|Team Bravo|Driver Thirty-Three"]
+      "name": "Driver Thirty-Three"
     },
     {
       "id": "car-116",
       "number": "116",
-      "tags": ["Motorsport|BTCC|Independent", "Motorsport|BTCC|Independent|Driver One-Sixteen"]
+      "team": "Independent",
+      "name": "Driver One-Sixteen"
     },
     {
       "id": "PACE",
-      "tags": ["Motorsport|BTCC|Pace Car"]
+      "name": "Pace Car"
     }
   ]
 }

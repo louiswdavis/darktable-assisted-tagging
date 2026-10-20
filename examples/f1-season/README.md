@@ -4,8 +4,8 @@ One collection for a whole season of a series where teammates run near-identical
 
 What it shows:
 
-- **Teammates share a team tag.** Each driver's entry carries the team tag plus their own driver tag, and both entries set `team`. When two teammates' cars are too close to call, `team_only: "shared tags"` still adds the team tag.
-- **A one-off livery** (`HAM-special`) is its own entry with the same tags as `HAM` and **no number**. A readable 44 still lands on `HAM`; the special livery is matched only against its own references. Don't give it the number too: two entries with the same number means that number identifies neither.
+- **Teammates share a team tag.** `rules.tag_prefix` is `Motorsport|F1`; each entry's `team` is appended to it and its `name` to that, so a driver match writes both the team tag and the driver tag. Both teammates set `team`. When two teammates' cars are too close to call, `team_only: "shared tags"` still adds the team tag.
+- **A one-off livery** (`HAM-special`) is its own entry with the same team and name as `HAM` and **no number**. A readable 44 still lands on `HAM`; the special livery is matched only against its own references. Don't give it the number too: two entries with the same number means that number identifies neither.
 - **Cars without a number** (`SAFETY`, `MEDICAL`) are identified by livery only, so they need references before they're ever found.
 
 ## Using it
