@@ -34,6 +34,8 @@ CROP_AREA_MAD_FLOOR = 0.15  # log scale, so 0.15 is about 16% in side length
 CROP_ASPECT_MAD_FLOOR = 0.08
 WHOLE_FRAME_MAX_FRAC = 0.15  # detected car's share of the ref image below this = whole frame or scenery
 FRAME_CACHE_NAME = "frame-share-cache.json"
+QUARANTINE_DIR = "refs-quarantine"  # --quarantine moves the strongest candidates here, one folder per entry
+QUARANTINE_LIST_NAME = "moved.txt"  # inside QUARANTINE_DIR; one line per moved file
 CROP_SUGGEST_DIR = "ref-audit-crops"  # --suggest-crops writes re-cropped copies of wide refs here, one folder per entry
 FRAME_FULL_LIST_NAME = "ref-audit-frames.txt"  # every flagged whole frame; the report shows only the first `top`
 FRAME_SHARE_BUCKETS = [0.05, 0.10, 0.15, 0.25, 0.50]  # histogram band edges for the car-share spread
@@ -318,7 +320,27 @@ def share_histogram(shares):
     return lines
 
 
-def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=None, crops_wanted=False):
+def quarantine_refs(collection_dir, path, entry, chosen, flags):
+    """Moves the refs at the `chosen` indexes into QUARANTINE_DIR/<entry>/ and appends one line per
+    file to QUARANTINE_LIST_NAME there (new path, old path, flags). Existing quarantine files stay.
+    The index.npz still holds them until the next audit's index refresh drops them. Returns the
+    indexes moved."""
+    import shutil
+    moved = []
+    root = os.path.join(collection_dir, QUARANTINE_DIR)
+    for i in chosen:
+        src = os.path.join(collection_dir, *path[i].split("/"))
+        dest = os.path.join(root, entry[i], os.path.basename(path[i]))
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.move(src, dest)
+        moved.append(i)
+    with open(os.path.join(root, QUARANTINE_LIST_NAME), "a", encoding="utf-8") as f:
+        f.writelines(f"{QUARANTINE_DIR}/{entry[i]}/{os.path.basename(path[i])}\t{path[i]}\t{','.join(flags[i])}\n" for i in moved)
+    return moved
+
+
+def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=None, crops_wanted=False,
+                quarantine=False):
     """Audits collection_dir's index.npz and writes ref-audit.txt beside it. detector (YOLOX .onnx)
     enables the whole-frame check; without it that section is skipped. crops_wanted (needs the
     detector) also writes suggested re-crops of wide refs to CROP_SUGGEST_DIR; the first such run
@@ -407,12 +429,18 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     for keep, drops, low in duplicate_groups(collection_dir, emb, entry, path, dup_sim)[:top]:
         out.append(f"  {path[keep]}  [{entry[keep]}]  ~  {', '.join(path[i] for i in drops)}  sim {low:.3f}")
 
+    moved = quarantine_refs(collection_dir, path, entry, strongest, flags) if quarantine else []
+    if quarantine:
+        out.append(f"\n## quarantined (the strongest candidates, moved out of refs/ into {QUARANTINE_DIR}/<entry>/; {QUARANTINE_LIST_NAME} lists each. To undo, copy a file back into refs/<entry>/ and re-run the audit)")
+        out += [f"  {path[i]}  [{entry[i]}]  {', '.join(flags[i])}" for i in moved[:top]]
+        out.append(f"  ({len(moved)} in total)")
+
     report = os.path.join(collection_dir, "ref-audit.txt")
     with open(report, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
     return report, {"references": len(entry), "mislabel": len(mislabel), "copies": len(copies), "outliers": len(outliers),
                     "colour": len(colours), "crops": len(crops), "attractors": len(attractors), "frames": len(frames), "strongest": len(strongest),
-                    "suggested": len(suggested)}
+                    "suggested": len(suggested), "quarantined": len(moved)}
 
 
 def main():
@@ -423,13 +451,15 @@ def main():
     ap.add_argument("--detector", default="", help="YOLOX .onnx; enables the whole-frame check")
     ap.add_argument("--suggest-crops", action="store_true",
                     help=f"also write re-cropped copies of wide refs to {CROP_SUGGEST_DIR}/ (needs --detector)")
+    ap.add_argument("--quarantine", action="store_true",
+                    help=f"move the strongest candidates (2+ checks) out of refs/ into {QUARANTINE_DIR}/")
     a = ap.parse_args()
     if a.suggest_crops and not a.detector:
         sys.exit("--suggest-crops needs --detector")
     for need in ("entries.json", "index.npz"):
         if not os.path.isfile(os.path.join(a.collection_dir, need)):
             sys.exit(f"{a.collection_dir} has no {need}: pass the collection folder itself (the one holding entries.json)")
-    report, counts = write_audit(a.collection_dir, a.dup_sim, a.top, a.detector, crops_wanted=a.suggest_crops)
+    report, counts = write_audit(a.collection_dir, a.dup_sim, a.top, a.detector, crops_wanted=a.suggest_crops, quarantine=a.quarantine)
     print(f"{counts}\nwrote {report}")
 
 

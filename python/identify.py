@@ -8,7 +8,7 @@ Modes:
   identify.py MANIFEST RESULTS --add-reference id,filepath,entry_id → id,status
   identify.py MANIFEST RESULTS --promote-boxes --boxes-in F   id,filepath,"" → id,status
                                               (confident vehicles from a run's boxes.json become references)
-  identify.py MANIFEST RESULTS --audit-refs [--suggest-crops]   (manifest unused) → name,count per audit total, then report,<ref-audit.txt path>
+  identify.py MANIFEST RESULTS --audit-refs [--suggest-crops] [--quarantine]   (manifest unused) → name,count per audit total, then report,<ref-audit.txt path>
   identify.py - - --list                      collection names (+ entries.csv, rules.csv)
 
 Every mode that reads a collection also writes its tag-plan.txt: the exact tags
@@ -1182,7 +1182,7 @@ def audit_references(args, models: dict):
 
     try:
         report, counts = write_audit(collection, detector=models["detector"], on_progress=on_progress,
-                                     crops_wanted=args.suggest_crops)
+                                     crops_wanted=args.suggest_crops, quarantine=args.quarantine)
     except AuditCancelled:
         log("cancelled; no audit written")
         sys.exit(130)
@@ -1245,6 +1245,8 @@ def main(argv=None):
                         help="Refresh the reference index, then write ref-audit.txt listing refs that look wrongly filed")
     parser.add_argument("--suggest-crops", action="store_true",
                         help="With --audit-refs, also write re-cropped copies of wide refs to ref-audit-crops/ for review")
+    parser.add_argument("--quarantine", action="store_true",
+                        help="With --audit-refs, move the strongest candidates (2+ checks) into refs-quarantine/ and list them in moved.txt")
     parser.add_argument("--list", action="store_true", help="List collections (and entries) only")
     parser.add_argument("--verify", action="store_true",
                         help="Also analyse fully tagged images and flag the ones whose result differs from their tags (the plugin then changes no tags)")

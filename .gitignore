@@ -6,6 +6,8 @@ __pycache__/
 .superpowers/
 *.jpg
 collections/*/frame-share-cache.json
+collections/*/refs-quarantine/
+collections/*/ref-audit-crops/
 !collections/F1/refs/Antonelli/149018.jpg
 !collections/F1/refs/Russell/149028.jpg
 !collections/F1/refs/Lindblad/149420.jpg
