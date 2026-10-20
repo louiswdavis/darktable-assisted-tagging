@@ -214,7 +214,7 @@
   refs/LeClerc/188377.jpg  [LeClerc]  297x100  entry median 427x427  z 5.0
   refs/LeClerc/152547.jpg  [LeClerc]  239x127  entry median 427x427  z 4.9
 
-## whole frames (detected car covers under 15% of the ref: scenery drives its matches; re-crop or delete)
+## whole frames (detected car covers under 15% of the ref: scenery drives its matches, but it also fires when the detector misses a dark or blurred car, so look before deleting)
   refs/Albon/179943.jpg  [Albon]  car share 0%
   refs/Albon/180081.jpg  [Albon]  car share 0%
   refs/Albon/180139.jpg  [Albon]  car share 0%
@@ -264,3 +264,15 @@
   Antonelli: 2
   Gasly: 2
   Lindblad: 2
+
+## duplicate groups (near-identical crops of one entry; many are burst frames of the same car and fine to keep, so judge by eye. sim = lowest match to the first file)
+  refs/Bottas/149324.jpg  [Bottas]  ~  refs/Bottas/149324_b0.jpg, refs/Bottas/150455.jpg  sim 1.000
+  refs/Hamilton/149150.jpg  [Hamilton]  ~  refs/Hamilton/149150_b0.jpg, refs/Hamilton/150456.jpg  sim 1.000
+  refs/Antonelli/189981.jpg  [Antonelli]  ~  refs/Antonelli/197926.jpg  sim 1.000
+  refs/Hamilton/140623.jpg  [Hamilton]  ~  refs/Hamilton/150377.jpg  sim 1.000
+  refs/Norris/148100.jpg  [Norris]  ~  refs/Norris/148100_b0.jpg  sim 1.000
+  refs/Norris/181973.jpg  [Norris]  ~  refs/Norris/181976.jpg  sim 0.976
+  refs/Gasly/189667.jpg  [Gasly]  ~  refs/Gasly/189667_b0.jpg  sim 1.000
+  refs/Hamilton/148828.jpg  [Hamilton]  ~  refs/Hamilton/148828_b0.jpg  sim 1.000
+  refs/Lindblad/182412.jpg  [Lindblad]  ~  refs/Lindblad/182412_b0.jpg  sim 1.000
+  refs/Norris/193192.jpg  [Norris]  ~  refs/Norris/193192_b0.jpg  sim 1.000
