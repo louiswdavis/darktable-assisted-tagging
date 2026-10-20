@@ -201,7 +201,8 @@ A file that's just the `[ … ]` list of entries works too, with the default rul
 | Field | Required | Rules |
 |---|---|---|
 | `id` | yes | unique within the collection; it's also the folder name under `refs/`, so it can't contain `, ; " / \ : * ? < > \|` |
-| `tags` | yes | one or more darktable tag names (`\|` makes a hierarchy); no `,` `;` or `"` |
+| `tags` | yes, unless `rules.tag_prefix` is set | one or more darktable tag names (`\|` makes a hierarchy); no `,` `;` or `"`. With `rules.tag_prefix` these are extras added after the built tags |
+| `name` | no | the driver's display name, e.g. `Max Verstappen`; needs `rules.tag_prefix`, which builds `prefix\|team\|name` from it |
 | `number` | no | the race number, 1–3 digits. Leave it out for a car with no number; it can then only be identified by livery. Two entries with the same number are allowed, but that number then identifies neither. |
 | `team` | no | entries with the same team can fall back to their shared tags when their liveries are too close to call |
 
@@ -218,6 +219,7 @@ Every key is optional; leave one out for its default.
 | `diagnostics` | the `Assisted Tagging\|Identification\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `pooled`, `team`, `none`, `number_seen`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
 
 | `sponsor_keywords` | `{}` | maps a lowercase sponsor word to the tag prefix of its team, e.g. `{"petronas": "Motorsport\|F1\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
+| `tag_prefix` | `""` | a tag path for the whole collection, e.g. `Motorsport\|F1`. Each entry's tags are then built: `prefix\|team`, then `prefix\|team\|name` (`prefix\|name` with no team), then its own `tags` as extras. A driver match writes all of them; a team-only result writes the shared `prefix\|team`. Empty keeps `tags` as the full list. |
 | `partial_references` | `false` | **Add tagged images as references** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only). |
 
 An unknown key, or a misspelt one, stops the run and names it, so a typo can't silently do nothing.
@@ -270,7 +272,7 @@ Re-running is safe: each image's entry and diagnostic tags are synced to the new
 The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config directory) of the tags it attached to each image. An entry tag on an image that isn't in its ledger is yours, at any depth (team or driver), and a run never removes it. So a photo you tagged to a team stays that way even when the run can't tell the driver.
 
 - A **solo shot** whose result disagrees with the tags you applied is left as you had it: nothing is added, it doesn't get the *Unidentified* tags, and the done message counts it. Packs aren't checked, since you may have tagged just one of the cars.
-- A **team tag** you applied (a tag that is a prefix of an entry's tags, such as `Motorsport|F1|Red Bull`) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car.
+- A **team tag** you applied (a tag that is a prefix of an entry's tags, such as `Motorsport|F1|Red Bull`) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car. Untick **Use team tags as hints** in the panel to ignore team tags instead: matching isn't narrowed, and a differing result is not held back as a conflict, so the run can override your team tag. The tag itself stays on the image beside whatever the run adds (tick **Replace manual tags** too to have the run overwrite it). Driver-level tags still protect their images either way.
 - An image already carrying all of one entry's tags is **skipped** without being analysed.
 - To let a run replace your tags, tick **Replace manual tags** under **Identify selection**. It applies to the next run only and clears itself.
 - If you remove a tag the plugin attached and later apply it again by hand, it counts as yours.

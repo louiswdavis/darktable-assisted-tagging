@@ -109,6 +109,28 @@ class Rules:
     # Motorsport: how much a car's colour histogram counts next to its embedding when scoring references
     # (reference_store.best_per_entry). 0 turns colour off.
     colour_weight: float = 0.0
+    # Motorsport: a tag prefix for the whole collection. An entry's team is appended to it, its name
+    # to that, and the entry's own `tags` are extras (see _entry_tags). "" keeps `tags` as the full list.
+    tag_prefix: str = ""
+
+
+def _entry_tags(eid: str, item: dict, team: str, name: str, prefix: str, bad) -> tuple:
+    """An entry's tags. Without a prefix, its `tags` list as written. With one: prefix|team,
+    prefix|team|name (prefix|name with no team), then any extra `tags`, without repeats."""
+    where = f'entry "{eid}": tags'
+    if not prefix:
+        if name:
+            raise bad(f'entry "{eid}": name needs rules.tag_prefix; without one, list the full tags')
+        _check_tags(item.get("tags"), where, bad)
+        return tuple(item["tags"])
+    extra = item.get("tags", [])
+    _check_tags(extra, where, bad, allow_empty=True)
+    built = [f"{prefix}|{team}"] if team else []
+    if name:
+        built.append(f"{prefix}|{team}|{name}" if team else f"{prefix}|{name}")
+    if not built and not extra:
+        raise bad(f'entry "{eid}": needs a team or name to build its tags from rules.tag_prefix, or its own tags')
+    return tuple(dict.fromkeys(built + extra))
 
 
 def _check_tags(tags, where: str, bad, allow_empty: bool = False):
@@ -127,11 +149,11 @@ def _load_rules(raw, bad) -> Rules:
         raise bad('"rules" must be an object')
     unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling",
                                   "blur_references", "sponsor_keywords", "partial_references",
-                                  "min_sim", "margin", "min_face_px", "colour_weight"})
+                                  "min_sim", "margin", "min_face_px", "colour_weight", "tag_prefix"})
     if unknown:
         raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics, '
                    f'burst_livery_pooling, blur_references, sponsor_keywords, partial_references, '
-                   f'min_sim, margin, min_face_px, colour_weight)')
+                   f'min_sim, margin, min_face_px, colour_weight, tag_prefix)')
     defaults = Rules()
     min_sim, margin, min_px = (raw.get("min_sim", defaults.min_sim), raw.get("margin", defaults.margin),
                                raw.get("min_face_px", defaults.min_face_px))
@@ -147,6 +169,9 @@ def _load_rules(raw, bad) -> Rules:
     colour_weight = raw.get("colour_weight", defaults.colour_weight)
     if isinstance(colour_weight, bool) or not isinstance(colour_weight, (int, float)) or colour_weight < 0:
         raise bad("rules.colour_weight must be a number, 0 or more (0 is off)")
+    tag_prefix = raw.get("tag_prefix", defaults.tag_prefix)
+    if not isinstance(tag_prefix, str) or _BAD_TAG.search(tag_prefix) or tag_prefix != tag_prefix.strip("| "):
+        raise bad('rules.tag_prefix must be a tag path like "Motorsport|F1": no , ; " and no leading or trailing |')
     sponsors = raw.get("sponsor_keywords", {})
     if not isinstance(sponsors, dict) or not all(
             isinstance(k, str) and k.strip() and k == k.lower() and isinstance(v, str) and v.strip()
@@ -178,7 +203,7 @@ def _load_rules(raw, bad) -> Rules:
         diag[key] = name.strip()
     return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling, blur_refs,
                  tuple(sponsors.items()), partial, min_sim=float(min_sim), margin=float(margin), min_face_px=min_px,
-                 colour_weight=float(colour_weight))
+                 colour_weight=float(colour_weight), tag_prefix=tag_prefix)
 
 
 def load_collection(collection_dir: str) -> tuple:
@@ -210,6 +235,7 @@ def load_collection(collection_dir: str) -> tuple:
         raise bad(str(e))
     if not isinstance(data, list):
         raise bad('"entries" must be a list of entries')
+    rules = replace(_load_rules(rules_raw, bad), kind=kind)
     entries = {}
     for n, item in enumerate(data, 1):
         if not isinstance(item, dict):
@@ -223,12 +249,11 @@ def load_collection(collection_dir: str) -> tuple:
             raise bad(f'entry "{eid}" appears twice')
         unknown = check_entry_fields(kind, item)
         if unknown:
-            fields = "id, tags" if kind == "people" else "id, number, team, tags, camera"
+            fields = "id, tags" if kind == "people" else "id, number, team, name, tags, camera"
             raise bad(f'entry "{eid}": unknown field "{unknown}" (fields are {fields})')
-        tags = item.get("tags")
-        _check_tags(tags, f'entry "{eid}": tags', bad)
         if kind == "people":
-            entries[eid] = Entry(eid, "", "", tuple(tags))
+            _check_tags(item.get("tags"), f'entry "{eid}": tags', bad)
+            entries[eid] = Entry(eid, "", "", tuple(item["tags"]))
             continue
         number = item.get("number", "")
         number = str(number) if isinstance(number, int) and not isinstance(number, bool) else number
@@ -237,11 +262,13 @@ def load_collection(collection_dir: str) -> tuple:
         team = item.get("team", "")
         if not isinstance(team, str) or _BAD_TAG.search(team):
             raise bad(f'entry "{eid}": team must be text without , ; or "')
+        name = item.get("name", "")
+        if not isinstance(name, str) or _BAD_TAG.search(name):
+            raise bad(f'entry "{eid}": name must be text without , ; or "')
         camera = item.get("camera", "")
         if camera not in ("", "yellow", "black"):
             raise bad(f'entry "{eid}": camera must be "yellow" or "black"')
-        entries[eid] = Entry(eid, number, team, tuple(tags), camera)
-    rules = replace(_load_rules(rules_raw, bad), kind=kind)
+        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, team, name, rules.tag_prefix, bad), camera)
     if kind == "people":
         if rules_raw is None:
             log("warning: entries.json has no rules block, so the face thresholds use defaults")

@@ -111,6 +111,21 @@ def run_tests():
     check("an unknown diagnostic is named", load_error({"rules": {"diagnostics": {"guess": "x"}}, "entries": []}),
           'unknown diagnostic "guess" (they are number, livery, burst, team, none, number_seen, pooled, shot_solo, shot_pack, shot_crowded)')
 
+    # ---- rules.tag_prefix builds tags from team and name
+    entries, rules = I.load_collection(collection({"rules": {"tag_prefix": "Motorsport|F1"}, "entries": [
+        {"id": "VER", "team": "Red Bull", "name": "Max Verstappen", "tags": ["Extra|Champion", "Motorsport|F1|Red Bull"]},
+        {"id": "RB", "team": "Red Bull"}, {"id": "SC", "name": "Safety Car"}]}))
+    check("prefix: team, then team|name, then extras without repeats", entries["VER"].tags,
+          ("Motorsport|F1|Red Bull", "Motorsport|F1|Red Bull|Max Verstappen", "Extra|Champion"))
+    check("prefix: a team-only entry gets just the team tag", entries["RB"].tags, ("Motorsport|F1|Red Bull",))
+    check("prefix: a name with no team hangs off the prefix", entries["SC"].tags, ("Motorsport|F1|Safety Car",))
+    check("name without a prefix is rejected", load_error({"entries": [dict(VER, name="Max")]}),
+          'entry "VER": name needs rules.tag_prefix; without one, list the full tags')
+    check("prefix: an entry with nothing to build from is rejected",
+          load_error({"rules": {"tag_prefix": "F1"}, "entries": [{"id": "X"}]}),
+          'entry "X": needs a team or name to build its tags from rules.tag_prefix, or its own tags')
+    check("a trailing | on the prefix is rejected", "tag_prefix" in load_error({"rules": {"tag_prefix": "F1|"}, "entries": []}), True)
+
     # ---- csv outputs and the tag plan
     entries, rules = I.load_collection(collection({"rules": {"unidentified": ["F1|Check"]},
                                                    "entries": [VER, TSU, {"id": "SC", "tags": ["F1|Safety Car"]}]}))

@@ -3,7 +3,7 @@
 DEFAULT_KIND = "motorsport"
 
 KINDS = {
-    "motorsport": frozenset({"id", "number", "team", "tags", "camera"}),
+    "motorsport": frozenset({"id", "number", "team", "name", "tags", "camera"}),
     "people": frozenset({"id", "tags"}),
 }
 

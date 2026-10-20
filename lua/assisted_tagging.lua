@@ -767,6 +767,7 @@ local STALL_SECONDS = 300
 local verify_button, identify_button, collection_combo, entry_combo, example_combo = nil, nil, nil, nil, nil
 local identify_cancellable = false -- the identify button currently reads "Cancel"
 local replace_manual_check = nil
+local use_hints_check = nil
 local run_tag_check = nil
 local suggest_crops_check = nil
 local quarantine_check = nil
@@ -1144,7 +1145,8 @@ local function prepare_run(images, replace_manual)
     -- Protection and hints read the entries loaded at the last Reload or run, so Reload after
     -- editing entries.json.
     local ledger = M.ledger_parse(read_file(LEDGER_PATH))
-    local protected_of, hints_of = {}, {}
+    local protected_of, hints_of, sent_protected_of = {}, {}, {}
+    local use_hints = not use_hints_check or use_hints_check.value
     for _, copies in pairs(group_of) do
         for _, copy in ipairs(copies) do
             local have = tags_of(copy)
@@ -1155,13 +1157,21 @@ local function prepare_run(images, replace_manual)
             ledger[copy.id] = next(kept) and kept or nil
             protected_of[copy.id] = replace_manual and {} or M.protected_tags(have, kept, entries)
             hints_of[copy.id] = replace_manual and {} or M.hint_prefixes(have, kept, entries)
+            -- the identifier sees protected tags for skip and conflict checks; with hints off a team tag
+            -- is not among them, but protected_of still keeps the run from detaching it
+            local sent = {}
+            for name in pairs(protected_of[copy.id]) do
+                if use_hints or not hints_of[copy.id][name] then sent[name] = true end
+            end
+            sent_protected_of[copy.id] = sent
+            if not use_hints then hints_of[copy.id] = {} end
         end
     end
 
     local rows = {}
     for _, img in ipairs(primaries) do
         rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, burst_of[img.id],
-                            table.concat(sorted_names(protected_of[img.id]), ";"),
+                            table.concat(sorted_names(sent_protected_of[img.id]), ";"),
                             table.concat(sorted_names(hints_of[img.id]), ";"),
                             time_of[img.id] and tostring(time_of[img.id]) or "" }
     end
@@ -1831,6 +1841,11 @@ local function install_panel()
         tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let the next run replace them. It clears itself after the run."),
         value = false,
     }
+    use_hints_check = dt.new_widget("check_button") {
+        label = _("Use team tags as hints"),
+        tooltip = _("On: a team tag you applied by hand to a solo shot limits matching to that team's entries. Off: team tags are ignored, so the run can override them; a team tag you applied stays on the image next to whatever the run adds. Driver tags still protect their images either way."),
+        value = true,
+    }
     verify_button = dt.new_widget("button") {
         label = _("Verify selection"),
         tooltip = _("Identify the selected images, fully tagged ones included, and report where the result differs from your tags (boxes.json and report.md). No tags are changed."),
@@ -1903,6 +1918,7 @@ local function install_panel()
         verify_button,
         identify_button,
         replace_manual_check,
+        use_hints_check,
         run_tag_check,
         dt.new_widget("section_label") { label = _("references") },
         entry_combo,
