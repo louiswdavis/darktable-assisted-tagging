@@ -1079,7 +1079,7 @@ def identify(args, models: dict):
 def screen_new_refs(collection: str, index: ReferenceIndex, done: list, mode: str) -> list:
     """Runs the audit's per-ref checks over the refs a job just saved. A ref flagged by
     STRONG_MIN_FLAGS+ checks is one the next audit would quarantine: mode "warn" only logs it,
-    "skip" also deletes it and, when none of a row's refs survive, sets that row's status to
+    "skip" also deletes it (or puts back the sample it replaced) and, when none of a row's refs survive, sets that row's status to
     "flagged". Returns `done` with the statuses updated."""
     from audit_refs import STRONG_MIN_FLAGS, screen_refs
     flags = screen_refs(collection, [r for _, _, rels in done for r in rels])
@@ -1089,7 +1089,8 @@ def screen_new_refs(collection: str, index: ReferenceIndex, done: list, mode: st
         for r in bad:
             log(f"{image_id}: {r} is flagged by {', '.join(flags[r])}" + ("; not saved" if mode == "skip" else "; kept, but the next audit would quarantine it"))
             if mode == "skip":
-                index.remove(r)
+                if not index.restore(r):
+                    index.remove(r)
                 removed = True
         out.append((image_id, "flagged" if mode == "skip" and bad and len(bad) == len(rels) else status, rels))
     if removed:

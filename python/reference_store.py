@@ -30,6 +30,7 @@ class ReferenceIndex:
         self.entry: list = []
         self.path: list = []
         self.added: list = []  # paths add() has saved since a caller last cleared this
+        self.replaced: dict = {}  # rel -> (crop bytes, entry, embedding, histogram) add() overwrote
 
     @classmethod
     def load(cls, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM,
@@ -135,11 +136,28 @@ class ReferenceIndex:
                 os.remove(os.path.join(self.dir, *other.split("/")))
             except OSError:
                 pass
-        Image.fromarray(crop_rgb).save(os.path.join(self.dir, *rel.split("/")), quality=92)
+        full = os.path.join(self.dir, *rel.split("/"))
+        if rel in self.path and os.path.exists(full):
+            i = self.path.index(rel)
+            with open(full, "rb") as f:
+                self.replaced[rel] = (f.read(), self.entry[i], self.emb[i].copy(), self.hist[i].copy() if self.colour else None)
+        Image.fromarray(crop_rgb).save(full, quality=92)
         self._append(entry_id, rel, self.embedder.embed(degrade(crop_rgb) if self.blur else crop_rgb),
                      colour_hist(crop_rgb) if self.colour else None)
         self.added.append(rel)
         return rel
+
+    def restore(self, rel: str) -> bool:
+        """Puts back the sample add() replaced at rel (call save() after); False when add() replaced
+        nothing there, in which case the caller should remove() the new one."""
+        old = self.replaced.pop(rel, None)
+        if old is None:
+            return False
+        data, entry_id, vec, hist = old
+        with open(os.path.join(self.dir, *rel.split("/")), "wb") as f:
+            f.write(data)
+        self._append(entry_id, rel, vec, hist)
+        return True
 
     def remove(self, rel: str):
         """Deletes a reference's crop and drops it from the index (call save() after)."""

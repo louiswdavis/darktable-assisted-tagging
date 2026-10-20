@@ -334,6 +334,14 @@ def run_tests():
         audit_refs.screen_refs = lambda collection, rels: {r: ["outlier"] for r in rels}
         I.promote_boxes(pargs, {"embedder": "fake"})
         check("one flag alone does not refuse a box", open(results, encoding="utf-8").read().strip(), "1,added")
+        kept = os.listdir(os.path.join(coll, "refs", "VER"))
+        with open(os.path.join(coll, "refs", "VER", kept[0]), "rb") as f:
+            before = f.read()
+        write_promo([100, 50])
+        audit_refs.screen_refs = lambda collection, rels: {r: ["outlier", "colour"] for r in rels}
+        I.promote_boxes(pargs, {"embedder": "fake"})
+        with open(os.path.join(coll, "refs", "VER", kept[0]), "rb") as f:
+            check("a refused re-promote puts the earlier sample back", f.read() == before, True)
     finally:
         audit_refs.screen_refs = real_screen
 
