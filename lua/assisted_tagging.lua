@@ -558,6 +558,10 @@ if dt.gui then
         "Assisted Tagging: diagnostic tags",
         "Tag how each image was identified (under Assisted Tagging|Identification: By number, By livery, By burst, Team only, Unidentified) for filtering and spot-checks; a collection's rules can rename them. Off removes them on the next run",
         true)
+    dt.preferences.register("assisted_tagging", "run_tags", "bool",
+        "Assisted Tagging: tag each run",
+        "Add a timestamp tag (Assisted Tagging|Run|YYYY-MM-DD HH:MM) to every image a run writes, so the latest run's photos can be filtered apart from earlier ones. Stamps accumulate; remove old ones in darktable's tag manager",
+        false)
     dt.preferences.register("assisted_tagging", "burst_gap_seconds", "integer",
         "Assisted Tagging: burst gap (seconds)",
         "Photos taken closer together than this are one burst, and share an identification when the rest of the burst agrees",
@@ -1204,6 +1208,9 @@ local function apply_results(run, job)
     local owned_prefixes = (rules.diag.number_seen and rules.diag.number_seen ~= "")
         and { rules.diag.number_seen .. "|" } or {}
     local diag_on = dt.preferences.read("assisted_tagging", "diagnostic_tags", "bool")
+    -- one stamp per run; never owned, so later runs leave earlier stamps in place
+    local run_tag = dt.preferences.read("assisted_tagging", "run_tags", "bool")
+        and os.date("Assisted Tagging|Run|%Y-%m-%d %H:%M") or nil
     local tag_objs, writes, failed, first_error = {}, 0, 0, nil
     local n_tagged, n_unidentified, n_missing = 0, 0, 0
     local n_skipped, n_conflict = 0, 0
@@ -1230,6 +1237,7 @@ local function apply_results(run, job)
             if diag_on then
                 for name in pairs(diag) do wanted[name] = true end
             end
+            if run_tag then wanted[run_tag] = true end
             for _, copy in ipairs(group_of[img.id]) do
                 local attach, detach = M.tag_changes(tags_of(copy), wanted, owned, owned_prefixes,
                     protected_of[copy.id])
