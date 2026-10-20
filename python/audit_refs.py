@@ -79,12 +79,14 @@ def audit(emb, entry, dup_sim):
             redundant, own_best, other_best)
 
 
-def attractor_audit(emb, entry, dup_sim):
+def attractor_audit(emb, entry, team, dup_sim):
     """Refs that win matches they shouldn't, whatever their own label. Each ref is the query once and
     its single closest other ref (same-entry near-duplicates skipped, as in audit) wins it; a win for
     a ref of another entry is a wrong pull, which is how an odd-angle or odd-size ref misidentifies
-    other cars. Returns [(wrong pulls, right pulls, i, {victim entry: pulls})] for refs with
-    ATTRACTOR_MIN_PULLS+ wrong pulls and more wrong than right, worst margin first."""
+    other cars. Teammates' cars look alike, so pulls from the same team are counted apart: only
+    other-team pulls count toward the threshold. Returns [(other-team pulls, right pulls, i,
+    {victim entry: pulls}, same-team pulls)] for refs with ATTRACTOR_MIN_PULLS+ other-team pulls and
+    more of those than right ones, worst margin first."""
     x = unit(emb - emb.mean(axis=0))
     sims = x @ x.T
     n = len(entry)
@@ -92,14 +94,16 @@ def attractor_audit(emb, entry, dup_sim):
     same = ent[:, None] == ent[None, :]
     eligible = ~np.eye(n, dtype=bool) & ~(same & (sims >= dup_sim))
     winner = np.where(eligible, sims, -np.inf).argmax(axis=1)
-    wrong, right, victims = Counter(), Counter(), {}
+    wrong, right, mates, victims = Counter(), Counter(), Counter(), {}
     for q, j in enumerate(winner):
         if ent[q] == ent[j]:
             right[j] += 1
+        elif team.get(ent[q]) is not None and team.get(ent[q]) == team.get(ent[j]):
+            mates[j] += 1
         else:
             wrong[j] += 1
             victims.setdefault(j, Counter())[ent[q]] += 1
-    found = [(wrong[j], right[j], j, dict(victims[j])) for j in wrong
+    found = [(wrong[j], right[j], j, dict(victims[j]), mates[j]) for j in wrong
              if wrong[j] >= ATTRACTOR_MIN_PULLS and wrong[j] > right[j]]
     return sorted(found, key=lambda t: (t[1] - t[0], -t[0]))
 
@@ -231,7 +235,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     except ImportError:  # no cv2: the colour section is skipped
         colours = []
     crops = crop_audit(collection_dir, entry, path)
-    attractors = attractor_audit(emb, entry, dup_sim)
+    attractors = attractor_audit(emb, entry, team, dup_sim)
     frames =frame_audit(collection_dir, path, detector, on_progress) if detector else []
     out = [f"{len(entry)} references, {len(set(entry))} entries with 2+ refs (entries with fewer are skipped)",
            f"{len(mislabel)} mislabel suspects, {len(copies)} cross-entry copies, {len(outliers)} outliers, "
@@ -253,10 +257,10 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     for i in strongest[:top]:
         out.append(f"  {path[i]}  [{entry[i]}]  {', '.join(flags[i])}")
     out.append(f"  ({len(strongest)} in total)\n")
-    out.append(f"## attractors (correctly filed, but the closest match for {ATTRACTOR_MIN_PULLS}+ refs of other entries and more of those than of its own: an odd angle or size that pulls other cars toward this entry. Removing one costs its own entry some coverage, so check 'pulls' against 'own')")
-    for wrong, right, i, victims in attractors[:top]:
+    out.append(f"## attractors (correctly filed, but the closest match for {ATTRACTOR_MIN_PULLS}+ refs of other teams' entries and more of those than of its own: an odd angle or size that pulls other cars toward this entry. Teammates' cars look alike, so their pulls are shown but not counted. Removing one costs its own entry some coverage, so check 'pulls' against 'own')")
+    for wrong, right, i, victims, mates in attractors[:top]:
         names = ", ".join(f"{v} x{c}" for v, c in sorted(victims.items(), key=lambda kv: -kv[1])[:4])
-        out.append(f"  {path[i]}  [{entry[i]}]  wrong pulls {wrong}  own {right}  pulled: {names}")
+        out.append(f"  {path[i]}  [{entry[i]}]  other-team pulls {wrong}  own {right}  teammate pulls {mates}  pulled: {names}")
     out.append(f"  ({len(attractors)} in total)\n")
     out.append("## mislabel suspects (closer to another entry than to its own; check the first file)")
     for m, i, j in mislabel[:top]:
