@@ -1,6 +1,22 @@
-12:21:15 lua: audit references: darktable 5.6.0, 0 images, collection F1
-12:21:15 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\.venv\Scripts\python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/python/identify.py" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_manifest.csv" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_results.csv" --audit-refs --collections-root "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" --collection "F1" --detector "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/object_detection_yolox_2022nov.onnx" --ocr-det "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/text_detection_en_ppocrv3_2023may.onnx" --ocr-rec "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/text_recognition_CRNN_EN_2021sep.onnx" --embedder "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/dinov2_small.onnx" --entries-out "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_entries.csv" --rules-out "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_rules.csv" --progress "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_progress.txt" 2>> "C:\Users\Louis\AppData\Local\darktable/assisted_tagging.log"
-12:21:27 py: reference audit: {'references': 2121, 'mislabel': 61, 'copies': 0, 'outliers': 115, 'colour': 281, 'crops': 90, 'attractors': 11, 'frames': 856, 'strongest': 307}; wrote C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\F1\ref-audit.txt
-12:21:28 lua: identify.py exit 0
-12:21:28 lua: Assisted Tagging: audited 2121 references: 61 mislabel suspects, 0 cross-entry copies, 115 outliers, 281 colour outliers, 90 odd crops; 307 flagged by 2+ checks (start there). Details in C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\F1\ref-audit.txt
-12:21:28 lua: run finished
+13:01:23 lua: audit references: darktable 5.6.0, 0 images, collection F1
+13:01:23 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\.venv\Scripts\python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/python/identify.py" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_manifest.csv" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_results.csv" --audit-refs --collections-root "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" --collection "F1" --detector "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/object_detection_yolox_2022nov.onnx" --ocr-det "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/text_detection_en_ppocrv3_2023may.onnx" --ocr-rec "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/text_recognition_CRNN_EN_2021sep.onnx" --embedder "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/dinov2_small.onnx" --entries-out "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_entries.csv" --rules-out "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_rules.csv" --progress "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_progress.txt" 2>> "C:\Users\Louis\AppData\Local\darktable/assisted_tagging.log"
+Traceback (most recent call last):
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/python/identify.py", line 1270, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/python/identify.py", line 1260, in main
+    audit_references(args, models)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/python/identify.py", line 1184, in audit_references
+    report, counts = write_audit(collection, detector=models["detector"], on_progress=on_progress)
+                     ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\audit_refs.py", line 296, in write_audit
+    events, event_ranges = ref_events(path)
+                           ~~~~~~~~~~^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\audit_refs.py", line 151, in ref_events
+    ids = [int(os.path.splitext(os.path.basename(p))[0]) for p in path]
+           ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ValueError: invalid literal for int() with base 10: '139712_b0'
+13:01:26 lua: identify.py exit 1
+13:01:26 lua: Assisted Tagging: identify.py stopped with exit code 1. Details are in assisted_tagging.log in darktable's config folder.
+13:01:26 lua: run finished
