@@ -1,48 +1,49 @@
 1985 references, 22 entries with 2+ refs (entries with fewer are skipped)
-48 mislabel suspects, 0 cross-entry copies, 96 outliers, 252 colour outliers, 94 odd crops, 7 attractors, 768 whole frames
+48 mislabel suspects, 0 cross-entry copies, 96 outliers, 258 colour outliers, 94 odd crops, 7 attractors, 768 whole frames
+events (ids more than 1000 apart split; colour outliers are judged within an event): 139381-141605 (17), 145400-145400 (1), 147960-150456 (216), 152065-152556 (213), 179880-195292 (1527), 197224-197926 (11)
 
 ## strongest candidates (flagged by 2+ checks; look at these first)
-  refs/Antonelli/149014.jpg  [Antonelli]  mislabel, outlier, colour, frame
   refs/Antonelli/149018.jpg  [Antonelli]  mislabel, outlier, colour, frame
-  refs/Antonelli/180601.jpg  [Antonelli]  outlier, colour, crop, frame
-  refs/Bearman/152268.jpg  [Bearman]  mislabel, outlier, colour, frame
-  refs/Colapinto/148002.jpg  [Colapinto]  mislabel, outlier, colour, frame
   refs/Colapinto/180625.jpg  [Colapinto]  mislabel, outlier, colour, crop
   refs/Hulkenburg/145400.jpg  [Hulkenburg]  mislabel, outlier, colour, frame
   refs/Lindblad/180129.jpg  [Lindblad]  mislabel, outlier, colour, frame
-  refs/Perez/180598.jpg  [Perez]  mislabel, outlier, colour, frame
-  refs/Russell/149028.jpg  [Russell]  mislabel, outlier, colour, frame
   refs/Sainz/148630.jpg  [Sainz]  mislabel, outlier, colour, frame
-  refs/Sainz/180005.jpg  [Sainz]  mislabel, outlier, colour, frame
-  refs/Stroll/148582.jpg  [Stroll]  mislabel, outlier, colour, frame
-  refs/Albon/180506.jpg  [Albon]  mislabel, outlier, frame
-  refs/Antonelli/148084.jpg  [Antonelli]  outlier, colour, frame
-  refs/Antonelli/148508.jpg  [Antonelli]  outlier, colour, frame
-  refs/Antonelli/149016.jpg  [Antonelli]  mislabel, outlier, colour
+  refs/Verstappen/180163.jpg  [Verstappen]  mislabel, outlier, colour, frame
+  refs/Antonelli/180601.jpg  [Antonelli]  outlier, colour, crop
   refs/Bortoleto/149662.jpg  [Bortoleto]  mislabel, outlier, frame
-  refs/Colapinto/148004.jpg  [Colapinto]  mislabel, outlier, frame
-  refs/Colapinto/148006.jpg  [Colapinto]  outlier, colour, frame
+  refs/Colapinto/148002.jpg  [Colapinto]  mislabel, outlier, colour
   refs/Colapinto/180087.jpg  [Colapinto]  outlier, colour, crop
   refs/Colapinto/180341.jpg  [Colapinto]  colour, crop, frame
   refs/Colapinto/186809.jpg  [Colapinto]  colour, crop, frame
-  refs/Gasly/149204.jpg  [Gasly]  outlier, colour, frame
   refs/Gasly/179880.jpg  [Gasly]  colour, crop, frame
   refs/Gasly/180149.jpg  [Gasly]  colour, crop, frame
-  refs/Gasly/186817.jpg  [Gasly]  colour, crop, frame
   refs/Gasly/186829.jpg  [Gasly]  colour, crop, frame
-  refs/Gasly/188599.jpg  [Gasly]  colour, crop, frame
-  refs/Hulkenburg/148204.jpg  [Hulkenburg]  mislabel, outlier, frame
-  refs/Lawson/148618.jpg  [Lawson]  colour, crop, frame
-  refs/Lawson/148620.jpg  [Lawson]  colour, crop, frame
-  refs/Lawson/148622.jpg  [Lawson]  colour, crop, frame
-  refs/Lawson/148624.jpg  [Lawson]  colour, crop, frame
-  refs/Lawson/149414.jpg  [Lawson]  colour, crop, frame
-  refs/Lawson/149416.jpg  [Lawson]  colour, crop, frame
-  refs/Lawson/152441.jpg  [Lawson]  colour, crop, frame
-  refs/Lawson/152442.jpg  [Lawson]  colour, crop, frame
-  refs/Lawson/152443.jpg  [Lawson]  colour, crop, frame
-  refs/Lawson/152444.jpg  [Lawson]  colour, crop, frame
-  (275 in total)
+  refs/Hamilton/149386.jpg  [Hamilton]  mislabel, colour, frame
+  refs/Lawson/181070.jpg  [Lawson]  colour, crop, frame
+  refs/Lawson/192424.jpg  [Lawson]  colour, crop, frame
+  refs/Norris/180135.jpg  [Norris]  colour, crop, frame
+  refs/Norris/180615.jpg  [Norris]  outlier, colour, crop
+  refs/Norris/181968.jpg  [Norris]  colour, crop, frame
+  refs/Norris/181973.jpg  [Norris]  colour, crop, frame
+  refs/Norris/181976.jpg  [Norris]  colour, crop, frame
+  refs/Norris/181981.jpg  [Norris]  colour, crop, frame
+  refs/Norris/181985.jpg  [Norris]  colour, crop, frame
+  refs/Norris/182607.jpg  [Norris]  colour, crop, frame
+  refs/Norris/182611.jpg  [Norris]  colour, crop, frame
+  refs/Norris/182614.jpg  [Norris]  colour, crop, frame
+  refs/Norris/185055.jpg  [Norris]  colour, crop, frame
+  refs/Norris/185190.jpg  [Norris]  colour, crop, frame
+  refs/Norris/185194.jpg  [Norris]  colour, crop, frame
+  refs/Norris/185198.jpg  [Norris]  colour, crop, frame
+  refs/Norris/185202.jpg  [Norris]  colour, crop, frame
+  refs/Norris/186860.jpg  [Norris]  colour, crop, frame
+  refs/Perez/180598.jpg  [Perez]  mislabel, outlier, colour
+  refs/Piastri/180009.jpg  [Piastri]  mislabel, colour, frame
+  refs/Piastri/180122.jpg  [Piastri]  mislabel, colour, frame
+  refs/Russell/149028.jpg  [Russell]  mislabel, outlier, frame
+  refs/Russell/179884.jpg  [Russell]  mislabel, colour, frame
+  refs/Sainz/180005.jpg  [Sainz]  mislabel, outlier, colour
+  (188 in total)
 
 ## attractors (correctly filed, but the closest match for 3+ refs of other teams' entries and more of those than of its own: an odd angle or size that pulls other cars toward this entry. Teammates' cars look alike, so their pulls are shown but not counted. Removing one costs its own entry some coverage, so check 'pulls' against 'own')
   refs/Norris/185190.jpg  [Norris]  other-team pulls 4  own 1  teammate pulls 0  pulled: Hamilton x1, Albon x1, Russell x1, Antonelli x1
@@ -141,46 +142,46 @@
   refs/Hulkenburg/180044.jpg  [Hulkenburg]  z -4.7  best own match 0.435
 
 ## colour outliers (livery colours differ from the entry's typical ones; ignores brightness. 'looks like' names the entry whose colours it matches better)
-  refs/Antonelli/149018.jpg  [Antonelli]  z -13.0  own 0.379  looks like [Hamilton] 0.818
-  refs/Gasly/179880.jpg  [Gasly]  z -12.2  own 0.423  looks like [LeClerc] 0.732
-  refs/Colapinto/180625.jpg  [Colapinto]  z -11.8  own 0.448  looks like [Piastri] 0.718
-  refs/Gasly/180149.jpg  [Gasly]  z -11.1  own 0.476  looks like [LeClerc] 0.756
-  refs/Gasly/186829.jpg  [Gasly]  z -11.0  own 0.478  looks like [Bortoleto] 0.726
-  refs/Antonelli/185931.jpg  [Antonelli]  z -10.6  own 0.489  looks like [Norris] 0.750
-  refs/Lawson/192424.jpg  [Lawson]  z -10.4  own 0.489  looks like [Norris] 0.632
-  refs/Bearman/152273.jpg  [Bearman]  z -10.4  own 0.468  looks like [LeClerc] 0.716
-  refs/Antonelli/191946.jpg  [Antonelli]  z -9.1  own 0.555  looks like [Verstappen] 0.814
-  refs/Antonelli/189327.jpg  [Antonelli]  z -9.1  own 0.555  looks like [Norris] 0.770
-  refs/Gasly/188607.jpg  [Gasly]  z -9.0  own 0.567  looks like [Bearman] 0.883
-  refs/Antonelli/191978.jpg  [Antonelli]  z -9.0  own 0.560  looks like [Verstappen] 0.815
-  refs/Stroll/192432.jpg  [Stroll]  z -8.9  own 0.564  looks like [Verstappen] 0.788
-  refs/Antonelli/189278.jpg  [Antonelli]  z -8.7  own 0.573  looks like [Bortoleto] 0.733
-  refs/Stroll/190181.jpg  [Stroll]  z -8.5  own 0.583  looks like [Norris] 0.615
-  refs/Lawson/152441.jpg  [Lawson]  z -8.4  own 0.575  looks like [Russell] 0.862
+  refs/Hamilton/180292.jpg  [Hamilton]  z -16.0  own 0.266  looks like [Russell] 0.667
+  refs/Hadjar/183343.jpg  [Hadjar]  z -12.7  own 0.391  looks like [Norris] 0.557
+  refs/Hadjar/183347.jpg  [Hadjar]  z -12.4  own 0.403  looks like [Norris] 0.533
+  refs/Gasly/179880.jpg  [Gasly]  z -12.3  own 0.418  looks like [LeClerc] 0.732
+  refs/Colapinto/180625.jpg  [Colapinto]  z -12.0  own 0.443  looks like [Piastri] 0.718
+  refs/Hamilton/180169.jpg  [Hamilton]  z -11.6  own 0.461  looks like [Verstappen] 0.730
+  refs/Gasly/180149.jpg  [Gasly]  z -11.1  own 0.473  looks like [LeClerc] 0.756
+  refs/Gasly/186829.jpg  [Gasly]  z -10.9  own 0.480  looks like [Bortoleto] 0.726
+  refs/Bottas/180658.jpg  [Bottas]  z -10.5  own 0.474  looks like [LeClerc] 0.813
+  refs/Antonelli/185931.jpg  [Antonelli]  z -10.5  own 0.492  looks like [Norris] 0.750
+  refs/Hamilton/180245.jpg  [Hamilton]  z -10.3  own 0.521  looks like [Piastri] 0.614
+  refs/Lawson/192424.jpg  [Lawson]  z -10.2  own 0.507  looks like [Norris] 0.632
+  refs/Russell/189358.jpg  [Russell]  z -10.0  own 0.512  looks like [Hulkenburg] 0.836
+  refs/Lindblad/180129.jpg  [Lindblad]  z -9.9  own 0.508  looks like [LeClerc] 0.710
+  refs/Bottas/180019.jpg  [Bottas]  z -9.8  own 0.509  looks like [Russell] 0.805
+  refs/Hamilton/180173.jpg  [Hamilton]  z -9.7  own 0.547  looks like [Verstappen] 0.797
+  refs/Russell/188400.jpg  [Russell]  z -9.6  own 0.527  looks like [Hulkenburg] 0.766
+  refs/Bottas/180040.jpg  [Bottas]  z -9.4  own 0.524  looks like [Russell] 0.774
+  refs/Hamilton/180104.jpg  [Hamilton]  z -9.4  own 0.561  looks like [Piastri] 0.666
+  refs/Antonelli/191946.jpg  [Antonelli]  z -9.2  own 0.552  looks like [Verstappen] 0.814
+  refs/Gasly/188607.jpg  [Gasly]  z -9.2  own 0.559  looks like [Bearman] 0.883
+  refs/Antonelli/191978.jpg  [Antonelli]  z -9.1  own 0.557  looks like [Verstappen] 0.815
+  refs/Antonelli/189327.jpg  [Antonelli]  z -9.1  own 0.558  looks like [Norris] 0.770
+  refs/Stroll/192432.jpg  [Stroll]  z -9.0  own 0.560  looks like [Verstappen] 0.788
+  refs/Hamilton/180166.jpg  [Hamilton]  z -8.9  own 0.580  looks like [Verstappen] 0.887
+  refs/Antonelli/189278.jpg  [Antonelli]  z -8.6  own 0.578  looks like [Bortoleto] 0.733
+  refs/Stroll/190181.jpg  [Stroll]  z -8.5  own 0.582  looks like [Norris] 0.615
   refs/Bearman/197402.jpg  [Bearman]  z -8.3  own 0.557  looks like [LeClerc] 0.794
-  refs/Gasly/181477.jpg  [Gasly]  z -8.2  own 0.603  looks like [Perez] 0.713
+  refs/Hadjar/183386.jpg  [Hadjar]  z -8.3  own 0.587  looks like [Bortoleto] 0.733
+  refs/Bottas/181000.jpg  [Bottas]  z -8.2  own 0.578  looks like [Bortoleto] 0.807
+  refs/Gasly/181477.jpg  [Gasly]  z -8.2  own 0.602  looks like [Perez] 0.713
+  refs/Russell/193978.jpg  [Russell]  z -8.2  own 0.591  looks like [Verstappen] 0.821
+  refs/Bearman/189223.jpg  [Bearman]  z -8.2  own 0.580  looks like [Bortoleto] 0.676
+  refs/Colapinto/181174.jpg  [Colapinto]  z -8.2  own 0.612  looks like [Perez] 0.614
   refs/Stroll/148582.jpg  [Stroll]  z -8.1  own 0.600  looks like [Verstappen] 0.895
-  refs/Colapinto/181174.jpg  [Colapinto]  z -8.0  own 0.615
-  refs/Ocon/152467.jpg  [Ocon]  z -8.0  own 0.586  looks like [Alonso] 0.825
-  refs/Antonelli/149014.jpg  [Antonelli]  z -8.0  own 0.605  looks like [Verstappen] 0.916
-  refs/Bearman/189223.jpg  [Bearman]  z -7.9  own 0.576  looks like [Bortoleto] 0.676
-  refs/Lawson/152442.jpg  [Lawson]  z -7.9  own 0.599  looks like [Russell] 0.879
-  refs/Gasly/190279.jpg  [Gasly]  z -7.9  own 0.617  looks like [Norris] 0.751
-  refs/Russell/149028.jpg  [Russell]  z -7.8  own 0.424  looks like [Verstappen] 0.846
-  refs/Antonelli/185927.jpg  [Antonelli]  z -7.8  own 0.612  looks like [Bortoleto] 0.812
-  refs/Bearman/152272.jpg  [Bearman]  z -7.7  own 0.587  looks like [LeClerc] 0.808
-  refs/Antonelli/189267.jpg  [Antonelli]  z -7.7  own 0.619  looks like [Bortoleto] 0.782
-  refs/Norris/180135.jpg  [Norris]  z -7.6  own 0.636  looks like [LeClerc] 0.748
-  refs/Stroll/182176.jpg  [Stroll]  z -7.6  own 0.622  looks like [Bortoleto] 0.654
-  refs/Antonelli/148512.jpg  [Antonelli]  z -7.6  own 0.621  looks like [Verstappen] 0.930
-  refs/Ocon/152466.jpg  [Ocon]  z -7.6  own 0.605  looks like [Alonso] 0.850
-  refs/Lawson/152443.jpg  [Lawson]  z -7.6  own 0.614  looks like [Russell] 0.893
-  refs/Antonelli/197406.jpg  [Antonelli]  z -7.6  own 0.624  looks like [Stroll] 0.735
-  refs/Colapinto/180341.jpg  [Colapinto]  z -7.5  own 0.636  looks like [Norris] 0.654
-  refs/Gasly/186817.jpg  [Gasly]  z -7.4  own 0.638  looks like [Bortoleto] 0.772
-  refs/Lindblad/180129.jpg  [Lindblad]  z -7.4  own 0.539  looks like [LeClerc] 0.710
-  refs/Antonelli/186752.jpg  [Antonelli]  z -7.3  own 0.634  looks like [Bortoleto] 0.794
-  refs/Colapinto/181255.jpg  [Colapinto]  z -7.2  own 0.650  looks like [Hulkenburg] 0.798
+  refs/Russell/179884.jpg  [Russell]  z -8.0  own 0.602  looks like [LeClerc] 0.721
+  refs/Gasly/190279.jpg  [Gasly]  z -7.8  own 0.619  looks like [Norris] 0.751
+  refs/Antonelli/185927.jpg  [Antonelli]  z -7.8  own 0.616  looks like [Bortoleto] 0.812
+  refs/Hadjar/183036.jpg  [Hadjar]  z -7.7  own 0.612  looks like [Bortoleto] 0.756
+  refs/Colapinto/180341.jpg  [Colapinto]  z -7.7  own 0.634  looks like [Norris] 0.654
 
 ## odd crops (size or shape far from the entry's usual: distant car, whole frame, nose-only cut; these can be good refs too)
   refs/LeClerc/188583.jpg  [LeClerc]  125x66  entry median 427x427  z 7.9
