@@ -17,10 +17,6 @@ refs/Alonso/185943.jpg	Alonso	0.0000
 refs/Alonso/185947.jpg	Alonso	0.0000
 refs/Alonso/185999.jpg	Alonso	0.0000
 refs/Alonso/186003.jpg	Alonso	0.0000
-refs/Antonelli/148084.jpg	Antonelli	0.0000
-refs/Antonelli/148508.jpg	Antonelli	0.0000
-refs/Antonelli/149014.jpg	Antonelli	0.0000
-refs/Antonelli/180153.jpg	Antonelli	0.0000
 refs/Antonelli/185649.jpg	Antonelli	0.0000
 refs/Antonelli/185654.jpg	Antonelli	0.0000
 refs/Antonelli/185899.jpg	Antonelli	0.0000
@@ -52,7 +48,6 @@ refs/Antonelli/194270.jpg	Antonelli	0.0000
 refs/Antonelli/194275.jpg	Antonelli	0.0000
 refs/Antonelli/194279.jpg	Antonelli	0.0000
 refs/Antonelli/194283.jpg	Antonelli	0.0000
-refs/Bearman/152268.jpg	Bearman	0.0000
 refs/Bearman/183642.jpg	Bearman	0.0000
 refs/Bearman/183646.jpg	Bearman	0.0000
 refs/Bearman/184822.jpg	Bearman	0.0000
@@ -109,12 +104,10 @@ refs/Gasly/181473.jpg	Gasly	0.0000
 refs/Gasly/181481.jpg	Gasly	0.0000
 refs/Gasly/181485.jpg	Gasly	0.0000
 refs/Gasly/186826.jpg	Gasly	0.0000
-refs/Gasly/188599.jpg	Gasly	0.0000
 refs/Gasly/189642.jpg	Gasly	0.0000
 refs/Gasly/189646.jpg	Gasly	0.0000
 refs/Gasly/190252.jpg	Gasly	0.0000
 refs/Gasly/191142.jpg	Gasly	0.0000
-refs/Hadjar/152484.jpg	Hadjar	0.0000
 refs/Hadjar/184208.jpg	Hadjar	0.0000
 refs/Hadjar/184708.jpg	Hadjar	0.0000
 refs/Hadjar/184711.jpg	Hadjar	0.0000
@@ -158,15 +151,12 @@ refs/Lawson/185606.jpg	Lawson	0.0000
 refs/Lawson/185610.jpg	Lawson	0.0000
 refs/Lawson/185618.jpg	Lawson	0.0000
 refs/Lawson/185829.jpg	Lawson	0.0000
-refs/Lawson/192190.jpg	Lawson	0.0000
 refs/Lawson/192199.jpg	Lawson	0.0000
 refs/Lawson/192211.jpg	Lawson	0.0000
 refs/Lawson/192344.jpg	Lawson	0.0000
 refs/Lawson/192348.jpg	Lawson	0.0000
 refs/Lawson/192351.jpg	Lawson	0.0000
 refs/Lawson/192355.jpg	Lawson	0.0000
-refs/Lawson/197228.jpg	Lawson	0.0000
-refs/Lawson/197232.jpg	Lawson	0.0000
 refs/LeClerc/149138.jpg	LeClerc	0.0000
 refs/LeClerc/152065.jpg	LeClerc	0.0000
 refs/LeClerc/152066.jpg	LeClerc	0.0000
@@ -204,7 +194,6 @@ refs/Norris/182619.jpg	Norris	0.0000
 refs/Norris/182623.jpg	Norris	0.0000
 refs/Norris/183662.jpg	Norris	0.0000
 refs/Norris/183666.jpg	Norris	0.0000
-refs/Norris/185063.jpg	Norris	0.0000
 refs/Norris/185206.jpg	Norris	0.0000
 refs/Norris/186864.jpg	Norris	0.0000
 refs/Norris/186869.jpg	Norris	0.0000
@@ -236,10 +225,8 @@ refs/Perez/181235.jpg	Perez	0.0000
 refs/Perez/184188.jpg	Perez	0.0000
 refs/Perez/184549.jpg	Perez	0.0000
 refs/Perez/184553.jpg	Perez	0.0000
-refs/Perez/185486.jpg	Perez	0.0000
 refs/Perez/185693.jpg	Perez	0.0000
 refs/Perez/185697.jpg	Perez	0.0000
-refs/Piastri/188670.jpg	Piastri	0.0000
 refs/Russell/185638.jpg	Russell	0.0000
 refs/Russell/185642.jpg	Russell	0.0000
 refs/Russell/185661.jpg	Russell	0.0000
@@ -289,7 +276,6 @@ refs/Sainz/182224.jpg	Sainz	0.0000
 refs/Sainz/182235.jpg	Sainz	0.0000
 refs/Sainz/183018.jpg	Sainz	0.0000
 refs/Sainz/185418.jpg	Sainz	0.0000
-refs/Sainz/185422.jpg	Sainz	0.0000
 refs/Sainz/185430.jpg	Sainz	0.0000
 refs/Sainz/185434.jpg	Sainz	0.0000
 refs/Sainz/185442.jpg	Sainz	0.0000
@@ -304,7 +290,6 @@ refs/Stroll/182104.jpg	Stroll	0.0000
 refs/Stroll/182108.jpg	Stroll	0.0000
 refs/Stroll/182112.jpg	Stroll	0.0000
 refs/Stroll/182171.jpg	Stroll	0.0000
-refs/Stroll/182479.jpg	Stroll	0.0000
 refs/Stroll/183302.jpg	Stroll	0.0000
 refs/Stroll/183306.jpg	Stroll	0.0000
 refs/Stroll/183314.jpg	Stroll	0.0000
@@ -336,7 +321,6 @@ refs/Stroll/192452.jpg	Stroll	0.0000
 refs/Stroll/192456.jpg	Stroll	0.0000
 refs/Stroll/192833.jpg	Stroll	0.0000
 refs/Stroll/192838.jpg	Stroll	0.0000
-refs/Stroll/197320.jpg	Stroll	0.0000
 refs/Verstappen/188425.jpg	Verstappen	0.0000
 refs/Verstappen/188433.jpg	Verstappen	0.0000
 refs/Verstappen/188445.jpg	Verstappen	0.0000
