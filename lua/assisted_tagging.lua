@@ -1863,7 +1863,7 @@ local function install_panel()
         value = false,
     }
     quarantine_check = dt.new_widget("check_button") {
-        label = _("Audit: quarantine strongest"),
+        label = _("Audit: quarantine poor refs"),
         tooltip = _("After the report is written, move the refs flagged by 2+ checks out of refs/ into refs-quarantine in the collection folder (moved.txt lists each). Nothing is deleted: copy a file back into refs/<entry>/ to undo it."),
         value = false,
     }
