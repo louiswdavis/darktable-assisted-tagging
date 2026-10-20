@@ -1,6 +1,779 @@
-14:58:36 lua: audit references: darktable 5.6.0, 0 images, collection F1
-14:58:36 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\.venv\Scripts\python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/python/identify.py" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_manifest.csv" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_results.csv" --audit-refs --quarantine --collections-root "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" --collection "F1" --detector "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/object_detection_yolox_2022nov.onnx" --ocr-det "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/text_detection_en_ppocrv3_2023may.onnx" --ocr-rec "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/text_recognition_CRNN_EN_2021sep.onnx" --embedder "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/dinov2_small.onnx" --entries-out "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_entries.csv" --rules-out "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_rules.csv" --progress "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_progress.txt" 2>> "C:\Users\Louis\AppData\Local\darktable/assisted_tagging.log"
-14:58:44 py: reference audit: {'references': 1494, 'mislabel': 26, 'copies': 0, 'outliers': 74, 'colour': 96, 'crops': 19, 'attractors': 2, 'frames': 342, 'strongest': 41, 'suggested': 0, 'quarantined': 41}; wrote C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\F1\ref-audit.txt
-14:58:44 lua: identify.py exit 0
-14:58:44 lua: Assisted Tagging: audited 1494 references: 26 mislabel suspects, 0 cross-entry copies, 74 outliers, 96 colour outliers, 19 odd crops; 41 flagged by 2+ checks (start there). 41 refs moved to refs-quarantine (listed in moved.txt). Details in C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\F1\ref-audit.txt
-14:58:44 lua: run finished
+16:24:23 lua: identify started: darktable 5.6.0, 344 images, collection F1
+16:24:23 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\.venv\Scripts\python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/python/identify.py" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_manifest.csv" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_results.csv" --collections-root "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" --collection "F1" --detector "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/object_detection_yolox_2022nov.onnx" --ocr-det "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/text_detection_en_ppocrv3_2023may.onnx" --ocr-rec "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/text_recognition_CRNN_EN_2021sep.onnx" --embedder "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging/models/dinov2_small.onnx" --cache "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/cache.sqlite" --entries-out "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_entries.csv" --rules-out "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_rules.csv" --boxes-out "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/last-run/F1.boxes.json" --report-out "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/last-run/F1.report" --archive-dir "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/runs" --progress "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_progress.txt" 2>> "C:\Users\Louis\AppData\Local\darktable/assisted_tagging.log"
+16:24:25 py: references: Lawson 177, Piastri 3, Bottas 24, LeClerc 43, Lindblad 29, Hamilton 97, Norris 80, Stroll 108, Bortoleto 41, Bearman 45, Verstappen 14, Perez 44, Hulkenburg 27, Hadjar 54, Colapinto 51, Gasly 78, Antonelli 221, Alonso 68, Russell 56, Sainz 77, Albon 46, Ocon 60
+16:24:26 py: analysing: 339 frames, 0 from cache, 339 to decode
+16:26:47 py: rescue: 26 frames with no vehicle have a candidate where a burst-mate's car is
+16:26:48 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04145.ARW: rescue candidate doesn't look like DSC04139.ARW's car, left as no vehicle
+16:26:48 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04273.ARW: rescue candidate doesn't look like DSC04164.ARW's car, left as no vehicle
+16:26:48 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04283.ARW: rescued a vehicle from DSC04284.ARW (crop similarity 0.9481)
+16:26:48 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04285.ARW: rescued a vehicle from DSC04284.ARW (crop similarity 0.9471)
+16:26:49 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04301.ARW: rescued a vehicle from DSC04299.ARW (crop similarity 0.9328)
+16:26:49 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04302.ARW: rescued a vehicle from DSC04299.ARW (crop similarity 0.918)
+16:26:49 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04304.ARW: rescued a vehicle from DSC04305.ARW (crop similarity 0.943)
+16:26:49 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04333.ARW: rescued a vehicle from DSC04338.ARW (crop similarity 0.94)
+16:26:49 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04334.ARW: rescue candidate doesn't look like DSC04315.ARW's car, left as no vehicle
+16:26:49 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04335.ARW: rescued a vehicle from DSC04338.ARW (crop similarity 0.9532)
+16:26:49 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04337.ARW: rescued a vehicle from DSC04338.ARW (crop similarity 0.9594)
+16:26:49 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04364.ARW: rescue candidate doesn't look like DSC04362.ARW's car, left as no vehicle
+16:26:49 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04495.ARW: rescue candidate doesn't look like DSC04493.ARW's car, left as no vehicle
+16:26:50 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04672.ARW: rescued a vehicle from DSC04671.ARW (crop similarity 0.934)
+16:26:50 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04693.ARW: rescue candidate doesn't look like DSC04689.ARW's car, left as no vehicle
+16:26:50 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04766.ARW: rescued a vehicle from DSC04765.ARW (crop similarity 0.9739)
+16:26:50 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC04774.ARW: rescued a vehicle from DSC04773.ARW (crop similarity 0.9542)
+16:26:50 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC05548.ARW: rescued a vehicle from DSC05546.ARW (crop similarity 0.9526)
+16:26:50 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC05549.ARW: rescued a vehicle from DSC05550.ARW (crop similarity 0.9816)
+16:26:50 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC06068.ARW: rescued a vehicle from DSC06069.ARW (crop similarity 0.967)
+16:26:50 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC06177.ARW: rescued a vehicle from DSC06176.ARW (crop similarity 0.9326)
+16:26:50 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC06179.ARW: rescued a vehicle from DSC06178.ARW (crop similarity 0.9596)
+16:26:51 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC06180.ARW: rescued a vehicle from DSC06181.ARW (crop similarity 0.9499)
+16:26:51 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC06265.ARW: rescued a vehicle from DSC06264.ARW (crop similarity 0.9457)
+16:26:51 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC06276.ARW: rescue candidate doesn't look like DSC06274.ARW's car, left as no vehicle
+16:26:51 py: C:\Users\Louis\Pictures\DarkTable\Import\2026-10-04/DSC06281.ARW: rescue candidate doesn't look like DSC06274.ARW's car, left as no vehicle
+16:26:53 py: refining: 202 frames have boxes to re-read at higher detail, 0 from cache, 202 to decode
+16:26:57 py: refining: 10/202 done, 3s
+16:26:58 py: refining: 20/202 done, 5s
+16:27:01 py: refining: 30/202 done, 8s
+16:27:04 py: refining: 40/202 done, 11s
+16:27:08 py: refining: 50/202 done, 15s
+16:27:11 py: refining: 60/202 done, 18s
+16:27:14 py: refining: 70/202 done, 21s
+16:27:15 py: refining: 80/202 done, 22s
+16:27:19 py: refining: 90/202 done, 25s
+16:27:22 py: refining: 100/202 done, 29s
+16:27:24 py: refining: 110/202 done, 31s
+16:27:26 py: refining: 120/202 done, 33s
+16:27:28 py: refining: 130/202 done, 35s
+16:27:30 py: refining: 140/202 done, 37s
+16:27:48 py: refining: 150/202 done, 55s
+16:28:01 py: refining: 160/202 done, 68s
+16:28:06 py: refining: 170/202 done, 72s
+16:28:09 py: refining: 180/202 done, 76s
+16:28:14 py: refining: 190/202 done, 81s
+16:28:23 py: refining: 200/202 done, 90s
+16:28:27 py: refining: 202/202 done, 94s
+16:28:28 py: 184576: box 0: livery Gasly (OCR -; livery Gasly 0.764, Colapinto 0.748; box 259x128 (1.9% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 184580: box 0: none - (OCR -; livery Gasly 0.688, Stroll 0.678; box 271x128 (2.0% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 184583: box 0: livery Gasly (OCR -; livery Gasly 0.786, Colapinto 0.776; box 315x141 (2.6% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 184587: box 0: livery Gasly (OCR -; livery Gasly 0.800, Colapinto 0.767; box 336x126 (2.4% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 184591: box 0: livery Gasly (OCR -; livery Gasly 0.781, Colapinto 0.736; box 384x138 (3.0% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 184596: box 0: livery Gasly (OCR -; livery Gasly 0.803, Colapinto 0.776; box 407x142 (3.3% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 184600: pod black moved Colapinto -> Gasly
+16:28:28 py: 184600: box 0: livery Gasly (OCR -; livery Colapinto 0.776, Gasly 0.775; box 425x132 (3.2% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 184603: box 0: livery Gasly (OCR -; livery Gasly 0.791, Colapinto 0.772; box 454x142 (3.7% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 184724: box 0: livery Albon (OCR -; livery Albon 0.932, Sainz 0.846; box 338x142 (2.7% of frame))
+16:28:28 py: 184724: box 1: livery LeClerc (OCR -; livery LeClerc 0.682, Hamilton 0.666; box 149x78 (0.7% of frame)) [higher detail]
+16:28:28 py: 184748: no vehicle at 0.2: strongest airplane 0.58 (0.43x0.18 of frame), strongest vehicle car 0.14 (0.34x0.13 of frame)
+16:28:28 py: 184826: box 0: livery Bearman (OCR -; livery Bearman 0.925, Ocon 0.876; box 336x135 (2.6% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 184858: pod yellow moved Hulkenburg -> Bortoleto
+16:28:28 py: 184858: box 0: livery Bortoleto (OCR -; livery Hulkenburg 0.801, Bortoleto 0.794; box 208x93 (1.1% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 184864: no vehicle at 0.2: strongest person 0.55 (0.02x0.08 of frame), strongest vehicle car 0.10 (0.08x0.06 of frame)
+16:28:28 py: 185259: no vehicle at 0.2: strongest person 0.76 (0.03x0.09 of frame), strongest vehicle motorcycle 0.08 (0.31x0.11 of frame)
+16:28:28 py: 185299: box 0: livery LeClerc (OCR -; livery LeClerc 0.727, Hamilton 0.725; box 174x101 (1.0% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185303: box 0: none - (OCR -; livery Gasly 0.721, LeClerc 0.721; box 186x113 (1.2% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185308: box 0: none - (OCR -; livery LeClerc 0.729, Stroll 0.718; box 165x112 (1.1% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185312: box 0: none - (OCR -; livery Stroll 0.747, LeClerc 0.745; box 175x121 (1.2% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185316: box 0: none - (OCR -; livery Stroll 0.749, LeClerc 0.738; box 164x120 (1.1% of frame)) [higher detail]
+16:28:28 py: 185316: box 1: livery LeClerc (OCR -; livery LeClerc 0.697, Hamilton 0.684; box 140x76 (0.6% of frame)) [higher detail]
+16:28:28 py: 185320: box 0: none - (OCR -; livery Stroll 0.765, LeClerc 0.755; box 164x122 (1.1% of frame)) [higher detail]
+16:28:28 py: 185320: box 1: livery LeClerc (OCR -; livery LeClerc 0.700, Hamilton 0.688; box 139x76 (0.6% of frame)) [higher detail]
+16:28:28 py: 185324: box 0: none - (OCR -; livery Stroll 0.753, LeClerc 0.740; box 175x124 (1.2% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185328: box 0: none - (OCR -; livery LeClerc 0.745, Stroll 0.739; box 191x128 (1.4% of frame)) [higher detail]
+16:28:28 py: 185328: box 1: livery LeClerc (OCR -; livery LeClerc 0.692, Hamilton 0.678; box 136x72 (0.6% of frame)) [higher detail]
+16:28:28 py: 185332: box 0: none - (OCR -; livery LeClerc 0.727, Sainz 0.717; box 215x136 (1.7% of frame)) [higher detail]
+16:28:28 py: 185332: box 1: livery LeClerc (OCR -; livery LeClerc 0.681, Hamilton 0.676; box 139x81 (0.6% of frame)) [higher detail]
+16:28:28 py: 185336: box 0: none - (OCR -; livery Sainz 0.753, LeClerc 0.729; box 247x140 (2.0% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185340: box 0: livery Gasly (OCR -; livery Gasly 0.760, Colapinto 0.747; box 389x150 (3.3% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185344: box 0: livery Gasly (OCR -; livery Gasly 0.780, Colapinto 0.747; box 413x151 (3.6% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185348: box 0: livery Gasly (OCR -; livery Gasly 0.744, Colapinto 0.743; box 457x156 (4.1% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185352: pod black moved Colapinto -> Gasly
+16:28:28 py: 185352: box 0: livery Gasly (OCR -; livery Colapinto 0.756, Gasly 0.737; box 491x157 (4.4% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185356: pod black moved Colapinto -> Gasly
+16:28:28 py: 185356: box 0: livery Gasly (OCR -; livery Colapinto 0.790, Gasly 0.731; box 539x163 (5.0% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185359: pod black moved Colapinto -> Gasly
+16:28:28 py: 185359: box 0: livery Gasly (OCR -; livery Colapinto 0.836, Gasly 0.757; box 552x166 (5.2% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185363: pod black moved Colapinto -> Gasly
+16:28:28 py: 185363: box 0: livery Gasly (OCR -; livery Colapinto 0.792, Gasly 0.787; box 606x146 (5.1% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185367: no vehicle at 0.2: strongest person 0.81 (0.03x0.12 of frame), strongest vehicle car 0.31 (0.09x0.04 of frame)
+16:28:28 py: 185371: box 0: livery Gasly (OCR -; livery Gasly 0.836, Colapinto 0.815; box 621x164 (5.8% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185375: box 0: livery Gasly (OCR 1; livery Gasly 0.867, Colapinto 0.814; number seen but unmatched: 1; box 646x162 (6.0% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185379: no vehicle at 0.2: strongest person 0.84 (0.03x0.11 of frame), strongest vehicle car 0.06 (0.08x0.05 of frame)
+16:28:28 py: 185382: box 0: livery Gasly (OCR -; livery Gasly 0.857, Colapinto 0.849; box 682x156 (6.1% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185386: box 0: livery Gasly (OCR -; livery Gasly 0.854, Colapinto 0.837; box 687x157 (6.2% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185391: box 0: livery Gasly (OCR -; livery Gasly 0.889, Colapinto 0.861; box 688x154 (6.1% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185395: box 0: livery Gasly (OCR -; livery Gasly 0.876, Colapinto 0.826; box 670x152 (5.8% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185399: box 0: livery Gasly (OCR -; livery Gasly 0.898, Colapinto 0.819; box 637x151 (5.5% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185406: box 0: livery Gasly (OCR -; livery Gasly 0.855, Colapinto 0.767; box 516x155 (4.6% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185410: box 0: livery Gasly (OCR -; livery Gasly 0.859, Colapinto 0.743; box 574x146 (4.8% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185415: box 0: livery Sainz (OCR -; livery Sainz 0.944, Albon 0.813; box 172x120 (1.2% of frame))
+16:28:28 py: 185415: box 1: livery LeClerc (OCR -; livery LeClerc 0.694, Hamilton 0.690; box 129x74 (0.6% of frame)) [higher detail]
+16:28:28 py: 185426: box 0: livery Sainz (OCR -; livery Sainz 0.935, Albon 0.793; box 183x133 (1.4% of frame))
+16:28:28 py: 185426: box 1: livery LeClerc (OCR -; livery LeClerc 0.695, Hamilton 0.685; box 125x75 (0.5% of frame)) [higher detail]
+16:28:28 py: 185462: box 0: livery Albon (OCR -; livery Albon 0.925, Sainz 0.809; box 465x160 (4.3% of frame))
+16:28:28 py: 185462: box 1: none - (OCR -; livery Stroll 0.666, Hamilton 0.635; box 122x78 (0.5% of frame)) [higher detail]
+16:28:28 py: 185491: pod black moved Bottas -> Perez
+16:28:28 py: 185491: box 0: livery Perez (OCR -; livery Bottas 0.888, Perez 0.856; box 265x133 (2.0% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185499: box 0: none - (OCR -; livery Gasly 0.642, Bottas 0.631; box 151x66 (0.6% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185503: no vehicle at 0.2: strongest class 25 0.70 (0.05x0.05 of frame), strongest vehicle motorcycle 0.11 (0.12x0.07 of frame)
+16:28:28 py: 185507: box 0: livery Gasly (OCR -; livery Gasly 0.702, Colapinto 0.699; box 145x72 (0.6% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185511: no vehicle at 0.2: strongest person 0.66 (0.03x0.07 of frame), strongest vehicle car 0.03 (0.05x0.11 of frame)
+16:28:28 py: 185515: box 0: livery Gasly (OCR -; livery Gasly 0.722, Colapinto 0.706; box 160x71 (0.6% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185518: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 185518: box 0: livery Colapinto (OCR -; livery Gasly 0.684, Colapinto 0.684; box 175x80 (0.8% of frame)) [higher detail]
+16:28:28 py: 185518: box 1: none - (OCR -; livery Stroll 0.640, LeClerc 0.579; box 123x77 (0.5% of frame)) [higher detail]
+16:28:28 py: 185522: no vehicle at 0.2: strongest person 0.66 (0.03x0.12 of frame), strongest vehicle car 0.23 (0.09x0.06 of frame)
+16:28:28 py: 185527: box 0: livery Sainz (OCR -; livery Sainz 0.732, Albon 0.715; box 195x93 (1.0% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185531: box 0: none - (OCR -; livery Stroll 0.667, Lawson 0.608; box 139x82 (0.7% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185534: pod black moved Bottas -> Perez
+16:28:28 py: 185534: box 0: livery Perez (OCR 0; livery Bottas 0.801, Perez 0.794; number seen but unmatched: 0; box 147x60 (0.5% of frame))
+16:28:28 py: 185534: box 1: none - (OCR -; livery Stroll 0.665, Lawson 0.608; box 114x77 (0.5% of frame)) [higher detail]
+16:28:28 py: 185538: box 0: livery Colapinto (OCR -; livery Colapinto 0.672, Gasly 0.671; box 201x107 (1.2% of frame)) [higher detail]
+16:28:28 py: 185538: pod black moved Bottas -> Perez
+16:28:28 py: 185538: box 1: livery Perez (OCR 0; livery Bottas 0.816, Perez 0.803; number seen but unmatched: 0; box 168x56 (0.5% of frame))
+16:28:28 py: 185543: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 185543: box 0: livery Colapinto (OCR -; livery Gasly 0.669, Colapinto 0.663; box 191x105 (1.2% of frame)) [higher detail]
+16:28:28 py: 185543: box 1: none - (OCR -; livery Stroll 0.669, Lawson 0.603; box 123x79 (0.6% of frame)) [higher detail]
+16:28:28 py: 185547: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 185547: box 0: livery Colapinto (OCR -; livery Gasly 0.681, Colapinto 0.676; box 183x122 (1.3% of frame)) [higher detail]
+16:28:28 py: 185547: pod black moved Bottas -> Perez
+16:28:28 py: 185547: box 1: livery Perez (OCR 1; livery Bottas 0.812, Perez 0.791; number seen but unmatched: 1; box 159x56 (0.5% of frame))
+16:28:28 py: 185551: pod yellow moved Stroll -> Alonso
+16:28:28 py: 185551: box 0: livery Alonso (OCR -; livery Stroll 0.644, Alonso 0.639; box 169x110 (1.1% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185554: box 0: livery Lawson (OCR -; livery Lawson 0.801, Lindblad 0.758; box 166x118 (1.1% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185558: pod yellow moved Stroll -> Alonso
+16:28:28 py: 185558: box 0: livery Alonso (OCR -; livery Stroll 0.683, Alonso 0.674; box 161x120 (1.1% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 185562: pod yellow moved Stroll -> Alonso
+16:28:28 py: 185562: box 0: livery Alonso (OCR -; livery Stroll 0.674, Alonso 0.672; box 178x122 (1.2% of frame)) [higher detail]
+16:28:28 py: 185562: box 1: none - (OCR -; livery Stroll 0.665, Lawson 0.598; box 122x76 (0.5% of frame)) [higher detail]
+16:28:28 py: 185567: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 185567: box 0: livery Colapinto (OCR -; livery Gasly 0.656, Colapinto 0.651; box 196x127 (1.4% of frame)) [higher detail]
+16:28:28 py: 185567: box 1: none - (OCR -; livery Stroll 0.663, Lawson 0.590; box 151x79 (0.7% of frame)) [higher detail]
+16:28:28 py: 185571: box 0: none - (OCR -; livery Stroll 0.666, Colapinto 0.656; box 226x126 (1.6% of frame)) [higher detail]
+16:28:28 py: 185571: box 1: none - (OCR -; livery Bottas 0.730, Russell 0.729; box 183x95 (1.0% of frame)) [higher detail]
+16:28:28 py: 185571: box 2: none - (OCR -; livery Stroll 0.684, Lawson 0.606; box 149x78 (0.7% of frame)) [higher detail]
+16:28:28 py: 185575: box 0: livery Colapinto (OCR -; livery Colapinto 0.664, Gasly 0.661; box 250x136 (2.0% of frame)) [higher detail]
+16:28:28 py: 185575: box 1: none - (OCR -; livery Russell 0.698, Bottas 0.698; box 160x105 (1.0% of frame)) [higher detail]
+16:28:28 py: 185578: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 185578: box 0: livery Colapinto (OCR -; livery Gasly 0.647, Colapinto 0.634; box 268x135 (2.1% of frame)) [higher detail]
+16:28:28 py: 185578: box 1: none - (OCR -; livery LeClerc 0.726, Stroll 0.726; box 153x104 (0.9% of frame)) [higher detail]
+16:28:28 py: 185582: box 0: livery Sainz (OCR -; livery Sainz 0.809, Albon 0.756; box 292x136 (2.3% of frame))
+16:28:28 py: 185582: box 1: none - (OCR -; livery LeClerc 0.730, Stroll 0.721; box 163x112 (1.0% of frame)) [higher detail]
+16:28:28 py: 185586: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 185586: box 0: livery Colapinto (OCR -; livery Gasly 0.711, Colapinto 0.696; box 329x146 (2.8% of frame)) [higher detail]
+16:28:28 py: 185586: box 1: livery Alonso (OCR -; livery Alonso 0.767, Stroll 0.757; box 154x113 (1.0% of frame)) [higher detail]
+16:28:28 py: 185594: box 0: livery Colapinto (OCR -; livery Colapinto 0.682, Gasly 0.676; box 401x146 (3.4% of frame)) [higher detail]
+16:28:28 py: 185594: box 1: none - (OCR -; livery LeClerc 0.737, Stroll 0.734; box 161x115 (1.1% of frame)) [higher detail]
+16:28:28 py: 185614: box 0: livery Lawson (OCR -; livery Lawson 0.947, Lindblad 0.934; box 163x114 (1.1% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 185622: no vehicle at 0.2: strongest person 0.62 (0.02x0.07 of frame), strongest vehicle truck 0.14 (0.13x0.12 of frame)
+16:28:28 py: 186122: box 0: none - (OCR -; livery Hadjar 0.627, Bottas 0.620; box 220x98 (1.2% of frame)) [higher detail] [masked]
+16:28:28 py: 186122: box 1: none - (OCR -; livery Bearman 0.790, Bottas 0.782; box 171x76 (0.7% of frame))
+16:28:28 py: 186130: no vehicle at 0.2: strongest person 0.70 (0.03x0.07 of frame), strongest vehicle truck 0.10 (0.15x0.10 of frame)
+16:28:28 py: 186307: box 0: none - (OCR -; livery Hadjar 0.646, Russell 0.634; box 240x89 (1.2% of frame)) [higher detail] [masked]
+16:28:28 py: 186307: box 1: none - (OCR -; livery LeClerc 0.733, Sainz 0.721; box 152x71 (0.6% of frame))
+16:28:28 py: 186311: box 0: none - (OCR -; livery Hadjar 0.644, Gasly 0.641; box 222x88 (1.1% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186315: box 0: livery Sainz (OCR -; livery Sainz 0.739, Albon 0.729; box 252x101 (1.5% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 186319: pod black moved Bottas -> Perez
+16:28:28 py: 186319: box 0: livery Perez (OCR 0; livery Bottas 0.824, Perez 0.759; number seen but unmatched: 0; box 244x83 (1.2% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 186323: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186323: box 0: livery Colapinto (OCR 21; livery Gasly 0.637, Colapinto 0.626; number seen but unmatched: 21; box 245x100 (1.4% of frame)) [higher detail]
+16:28:28 py: 186323: box 1: livery Bottas (OCR 9; livery Bottas 0.845, Perez 0.759; number seen but unmatched: 9; box 252x82 (1.2% of frame))
+16:28:28 py: 186327: box 0: livery Bottas (OCR 9; livery Bottas 0.835, Perez 0.758; number seen but unmatched: 9; box 250x82 (1.2% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 186331: box 0: livery Bottas (OCR -; livery Bottas 0.844, Perez 0.755; box 255x88 (1.3% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 186335: box 0: none - (OCR -; livery Lawson 0.717, Bottas 0.694; box 256x92 (1.3% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186338: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186338: box 0: livery Colapinto (OCR -; livery Gasly 0.689, Colapinto 0.671; box 227x116 (1.5% of frame)) [higher detail]
+16:28:28 py: 186338: pod black moved Bottas -> Perez
+16:28:28 py: 186338: box 1: livery Perez (OCR 0; livery Bottas 0.839, Perez 0.767; number seen but unmatched: 0; box 257x92 (1.4% of frame))
+16:28:28 py: 186343: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186343: box 0: livery Colapinto (OCR -; livery Gasly 0.677, Colapinto 0.670; box 216x119 (1.5% of frame)) [higher detail]
+16:28:28 py: 186343: pod black moved Bottas -> Perez
+16:28:28 py: 186343: box 1: livery Perez (OCR -; livery Bottas 0.855, Perez 0.751; box 252x95 (1.4% of frame))
+16:28:28 py: 186347: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186347: box 0: livery Colapinto (OCR -; livery Gasly 0.617, Colapinto 0.616; box 204x124 (1.4% of frame)) [higher detail]
+16:28:28 py: 186347: pod black moved Bottas -> Perez
+16:28:28 py: 186347: box 1: livery Perez (OCR -; livery Bottas 0.826, Perez 0.741; box 253x97 (1.4% of frame))
+16:28:28 py: 186351: box 0: livery Alonso (OCR 1; livery Alonso 0.631, Stroll 0.623; number seen but unmatched: 1; box 184x133 (1.4% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186355: pod yellow moved Stroll -> Alonso
+16:28:28 py: 186355: box 0: livery Alonso (OCR -; livery Stroll 0.635, Alonso 0.630; box 182x132 (1.4% of frame)) [higher detail]
+16:28:28 py: 186355: pod black moved Bottas -> Perez
+16:28:28 py: 186355: box 1: livery Perez (OCR -; livery Bottas 0.869, Perez 0.786; box 254x95 (1.4% of frame))
+16:28:28 py: 186355: box 2: livery LeClerc (OCR -; livery LeClerc 0.709, Hamilton 0.689; box 220x81 (1.0% of frame)) [higher detail]
+16:28:28 py: 186358: box 0: livery Colapinto (OCR -; livery Colapinto 0.614, Gasly 0.611; box 192x127 (1.4% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186363: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186363: box 0: livery Colapinto (OCR -; livery Gasly 0.634, Colapinto 0.632; box 230x138 (1.8% of frame)) [higher detail]
+16:28:28 py: 186363: pod black moved Bottas -> Perez
+16:28:28 py: 186363: box 1: livery Perez (OCR -; livery Bottas 0.866, Perez 0.770; box 233x107 (1.4% of frame))
+16:28:28 py: 186366: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186366: box 0: livery Colapinto (OCR -; livery Gasly 0.660, Colapinto 0.654; box 274x148 (2.3% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186370: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186370: box 0: livery Colapinto (OCR -; livery Gasly 0.663, Colapinto 0.652; box 287x145 (2.4% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186374: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186374: box 0: livery Colapinto (OCR -; livery Gasly 0.657, Colapinto 0.654; box 345x149 (2.9% of frame)) [higher detail]
+16:28:28 py: 186374: box 1: livery LeClerc (OCR -; livery LeClerc 0.763, Hamilton 0.728; box 204x120 (1.4% of frame)) [higher detail]
+16:28:28 py: 186378: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186378: box 0: livery Colapinto (OCR -; livery Gasly 0.678, Colapinto 0.678; box 376x150 (3.2% of frame)) [higher detail]
+16:28:28 py: 186378: box 1: team LeClerc (OCR -; livery LeClerc 0.752, Hamilton 0.707; box 168x124 (1.2% of frame)) [higher detail]
+16:28:28 py: 186382: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186382: box 0: livery Colapinto (OCR -; livery Gasly 0.698, Colapinto 0.686; box 421x155 (3.7% of frame)) [higher detail]
+16:28:28 py: 186382: box 1: livery LeClerc (OCR -; livery LeClerc 0.756, Hamilton 0.717; box 176x124 (1.2% of frame)) [higher detail]
+16:28:28 py: 186386: pod yellow moved Gasly -> Colapinto
+16:28:28 py: 186386: box 0: livery Colapinto (OCR -; livery Gasly 0.702, Colapinto 0.676; box 446x155 (4.0% of frame)) [higher detail]
+16:28:28 py: 186386: box 1: none - (OCR -; livery LeClerc 0.760, Stroll 0.743; box 174x130 (1.3% of frame)) [higher detail]
+16:28:28 py: 186390: box 0: livery Colapinto (OCR -; livery Colapinto 0.890, Sainz 0.769; box 485x164 (4.5% of frame))
+16:28:28 py: 186390: box 1: none - (OCR -; livery LeClerc 0.751, Stroll 0.712; box 193x132 (1.5% of frame)) [higher detail]
+16:28:28 py: 197404: no vehicle at 0.2: strongest class 36 0.68 (0.25x0.06 of frame), strongest vehicle motorcycle 0.16 (0.26x0.06 of frame)
+16:28:28 py: 186613: box 0: livery Russell (OCR -; livery Russell 0.851, Antonelli 0.799; box 231x96 (1.3% of frame))
+16:28:28 py: 186613: pod black moved Hamilton -> LeClerc
+16:28:28 py: 186613: box 1: livery LeClerc (OCR -; livery Hamilton 0.685, LeClerc 0.685; box 170x69 (0.7% of frame)) [higher detail]
+16:28:28 py: 186720: pod black moved Antonelli -> Russell
+16:28:28 py: 186720: box 0: livery Russell (OCR -; livery Antonelli 0.859, Russell 0.839; box 402x149 (3.4% of frame))
+16:28:28 py: 186720: box 1: none - (OCR -; livery Russell 0.739, LeClerc 0.725; box 203x72 (0.8% of frame)) [higher detail]
+16:28:28 py: 186724: pod black moved Antonelli -> Russell
+16:28:28 py: 186724: box 0: livery Russell (OCR -; livery Antonelli 0.842, Russell 0.833; box 429x149 (3.7% of frame))
+16:28:28 py: 186724: box 1: none - (OCR -; livery Bottas 0.694, Stroll 0.685; box 170x73 (0.7% of frame)) [higher detail]
+16:28:28 py: 186728: box 0: none - (OCR -; livery Antonelli 0.750, Alonso 0.735; box 464x155 (4.1% of frame)) [higher detail]
+16:28:28 py: 186728: box 1: none - (OCR -; livery Bottas 0.710, Hamilton 0.701; box 203x78 (0.9% of frame)) [higher detail]
+16:28:28 py: 186764: box 0: livery Gasly (OCR -; livery Gasly 0.786, Colapinto 0.774; box 244x127 (1.8% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186767: box 0: none - (OCR -; livery Gasly 0.784, Russell 0.768; box 323x135 (2.5% of frame)) [higher detail]
+16:28:28 py: 186767: pod yellow moved LeClerc -> Hamilton
+16:28:28 py: 186767: box 1: livery Hamilton (OCR -; livery LeClerc 0.756, Hamilton 0.744; box 194x74 (0.8% of frame)) [higher detail]
+16:28:28 py: 186771: box 0: none - (OCR -; livery Gasly 0.809, LeClerc 0.755; box 364x140 (2.9% of frame)) [higher detail]
+16:28:28 py: 186771: pod yellow moved LeClerc -> Hamilton
+16:28:28 py: 186771: box 1: livery Hamilton (OCR -; livery LeClerc 0.735, Hamilton 0.730; box 213x85 (1.0% of frame)) [higher detail]
+16:28:28 py: 186775: box 0: livery Gasly (OCR -; livery Gasly 0.791, Colapinto 0.763; box 398x144 (3.3% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186779: box 0: livery Gasly (OCR -; livery Gasly 0.805, Colapinto 0.772; box 419x150 (3.6% of frame)) [higher detail]
+16:28:28 py: 186779: pod yellow moved LeClerc -> Hamilton
+16:28:28 py: 186779: box 1: livery Hamilton (OCR -; livery LeClerc 0.730, Hamilton 0.712; box 216x94 (1.2% of frame)) [higher detail]
+16:28:28 py: 186783: box 0: livery Gasly (OCR 9; livery Gasly 0.784, Colapinto 0.735; number seen but unmatched: 9; box 433x151 (3.7% of frame)) [higher detail]
+16:28:28 py: 186783: pod yellow moved LeClerc -> Hamilton
+16:28:28 py: 186783: box 1: livery Hamilton (OCR -; livery LeClerc 0.750, Hamilton 0.734; box 213x98 (1.2% of frame)) [higher detail]
+16:28:28 py: 186788: box 0: livery Gasly (OCR -; livery Gasly 0.754, Colapinto 0.749; box 468x157 (4.2% of frame)) [hint Sports|F1|Alpine (sponsor)]
+16:28:28 py: 186788: pod yellow moved LeClerc -> Hamilton
+16:28:28 py: 186788: box 1: livery Hamilton (OCR -; livery LeClerc 0.729, Hamilton 0.727; box 203x100 (1.2% of frame)) [higher detail]
+16:28:28 py: 186792: box 0: livery Gasly (OCR -; livery Gasly 0.748, Colapinto 0.741; box 504x161 (4.7% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186800: box 0: livery Gasly (OCR -; livery Gasly 0.760, Colapinto 0.746; box 589x166 (5.6% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186804: box 0: livery Gasly (OCR -; livery Gasly 0.764, Colapinto 0.718; box 613x164 (5.7% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 186808: box 0: livery Gasly (OCR -; livery Gasly 0.785, Colapinto 0.755; box 616x143 (5.0% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 186812: box 0: livery Gasly (OCR -; livery Gasly 0.803, Colapinto 0.761; box 649x166 (6.2% of frame)) [hint Sports|F1;Sports|F1|Alpine (both)]
+16:28:28 py: 186816: box 0: livery Gasly (OCR -; livery Gasly 0.806, Colapinto 0.779; box 668x163 (6.2% of frame)) [hint Sports|F1;Sports|F1|Alpine (both)]
+16:28:28 py: 186881: pod yellow moved Perez -> Bottas
+16:28:28 py: 186881: box 0: livery Bottas (OCR 1; livery Perez 0.794, Bottas 0.714; number seen but unmatched: 1; box 533x162 (4.9% of frame))
+16:28:28 py: 186881: box 1: livery LeClerc (OCR -; livery LeClerc 0.750, Hamilton 0.647; box 193x54 (0.6% of frame)) [higher detail]
+16:28:28 py: 186920: no vehicle at 0.2: strongest airplane 0.66 (0.59x0.28 of frame), strongest vehicle car 0.20 (0.13x0.06 of frame)
+16:28:28 py: 186924: no vehicle at 0.2: strongest class 25 0.79 (0.10x0.05 of frame), strongest vehicle car 0.04 (0.42x0.14 of frame)
+16:28:28 py: 186927: box 0: livery LeClerc (OCR -; livery LeClerc 0.795, Hamilton 0.691; box 143x69 (0.6% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 186931: no vehicle at 0.2: strongest class 25 0.67 (0.10x0.05 of frame), strongest vehicle truck 0.00 (0.43x0.15 of frame)
+16:28:28 py: 186936: no vehicle at 0.2: strongest class 25 0.74 (0.10x0.05 of frame), strongest vehicle truck 0.01 (0.43x0.14 of frame)
+16:28:28 py: 186991: box 0: livery Russell (OCR -; livery Russell 0.855, Antonelli 0.828; box 242x103 (1.4% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 186995: pod yellow moved Russell -> Antonelli
+16:28:28 py: 186995: box 0: livery Antonelli (OCR -; livery Russell 0.827, Antonelli 0.821; box 309x114 (2.0% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 186999: pod yellow moved Russell -> Antonelli
+16:28:28 py: 186999: box 0: livery Antonelli (OCR -; livery Russell 0.879, Antonelli 0.818; box 400x145 (3.3% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187003: pod yellow moved Russell -> Antonelli
+16:28:28 py: 187003: box 0: livery Antonelli (OCR -; livery Russell 0.882, Antonelli 0.836; box 442x154 (3.9% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187007: box 0: livery Antonelli (OCR -; livery Antonelli 0.835, Russell 0.773; box 504x168 (4.8% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187011: box 0: none - (OCR -; livery Antonelli 0.782, Alonso 0.737; box 504x152 (4.4% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 187198: box 0: livery Gasly (OCR -; livery Gasly 0.860, Colapinto 0.813; box 392x148 (3.3% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187202: box 0: livery Gasly (OCR -; livery Gasly 0.850, Colapinto 0.813; box 415x147 (3.5% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187206: box 0: none - (OCR -; livery Gasly 0.821, Sainz 0.795; box 463x146 (3.9% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 187210: box 0: livery Gasly (OCR -; livery Gasly 0.842, Colapinto 0.788; box 462x144 (3.8% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187214: box 0: none - (OCR -; livery Gasly 0.828, Sainz 0.773; box 503x142 (4.1% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 187218: box 0: none - (OCR -; livery Gasly 0.840, Sainz 0.788; box 533x149 (4.5% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 187222: box 0: none - (OCR -; livery Gasly 0.840, Sainz 0.800; box 566x150 (4.9% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 187226: pod black moved Colapinto -> Gasly
+16:28:28 py: 187226: box 0: livery Gasly (OCR -; livery Colapinto 0.853, Gasly 0.837; box 620x143 (5.1% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187230: box 0: livery Gasly (OCR -; livery Gasly 0.873, Colapinto 0.842; box 606x140 (4.9% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187234: box 0: livery Gasly (OCR -; livery Gasly 0.888, Colapinto 0.839; box 631x151 (5.5% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187238: box 0: livery Gasly (OCR -; livery Gasly 0.903, Colapinto 0.869; box 623x143 (5.1% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187242: box 0: none - (OCR -; livery Albon 0.848, Gasly 0.842; box 634x146 (5.3% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 187246: box 0: number Perez (OCR 11; livery Gasly 0.904, Colapinto 0.870; box 615x141 (5.0% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187250: box 0: livery Gasly (OCR -; livery Gasly 0.915, Colapinto 0.870; box 618x138 (4.9% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187254: box 0: livery Gasly (OCR -; livery Gasly 0.910, Colapinto 0.868; box 600x136 (4.7% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187257: box 0: livery Gasly (OCR -; livery Gasly 0.858, Colapinto 0.806; box 591x141 (4.8% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187261: pod yellow moved LeClerc -> Hamilton
+16:28:28 py: 187261: box 0: livery Hamilton (OCR -; livery LeClerc 0.811, Hamilton 0.779; box 514x144 (4.2% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187281: box 0: livery Hamilton (OCR -; livery Hamilton 0.809, LeClerc 0.784; box 616x152 (5.4% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187320: already carries all of Hamilton's tags, skipped
+16:28:28 py: 187324: box 0: livery Hamilton (OCR -; livery Hamilton 0.894, Norris 0.702; box 512x140 (4.1% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187328: box 0: livery Hamilton (OCR -; livery Hamilton 0.897, Bearman 0.728; box 472x137 (3.7% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187332: box 0: livery Hamilton (OCR -; livery Hamilton 0.898, Norris 0.697; box 384x131 (2.9% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187341: box 0: livery Hamilton (OCR -; livery Hamilton 0.881, Hadjar 0.752; box 393x129 (2.9% of frame)) [hint Sports|F1 (tag)]
+16:28:28 py: 187353: already carries all of Hamilton's tags, skipped
+16:28:28 py: 187357: box 0: none - (OCR -; livery LeClerc 0.824, Bottas 0.824; box 275x127 (2.0% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:28 py: 187520: no vehicle at 0.2: strongest class 25 0.55 (0.06x0.03 of frame), strongest vehicle motorcycle 0.34 (0.08x0.05 of frame)
+16:28:28 py: 188045: pod yellow moved Ocon -> Bearman
+16:28:28 py: 188045: box 0: livery Bearman (OCR -; livery Ocon 0.825, Bearman 0.821; box 279x168 (2.7% of frame))
+16:28:28 py: 188045: box 1: none - (OCR -; livery Norris 0.694, Lindblad 0.690; box 312x102 (1.8% of frame)) [higher detail]
+16:28:28 py: 188049: pod yellow moved LeClerc -> Hamilton
+16:28:28 py: 188049: box 0: livery Hamilton (OCR -; livery LeClerc 0.791, Hamilton 0.790; box 305x176 (3.1% of frame))
+16:28:28 py: 188049: box 1: livery Norris (OCR -; livery Norris 0.734, Piastri 0.708; box 296x141 (2.4% of frame)) [higher detail]
+16:28:28 py: 188057: box 0: none - (OCR -; livery Hamilton 0.797, Alonso 0.788; box 359x158 (3.2% of frame)) [higher detail]
+16:28:28 py: 188057: box 1: none - (OCR -; livery Norris 0.757, Hadjar 0.691; box 165x127 (1.2% of frame)) [higher detail]
+16:28:28 py: 188061: box 0: none - (OCR -; livery Hamilton 0.810, Alonso 0.776; box 370x150 (3.2% of frame)) [higher detail]
+16:28:28 py: 188061: box 1: none - (OCR -; livery Norris 0.748, Hadjar 0.694; box 137x127 (1.0% of frame)) [higher detail]
+16:28:28 py: 188065: box 0: livery Hamilton (OCR -; livery Hamilton 0.816, LeClerc 0.794; box 430x151 (3.7% of frame)) [higher detail]
+16:28:28 py: 188065: box 1: livery Hadjar (OCR 0; livery Norris 0.705, Lawson 0.678; number seen but unmatched: 0; box 119x127 (0.9% of frame))
+16:28:28 py: 188069: box 0: livery Hamilton (OCR -; livery Hamilton 0.820, LeClerc 0.798; box 443x147 (3.7% of frame)) [higher detail]
+16:28:28 py: 188069: box 1: livery Hadjar (OCR 0; livery Norris 0.679, LeClerc 0.631; number seen but unmatched: 0; box 95x130 (0.7% of frame)) [higher detail]
+16:28:29 py: 188073: box 0: number Hamilton (OCR 44; livery Hamilton 0.819, LeClerc 0.804; box 466x142 (3.8% of frame)) [higher detail]
+16:28:29 py: 188073: pod black moved Alonso -> Stroll
+16:28:29 py: 188073: box 1: livery Stroll (OCR -; livery Alonso 0.757, Stroll 0.735; box 244x125 (1.7% of frame)) [higher detail]
+16:28:29 py: 188092: box 0: livery Hamilton (OCR -; livery Hamilton 0.812, LeClerc 0.781; box 546x137 (4.3% of frame))
+16:28:29 py: 188092: box 1: none - (OCR 0; livery Antonelli 0.730, Stroll 0.726; number seen but unmatched: 0; box 314x139 (2.5% of frame)) [higher detail]
+16:28:29 py: 188111: box 0: livery Hamilton (OCR -; livery Hamilton 0.849, LeClerc 0.797; box 617x131 (4.6% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 188115: box 0: livery Hamilton (OCR -; livery Hamilton 0.837, LeClerc 0.760; box 615x124 (4.4% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 188143: box 0: livery Hamilton (OCR -; livery Hamilton 0.861, LeClerc 0.701; box 490x135 (3.8% of frame))
+16:28:29 py: 188143: pod black moved Alonso -> Stroll
+16:28:29 py: 188143: box 1: livery Stroll (OCR -; livery Alonso 0.842, Stroll 0.813; box 409x121 (2.8% of frame))
+16:28:29 py: 188151: box 0: livery Hamilton (OCR -; livery Hamilton 0.942, Lawson 0.697; box 447x132 (3.4% of frame))
+16:28:29 py: 188151: pod black moved Alonso -> Stroll
+16:28:29 py: 188151: box 1: livery Stroll (OCR -; livery Alonso 0.878, Stroll 0.871; box 420x125 (3.0% of frame))
+16:28:29 py: 188151: box 2: none - (OCR -; livery Russell 0.735, LeClerc 0.718; box 137x125 (1.0% of frame)) [higher detail]
+16:28:29 py: 188163: pod yellow moved Stroll -> Alonso
+16:28:29 py: 188163: box 0: livery Alonso (OCR -; livery Stroll 0.901, Alonso 0.840; box 393x127 (2.9% of frame)) [hint Sports|F1|Aston Martin (sponsor)]
+16:28:29 py: 188163: box 1: none - (OCR -; livery Hamilton 0.850, Bottas 0.789; box 346x123 (2.4% of frame)) [higher detail]
+16:28:29 py: 188163: pod black moved Hamilton -> LeClerc
+16:28:29 py: 188163: box 2: livery LeClerc (OCR -; livery Hamilton 0.700, LeClerc 0.685; box 187x114 (1.2% of frame)) [higher detail]
+16:28:29 py: 188167: pod yellow moved Stroll -> Alonso
+16:28:29 py: 188167: box 0: livery Alonso (OCR -; livery Stroll 0.882, Alonso 0.832; box 386x127 (2.8% of frame)) [hint Sports|F1|Aston Martin (sponsor)]
+16:28:29 py: 188167: box 1: livery Hamilton (OCR -; livery Hamilton 0.884, Hadjar 0.730; box 338x128 (2.5% of frame))
+16:28:29 py: 188167: pod black moved Hamilton -> LeClerc
+16:28:29 py: 188167: box 2: livery LeClerc (OCR -; livery Hamilton 0.723, LeClerc 0.719; box 175x117 (1.2% of frame)) [higher detail]
+16:28:29 py: 188170: pod yellow moved Stroll -> Alonso
+16:28:29 py: 188170: box 0: livery Alonso (OCR -; livery Stroll 0.905, Alonso 0.837; box 397x117 (2.7% of frame)) [hint Sports|F1|Aston Martin (sponsor)]
+16:28:29 py: 188170: box 1: none - (OCR -; livery Bottas 0.842, Hamilton 0.779; box 283x130 (2.1% of frame)) [higher detail]
+16:28:29 py: 188170: box 2: team LeClerc (OCR -; livery LeClerc 0.722, Hamilton 0.708; box 176x110 (1.1% of frame)) [higher detail]
+16:28:29 py: 188174: pod yellow moved Stroll -> Alonso
+16:28:29 py: 188174: box 0: livery Alonso (OCR -; livery Stroll 0.869, Alonso 0.786; box 350x126 (2.5% of frame)) [hint Sports|F1|Aston Martin (sponsor)]
+16:28:29 py: 188174: box 1: livery Hadjar (OCR 0; livery Hadjar 0.833, Verstappen 0.789; number seen but unmatched: 0; box 264x120 (1.8% of frame))
+16:28:29 py: 188174: box 2: livery LeClerc (OCR -; livery LeClerc 0.722, Hamilton 0.710; box 181x108 (1.1% of frame)) [higher detail]
+16:28:29 py: 188261: box 0: livery LeClerc (OCR -; livery LeClerc 0.719, Hamilton 0.698; box 253x123 (1.8% of frame)) [higher detail]
+16:28:29 py: 188261: box 1: livery Antonelli (OCR -; livery Antonelli 0.904, Stroll 0.789; box 292x83 (1.4% of frame))
+16:28:29 py: 188274: pod black moved Antonelli -> Russell
+16:28:29 py: 188274: box 0: livery Russell (OCR -; livery Antonelli 0.880, Russell 0.821; box 441x150 (3.8% of frame))
+16:28:29 py: 188274: box 1: none - (OCR -; livery Stroll 0.710, Sainz 0.707; box 283x124 (2.0% of frame)) [higher detail]
+16:28:29 py: 188286: box 0: livery Antonelli (OCR -; livery Antonelli 0.919, Alonso 0.728; box 513x172 (5.1% of frame))
+16:28:29 py: 188286: box 1: none - (OCR -; livery Albon 0.728, Stroll 0.701; box 323x127 (2.3% of frame)) [higher detail]
+16:28:29 py: 188357: box 0: none - (OCR -; livery Alonso 0.747, Antonelli 0.696; box 460x137 (3.6% of frame)) [higher detail]
+16:28:29 py: 188357: box 1: none - (OCR -; livery Hadjar 0.783, Gasly 0.697; box 500x117 (3.4% of frame)) [higher detail]
+16:28:29 py: 188361: box 0: none - (OCR -; livery Hadjar 0.787, Gasly 0.728; box 487x116 (3.2% of frame)) [higher detail]
+16:28:29 py: 188361: box 1: none - (OCR -; livery Alonso 0.714, Antonelli 0.676; box 360x136 (2.8% of frame)) [higher detail]
+16:28:29 py: 188361: box 2: none - (OCR -; livery Russell 0.768, Alonso 0.734; box 165x84 (0.8% of frame)) [higher detail]
+16:28:29 py: 188369: box 0: none - (OCR -; livery Hadjar 0.765, Norris 0.717; box 429x133 (3.3% of frame)) [higher detail]
+16:28:29 py: 188369: box 1: livery LeClerc (OCR -; livery LeClerc 0.719, Hamilton 0.680; box 139x73 (0.6% of frame)) [higher detail]
+16:28:29 py: 188409: box 0: livery Russell (OCR -; livery Russell 0.902, Bearman 0.765; box 206x99 (1.2% of frame))
+16:28:29 py: 188409: box 1: livery Russell (OCR -; livery Russell 0.831, Antonelli 0.784; box 210x67 (0.8% of frame))
+16:28:29 py: 188417: pod black moved Antonelli -> Russell
+16:28:29 py: 188417: box 0: livery Russell (OCR -; livery Antonelli 0.838, Russell 0.784; box 237x69 (0.9% of frame))
+16:28:29 py: 188417: box 1: none - (OCR -; livery Norris 0.644, Russell 0.633; box 96x106 (0.6% of frame)) [higher detail]
+16:28:29 py: 188429: box 0: none - (OCR -; livery Alonso 0.679, Piastri 0.674; box 245x70 (1.0% of frame)) [higher detail]
+16:28:29 py: 188429: box 1: none - (OCR -; livery Norris 0.635, Russell 0.635; box 95x107 (0.6% of frame)) [higher detail]
+16:28:29 py: 188437: box 0: livery Russell (OCR 24; livery Russell 0.703, Antonelli 0.698; number seen but unmatched: 24; box 215x92 (1.1% of frame)) [higher detail]
+16:28:29 py: 188437: box 1: none - (OCR -; livery Antonelli 0.696, Stroll 0.690; box 246x70 (1.0% of frame)) [higher detail]
+16:28:29 py: 188437: box 2: none - (OCR -; livery Norris 0.670, Russell 0.655; box 93x111 (0.6% of frame)) [higher detail]
+16:28:29 py: 188441: box 0: none - (OCR -; livery Verstappen 0.719, Norris 0.713; box 221x90 (1.1% of frame)) [higher detail]
+16:28:29 py: 188441: pod black moved Antonelli -> Russell
+16:28:29 py: 188441: box 1: livery Russell (OCR -; livery Antonelli 0.818, Russell 0.711; box 267x72 (1.1% of frame))
+16:28:29 py: 188441: box 2: none - (OCR -; livery Norris 0.661, Russell 0.647; box 92x112 (0.6% of frame)) [higher detail]
+16:28:29 py: 188457: box 0: none - (OCR -; livery Russell 0.719, Norris 0.703; box 175x75 (0.8% of frame)) [higher detail]
+16:28:29 py: 188457: box 1: livery Russell (OCR -; livery Russell 0.873, Antonelli 0.743; box 141x82 (0.7% of frame))
+16:28:29 py: 188457: box 2: none - (OCR -; livery Norris 0.667, Russell 0.654; box 90x105 (0.5% of frame)) [higher detail]
+16:28:29 py: 188520: box 0: livery Lawson (OCR -; livery Lawson 0.897, Lindblad 0.820; box 597x152 (5.2% of frame))
+16:28:29 py: 188520: box 1: none - (OCR -; livery Sainz 0.663, Stroll 0.662; box 164x88 (0.8% of frame)) [higher detail]
+16:28:29 py: 188529: box 0: none - (OCR -; livery Hadjar 0.747, Lawson 0.737; box 549x126 (4.0% of frame)) [higher detail]
+16:28:29 py: 188529: box 1: livery Albon (OCR -; livery Albon 0.815, Sainz 0.808; box 179x79 (0.8% of frame))
+16:28:29 py: 188533: pod yellow moved Lindblad -> Lawson
+16:28:29 py: 188533: box 0: livery Lawson (OCR -; livery Lindblad 0.775, Lawson 0.765; box 512x115 (3.4% of frame)) [masked]
+16:28:29 py: 188533: box 1: none - (OCR 0; livery Hadjar 0.775, Bottas 0.729; box 236x115 (1.6% of frame)) [hint Sports|F1|Williams (sponsor)]
+16:28:29 py: 188560: box 0: number Norris (OCR 1; livery Verstappen 0.885, Bearman 0.829; box 170x100 (1.0% of frame))
+16:28:29 py: 188560: box 1: none - (OCR -; livery Norris 0.643, Hamilton 0.639; box 97x110 (0.6% of frame)) [higher detail]
+16:28:29 py: 188627: box 0: none - (OCR 6; livery Norris 0.540, Hadjar 0.533; number seen but unmatched: 6; box 187x83 (0.9% of frame)) [higher detail]
+16:28:29 py: 188627: pod black moved Bearman -> Ocon
+16:28:29 py: 188627: box 1: livery Ocon (OCR -; livery Bearman 0.858, Ocon 0.800; box 220x64 (0.8% of frame))
+16:28:29 py: 188627: box 2: none - (OCR -; livery Norris 0.676, Hamilton 0.639; box 95x107 (0.6% of frame)) [higher detail]
+16:28:29 py: 188627: box 3: none - (OCR -; livery Stroll 0.713, Antonelli 0.704; box 147x68 (0.6% of frame)) [higher detail]
+16:28:29 py: 188658: box 0: none - (OCR -; livery Bottas 0.750, Hadjar 0.728; box 183x64 (0.7% of frame)) [higher detail]
+16:28:29 py: 188658: box 1: none - (OCR -; livery Russell 0.707, Bottas 0.700; box 177x63 (0.6% of frame)) [higher detail]
+16:28:29 py: 188658: box 2: none - (OCR -; livery Norris 0.662, Russell 0.642; box 91x105 (0.5% of frame)) [higher detail]
+16:28:29 py: 188662: box 0: none - (OCR -; livery Hadjar 0.717, Norris 0.699; box 257x119 (1.8% of frame)) [higher detail]
+16:28:29 py: 188662: box 1: none - (OCR -; livery Norris 0.667, Russell 0.653; box 95x105 (0.6% of frame)) [higher detail]
+16:28:29 py: 188852: no vehicle at 0.2: strongest person 0.66 (0.03x0.04 of frame), strongest vehicle truck 0.10 (0.17x0.06 of frame)
+16:28:29 py: 188868: pod black moved Bearman -> Ocon
+16:28:29 py: 188868: box 0: livery Ocon (OCR -; livery Bearman 0.818, Ocon 0.785; box 343x153 (3.0% of frame)) [masked]
+16:28:29 py: 188868: pod yellow moved Albon -> Sainz
+16:28:29 py: 188868: box 1: none - (OCR -; livery Albon 0.842, Sainz 0.770; box 162x94 (0.9% of frame))
+16:28:29 py: 188880: pod black moved Bearman -> Ocon
+16:28:29 py: 188880: box 0: livery Ocon (OCR -; livery Bearman 0.890, Ocon 0.885; box 420x143 (3.4% of frame))
+16:28:29 py: 188880: box 1: livery Albon (OCR -; livery Albon 0.955, Sainz 0.854; box 237x133 (1.8% of frame))
+16:28:29 py: 189318: box 0: livery Verstappen (OCR -; livery Verstappen 0.801, Hadjar 0.797; box 163x75 (0.7% of frame))
+16:28:29 py: 189318: box 1: none - (OCR -; livery Russell 0.657, Norris 0.649; box 132x85 (0.6% of frame)) [higher detail]
+16:28:29 py: 189322: box 0: none - (OCR -; livery Stroll 0.672, Antonelli 0.666; box 204x92 (1.1% of frame)) [higher detail]
+16:28:29 py: 189322: box 1: livery Russell (OCR -; livery Russell 0.947, Antonelli 0.808; box 130x91 (0.7% of frame))
+16:28:29 py: 189330: box 0: none - (OCR -; livery Norris 0.703, Antonelli 0.640; box 128x79 (0.6% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 189346: box 0: none - (OCR -; livery Piastri 0.691, Gasly 0.646; box 197x83 (0.9% of frame)) [higher detail]
+16:28:29 py: 189346: pod black moved Antonelli -> Russell
+16:28:29 py: 189346: box 1: livery Russell (OCR -; livery Antonelli 0.662, Russell 0.647; box 128x79 (0.6% of frame)) [higher detail]
+16:28:29 py: 189350: pod black moved Lawson -> Lindblad
+16:28:29 py: 189350: box 0: livery Lindblad (OCR -; livery Lawson 0.776, Lindblad 0.697; box 204x88 (1.0% of frame))
+16:28:29 py: 189350: box 1: none - (OCR -; livery Norris 0.644, Russell 0.628; box 143x76 (0.6% of frame)) [higher detail]
+16:28:29 py: 189362: no vehicle at 0.2: strongest car 0.62 (0.07x0.07 of frame), strongest vehicle car 0.62 (0.07x0.07 of frame)
+16:28:29 py: 190037: box 0: livery Hamilton (OCR -; livery Hamilton 0.852, LeClerc 0.736; box 600x158 (5.4% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 190282: box 0: none - (OCR -; livery Gasly 0.864, Sainz 0.810; box 492x148 (4.2% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190286: box 0: none - (OCR -; livery Gasly 0.870, Sainz 0.819; box 492x157 (4.4% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190290: box 0: none - (OCR -; livery Gasly 0.882, Sainz 0.831; box 485x155 (4.3% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190293: box 0: none - (OCR -; livery Gasly 0.861, Sainz 0.842; box 511x136 (4.0% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190297: box 0: livery Gasly (OCR -; livery Gasly 0.859, Colapinto 0.842; box 500x129 (3.7% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 190301: box 0: none - (OCR -; livery Sainz 0.829, Gasly 0.819; box 483x124 (3.4% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190305: box 0: livery Gasly (OCR -; livery Gasly 0.877, Colapinto 0.847; box 465x117 (3.1% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 190308: box 0: none - (OCR -; livery Sainz 0.828, Gasly 0.816; box 447x116 (3.0% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190313: box 0: none - (OCR -; livery Sainz 0.825, Gasly 0.808; box 443x117 (3.0% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190317: box 0: livery Gasly (OCR -; livery Gasly 0.818, Colapinto 0.793; box 421x112 (2.7% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 190321: box 0: none - (OCR -; livery Gasly 0.835, Antonelli 0.782; box 392x149 (3.3% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190325: box 0: none - (OCR -; livery Gasly 0.820, Sainz 0.804; box 440x159 (4.0% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190329: box 0: none - (OCR -; livery Sainz 0.824, Gasly 0.821; box 430x157 (3.9% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190332: box 0: number Colapinto (OCR 43; livery Gasly 0.875, Sainz 0.825; box 428x158 (3.9% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 190336: box 0: none - (OCR -; livery Gasly 0.831, Sainz 0.801; box 481x155 (4.3% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190340: box 0: number Colapinto (OCR 43; livery Gasly 0.864, Sainz 0.831; box 485x160 (4.4% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 190348: box 0: none - (OCR -; livery Sainz 0.845, Gasly 0.836; box 546x157 (4.9% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190352: box 0: number Colapinto (OCR 43; livery Gasly 0.854, Sainz 0.840; box 566x155 (5.0% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 190356: box 0: none - (OCR -; livery Gasly 0.840, Sainz 0.820; box 524x158 (4.8% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190360: box 0: number Colapinto (OCR 43; livery Sainz 0.867, Gasly 0.853; box 572x155 (5.1% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 190364: box 0: none - (OCR -; livery Gasly 0.818, Sainz 0.815; box 528x146 (4.4% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 190368: already carries all of Colapinto's tags, skipped
+16:28:29 py: 190566: box 0: livery LeClerc (OCR -; livery LeClerc 0.720, Hamilton 0.707; box 239x143 (2.0% of frame)) [higher detail]
+16:28:29 py: 190566: box 1: none - (OCR -; livery Bottas 0.757, Alonso 0.755; box 211x82 (1.0% of frame)) [higher detail]
+16:28:29 py: 190578: box 0: livery Russell (OCR -; livery Russell 0.916, Antonelli 0.903; box 274x135 (2.1% of frame))
+16:28:29 py: 190578: box 1: none - (OCR -; livery Lawson 0.768, LeClerc 0.765; box 203x94 (1.1% of frame)) [higher detail]
+16:28:29 py: 190780: box 0: livery Russell (OCR -; livery Russell 0.860, Antonelli 0.832; box 142x68 (0.6% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 192417: box 0: none - (OCR -; livery Norris 0.712, Hadjar 0.705; box 244x77 (1.1% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192421: box 0: none - (OCR -; livery Norris 0.743, Hadjar 0.728; box 266x88 (1.3% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192425: box 0: none - (OCR -; livery Hadjar 0.756, Gasly 0.714; box 277x67 (1.1% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192429: box 0: livery Hadjar (OCR -; livery Hadjar 0.881, Norris 0.746; box 264x66 (1.0% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 192434: box 0: none - (OCR -; livery Hadjar 0.726, Colapinto 0.675; box 206x66 (0.8% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192437: box 0: none - (OCR -; livery Hadjar 0.739, Alonso 0.679; box 232x67 (0.9% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192836: box 0: none - (OCR 1; livery Russell 0.880, Antonelli 0.870; box 201x95 (1.1% of frame))
+16:28:29 py: 192836: box 1: livery Russell (OCR -; livery Russell 0.755, Antonelli 0.732; box 182x90 (0.9% of frame)) [masked]
+16:28:29 py: 192836: box 2: none - (OCR -; livery Russell 0.723, Alonso 0.721; box 157x65 (0.6% of frame)) [higher detail]
+16:28:29 py: 192840: pod yellow moved Russell -> Antonelli
+16:28:29 py: 192840: box 0: livery Antonelli (OCR -; livery Russell 0.843, Antonelli 0.831; box 280x108 (1.7% of frame))
+16:28:29 py: 192840: box 1: livery Russell (OCR -; livery Russell 0.892, Antonelli 0.839; box 149x68 (0.6% of frame))
+16:28:29 py: 192844: pod yellow moved Russell -> Antonelli
+16:28:29 py: 192844: box 0: livery Antonelli (OCR -; livery Russell 0.861, Antonelli 0.856; box 320x117 (2.1% of frame))
+16:28:29 py: 192844: pod black moved Alonso -> Stroll
+16:28:29 py: 192844: box 1: livery Stroll (OCR -; livery Alonso 0.677, Stroll 0.672; box 151x77 (0.7% of frame)) [higher detail]
+16:28:29 py: 192848: box 0: none - (OCR -; livery Hamilton 0.704, Norris 0.697; box 164x108 (1.0% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192851: box 0: none - (OCR -; livery Norris 0.705, Hamilton 0.677; box 164x92 (0.9% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192855: box 0: livery Hamilton (OCR -; livery Hamilton 0.843, LeClerc 0.800; box 187x114 (1.2% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 192859: pod yellow moved LeClerc -> Hamilton
+16:28:29 py: 192859: box 0: livery Hamilton (OCR -; livery LeClerc 0.783, Hamilton 0.782; box 187x103 (1.1% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 192863: box 0: none - (OCR -; livery Norris 0.769, Hamilton 0.671; box 263x125 (1.9% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192867: box 0: livery Norris (OCR -; livery Norris 0.762, Colapinto 0.661; box 295x128 (2.2% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192871: box 0: livery Ocon (OCR -; livery Ocon 0.808, Bearman 0.806; box 201x74 (0.8% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 192875: box 0: livery Ocon (OCR -; livery Ocon 0.820, Bearman 0.785; box 202x87 (1.0% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 192879: box 0: livery Ocon (OCR -; livery Ocon 0.854, Bearman 0.829; box 203x86 (1.0% of frame)) [hint Sports|F1 (tag)]
+16:28:29 py: 192883: box 0: none - (OCR 0; livery Lawson 0.720, Norris 0.686; number seen but unmatched: 0; box 346x137 (2.7% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192887: already carries all of Ocon's tags, skipped
+16:28:29 py: 192903: box 0: none - (OCR -; livery Lawson 0.770, Norris 0.744; box 204x120 (1.4% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 192907: box 0: number Norris (OCR 1; livery Norris 0.781, Lawson 0.737; box 264x123 (1.9% of frame)) [higher detail]
+16:28:29 py: 192907: box 1: none - (OCR -; livery Norris 0.698, Hamilton 0.651; box 150x106 (0.9% of frame)) [higher detail]
+16:28:29 py: 192911: box 0: livery Lawson (OCR -; livery Lawson 0.873, Bearman 0.772; box 218x118 (1.5% of frame))
+16:28:29 py: 192911: box 1: none - (OCR 15; livery Norris 0.693, Hadjar 0.659; number seen but unmatched: 15; box 155x76 (0.7% of frame)) [higher detail]
+16:28:29 py: 192915: box 0: livery Lawson (OCR -; livery Lawson 0.941, Lindblad 0.800; box 312x140 (2.5% of frame))
+16:28:29 py: 192915: box 1: none - (OCR -; livery Norris 0.699, Hamilton 0.679; box 193x62 (0.7% of frame)) [higher detail]
+16:28:29 py: 192919: box 0: none - (OCR -; livery Norris 0.758, Hadjar 0.672; box 164x113 (1.1% of frame)) [higher detail]
+16:28:29 py: 192919: box 1: none - (OCR -; livery Norris 0.713, Hamilton 0.686; box 168x97 (0.9% of frame)) [higher detail]
+16:28:29 py: 192923: box 0: none - (OCR -; livery Norris 0.756, Hadjar 0.670; box 167x111 (1.1% of frame)) [higher detail]
+16:28:29 py: 192923: box 1: livery LeClerc (OCR -; livery LeClerc 0.760, Hamilton 0.759; box 183x95 (1.0% of frame))
+16:28:29 py: 192923: box 2: team Alonso (OCR -; livery Alonso 0.759, Stroll 0.742; box 139x117 (0.9% of frame)) [higher detail]
+16:28:29 py: 192927: pod black moved Hamilton -> LeClerc
+16:28:29 py: 192927: box 0: livery LeClerc (OCR -; livery Hamilton 0.752, LeClerc 0.738; box 212x113 (1.4% of frame))
+16:28:29 py: 192927: box 1: none - (OCR -; livery Norris 0.742, Hamilton 0.664; box 163x111 (1.0% of frame)) [higher detail]
+16:28:29 py: 192927: box 2: team Alonso (OCR -; livery Alonso 0.758, Stroll 0.746; box 149x117 (1.0% of frame)) [higher detail]
+16:28:29 py: 192931: box 0: number LeClerc (OCR 16; livery Ocon 0.785, Lawson 0.751; box 272x127 (2.0% of frame))
+16:28:29 py: 192931: pod black moved Alonso -> Stroll
+16:28:29 py: 192931: box 1: livery Stroll (OCR -; livery Alonso 0.720, Stroll 0.718; box 163x114 (1.1% of frame)) [higher detail]
+16:28:29 py: 192931: box 2: none - (OCR -; livery Norris 0.708, Hamilton 0.657; box 159x116 (1.1% of frame)) [higher detail]
+16:28:29 py: 192951: box 0: livery Norris (OCR -; livery Norris 0.771, Piastri 0.713; box 441x142 (3.6% of frame)) [hint Sports|F1|McLaren (sponsor)] [masked]
+16:28:29 py: 192951: box 1: none - (OCR -; livery Norris 0.717, Lawson 0.715; box 385x135 (3.0% of frame))
+16:28:29 py: 192951: box 2: number LeClerc (OCR 16; livery Hamilton 0.776, Bortoleto 0.675; box 268x122 (1.9% of frame))
+16:28:29 py: 192951: box 3: none - (OCR -; livery Norris 0.632, Gasly 0.617; box 230x109 (1.4% of frame)) [higher detail] [masked]
+16:28:29 py: 192958: box 0: number Norris (OCR 011/1; livery Norris 0.693, Antonelli 0.625; box 428x155 (3.8% of frame)) [higher detail] [masked]
+16:28:29 py: 192958: box 1: livery Norris (OCR -; livery Norris 0.815, Piastri 0.717; box 375x146 (3.1% of frame)) [hint Sports|F1|McLaren (sponsor)] [masked]
+16:28:29 py: 192958: box 2: none - (OCR -; livery Norris 0.721, Hadjar 0.671; box 233x141 (1.9% of frame))
+16:28:29 py: 192958: box 3: number LeClerc (OCR 16; livery Hamilton 0.771, Bortoleto 0.683; box 258x120 (1.8% of frame))
+16:28:29 py: 192962: pod black moved Norris -> Piastri
+16:28:29 py: 192962: box 0: livery Piastri (OCR -; livery Norris 0.761, Piastri 0.699; box 372x143 (3.0% of frame)) [hint Sports|F1|McLaren (sponsor)] [masked]
+16:28:29 py: 192962: pod black moved Norris -> Piastri
+16:28:29 py: 192962: box 1: livery Piastri (OCR -; livery Norris 0.661, Piastri 0.584; box 266x135 (2.1% of frame)) [higher detail] [masked]
+16:28:29 py: 192962: box 2: number LeClerc (OCR 16; livery Hamilton 0.767, Bortoleto 0.679; box 206x118 (1.4% of frame))
+16:28:29 py: 192962: box 3: none - (OCR -; livery Lawson 0.641, Norris 0.619; box 162x97 (0.9% of frame)) [higher detail]
+16:28:29 py: 192966: box 0: livery Norris (OCR -; livery Norris 0.825, Lawson 0.748; box 466x151 (4.0% of frame)) [hint Sports|F1|McLaren (sponsor)]
+16:28:29 py: 192966: box 1: none - (OCR -; livery Norris 0.734, Hadjar 0.661; box 234x122 (1.6% of frame))
+16:28:29 py: 192966: box 2: number LeClerc (OCR 16; livery Hamilton 0.785, Bortoleto 0.715; box 181x118 (1.2% of frame))
+16:28:29 py: 192971: box 0: livery Norris (OCR -; livery Norris 0.850, Piastri 0.751; box 495x153 (4.3% of frame)) [hint Sports|F1|McLaren (sponsor)] [masked]
+16:28:29 py: 192971: box 1: none - (OCR -; livery Norris 0.674, Bortoleto 0.626; box 319x125 (2.3% of frame)) [higher detail] [masked]
+16:28:29 py: 192971: box 2: number LeClerc (OCR 16/0; livery Hamilton 0.721, Norris 0.720; box 126x111 (0.8% of frame))
+16:28:29 py: 192975: box 0: livery Norris (OCR -; livery Norris 0.838, Lawson 0.758; box 531x158 (4.8% of frame)) [hint Sports|F1|McLaren (sponsor)]
+16:28:29 py: 192975: box 1: none - (OCR -; livery Norris 0.774, Bortoleto 0.700; box 326x136 (2.5% of frame))
+16:28:29 py: 192975: box 2: number LeClerc (OCR 16; livery Norris 0.724, Bortoleto 0.714; box 187x117 (1.3% of frame))
+16:28:29 py: 192979: box 0: livery Norris (OCR -; livery Norris 0.854, Lawson 0.759; box 550x155 (4.9% of frame)) [hint Sports|F1|McLaren (sponsor)]
+16:28:29 py: 192979: box 1: number LeClerc (OCR 16; livery Hamilton 0.787, Hulkenburg 0.694; box 257x128 (1.9% of frame))
+16:28:29 py: 192979: box 2: none - (OCR -; livery Norris 0.732, Bortoleto 0.664; box 214x121 (1.5% of frame))
+16:28:29 py: 192998: box 0: livery Norris (OCR -; livery Norris 0.814, Piastri 0.752; box 579x147 (4.9% of frame)) [hint Sports|F1|McLaren (sponsor)]
+16:28:29 py: 192998: pod black moved Hamilton -> LeClerc
+16:28:29 py: 192998: box 1: livery LeClerc (OCR -; livery Hamilton 0.889, Bearman 0.711; box 427x131 (3.2% of frame))
+16:28:29 py: 193003: box 0: livery Norris (OCR -; livery Norris 0.833, Piastri 0.759; box 559x150 (4.8% of frame)) [hint Sports|F1|McLaren (sponsor)]
+16:28:29 py: 193003: pod black moved Hamilton -> LeClerc
+16:28:29 py: 193003: box 1: livery LeClerc (OCR -; livery Hamilton 0.880, Bearman 0.710; box 389x130 (2.9% of frame))
+16:28:29 py: 193006: box 0: livery Norris (OCR -; livery Norris 0.835, Piastri 0.777; box 737x155 (6.5% of frame)) [hint Sports|F1|McLaren (sponsor)] [masked]
+16:28:29 py: 193006: box 1: none - (OCR -; livery Norris 0.855, Lawson 0.816; box 425x139 (3.4% of frame)) [hint Sports|F1|McLaren (sponsor)]
+16:28:29 py: 193006: pod black moved Hamilton -> LeClerc
+16:28:29 py: 193006: box 2: livery LeClerc (OCR -; livery Hamilton 0.894, Norris 0.726; box 412x139 (3.3% of frame))
+16:28:29 py: 193010: box 0: livery Norris (OCR -; livery Norris 0.799, Piastri 0.766; box 725x156 (6.5% of frame)) [hint Sports|F1|McLaren (sponsor)] [masked]
+16:28:29 py: 193010: box 1: none - (OCR -; livery Hadjar 0.628, Norris 0.618; box 373x126 (2.7% of frame)) [higher detail] [masked]
+16:28:29 py: 193014: box 0: livery Norris (OCR -; livery Norris 0.719, Piastri 0.688; box 377x130 (2.8% of frame)) [higher detail] [masked]
+16:28:29 py: 193014: box 1: none - (OCR 0; livery Norris 0.596, Hadjar 0.529; number seen but unmatched: 0; box 186x130 (1.4% of frame)) [higher detail] [masked]
+16:28:29 py: 193014: box 2: none - (OCR -; livery Norris 0.653, Ocon 0.647; box 182x62 (0.6% of frame)) [higher detail]
+16:28:29 py: 193018: box 0: livery Norris (OCR -; livery Norris 0.808, Hadjar 0.740; box 680x156 (6.1% of frame)) [hint Sports|F1|McLaren (sponsor)] [masked]
+16:28:29 py: 193018: box 1: none - (OCR -; livery Norris 0.827, Lawson 0.790; box 455x134 (3.5% of frame)) [hint Sports|F1|McLaren (sponsor)]
+16:28:29 py: 193018: box 2: none - (OCR -; livery Hamilton 0.668, Bearman 0.660; box 252x70 (1.0% of frame)) [higher detail]
+16:28:29 py: 193018: box 3: none - (OCR -; livery Lawson 0.689, Russell 0.686; box 199x78 (0.9% of frame)) [higher detail]
+16:28:29 py: 193022: box 0: livery Norris (OCR -; livery Norris 0.857, Hadjar 0.773; box 415x132 (3.1% of frame)) [hint Sports|F1|McLaren (sponsor)]
+16:28:29 py: 193022: pod black moved Bearman -> Ocon
+16:28:29 py: 193022: box 1: livery Ocon (OCR -; livery Bearman 0.774, Ocon 0.744; box 227x65 (0.8% of frame))
+16:28:29 py: 193026: box 0: livery Norris (OCR -; livery Norris 0.847, Hadjar 0.807; box 403x128 (2.9% of frame)) [hint Sports|F1|McLaren (sponsor)]
+16:28:29 py: 193026: pod black moved Hadjar -> Verstappen
+16:28:29 py: 193026: box 1: livery Verstappen (OCR 0; livery Hadjar 0.650, Norris 0.608; number seen but unmatched: 0; box 238x120 (1.6% of frame)) [higher detail]
+16:28:29 py: 193026: pod black moved Norris -> Piastri
+16:28:29 py: 193026: box 2: livery Piastri (OCR -; livery Norris 0.822, Hadjar 0.719; box 211x84 (1.0% of frame)) [higher detail]
+16:28:29 py: 193026: pod black moved Bearman -> Ocon
+16:28:29 py: 193026: box 3: livery Ocon (OCR -; livery Bearman 0.811, Ocon 0.758; box 260x68 (1.0% of frame))
+16:28:29 py: 193030: box 0: none - (OCR -; livery Norris 0.742, Hadjar 0.709; box 314x111 (2.0% of frame)) [higher detail]
+16:28:29 py: 193030: box 1: number Norris (OCR 1; livery Norris 0.816, Hadjar 0.731; box 209x84 (1.0% of frame)) [higher detail]
+16:28:29 py: 193030: pod black moved Bearman -> Ocon
+16:28:29 py: 193030: box 2: livery Ocon (OCR -; livery Bearman 0.783, Ocon 0.730; box 198x57 (0.6% of frame))
+16:28:29 py: 193030: box 3: team Hamilton (OCR -; livery Hamilton 0.661, LeClerc 0.584; box 96x109 (0.6% of frame)) [higher detail]
+16:28:29 py: 193034: box 0: none - (OCR -; livery Norris 0.773, Hadjar 0.759; box 325x122 (2.3% of frame)) [higher detail]
+16:28:29 py: 193034: pod black moved Bearman -> Ocon
+16:28:29 py: 193034: box 1: livery Ocon (OCR -; livery Bearman 0.779, Ocon 0.734; box 200x58 (0.7% of frame))
+16:28:29 py: 193034: box 2: team Hamilton (OCR -; livery Hamilton 0.657, LeClerc 0.588; box 92x107 (0.6% of frame)) [higher detail]
+16:28:29 py: 193034: box 3: livery Lawson (OCR -; livery Lawson 0.821, Lindblad 0.812; box 137x69 (0.5% of frame))
+16:28:29 py: 193038: pod black moved Bearman -> Ocon
+16:28:29 py: 193038: box 0: livery Ocon (OCR -; livery Bearman 0.680, Ocon 0.663; box 203x57 (0.7% of frame)) [higher detail]
+16:28:29 py: 193038: box 1: team LeClerc (OCR -; livery LeClerc 0.628, Hamilton 0.616; box 114x101 (0.7% of frame)) [higher detail]
+16:28:29 py: 193038: box 2: team Hamilton (OCR -; livery Hamilton 0.658, LeClerc 0.592; box 93x101 (0.5% of frame)) [higher detail]
+16:28:29 py: 193042: box 0: none - (OCR -; livery Norris 0.780, Hadjar 0.733; box 265x110 (1.7% of frame)) [higher detail]
+16:28:29 py: 193042: box 1: team Alonso (OCR -; livery Alonso 0.722, Stroll 0.721; box 174x145 (1.4% of frame)) [higher detail]
+16:28:29 py: 193042: box 2: team Hamilton (OCR -; livery Hamilton 0.665, LeClerc 0.598; box 89x102 (0.5% of frame)) [higher detail]
+16:28:29 py: 193046: box 0: none - (OCR -; livery Norris 0.757, Hadjar 0.712; box 233x117 (1.6% of frame)) [higher detail]
+16:28:29 py: 193046: box 1: none - (OCR -; livery Norris 0.755, Hadjar 0.656; box 184x104 (1.1% of frame)) [higher detail]
+16:28:29 py: 193046: box 2: team Hamilton (OCR -; livery Hamilton 0.673, LeClerc 0.603; box 90x104 (0.5% of frame)) [higher detail]
+16:28:29 py: 193050: box 0: none - (OCR -; livery Norris 0.742, Hadjar 0.685; box 207x108 (1.3% of frame)) [higher detail]
+16:28:29 py: 193050: pod black moved Hamilton -> LeClerc
+16:28:29 py: 193050: box 1: livery LeClerc (OCR -; livery Hamilton 0.822, LeClerc 0.819; box 161x93 (0.9% of frame))
+16:28:29 py: 193050: box 2: none - (OCR -; livery Norris 0.731, Hadjar 0.680; box 138x106 (0.8% of frame)) [higher detail]
+16:28:29 py: 193050: box 3: team Hamilton (OCR -; livery Hamilton 0.667, LeClerc 0.600; box 90x103 (0.5% of frame)) [higher detail]
+16:28:29 py: 193054: box 0: none - (OCR -; livery Norris 0.704, LeClerc 0.671; box 189x87 (0.9% of frame)) [higher detail]
+16:28:29 py: 193054: box 1: none - (OCR -; livery Norris 0.751, Hadjar 0.683; box 147x89 (0.7% of frame)) [higher detail]
+16:28:29 py: 193054: box 2: none - (OCR -; livery Hamilton 0.674, Norris 0.603; box 88x102 (0.5% of frame)) [higher detail]
+16:28:29 py: 193057: box 0: none - (OCR -; livery Norris 0.721, Colapinto 0.692; box 201x89 (1.0% of frame)) [higher detail]
+16:28:29 py: 193057: box 1: number Norris (OCR 1; livery Norris 0.788, Hadjar 0.763; box 128x84 (0.6% of frame))
+16:28:29 py: 193057: box 2: team Hamilton (OCR -; livery Hamilton 0.664, LeClerc 0.593; box 91x107 (0.6% of frame)) [higher detail]
+16:28:29 py: 193062: box 0: none - (OCR -; livery Norris 0.725, Hamilton 0.634; box 173x95 (0.9% of frame)) [higher detail]
+16:28:29 py: 193062: box 1: team LeClerc (OCR -; livery LeClerc 0.631, Hamilton 0.609; box 112x95 (0.6% of frame)) [higher detail]
+16:28:29 py: 193066: box 0: team Hamilton (OCR -; livery Hamilton 0.677, LeClerc 0.611; box 89x105 (0.5% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:29 py: 193070: box 0: none - (OCR -; livery Norris 0.730, Russell 0.696; box 201x95 (1.1% of frame)) [higher detail]
+16:28:29 py: 193070: box 1: none - (OCR -; livery Hamilton 0.681, Norris 0.617; box 86x105 (0.5% of frame)) [higher detail]
+16:28:29 py: 193074: box 0: none - (OCR -; livery Hadjar 0.730, Bottas 0.722; box 211x65 (0.8% of frame)) [higher detail]
+16:28:29 py: 193074: box 1: none - (OCR -; livery Norris 0.712, Russell 0.657; box 168x78 (0.7% of frame)) [higher detail]
+16:28:29 py: 193074: box 2: none - (OCR -; livery Norris 0.691, Hamilton 0.658; box 166x74 (0.7% of frame)) [higher detail]
+16:28:29 py: 193074: box 3: team Hamilton (OCR -; livery Hamilton 0.675, LeClerc 0.607; box 92x104 (0.6% of frame)) [higher detail]
+16:28:29 py: 193077: box 0: none - (OCR -; livery Norris 0.754, Hadjar 0.696; box 183x87 (0.9% of frame)) [higher detail]
+16:28:29 py: 193077: box 1: team LeClerc (OCR -; livery LeClerc 0.631, Hamilton 0.619; box 115x106 (0.7% of frame)) [higher detail]
+16:28:29 py: 193077: pod yellow moved Piastri -> Norris
+16:28:29 py: 193077: box 2: livery Norris (OCR -; livery Piastri 0.722, Norris 0.700; box 190x62 (0.7% of frame)) [higher detail]
+16:28:29 py: 193077: box 3: none - (OCR -; livery Norris 0.692, Russell 0.660; box 156x75 (0.7% of frame)) [higher detail]
+16:28:29 py: 193082: box 0: none - (OCR -; livery Norris 0.736, Russell 0.723; box 217x79 (1.0% of frame)) [higher detail]
+16:28:29 py: 193082: box 1: none - (OCR -; livery Norris 0.791, Hadjar 0.704; box 212x78 (0.9% of frame)) [higher detail]
+16:28:29 py: 193082: box 2: team Hamilton (OCR -; livery Hamilton 0.612, LeClerc 0.608; box 108x106 (0.7% of frame)) [higher detail]
+16:28:29 py: 193082: box 3: none - (OCR -; livery Norris 0.686, LeClerc 0.668; box 139x77 (0.6% of frame)) [higher detail]
+16:28:29 py: 193086: box 0: none - (OCR -; livery Norris 0.736, Russell 0.688; box 211x71 (0.9% of frame)) [higher detail]
+16:28:29 py: 193086: box 1: team Norris (OCR -; livery Norris 0.726, Piastri 0.713; box 180x61 (0.6% of frame)) [higher detail]
+16:28:29 py: 193086: box 2: none - (OCR -; livery Hamilton 0.671, Norris 0.607; box 89x103 (0.5% of frame)) [higher detail]
+16:28:29 py: 193086: box 3: none - (OCR -; livery Norris 0.767, Hadjar 0.717; box 142x62 (0.5% of frame)) [higher detail]
+16:28:29 py: 193089: box 0: none - (OCR -; livery Norris 0.796, Hadjar 0.698; box 209x80 (1.0% of frame)) [higher detail]
+16:28:29 py: 193089: box 1: livery Lindblad (OCR -; livery Lindblad 0.813, Lawson 0.813; box 228x66 (0.9% of frame))
+16:28:29 py: 193089: box 2: none - (OCR -; livery Norris 0.656, Russell 0.654; box 117x82 (0.6% of frame)) [higher detail]
+16:28:29 py: 193089: box 3: none - (OCR -; livery Norris 0.667, LeClerc 0.627; box 138x69 (0.5% of frame)) [higher detail]
+16:28:29 py: 193094: box 0: none - (OCR -; livery Norris 0.788, Hadjar 0.750; box 189x62 (0.7% of frame)) [higher detail]
+16:28:29 py: 193094: box 1: team Hamilton (OCR -; livery Hamilton 0.656, LeClerc 0.604; box 92x104 (0.5% of frame)) [higher detail]
+16:28:29 py: 193098: box 0: none - (OCR -; livery Norris 0.779, Hadjar 0.683; box 197x87 (1.0% of frame)) [higher detail]
+16:28:29 py: 193098: box 1: livery Lawson (OCR -; livery Lawson 0.841, Lindblad 0.840; box 245x67 (0.9% of frame))
+16:28:29 py: 193098: box 2: none - (OCR -; livery Piastri 0.742, Hadjar 0.732; box 189x64 (0.7% of frame)) [higher detail]
+16:28:29 py: 193098: box 3: none - (OCR -; livery Hamilton 0.591, LeClerc 0.587; box 109x104 (0.6% of frame)) [higher detail]
+16:28:29 py: 193102: box 0: none - (OCR -; livery Norris 0.801, Hadjar 0.708; box 192x77 (0.8% of frame)) [higher detail]
+16:28:29 py: 193102: pod black moved Norris -> Piastri
+16:28:29 py: 193102: box 1: livery Piastri (OCR -; livery Norris 0.718, Piastri 0.706; box 169x65 (0.6% of frame)) [higher detail]
+16:28:29 py: 193102: box 2: none - (OCR -; livery Hamilton 0.678, Norris 0.615; box 94x105 (0.6% of frame)) [higher detail]
+16:28:29 py: 193105: box 0: number Norris (OCR 1; livery Hamilton 0.686, Hadjar 0.678; box 198x115 (1.3% of frame)) [masked]
+16:28:29 py: 193105: pod black moved Bearman -> Ocon
+16:28:29 py: 193105: box 1: livery Ocon (OCR -; livery Bearman 0.857, Ocon 0.845; box 180x89 (0.9% of frame))
+16:28:29 py: 193105: pod black moved Lawson -> Lindblad
+16:28:29 py: 193105: box 2: livery Lindblad (OCR -; livery Lawson 0.865, Lindblad 0.855; box 252x63 (0.9% of frame))
+16:28:29 py: 193105: pod black moved Norris -> Piastri
+16:28:29 py: 193105: box 3: none - (OCR -; livery Norris 0.813, Piastri 0.745; box 188x71 (0.8% of frame))
+16:28:29 py: 193110: box 0: none - (OCR -; livery Russell 0.700, Norris 0.695; box 161x89 (0.8% of frame)) [higher detail]
+16:28:29 py: 193110: box 1: livery Lawson (OCR -; livery Lawson 0.872, Lindblad 0.837; box 226x59 (0.8% of frame))
+16:28:29 py: 193110: box 2: number Norris (OCR 1; livery Norris 0.788, Hadjar 0.695; box 149x75 (0.6% of frame)) [higher detail]
+16:28:29 py: 193110: box 3: team Hamilton (OCR -; livery Hamilton 0.677, LeClerc 0.626; box 95x105 (0.6% of frame)) [higher detail]
+16:28:29 py: 193114: box 0: livery Piastri (OCR -; livery Piastri 0.796, Norris 0.759; box 211x65 (0.8% of frame)) [higher detail]
+16:28:29 py: 193114: pod black moved Norris -> Piastri
+16:28:29 py: 193114: box 1: livery Piastri (OCR -; livery Norris 0.789, Hadjar 0.685; box 164x79 (0.7% of frame)) [higher detail]
+16:28:29 py: 193114: pod black moved Lawson -> Lindblad
+16:28:29 py: 193114: box 2: livery Lindblad (OCR -; livery Lawson 0.842, Lindblad 0.800; box 169x57 (0.6% of frame))
+16:28:29 py: 193114: box 3: team Hamilton (OCR -; livery Hamilton 0.675, LeClerc 0.622; box 93x101 (0.5% of frame)) [higher detail]
+16:28:29 py: 193117: pod black moved Norris -> Piastri
+16:28:29 py: 193117: box 0: livery Piastri (OCR -; livery Norris 0.831, Piastri 0.745; box 219x67 (0.8% of frame))
+16:28:29 py: 193117: box 1: livery Norris (OCR -; livery Norris 0.760, Hadjar 0.643; box 150x73 (0.6% of frame)) [higher detail]
+16:28:29 py: 193117: box 2: team LeClerc (OCR -; livery LeClerc 0.631, Hamilton 0.618; box 105x101 (0.6% of frame)) [higher detail]
+16:28:29 py: 193117: box 3: team Hamilton (OCR -; livery Hamilton 0.669, LeClerc 0.626; box 90x100 (0.5% of frame)) [higher detail]
+16:28:29 py: 193121: pod black moved Norris -> Piastri
+16:28:29 py: 193121: box 0: livery Piastri (OCR -; livery Norris 0.814, Piastri 0.780; box 246x72 (1.0% of frame))
+16:28:29 py: 193121: box 1: livery Norris (OCR -; livery Norris 0.782, Hadjar 0.672; box 151x69 (0.6% of frame)) [higher detail]
+16:28:29 py: 193121: box 2: team Hamilton (OCR -; livery Hamilton 0.674, LeClerc 0.616; box 90x102 (0.5% of frame)) [higher detail]
+16:28:29 py: 193124: box 0: livery Piastri (OCR -; livery Piastri 0.768, Norris 0.755; box 251x67 (1.0% of frame)) [higher detail]
+16:28:29 py: 193124: box 1: team Hamilton (OCR -; livery Hamilton 0.669, LeClerc 0.627; box 91x102 (0.5% of frame)) [higher detail]
+16:28:29 py: 193124: pod black moved Norris -> Piastri
+16:28:29 py: 193124: box 2: livery Piastri (OCR -; livery Norris 0.754, Hadjar 0.647; box 128x69 (0.5% of frame)) [higher detail]
+16:28:29 py: 193129: pod black moved Norris -> Piastri
+16:28:29 py: 193129: box 0: livery Piastri (OCR -; livery Norris 0.769, Piastri 0.739; box 263x69 (1.0% of frame)) [hint Sports|F1|McLaren (sponsor)] [higher detail]
+16:28:29 py: 193129: box 1: team Hamilton (OCR -; livery Hamilton 0.675, LeClerc 0.632; box 98x103 (0.6% of frame)) [higher detail]
+16:28:29 py: 193129: box 2: none - (OCR -; livery Verstappen 0.823, Russell 0.792; box 156x62 (0.6% of frame))
+16:28:29 py: 193129: box 3: none - (OCR -; livery Norris 0.704, Hamilton 0.638; box 130x72 (0.5% of frame)) [higher detail] [masked]
+16:28:29 py: 193132: pod black moved Norris -> Piastri
+16:28:29 py: 193132: box 0: livery Piastri (OCR -; livery Norris 0.797, Piastri 0.720; box 260x70 (1.0% of frame)) [higher detail]
+16:28:29 py: 193132: box 1: team Hamilton (OCR -; livery Hamilton 0.665, LeClerc 0.624; box 97x103 (0.6% of frame)) [higher detail]
+16:28:30 py: 193137: pod black moved Norris -> Piastri
+16:28:30 py: 193137: box 0: livery Piastri (OCR -; livery Norris 0.794, Piastri 0.723; box 258x65 (1.0% of frame)) [higher detail]
+16:28:30 py: 193137: box 1: none - (OCR -; livery LeClerc 0.616, Lawson 0.603; box 103x104 (0.6% of frame)) [higher detail]
+16:28:30 py: 193141: pod black moved Norris -> Piastri
+16:28:30 py: 193141: box 0: livery Piastri (OCR -; livery Norris 0.857, Piastri 0.706; box 195x63 (0.7% of frame))
+16:28:30 py: 193141: box 1: team LeClerc (OCR -; livery LeClerc 0.616, Hamilton 0.603; box 112x102 (0.7% of frame)) [higher detail]
+16:28:30 py: 193141: box 2: none - (OCR -; livery Norris 0.656, LeClerc 0.640; box 162x59 (0.5% of frame)) [higher detail]
+16:28:30 py: 193141: box 3: none - (OCR -; livery Hamilton 0.681, Norris 0.620; box 89x102 (0.5% of frame)) [higher detail]
+16:28:30 py: 193145: pod black moved Hamilton -> LeClerc
+16:28:30 py: 193145: box 0: livery LeClerc (OCR -; livery Hamilton 0.868, Bearman 0.703; box 188x58 (0.6% of frame))
+16:28:30 py: 193145: box 1: none - (OCR -; livery Hamilton 0.676, Norris 0.629; box 92x106 (0.6% of frame)) [higher detail]
+16:28:30 py: 193145: pod black moved Norris -> Piastri
+16:28:30 py: 193145: box 2: livery Piastri (OCR -; livery Norris 0.865, Lawson 0.712; box 163x59 (0.6% of frame))
+16:28:30 py: 193149: box 0: none - (OCR -; livery Bottas 0.663, Norris 0.661; box 199x57 (0.7% of frame)) [higher detail]
+16:28:30 py: 193149: box 1: none - (OCR -; livery Hamilton 0.685, Norris 0.630; box 96x104 (0.6% of frame)) [higher detail]
+16:28:30 py: 193153: box 0: none - (OCR -; livery Hamilton 0.675, Norris 0.618; box 93x106 (0.6% of frame)) [higher detail]
+16:28:30 py: 193153: box 1: none - (OCR -; livery Hadjar 0.615, Piastri 0.603; box 155x61 (0.5% of frame)) [higher detail]
+16:28:30 py: 193157: pod black moved Hamilton -> LeClerc
+16:28:30 py: 193157: box 0: livery LeClerc (OCR -; livery Hamilton 0.876, Bearman 0.716; box 249x63 (0.9% of frame))
+16:28:30 py: 193157: box 1: none - (OCR -; livery Norris 0.759, Hadjar 0.741; box 195x69 (0.8% of frame)) [higher detail]
+16:28:30 py: 193157: box 2: none - (OCR -; livery Hadjar 0.607, Bottas 0.590; box 149x64 (0.5% of frame)) [higher detail]
+16:28:30 py: 193157: box 3: none - (OCR -; livery Hamilton 0.685, Norris 0.629; box 88x103 (0.5% of frame)) [higher detail]
+16:28:30 py: 193160: box 0: number LeClerc (OCR 16; livery Hamilton 0.874, Bearman 0.706; box 264x61 (0.9% of frame))
+16:28:30 py: 193160: box 1: none - (OCR -; livery Hadjar 0.722, Norris 0.721; box 196x67 (0.7% of frame)) [higher detail]
+16:28:30 py: 193160: box 2: none - (OCR -; livery Hamilton 0.690, Norris 0.626; box 91x101 (0.5% of frame)) [higher detail]
+16:28:30 py: 193164: box 0: number LeClerc (OCR 16; livery Hamilton 0.861, Bearman 0.673; box 265x60 (0.9% of frame))
+16:28:30 py: 193164: box 1: none - (OCR -; livery Norris 0.761, Hadjar 0.719; box 208x69 (0.8% of frame)) [higher detail]
+16:28:30 py: 193164: box 2: none - (OCR -; livery Hamilton 0.687, Norris 0.647; box 93x104 (0.6% of frame)) [higher detail]
+16:28:30 py: 193169: box 0: number LeClerc (OCR 16; livery Hamilton 0.862, Hulkenburg 0.681; box 267x61 (0.9% of frame))
+16:28:30 py: 193169: pod yellow moved Piastri -> Norris
+16:28:30 py: 193169: box 1: livery Norris (OCR -; livery Piastri 0.739, Norris 0.739; box 206x74 (0.9% of frame)) [hint Sports|F1|McLaren (sponsor)] [higher detail]
+16:28:30 py: 193169: box 2: none - (OCR -; livery Norris 0.598, Stroll 0.591; box 111x103 (0.7% of frame)) [higher detail]
+16:28:30 py: 193169: box 3: none - (OCR -; livery Hamilton 0.685, Norris 0.645; box 93x105 (0.6% of frame)) [higher detail]
+16:28:30 py: 193173: pod yellow moved Piastri -> Norris
+16:28:30 py: 193173: box 0: livery Norris (OCR -; livery Piastri 0.761, Norris 0.723; box 177x74 (0.8% of frame)) [hint Sports|F1|McLaren (sponsor)] [higher detail]
+16:28:30 py: 193173: box 1: none - (OCR -; livery Hamilton 0.686, Norris 0.632; box 88x105 (0.5% of frame)) [higher detail]
+16:28:30 py: 193177: box 0: none - (OCR -; livery Norris 0.644, Hadjar 0.574; box 129x81 (0.6% of frame)) [higher detail]
+16:28:30 py: 193177: box 1: none - (OCR -; livery Russell 0.794, Verstappen 0.782; box 143x73 (0.6% of frame))
+16:28:30 py: 193177: pod black moved Hadjar -> Verstappen
+16:28:30 py: 193177: box 2: livery Verstappen (OCR 0; livery Hadjar 0.742, Norris 0.705; number seen but unmatched: 0; box 145x68 (0.6% of frame)) [masked]
+16:28:30 py: 193177: box 3: team Hamilton (OCR -; livery Hamilton 0.676, LeClerc 0.624; box 92x101 (0.5% of frame)) [higher detail]
+16:28:30 py: 193181: box 0: livery Hadjar (OCR 0; livery Norris 0.861, Hadjar 0.700; number seen but unmatched: 0; box 157x66 (0.6% of frame))
+16:28:30 py: 193181: box 1: team Hamilton (OCR -; livery Hamilton 0.674, LeClerc 0.635; box 94x106 (0.6% of frame)) [higher detail]
+16:28:30 py: 193185: pod black moved Norris -> Piastri
+16:28:30 py: 193185: box 0: livery Piastri (OCR -; livery Norris 0.761, Piastri 0.742; box 244x82 (1.2% of frame)) [higher detail] [masked]
+16:28:30 py: 193185: box 1: none - (OCR -; livery Norris 0.591, LeClerc 0.591; box 108x106 (0.7% of frame)) [higher detail]
+16:28:30 py: 193185: pod black moved Norris -> Piastri
+16:28:30 py: 193185: box 2: none - (OCR -; livery Norris 0.782, Hadjar 0.661; box 138x69 (0.5% of frame))
+16:28:30 py: 193185: box 3: team Hamilton (OCR -; livery Hamilton 0.671, LeClerc 0.629; box 90x102 (0.5% of frame)) [higher detail]
+16:28:30 py: 193189: box 0: livery Norris (OCR -; livery Norris 0.855, Bortoleto 0.725; box 268x80 (1.2% of frame)) [masked]
+16:28:30 py: 193189: pod black moved Hadjar -> Verstappen
+16:28:30 py: 193189: box 1: none - (OCR 0; livery Norris 0.705, Hadjar 0.688; box 147x73 (0.6% of frame))
+16:28:30 py: 193189: box 2: team Hamilton (OCR -; livery Hamilton 0.670, LeClerc 0.629; box 88x103 (0.5% of frame)) [higher detail]
+16:28:30 py: 193197: pod yellow moved Russell -> Antonelli
+16:28:30 py: 193197: box 0: livery Antonelli (OCR -; livery Russell 0.931, Antonelli 0.890; box 169x114 (1.1% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 193201: box 0: none - (OCR -; livery Stroll 0.785, Russell 0.754; box 202x123 (1.4% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:30 py: 193205: pod yellow moved Russell -> Antonelli
+16:28:30 py: 193205: box 0: livery Antonelli (OCR -; livery Russell 0.921, Antonelli 0.911; box 230x125 (1.7% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 193210: pod yellow moved Russell -> Antonelli
+16:28:30 py: 193210: box 0: livery Antonelli (OCR -; livery Russell 0.915, Antonelli 0.906; box 262x129 (1.9% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 193214: pod yellow moved Russell -> Antonelli
+16:28:30 py: 193214: box 0: livery Antonelli (OCR -; livery Russell 0.915, Antonelli 0.908; box 297x131 (2.2% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 193226: box 0: livery Russell (OCR -; livery Russell 0.912, Antonelli 0.891; box 201x114 (1.3% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 193230: box 0: livery Russell (OCR -; livery Russell 0.935, Antonelli 0.920; box 238x120 (1.6% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 193234: box 0: livery Russell (OCR -; livery Russell 0.903, Antonelli 0.890; box 262x127 (1.9% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 193238: box 0: livery Russell (OCR -; livery Russell 0.846, Antonelli 0.836; box 278x125 (2.0% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 193246: no vehicle at 0.2: strongest class 25 0.68 (0.12x0.03 of frame), strongest vehicle motorcycle 0.14 (0.17x0.06 of frame)
+16:28:30 py: 193266: no vehicle at 0.2: strongest motorcycle 0.17 (0.42x0.09 of frame), strongest vehicle motorcycle 0.17 (0.42x0.09 of frame)
+16:28:30 py: 193679: box 0: livery Bearman (OCR -; livery Bearman 0.860, Ocon 0.844; box 295x126 (2.1% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 197430: box 0: livery LeClerc (OCR -; livery LeClerc 0.714, Hamilton 0.708; box 143x86 (1.0% of frame))
+16:28:30 py: 197430: box 1: none - (OCR -; livery Russell 0.782, Lawson 0.774; box 149x68 (0.8% of frame)) [higher detail]
+16:28:30 py: 197781: no vehicle at 0.2: strongest person 0.45 (0.02x0.05 of frame), strongest vehicle car 0.24 (0.03x0.02 of frame)
+16:28:30 py: 193892: no vehicle at 0.2: strongest person 0.53 (0.03x0.10 of frame), strongest vehicle car 0.44 (0.04x0.02 of frame)
+16:28:30 py: 194367: no vehicle at 0.2: strongest person 0.47 (0.43x0.82 of frame), strongest vehicle car 0.01 (0.09x0.04 of frame)
+16:28:30 py: 194638: no vehicle at 0.2: strongest car 0.54 (0.04x0.04 of frame), strongest vehicle car 0.54 (0.04x0.04 of frame)
+16:28:30 py: 195231: no vehicle at 0.2: strongest truck 0.31 (0.06x0.02 of frame), strongest vehicle truck 0.31 (0.06x0.02 of frame)
+16:28:30 py: 195336: no vehicle at 0.2: strongest person 0.84 (0.21x0.26 of frame), strongest vehicle motorcycle 0.09 (0.04x0.03 of frame)
+16:28:30 py: 195348: box 0: none - (OCR -; livery Norris 0.730, Gasly 0.680; box 192x90 (1.0% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:30 py: 195350: box 0: none - (OCR -; livery Norris 0.721, Gasly 0.689; box 210x97 (1.2% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:30 py: 195394: no vehicle at 0.2: strongest person 0.73 (0.02x0.04 of frame), strongest vehicle car 0.44 (0.02x0.02 of frame)
+16:28:30 py: 195404: no vehicle at 0.2: strongest person 0.41 (0.33x0.98 of frame), strongest vehicle car 0.10 (0.98x0.58 of frame)
+16:28:30 py: 195412: no vehicle at 0.2: strongest person 0.83 (0.40x0.98 of frame), strongest vehicle car 0.03 (0.02x0.03 of frame)
+16:28:30 py: 195424: no vehicle at 0.2: strongest person 0.63 (0.03x0.06 of frame), strongest vehicle truck 0.09 (0.07x0.04 of frame)
+16:28:30 py: 195482: no vehicle at 0.2: strongest person 0.48 (0.29x0.97 of frame), strongest vehicle motorcycle 0.41 (0.05x0.05 of frame)
+16:28:30 py: 195490: no vehicle at 0.2: strongest person 0.83 (0.29x0.97 of frame), strongest vehicle motorcycle 0.43 (0.07x0.05 of frame)
+16:28:30 py: 195560: box 0: livery LeClerc (OCR -; livery LeClerc 0.667, Hamilton 0.645; box 166x88 (0.8% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 195570: box 0: livery LeClerc (OCR -; livery LeClerc 0.671, Hamilton 0.656; box 160x90 (0.8% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 195572: box 0: livery LeClerc (OCR -; livery LeClerc 0.653, Hamilton 0.641; box 161x89 (0.8% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 195574: box 0: livery LeClerc (OCR -; livery LeClerc 0.653, Hamilton 0.645; box 158x89 (0.8% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 195582: box 0: livery LeClerc (OCR -; livery LeClerc 0.651, Hamilton 0.647; box 159x84 (0.8% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 195586: box 0: livery LeClerc (OCR -; livery LeClerc 0.657, Hamilton 0.655; box 161x88 (0.8% of frame)) [hint Sports|F1 (tag)]
+16:28:30 py: 195592: box 0: none - (OCR -; livery Hamilton 0.650, Stroll 0.644; box 161x88 (0.8% of frame)) [hint Sports|F1 (tag)] [higher detail]
+16:28:30 py: 195718: no vehicle at 0.2: strongest class 10 0.89 (0.34x0.19 of frame), strongest vehicle car 0.43 (0.10x0.02 of frame)
+16:28:30 py: 195734: no vehicle at 0.2: strongest class 25 0.53 (0.30x0.22 of frame), strongest vehicle car 0.44 (0.04x0.03 of frame)
+16:28:30 py: 196246: no vehicle at 0.2: strongest class 46 0.64 (0.39x0.52 of frame), strongest vehicle car 0.61 (0.04x0.04 of frame)
+16:28:30 py: 184580: box 0: burst Gasly (0.88 of the burst agrees)
+16:28:30 py: 185554: box 0: burst Alonso (0.80 of the burst agrees)
+16:28:30 py: 185571: box 0: burst Colapinto (0.71 of the burst agrees)
+16:28:30 py: 185582: box 0: burst Colapinto (0.81 of the burst agrees)
+16:28:30 py: 186991: box 0: Russell shares no tag with the ones you applied; left as you tagged it
+16:28:30 py: 187206: box 0: burst Gasly (0.64 of the burst agrees)
+16:28:30 py: 187214: box 0: burst Gasly (0.64 of the burst agrees)
+16:28:30 py: 187218: box 0: burst Gasly (0.64 of the burst agrees)
+16:28:30 py: 187222: box 0: burst Gasly (0.64 of the burst agrees)
+16:28:30 py: 187357: box 0: burst Hamilton (0.67 of the burst agrees)
+16:28:30 py: 188057: box 0: burst Hamilton (0.82 of the burst agrees)
+16:28:30 py: 188061: box 0: burst Hamilton (0.82 of the burst agrees)
+16:28:30 py: 188286: box 0: burst Russell (0.92 of the burst agrees)
+16:28:30 py: 192962: box 0: burst Norris (0.76 of the burst agrees)
+16:28:30 py: 193038: box 0: burst Norris (0.68 of the burst agrees)
+16:28:30 py: 193149: box 0: burst LeClerc (0.71 of the burst agrees)
+16:28:30 py: 193201: box 0: burst Antonelli (0.80 of the burst agrees)
+16:28:30 py: 195560: box 0: LeClerc shares no tag with the ones you applied; left as you tagged it
+16:28:30 py: 195570: box 0: LeClerc shares no tag with the ones you applied; left as you tagged it
+16:28:30 py: 195572: box 0: LeClerc shares no tag with the ones you applied; left as you tagged it
+16:28:30 py: 195574: box 0: LeClerc shares no tag with the ones you applied; left as you tagged it
+16:28:30 py: 195582: box 0: LeClerc shares no tag with the ones you applied; left as you tagged it
+16:28:30 py: 195586: box 0: LeClerc shares no tag with the ones you applied; left as you tagged it
+16:28:30 py: report: C:\Users\Louis\AppData\Local\darktable/assisted_tagging/last-run/F1.report.md
+16:28:30 py: archived run: C:\Users\Louis\AppData\Local\darktable/assisted_tagging/runs\20261020-162830
+16:28:30 py: tag plan: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\F1\tag-plan.txt
+16:28:30 py: vehicles by method: burst 16, conflict 7, livery 263, none 231, number 24, skipped 4, team 33
+16:28:30 lua: identify.py exit 0
+16:28:34 lua: Assisted Tagging: done. 246 of 343 images tagged (vehicles: 24 by number, 263 by livery, 16 by burst, 33 team only), 93 unidentified, 4 already tagged (skipped), 7 vehicles left as you tagged them
+16:30:55 lua: run finished
