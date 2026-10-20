@@ -29,6 +29,7 @@ class ReferenceIndex:
         self.hist = np.zeros((0, COLOUR_DIM), np.float32)
         self.entry: list = []
         self.path: list = []
+        self.added: list = []  # paths add() has saved since a caller last cleared this
 
     @classmethod
     def load(cls, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM,
@@ -137,7 +138,17 @@ class ReferenceIndex:
         Image.fromarray(crop_rgb).save(os.path.join(self.dir, *rel.split("/")), quality=92)
         self._append(entry_id, rel, self.embedder.embed(degrade(crop_rgb) if self.blur else crop_rgb),
                      colour_hist(crop_rgb) if self.colour else None)
+        self.added.append(rel)
         return rel
+
+    def remove(self, rel: str):
+        """Deletes a reference's crop and drops it from the index (call save() after)."""
+        i = self.path.index(rel)
+        self.emb = np.delete(self.emb, i, axis=0)
+        if self.colour:
+            self.hist = np.delete(self.hist, i, axis=0)
+        del self.entry[i], self.path[i]
+        os.remove(os.path.join(self.dir, *rel.split("/")))
 
     def save(self):
         os.makedirs(self.dir, exist_ok=True)

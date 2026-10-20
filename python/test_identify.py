@@ -307,6 +307,21 @@ def run_tests():
     I.promote_boxes(pargs, {"embedder": "fake"})
     check("a file that no longer matches the run is stale", open(results, encoding="utf-8").read().strip(), "1,stale")
 
+    # ---- add-time screening: refs flagged by 2+ audit checks are refused (skip) or kept with a log line (warn)
+    import audit_refs
+    write_promo([100, 50])
+    real_screen = audit_refs.screen_refs
+    audit_refs.screen_refs = lambda collection, rels: {r: ["outlier", "colour"] for r in rels}
+    try:
+        I.promote_boxes(pargs, {"embedder": "fake"})
+        check("a promoted box the audit checks flag is not saved", open(results, encoding="utf-8").read().strip(), "1,flagged")
+        check("a flagged box's crop is deleted", os.listdir(os.path.join(coll, "refs", "VER")), [])
+        audit_refs.screen_refs = lambda collection, rels: {r: ["outlier"] for r in rels}
+        I.promote_boxes(pargs, {"embedder": "fake"})
+        check("one flag alone does not refuse a box", open(results, encoding="utf-8").read().strip(), "1,added")
+    finally:
+        audit_refs.screen_refs = real_screen
+
     # ---- Review Focus 4: cancel leaves no results
     os.remove(results)
     open(args.progress + ".cancel", "w").close()

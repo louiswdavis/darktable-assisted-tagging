@@ -1049,10 +1049,32 @@ def identify(args, models: dict):
 
 # ---------------------------------------------------------------- add-reference / list modes
 
-def run_reference_job(args, models: dict, handle_row):
+def screen_new_refs(collection: str, index: ReferenceIndex, done: list, mode: str) -> list:
+    """Runs the audit's per-ref checks over the refs a job just saved. A ref flagged by
+    STRONG_MIN_FLAGS+ checks is one the next audit would quarantine: mode "warn" only logs it,
+    "skip" also deletes it and, when none of a row's refs survive, sets that row's status to
+    "flagged". Returns `done` with the statuses updated."""
+    from audit_refs import STRONG_MIN_FLAGS, screen_refs
+    flags = screen_refs(collection, [r for _, _, rels in done for r in rels])
+    out, removed = [], False
+    for image_id, status, rels in done:
+        bad = [r for r in rels if len(flags.get(r, ())) >= STRONG_MIN_FLAGS]
+        for r in bad:
+            log(f"{image_id}: {r} is flagged by {', '.join(flags[r])}" + ("; not saved" if mode == "skip" else "; kept, but the next audit would quarantine it"))
+            if mode == "skip":
+                index.remove(r)
+                removed = True
+        out.append((image_id, "flagged" if mode == "skip" and bad and len(bad) == len(rels) else status, rels))
+    if removed:
+        index.save()
+    return out
+
+
+def run_reference_job(args, models: dict, handle_row, screen: str = ""):
     """Runs `handle_row(index, entries, rules, image_id, filepath, entry_id) -> status` over the
     manifest rows, writing one `id,status` results row and a progress tick per row. References added
-    before a cancel are kept; the reference index is saved either way."""
+    before a cancel are kept; the reference index is saved either way. `screen` ("warn" or "skip")
+    then checks the new refs with screen_new_refs; people collections are never screened."""
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
     models["kind"] = rules.kind
@@ -1061,20 +1083,24 @@ def run_reference_job(args, models: dict, handle_row):
     embedder = check_models(models)
     index = open_index(collection, models, rules, embedder)
     rows = read_manifest(args.manifest, 3)
-    tmp = args.results + ".tmp"
+    done = []  # (image id, status, refs the row saved)
     cancelled = False
-    with open(tmp, "w", newline="", encoding="utf-8") as f:
-        for n, (image_id, filepath, entry_id) in enumerate(rows, 1):
-            if cancel_requested(args.progress):
-                cancelled = True
-                break
-            f.write(f"{image_id},{handle_row(index, entries, rules, image_id, filepath, entry_id)}\n")
-            write_progress(args.progress, n, len(rows))
+    for n, (image_id, filepath, entry_id) in enumerate(rows, 1):
+        if cancel_requested(args.progress):
+            cancelled = True
+            break
+        index.added = []
+        done.append((image_id, handle_row(index, entries, rules, image_id, filepath, entry_id), list(index.added)))
+        write_progress(args.progress, n, len(rows))
     index.save()
     if cancelled:
         log("cancelled; references added so far are kept")
-        os.remove(tmp)
         sys.exit(130)
+    if screen and rules.kind != "people":
+        done = screen_new_refs(collection, index, done, screen)
+    tmp = args.results + ".tmp"
+    with open(tmp, "w", newline="", encoding="utf-8") as f:
+        f.writelines(f"{image_id},{status}\n" for image_id, status, _ in done)
     os.replace(tmp, args.results)
     write_collection_outputs(args, collection, entries, rules)
 
@@ -1125,7 +1151,7 @@ def add_references(args, models: dict):
             log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
             return "failed"
 
-    run_reference_job(args, models, handle)
+    run_reference_job(args, models, handle, screen="warn")
 
 
 def promote_boxes(args, models: dict):
@@ -1161,7 +1187,7 @@ def promote_boxes(args, models: dict):
             log(f"{image_id}: couldn't add references ({type(e).__name__}: {e})")
             return "failed"
 
-    run_reference_job(args, models, handle)
+    run_reference_job(args, models, handle, screen="skip")
 
 
 def audit_references(args, models: dict):

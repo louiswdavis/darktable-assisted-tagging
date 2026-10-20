@@ -1472,13 +1472,14 @@ function M.promote_references(images)
         end
         local results = run_reference_job(state, rows, " --promote-boxes --boxes-in " .. shell_quote(boxes), "saving vehicles as references")
         if not results then return end
-        local counts = { added = 0, none_promotable = 0, stale = 0, failed = 0 }
+        local counts = { added = 0, none_promotable = 0, flagged = 0, stale = 0, failed = 0 }
         for line in results:gmatch("[^\r\n]+") do
             local p = M.parse_csv_line(line, 2)
             if p then counts[p[2]] = (counts[p[2]] or 0) + 1 end
         end
         local extra = {}
         if counts.none_promotable > 0 then extra[#extra + 1] = string.format("%d images had none confident enough", counts.none_promotable) end
+        if counts.flagged > 0 then extra[#extra + 1] = string.format("%d not saved: the audit checks flagged them (see log)", counts.flagged) end
         if counts.stale > 0 then extra[#extra + 1] = string.format("%d changed since the run (run Identify again)", counts.stale) end
         if counts.failed > 0 then extra[#extra + 1] = string.format("%d failed, see log", counts.failed) end
         say(string.format("Assisted Tagging: saved vehicles from %d images as references%s. Crops are in %s/refs.",

@@ -42,6 +42,7 @@ FRAME_SHARE_BUCKETS = [0.05, 0.10, 0.15, 0.25, 0.50]  # histogram band edges for
 ATTRACTOR_MIN_PULLS = 3  # wrong-entry queries a ref must win before it is listed as an attractor
 EVENT_GAP = 1000  # ref ids further apart than this belong to different events (race weekends)
 COLOUR_MIN_EVENT_REFS = 4  # an entry's refs from one event needed to score its colours against that event alone
+STRONG_MIN_FLAGS = 2  # checks that must flag a ref for it to be a strongest candidate, to be quarantined, or to be refused at add time
 COLOUR_MAD_FLOOR = 0.03 # entries whose refs agree closely would otherwise flag normal lighting variation
 
 
@@ -339,6 +340,35 @@ def quarantine_refs(collection_dir, path, entry, chosen, flags):
     return moved
 
 
+def ref_flags(mislabel, copies, outliers, colours, crops, frames):
+    """{ref index: [check names that flag it]} from the per-check lists; frames is a list of ref indexes."""
+    flags = {}
+    for label, idx in (("mislabel", [i for _, i, _ in mislabel]), ("copy", [i for _, i, _ in copies]),
+                       ("outlier", [i for _, i, _ in outliers]), ("colour", [i for _, i, *_ in colours]),
+                       ("crop", [i for _, i, *_ in crops]), ("frame", frames)):
+        for i in idx:
+            flags.setdefault(i, []).append(label)
+    return flags
+
+
+def screen_refs(collection_dir, rels, dup_sim=0.97):
+    """The audit's per-ref checks (not attractors or whole frames, which need every ref queried or a
+    detector) run for just `rels`, refs already in the saved index. Returns {rel: [check names]} for
+    those with a flag; empty when the index holds under 2 entries. Entries with too few refs for a check
+    (5 for outliers, 4 for colour and crop) pass it, as in the audit."""
+    emb, entry, path, _team, _ = load(collection_dir)
+    if len(set(entry)) < 2:
+        return {}
+    mislabel, copies, outliers, *_ = audit(emb, entry, dup_sim)
+    try:
+        colours = colour_audit(collection_dir, entry, path, ref_events(path)[0])
+    except ImportError:  # no cv2: the colour check is skipped
+        colours = []
+    flags = ref_flags(mislabel, copies, outliers, colours, crop_audit(collection_dir, entry, path), [])
+    wanted = set(rels)
+    return {path[i]: f for i, f in flags.items() if path[i] in wanted}
+
+
 def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=None, crops_wanted=False,
                 quarantine=False):
     """Audits collection_dir's index.npz and writes ref-audit.txt beside it. detector (YOLOX .onnx)
@@ -374,13 +404,8 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
         cross = " (same team)" if team.get(entry[j]) == team.get(entry[i]) else ""
         return f"  {path[i]}  [{entry[i]}]  ~  {path[j]}  [{entry[j]}]{cross}  {extra}"
 
-    flags = {}
-    for label, items in (("mislabel", [(m, i) for m, i, _ in mislabel]), ("copy", [(s, i) for s, i, _ in copies]),
-                         ("outlier", [(-z, i) for z, i, _ in outliers]), ("colour", [(-z, i) for z, i, *_ in colours]),
-                         ("crop", [(z, i) for z, i, *_ in crops]), ("frame", [(s, i) for s, i in frames if s > 0.0])):
-        for _, i in items:
-            flags.setdefault(i, []).append(label)
-    strongest = sorted((i for i, f in flags.items() if len(f) >= 2), key=lambda i: (-len(flags[i]), path[i]))
+    flags = ref_flags(mislabel, copies, outliers, colours, crops, [i for s, i in frames if s > 0.0])
+    strongest = sorted((i for i, f in flags.items() if len(f) >= STRONG_MIN_FLAGS), key=lambda i: (-len(flags[i]), path[i]))
     out.append("## strongest candidates (flagged by 2+ checks; look at these first)")
     for i in strongest[:top]:
         out.append(f"  {path[i]}  [{entry[i]}]  {', '.join(flags[i])}")
