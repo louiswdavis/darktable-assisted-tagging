@@ -1187,6 +1187,9 @@ def audit_references(args, models: dict):
         log("cancelled; no audit written")
         sys.exit(130)
     log(f"reference audit: {counts}; wrote {report}")
+    if counts["quarantined"]:
+        index = open_index(collection, models, rules, check_models(models))  # drops the moved refs now, not at the next audit
+        log(f"index refreshed after quarantine: {len(index.entry)} references")
     with open(args.results, "w", newline="", encoding="utf-8") as f:
         f.writelines(f"{k},{v}\n" for k, v in counts.items())
         f.write(f"report,{report}\n")
