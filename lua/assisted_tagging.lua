@@ -767,6 +767,7 @@ local STALL_SECONDS = 300
 local verify_button, identify_button, collection_combo, entry_combo, example_combo = nil, nil, nil, nil, nil
 local identify_cancellable = false -- the identify button currently reads "Cancel"
 local replace_manual_check = nil
+local suggest_crops_check = nil
 local entries, entry_order, rules = {}, {}, M.default_rules()
 local lists_loaded = false -- reload_lists has filled the collection and entry lists at least once
 -- Starting identify.py imports numpy and cv2, so the first load waits until darktable has opened.
@@ -1491,15 +1492,17 @@ function M.audit_references()
 
     local state = {}
     local okr, err = pcall(function()
-        local results = run_reference_job(state, {}, " --audit-refs", "auditing references")
+        local suggest = suggest_crops_check and suggest_crops_check.value
+        local results = run_reference_job(state, {}, " --audit-refs" .. (suggest and " --suggest-crops" or ""), "auditing references")
         if not results then return end
         local c, report = {}, ""
         for line in results:gmatch("[^\r\n]+") do
             local k, v = line:match("^([^,]+),(.*)$")
             if k == "report" then report = v elseif k then c[k] = tonumber(v) or 0 end
         end
-        say(string.format("Assisted Tagging: audited %d references: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers, %d odd crops; %d flagged by 2+ checks (start there). Details in %s",
-            c.references or 0, c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, c.crops or 0, c.strongest or 0, report))
+        local crops_note = (c.suggested or 0) > 0 and string.format(" %d suggested re-crops are in ref-audit-crops.", c.suggested) or ""
+        say(string.format("Assisted Tagging: audited %d references: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers, %d odd crops; %d flagged by 2+ checks (start there).%s Details in %s",
+            c.references or 0, c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, c.crops or 0, c.strongest or 0, crops_note, report))
     end)
     finish_reference_job(state, okr, err, "couldn't audit references.")
 end
@@ -1849,6 +1852,11 @@ local function install_panel()
         tooltip = _("Save each vehicle the last Identify run was sure of (number read, or a clear livery match) as a reference of the entry it found. Works for pack shots too: only that car's crop is saved."),
         clicked_callback = function() M.promote_references(dt.gui.action_images) end,
     }
+    suggest_crops_check = dt.new_widget("check_button") {
+        label = _("Audit: suggest re-crops"),
+        tooltip = _("Also write re-cut copies of wide references (one car found) into ref-audit-crops in the collection folder, for you to review. Nothing in refs/ is changed. The first audit with this ticked is slow (about 8 minutes for 2000 refs); later ones are fast."),
+        value = false,
+    }
     local audit_button = dt.new_widget("button") {
         label = _("Audit references"),
         tooltip = _("Refresh the collection's reference index from refs/, then write ref-audit.txt in the collection folder listing refs that look wrongly filed. Nothing is moved or deleted."),
@@ -1879,6 +1887,7 @@ local function install_panel()
         add_button,
         add_tagged_button,
         promote_button,
+        suggest_crops_check,
         audit_button,
     }
 
