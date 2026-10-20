@@ -236,9 +236,6 @@ events (ids more than 1000 apart split; colour outliers are judged within an eve
   refs/Antonelli/189254.jpg  [Antonelli]  car share 0.0%
   (342 in total)
 
-## suggested crops (a wide ref with exactly one car found, re-cut to it: copies in ref-audit-crops/<entry>/. Look at each; if it is the right car, copy it over the ref in refs/<entry>/. Nothing in refs/ was changed. Skipped: 342 with no car found, 0 with several cars)
-  (0 in total)
-
 ## redundant (refs with a near-duplicate in the same entry)
   Hamilton: 5
   Bottas: 3
@@ -255,3 +252,46 @@ events (ids more than 1000 apart split; colour outliers are judged within an eve
   refs/Hamilton/148828.jpg  [Hamilton]  ~  refs/Hamilton/148828_b0.jpg  sim 1.000
   refs/Lindblad/182412.jpg  [Lindblad]  ~  refs/Lindblad/182412_b0.jpg  sim 1.000
   refs/Norris/193192.jpg  [Norris]  ~  refs/Norris/193192_b0.jpg  sim 1.000
+
+## quarantined (the strongest candidates, moved out of refs/ into refs-quarantine/<entry>/; moved.txt lists each. To undo, copy a file back into refs/<entry>/ and re-run the audit)
+  refs/Gasly/188599.jpg  [Gasly]  mislabel, outlier, colour, crop
+  refs/Antonelli/149014.jpg  [Antonelli]  mislabel, outlier, crop
+  refs/Bearman/152268.jpg  [Bearman]  mislabel, outlier, colour
+  refs/Bortoleto/139846.jpg  [Bortoleto]  mislabel, outlier, colour
+  refs/Bottas/180019.jpg  [Bottas]  mislabel, outlier, colour
+  refs/Hadjar/152239.jpg  [Hadjar]  mislabel, outlier, colour
+  refs/Antonelli/148082.jpg  [Antonelli]  outlier, crop
+  refs/Antonelli/148084.jpg  [Antonelli]  outlier, crop
+  refs/Antonelli/148324.jpg  [Antonelli]  mislabel, outlier
+  refs/Antonelli/148508.jpg  [Antonelli]  outlier, crop
+  refs/Antonelli/149016.jpg  [Antonelli]  mislabel, outlier
+  refs/Antonelli/180153.jpg  [Antonelli]  colour, crop
+  refs/Bearman/179947.jpg  [Bearman]  outlier, colour
+  refs/Bortoleto/179958.jpg  [Bortoleto]  outlier, colour
+  refs/Bottas/148114.jpg  [Bottas]  mislabel, colour
+  refs/Colapinto/191166_b0.jpg  [Colapinto]  mislabel, outlier
+  refs/Hadjar/152484.jpg  [Hadjar]  outlier, colour
+  refs/Hadjar/152499.jpg  [Hadjar]  outlier, colour
+  refs/Hadjar/180097.jpg  [Hadjar]  outlier, colour
+  refs/Hadjar/180331.jpg  [Hadjar]  outlier, colour
+  refs/Hamilton/180289.jpg  [Hamilton]  outlier, colour
+  refs/Lawson/192190.jpg  [Lawson]  colour, crop
+  refs/Lawson/197228.jpg  [Lawson]  outlier, colour
+  refs/Lawson/197232.jpg  [Lawson]  outlier, colour
+  refs/Lawson/197234.jpg  [Lawson]  outlier, colour
+  refs/LeClerc/192780_b0.jpg  [LeClerc]  mislabel, outlier
+  refs/Norris/180622.jpg  [Norris]  outlier, colour
+  refs/Norris/185063.jpg  [Norris]  outlier, colour
+  refs/Perez/141487.jpg  [Perez]  outlier, colour
+  refs/Perez/185486.jpg  [Perez]  mislabel, outlier
+  refs/Piastri/180296.jpg  [Piastri]  mislabel, crop
+  refs/Piastri/188670.jpg  [Piastri]  colour, crop
+  refs/Russell/149024.jpg  [Russell]  mislabel, outlier
+  refs/Sainz/149220.jpg  [Sainz]  mislabel, outlier
+  refs/Sainz/180509.jpg  [Sainz]  mislabel, outlier
+  refs/Sainz/185422.jpg  [Sainz]  colour, crop
+  refs/Stroll/139381.jpg  [Stroll]  mislabel, outlier
+  refs/Stroll/180078.jpg  [Stroll]  mislabel, outlier
+  refs/Stroll/182479.jpg  [Stroll]  outlier, crop
+  refs/Stroll/197320.jpg  [Stroll]  outlier, colour
+  (41 in total)
