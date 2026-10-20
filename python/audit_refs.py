@@ -6,6 +6,7 @@ it never moves or deletes anything. Run from this folder:
 
 Writes ref-audit.txt in COLLECTION_DIR. Sections:
   strongest candidates - refs flagged by 2+ of the checks below; start here
+  attractors         - correctly filed refs that are the closest match for other entries' refs (they pull wrong cars in)
   mislabel suspects  - closer to another entry's refs than to its own (margin = other - own, 0.2+)
   cross-entry copies - near-identical to a ref filed under a different entry
   outliers           - far from the rest of its own entry (robust z-score, entries with 5+ refs)
@@ -30,7 +31,8 @@ CROP_MIN_Z = 4.0  # robust z of crop size or aspect ratio against the entry's me
 CROP_AREA_MAD_FLOOR = 0.15  # log scale, so 0.15 is about 16% in side length
 CROP_ASPECT_MAD_FLOOR = 0.08
 WHOLE_FRAME_MAX_FRAC = 0.15  # detected car's share of the ref image below this = whole frame or scenery
-COLOUR_MAD_FLOOR = 0.03  # entries whose refs agree closely would otherwise flag normal lighting variation
+ATTRACTOR_MIN_PULLS = 3  # wrong-entry queries a ref must win before it is listed as an attractor
+COLOUR_MAD_FLOOR = 0.03 # entries whose refs agree closely would otherwise flag normal lighting variation
 
 
 def audit(emb, entry, path, team, dup_sim):
@@ -75,6 +77,31 @@ def audit(emb, entry, path, team, dup_sim):
 
     return (sorted(mislabel, reverse=True), sorted(copies, reverse=True), sorted(outliers),
             redundant, own_best, other_best)
+
+
+def attractor_audit(emb, entry, dup_sim):
+    """Refs that win matches they shouldn't, whatever their own label. Each ref is the query once and
+    its single closest other ref (same-entry near-duplicates skipped, as in audit) wins it; a win for
+    a ref of another entry is a wrong pull, which is how an odd-angle or odd-size ref misidentifies
+    other cars. Returns [(wrong pulls, right pulls, i, {victim entry: pulls})] for refs with
+    ATTRACTOR_MIN_PULLS+ wrong pulls and more wrong than right, worst margin first."""
+    x = unit(emb - emb.mean(axis=0))
+    sims = x @ x.T
+    n = len(entry)
+    ent = np.array(entry)
+    same = ent[:, None] == ent[None, :]
+    eligible = ~np.eye(n, dtype=bool) & ~(same & (sims >= dup_sim))
+    winner = np.where(eligible, sims, -np.inf).argmax(axis=1)
+    wrong, right, victims = Counter(), Counter(), {}
+    for q, j in enumerate(winner):
+        if ent[q] == ent[j]:
+            right[j] += 1
+        else:
+            wrong[j] += 1
+            victims.setdefault(j, Counter())[ent[q]] += 1
+    found = [(wrong[j], right[j], j, dict(victims[j])) for j in wrong
+             if wrong[j] >= ATTRACTOR_MIN_PULLS and wrong[j] > right[j]]
+    return sorted(found, key=lambda t: (t[1] - t[0], -t[0]))
 
 
 def duplicate_groups(collection_dir, emb, entry, path, dup_sim):
@@ -204,10 +231,11 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     except ImportError:  # no cv2: the colour section is skipped
         colours = []
     crops = crop_audit(collection_dir, entry, path)
-    frames = frame_audit(collection_dir, path, detector, on_progress) if detector else []
+    attractors = attractor_audit(emb, entry, dup_sim)
+    frames =frame_audit(collection_dir, path, detector, on_progress) if detector else []
     out = [f"{len(entry)} references, {len(set(entry))} entries with 2+ refs (entries with fewer are skipped)",
            f"{len(mislabel)} mislabel suspects, {len(copies)} cross-entry copies, {len(outliers)} outliers, "
-           f"{len(colours)} colour outliers, {len(crops)} odd crops, "
+           f"{len(colours)} colour outliers, {len(crops)} odd crops, {len(attractors)} attractors, "
            + (f"{len(frames)} whole frames" if detector else "whole-frame check skipped (no detector)"), ""]
 
     def row(i, j, extra):
@@ -225,6 +253,11 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     for i in strongest[:top]:
         out.append(f"  {path[i]}  [{entry[i]}]  {', '.join(flags[i])}")
     out.append(f"  ({len(strongest)} in total)\n")
+    out.append(f"## attractors (correctly filed, but the closest match for {ATTRACTOR_MIN_PULLS}+ refs of other entries and more of those than of its own: an odd angle or size that pulls other cars toward this entry. Removing one costs its own entry some coverage, so check 'pulls' against 'own')")
+    for wrong, right, i, victims in attractors[:top]:
+        names = ", ".join(f"{v} x{c}" for v, c in sorted(victims.items(), key=lambda kv: -kv[1])[:4])
+        out.append(f"  {path[i]}  [{entry[i]}]  wrong pulls {wrong}  own {right}  pulled: {names}")
+    out.append(f"  ({len(attractors)} in total)\n")
     out.append("## mislabel suspects (closer to another entry than to its own; check the first file)")
     for m, i, j in mislabel[:top]:
         out.append(row(i, j, f"margin {m:.3f}  own {own_best[i]:.3f}  other {other_best[i]:.3f}"))
@@ -255,7 +288,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     with open(report, "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
     return report, {"references": len(entry), "mislabel": len(mislabel), "copies": len(copies), "outliers": len(outliers),
-                    "colour": len(colours), "crops": len(crops), "frames": len(frames), "strongest": len(strongest)}
+                    "colour": len(colours), "crops": len(crops), "attractors": len(attractors), "frames": len(frames), "strongest": len(strongest)}
 
 
 def main():
