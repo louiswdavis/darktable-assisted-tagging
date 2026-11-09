@@ -77,6 +77,19 @@ check("collapse_shots: RAW alone is read itself", ids(cg[3]), "3")
 check("collapse_shots: same stem in another folder is its own shot", ids(cg[4]), "4")
 check("collapse_shots: the replaced lead has no group", cg[1], nil)
 
+-- prefer_paired -------------------------------------------------------------
+local raw1 = { id = 1, path = "D:/a", filename = "DSC1.ARW" }
+local jpg1 = { id = 2, path = "D:/a", filename = "dsc1.JPG" }
+local raw2 = { id = 3, path = "D:/a", filename = "DSC2.ARW" }
+local jpgB = { id = 4, path = "D:/b", filename = "DSC2.jpg" }
+local pp, nsw, pick = T.prefer_paired({ raw1, raw2, jpg1 }, { raw1, jpg1, raw2, jpgB })
+check("prefer_paired: RAW swapped for its JPEG, dupes dropped, order kept", ids(pp), "2,3")
+check("prefer_paired: counts swaps", nsw, 1)
+check("prefer_paired: pick_of maps the RAW to the JPEG", pick[1].id, 2)
+check("prefer_paired: a JPEG in another folder is not a pair", pick[3].id, 3)
+local pe = T.prefer_paired({ raw1 }, {})
+check("prefer_paired: empty pool keeps the selection", ids(pe), "1")
+
 -- csv ---------------------------------------------------------------------
 check("csv_line quotes every field", T.csv_line({ 42, "/a b/c.NEF", 'x"y' }), '"42","/a b/c.NEF","x""y"')
 local p = T.parse_csv_line("7,0,team,VER,TSU,0.712", 6)

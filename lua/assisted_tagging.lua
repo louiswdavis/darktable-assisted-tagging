@@ -164,6 +164,32 @@ function M.collapse_shots(images)
     return primaries, group_of
 end
 
+-- Selected images → the same list with each one swapped for the best-ranked image of its
+-- shot found in `pool` (e.g. a RAW → its paired JPEG), duplicates dropped, order kept.
+-- Also returns how many selections were swapped, and per selected id the image picked.
+function M.prefer_paired(images, pool)
+    local best = {}
+    for _, img in ipairs(pool) do
+        local key = img.path .. "/" .. M.shot_stem(img.filename)
+        if not best[key] or lead_rank(img.filename) > lead_rank(best[key].filename) then best[key] = img end
+    end
+    local out, seen, swapped, pick_of = {}, {}, 0, {}
+    for _, img in ipairs(images) do
+        local pick = img
+        local b = best[img.path .. "/" .. M.shot_stem(img.filename)]
+        if b and lead_rank(b.filename) > lead_rank(img.filename) then
+            pick = b
+            swapped = swapped + 1
+        end
+        pick_of[img.id] = pick
+        if not seen[pick.id] then
+            seen[pick.id] = true
+            out[#out + 1] = pick
+        end
+    end
+    return out, swapped, pick_of
+end
+
 function M.csv_line(fields)
     local out = {}
     for i, v in ipairs(fields) do
@@ -1723,6 +1749,28 @@ local function finish_reference_job(state, okr, err, failure)
     run_next()
 end
 
+-- Swaps each selected RAW for its paired JPEG when darktable has the JPEG (same film roll,
+-- same stem), so references come from the camera's exposure and colour and match the image
+-- Identify read. Each film is read once, and only for selections that hold a RAW.
+local function with_paired_jpegs(images)
+    local pool, films_done = {}, {}
+    for _, img in ipairs(images) do
+        if lead_rank(img.filename) < 2 then
+            local okf, film = pcall(function() return img.film end)
+            if okf and film and not films_done[film.id] then
+                films_done[film.id] = true
+                local okr = pcall(function()
+                    for i = 1, #film do pool[#pool + 1] = film[i] end
+                end)
+                if not okr then log("couldn't read film roll " .. tostring(film.path) .. "; RAWs there are used as they are") end
+            end
+        end
+    end
+    local out, swapped, pick_of = M.prefer_paired(images, pool)
+    if swapped > 0 then log(string.format("%d RAW selections read from their paired JPEG", swapped)) end
+    return out, pick_of
+end
+
 -- entry_id: the entry every image becomes a reference of, or nil to take each
 -- image's entry from the tags it already carries.
 function M.add_references(images, entry_id)
@@ -1738,8 +1786,11 @@ function M.add_references(images, entry_id)
 
     local state = {}
     local okr, err = pcall(function()
-        local rows, n_skipped = {}, 0
+        local rows, n_skipped, sent = {}, 0, {}
+        local _, pick_of = with_paired_jpegs(images)
         for _, img in ipairs(images) do
+            -- the entry comes from the selected image's tags; the crop from its paired JPEG
+            local src = pick_of[img.id]
             local eid = entry_id or M.entry_for_tags(tags_of(img), entries, entry_order)
             if not eid then
                 -- tagged only to team level: identify.py saves it as a team reference when
@@ -1748,7 +1799,10 @@ function M.add_references(images, entry_id)
                 if #prefixes == 1 then eid = prefixes[1] end
             end
             if eid then
-                rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, eid }
+                if not sent[src.id] then
+                    sent[src.id] = true
+                    rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid }
+                end
             else
                 n_skipped = n_skipped + 1
                 log(string.format("%s: skipped, its tags match no single entry", img.filename))
@@ -1800,8 +1854,9 @@ function M.promote_references(images)
 
     local state = {}
     local okr, err = pcall(function()
+        -- Identify recorded boxes for the JPEG of a RAW+JPEG pair, so a selected RAW reads its JPEG's
         local rows = {}
-        for _, img in ipairs(images) do
+        for _, img in ipairs((with_paired_jpegs(images))) do
             rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, "" }
         end
         local results = run_reference_job(state, rows, " --promote-boxes --boxes-in " .. shell_quote(boxes), "saving vehicles as references")
