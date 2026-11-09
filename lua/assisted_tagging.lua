@@ -244,6 +244,19 @@ function M.owned_tags(entries, rules)
     return owned
 end
 
+-- rules with the diagnostics in `off` (outcome key → true) blanked, for wanted_tags.
+-- owned_tags keeps the full rules, so the next run detaches what is off.
+-- "shot" covers shot_solo, shot_pack and shot_crowded.
+function M.mask_diag(rules, off)
+    local masked, diag = {}, {}
+    for k, v in pairs(rules) do masked[k] = v end
+    for k, v in pairs(rules.diag) do
+        diag[k] = (off[k] or (off.shot and k:sub(1, 5) == "shot_")) and "" or v
+    end
+    masked.diag = diag
+    return masked
+end
+
 -- have: an image's tag names (name → true). Returns the names to attach and to
 -- detach, sorted. Only owned tags, or tags starting with an owned prefix (the dynamic
 -- "...Number seen|<digits>" diagnostic, one tag per distinct digit string), are detached.
@@ -648,10 +661,6 @@ if dt.gui then
         "Assisted Tagging: livery embedder model",
         "File name in the plugin's models folder used to compare liveries (e.g. dinov2_base.onnx). Empty = dinov2_small.onnx. Changing it re-embeds every reference on the next run",
         "")
-    dt.preferences.register("assisted_tagging", "diagnostic_tags", "bool",
-        "Assisted Tagging: diagnostic tags",
-        "Tag how each image was identified (under Assisted Tagging|Identification: By number, By livery, By burst, Team only, Unidentified) for filtering and spot-checks; a collection's rules can rename them. Off removes them on the next run",
-        true)
     dt.preferences.register("assisted_tagging", "neighbour_tolerance", "string",
         "Assisted Tagging: neighbour tolerance",
         "Collections with an order weight above 0: how many entries apart (in the sorted number list, wrapping round at the end) a nearby group can be and still support a doubtful number read. Whole number, default 5",
@@ -664,6 +673,45 @@ if dt.gui then
         "Assisted Tagging: grouping tag node",
         "Tag node whose children are the groups when grouping support is tags. Empty = the newest Assisted Grouping run. Set from the panel",
         "")
+end
+
+-- One "tag_<outcome>" preference per diagnostic under Assisted Tagging|Identification
+-- (keys match M.DIAG_TAGS / the rules' diag_<outcome>; "shot" covers all three Shot tags).
+-- Off = runs stop writing it and detach it from the images they process. Entry and
+-- unidentified tags (entries.json) and identification itself are unchanged.
+local TAG_TOGGLES = {
+    { key = "number", label = "By number" },
+    { key = "livery", label = "By livery" },
+    { key = "burst", label = "By burst" },
+    { key = "pooled", label = "By pooled burst" },
+    { key = "neighbour", label = "By neighbour" },
+    { key = "check_order", label = "Check order" },
+    { key = "team", label = "Team only" },
+    { key = "none", label = "Unidentified" },
+    { key = "number_seen", label = "Number seen" },
+    { key = "shot", label = "Shot" },
+}
+
+if dt.gui then
+    for _, t in ipairs(TAG_TOGGLES) do
+        dt.preferences.register("assisted_tagging", "tag_" .. t.key, "bool",
+            "Assisted Tagging: tag " .. t.label,
+            "Write the Assisted Tagging|Identification|" .. t.label .. " diagnostic (or the name a collection's"
+                .. " rules give it). Off: the next run removes it from the images it processes. Entry tags and"
+                .. " identification are unchanged.",
+            true)
+    end
+    -- diagnostic_tags (one switch for every diagnostic) was replaced by the tag_<outcome>
+    -- switches; carry an explicit "off" over once. Read as a string so an unset key ("")
+    -- isn't mistaken for off.
+    if not dt.preferences.read("assisted_tagging", "tag_prefs_migrated", "bool") then
+        if dt.preferences.read("assisted_tagging", "diagnostic_tags", "string") == "FALSE" then
+            for _, t in ipairs(TAG_TOGGLES) do
+                dt.preferences.write("assisted_tagging", "tag_" .. t.key, "bool", false)
+            end
+        end
+        dt.preferences.write("assisted_tagging", "tag_prefs_migrated", "bool", true)
+    end
 end
 
 local function file_exists(name)
@@ -1373,7 +1421,12 @@ local function apply_results(run, job)
     local owned = M.owned_tags(entries, rules)
     local owned_prefixes = (rules.diag.number_seen and rules.diag.number_seen ~= "")
         and { rules.diag.number_seen .. "|" } or {}
-    local diag_on = dt.preferences.read("assisted_tagging", "diagnostic_tags", "bool")
+    -- owned (above) uses the full rules, so switched-off diagnostics are still detached
+    local diag_off = {}
+    for _, t in ipairs(TAG_TOGGLES) do
+        if not dt.preferences.read("assisted_tagging", "tag_" .. t.key, "bool") then diag_off[t.key] = true end
+    end
+    local write_rules = M.mask_diag(rules, diag_off)
     -- one stamp per run; never owned, so later runs leave earlier stamps in place
     local run_tag = run_tag_check and run_tag_check.value
         and os.date("Assisted Tagging|Run|%Y-%m-%d %H:%M") or nil
@@ -1394,15 +1447,13 @@ local function apply_results(run, job)
         elseif not results then
             n_missing = n_missing + 1
         else
-            local wanted, diag, identified = M.wanted_tags(results, entries, rules)
+            local wanted, diag, identified = M.wanted_tags(results, entries, write_rules)
             if identified then n_tagged = n_tagged + 1 else n_unidentified = n_unidentified + 1 end
             for _, r in ipairs(results) do
                 if by_method[r.method] and entries[r.entry_id] then by_method[r.method] = by_method[r.method] + 1 end
                 if r.method == "conflict" then n_conflict = n_conflict + 1 end
             end
-            if diag_on then
-                for name in pairs(diag) do wanted[name] = true end
-            end
+            for name in pairs(diag) do wanted[name] = true end
             if run_tag then wanted[run_tag] = true end
             for _, copy in ipairs(group_of[img.id]) do
                 local attach, detach = M.tag_changes(tags_of(copy), wanted, owned, owned_prefixes,

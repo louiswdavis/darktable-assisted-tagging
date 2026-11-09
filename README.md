@@ -229,7 +229,7 @@ Every key is optional; leave one out for its default.
 |---|---|---|
 | `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
-| `diagnostics` | the `Assisted Tagging\|Identification\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `pooled`, `neighbour`, `check_order`, `team`, `none`, `number_seen`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
+| `diagnostics` | the `Assisted Tagging\|Identification\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `pooled`, `neighbour`, `check_order`, `team`, `none`, `number_seen`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The *tag …* preferences still switch each one off for every collection. |
 
 | `sponsor_keywords` | `{}` | maps a lowercase sponsor word to the tag prefix of its team, e.g. `{"petronas": "Motorsport\|F1\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
 | `tag_prefix` | `""` | a tag path for the whole collection, e.g. `Motorsport\|F1`. Each entry's tags are then built: `prefix\|team`, then `prefix\|team\|name` (`prefix\|name` with no team), then its own `tags` as extras. A driver match writes all of them; a team-only result writes the shared `prefix\|team`. Empty keeps `tags` as the full list. |
@@ -261,7 +261,7 @@ Each sample is a JPG in `refs/<entry id>/`, named after the darktable image id. 
 
 In lighttable, select a batch and click **Identify selection** in the **Assisted Tagging** panel. Progress shows in darktable's message area; click the button again to cancel. A cancelled run changes no tags.
 
-Every vehicle that gets an entry adds that entry's tags to the image, so a photo of two cars battling gets both; the collection's [rules](#rules) decide what team-only and unidentified images get. With the *diagnostic tags* preference on (the default), images also get a tag saying how they were identified. These are the default names; rules can rename or drop each one:
+Every vehicle that gets an entry adds that entry's tags to the image, so a photo of two cars battling gets both; the collection's [rules](#rules) decide what team-only and unidentified images get. Images also get a tag saying how they were identified. These are the default names; rules can rename or drop each one per collection, and the *tag …* preferences [switch each one off](#choosing-which-diagnostics-are-written) everywhere:
 
 | Tag | Meaning |
 |---|---|
@@ -277,6 +277,16 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 | `Assisted Tagging\|Identification\|Shot\|Solo` | one vehicle was found in the frame |
 | `Assisted Tagging\|Identification\|Shot\|Pack` | two or three vehicles were found |
 | `Assisted Tagging\|Identification\|Shot\|Crowded` | the detector's limit (`MAX_BOXES`) was reached, so there may be more cars than were identified |
+
+#### Choosing which diagnostics are written
+
+Each row above has its own *"Assisted Tagging: tag …"* switch in preferences → Lua options, all on by default (`Shot` is one switch for all three). Turn off the ones you don't use to keep darktable's tag list short:
+
+- **Off** = the next run stops writing that diagnostic and removes it from the images it processes, under whatever name the collection's rules give it. One never written never shows up in the tag list.
+- **Identification doesn't change.** Entry tags, team-only and unidentified tags from `entries.json` are written as before.
+- Images outside the run keep their old diagnostics. darktable keeps tag names nobody uses any more in its tag list; delete them in the tagging module's dictionary.
+
+**Migration:** `diagnostic_tags` (one switch for every diagnostic) was replaced by the ten `tag_<outcome>` keys. If it was off, the first start with this version turns all ten off, once; the old key is then ignored.
 
 Filter on `Assisted Tagging|Identification|By livery` and `Assisted Tagging|Identification|Unidentified` in the **collections** module to spot-check the uncertain ones; an image it got wrong is often a good new reference.
 
@@ -340,7 +350,7 @@ All under **preferences → lua options**.
 | Assisted Tagging: plugin folder | empty (auto-detect) | This repo's folder; `python/`, `models/`, `examples/` and `.venv` are all found inside it. A folder without `python/identify.py` is an error |
 | Assisted Tagging: collections folder | empty (`assisted_tagging/collections` in the config directory) | Where collections live |
 | Assisted Tagging: livery embedder model | empty (`dinov2_small.onnx`) | File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`. Changing it re-embeds every reference on the next run |
-| Assisted Tagging: diagnostic tags | on | The `By number` / `By livery` / … tags above; off removes them on the next run |
+| Assisted Tagging: tag *Outcome* | on, one per diagnostic | `By number`, `By livery`, `By burst`, `By pooled burst`, `By neighbour`, `Check order`, `Team only`, `Unidentified`, `Number seen`, `Shot`. Off removes that diagnostic on the next run; see [Choosing which diagnostics are written](#choosing-which-diagnostics-are-written) |
 | Assisted Tagging: neighbour tolerance | 5 | how many places apart in the sorted number list a neighbouring car can be and still support a read (whole number; anything else means 5). Only used when a collection's `order_weight` is above 0 |
 | Assisted Tagging: grouping support | native | `native`, `tags` or `none`. Set from the panel's **grouping support** control, see [Grouping support](#grouping-support) |
 | Assisted Tagging: grouping tag node | empty (newest run) | The tag node whose children are the groups in `tags` mode. Set from the panel |
@@ -478,6 +488,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 
 10. **Cancel.** Start **Identify selection** on a large selection and click it again. *Expect:* "Assisted Tagging: cancelled, no tags were changed."
 11. **No selection.** Clear the selection and click **Identify selection**. *Expect:* "Assisted Tagging: select some images first".
+12. **Diagnostic switches.** Identify a batch with every switch on. In **preferences → lua options**, turn off *Assisted Tagging: tag Shot* and *tag By livery*, then identify the same batch again. *Expect:* the same entry tags as before; no image in the batch has `…|Identification|Shot|…` or `…|By livery`; the other diagnostics are still there. No `LUA ERROR`.
 
 ### Report what breaks
 

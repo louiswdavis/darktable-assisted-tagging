@@ -137,6 +137,23 @@ check("a flagged read gets By number and Check order",
     keys(d), "Assisted Tagging|Identification|By number + Assisted Tagging|Identification|Check order")
 w, d = T.wanted_tags({ flagged }, entries, T.parse_rules_csv("diag_check_order,"))
 check("a dropped Check order diagnostic writes none", keys(d), "Assisted Tagging|Identification|By number")
+-- mask_diag: the tag_<outcome> preferences
+local masked = T.mask_diag(T.default_rules(), { check_order = true })
+w, d = T.wanted_tags({ flagged }, entries, masked)
+check("mask_diag: an off outcome writes no diagnostic", keys(d), "Assisted Tagging|Identification|By number")
+check("mask_diag: entry tags are unchanged", keys(w), "F1|Red Bull + F1|Red Bull|Verstappen")
+masked = T.mask_diag(rules, { team = true })
+w, d = T.wanted_tags({ row("team", "VER", "TSU") }, entries, masked)
+check("mask_diag: switches off a renamed diagnostic too", keys(d), "")
+check("mask_diag: keeps the other rules", masked.team_only, "none")
+check("mask_diag: leaves the rules it was given alone", rules.diag.team, "X|Team")
+masked = T.mask_diag(T.default_rules(), { shot = true })
+check("mask_diag: shot covers all three Shot tags",
+    masked.diag.shot_solo .. masked.diag.shot_pack .. masked.diag.shot_crowded, "")
+local seen = row("none")
+seen.unmatched_number = "115"
+w, d = T.wanted_tags({ seen }, entries, T.mask_diag(T.default_rules(), { number_seen = true }))
+check("mask_diag: number_seen off drops the Number seen tags", keys(d), "Assisted Tagging|Identification|Unidentified")
 check("neighbour tolerance parses a whole number", T.parse_neighbour_tolerance(" 8 "), 8)
 check("neighbour tolerance falls back to 5", T.parse_neighbour_tolerance("abc"), 5)
 check("neighbour tolerance defaults when unset", T.parse_neighbour_tolerance(nil), 5)
