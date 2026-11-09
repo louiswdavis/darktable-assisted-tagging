@@ -4,7 +4,7 @@ A tagging assistant for [darktable](https://www.darktable.org/) that recognises 
 
 - **read its race number** and look it up in your entry list
 - if the number isn't readable, **match its livery** against reference samples you picked
-- if that's still unclear, **borrow the answer from the rest of the burst**
+- if that's still unclear, **borrow the answer from the rest of its group** (a darktable group or an Assisted Grouping tag group, see [Grouping support](#grouping-support))
 - tag the image with that entry's tags, e.g. `Motorsport|F1|Red Bull|Max Verstappen`
 
 Teammates in identical liveries that it can't tell apart get only their shared team tag, never a guessed driver. Everything runs locally: a Lua plugin inside darktable and a Python identifier it shells out to. No API keys, no cloud. It only adds and removes tags from your entry list and its own `Assisted Tagging|…` tags; your other tags, ratings and colour labels are never touched.
@@ -292,12 +292,25 @@ All under **preferences → lua options**.
 | Assisted Tagging: collections folder | empty (`assisted_tagging/collections` in the config directory) | Where collections live |
 | Assisted Tagging: livery embedder model | empty (`dinov2_small.onnx`) | File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`. Changing it re-embeds every reference on the next run |
 | Assisted Tagging: diagnostic tags | on | The `By number` / `By livery` / … tags above; off removes them on the next run |
-| Assisted Tagging: burst gap (seconds) | 2 | Photos closer together than this are one burst |
+| Assisted Tagging: grouping support | native | `native`, `tags` or `none`. Set from the panel's **Grouping support** control, see [Grouping support](#grouping-support) |
+| Assisted Tagging: grouping tag node | empty (newest run) | The tag node whose children are the groups in `tags` mode. Set from the panel |
+
+### Grouping support
+
+Tagging no longer clusters photos by capture time. Consensus (the "borrow the answer from the rest of the group" step) runs over groups that something else already made, and the panel's **Grouping support** combobox picks which:
+
+- **Native groups** (default): darktable's own image groups. A photo's group is its group leader.
+- **Grouping tags**: the children of an [Assisted Grouping](../darktable-assisted-grouping/README.md) tag node, e.g. `Assisted Grouping|2026-01-01 12:00:00|Group|NNNN`. The **Grouping tag node (blank = newest run)** entry names the node. Blank uses the newest Assisted Grouping run found on the selected photos. Assisted Grouping must have **Write group tags** on, or there is nothing to find.
+- **None**: every photo is its own group, so nothing is borrowed.
+
+A photo with no group (no native group, or no child tag under the node) is its own group. Groups are not size-checked: a coarse group (a long hand-made stack, or Assisted Grouping's Camera or Parent layers) is treated as one car pass, so the missed-detection rescue may carry an identification across the whole group. The log records the mechanism, how many photos landed in groups of 2 or more, and (in Grouping tags mode only) the node used.
+
+A coarse group is your grouping settings at work: if Assisted Grouping's time gap is set high, or its Camera or Parent layers join unrelated shots, consensus can fill an entry across different cars. Tighten the grouping, switch to **None**, or fix the group, rather than expecting tagging to split it.
 
 ## How it decides
 
 ```
-assisted_tagging.lua groups the selection into bursts by capture time, writes manifest.csv, runs identify.py
+assisted_tagging.lua groups the selection by Grouping support (native, tags or none), writes manifest.csv, runs identify.py
         |
         v
 identify.py, per frame:  decode at full resolution → YOLOX vehicle boxes (up to 4)
@@ -310,7 +323,7 @@ per box:   sponsor words on the car (or a team tag you applied) narrow the candi
            else                                         → none
         |
         v
-per burst: frames with nothing identified take the burst's entry
+per group: frames with nothing identified take the group's entry
            when 2+ frames agree on it and none disagree → burst
            (experimental: pool livery similarity across the burst → pooled)
         |
@@ -410,7 +423,7 @@ python python/identify.py manifest.csv results.csv --collections-root collection
 
 ### Debug report
 
-Every run also writes `last-run/<collection>.report.md` and `.report.json` in the plugin's config directory (the path is logged as `report: …` in `assisted_tagging.log`). Each vehicle gets one category: `identified`, `team-obvious` (team clear, driver not separated), `weak-match`, `no-references`, `number-unmatched`, `conflict` (disagrees with a tag you applied), `overlapped` (a car mostly covered by another in a pack: not matched, its visible part was too small), `already-tagged`, `no-vehicle`. The `.md` gives per-category counts and shares, the identified rate, median top-1 similarity and margin for `team-obvious` and `weak-match`, then the worst boxes per category with their candidates, the failing rule and a suggested lever. It has no images, so it pastes into chat as is. `--report-top N` (default 20) caps the boxes listed per category; the `.json` always has every row, each with its `category`. To rebuild a report from a saved `boxes.json` without re-identifying: `python report.py BOXES_JSON OUT_PREFIX --report-top N`. Photos that failed analysis are counted on a separate line, not in a category. Each `no-vehicle` image is listed with its burst and the detector's note (the strongest class and score it saw), which says whether a miss was a low score or a small box. Each box shows its detector score. Three more sections follow the summary (they appear when `--report-top` is above 0, and the `.json` carries them as `detector_bands`, `sponsor_suggestions` and `bursts`): `## detector score` (boxes and identified count per score band, to judge the `DETECTOR_MIN_SCORE` cutoff), `## sponsor keyword suggestions` (words OCR read on identified boxes of one tag prefix that aren't in `rules.sponsor_keywords` yet, with how many unidentified boxes each would hint), and `## bursts` (capture-time gaps within and between bursts, to judge burst splitting). `--archive-dir DIR` also copies `boxes.json` and the report into `DIR/<YYYYMMDD-HHMMSS>/` and keeps the newest 20 runs; the plugin passes `runs/` in its config directory, so earlier runs survive for comparison while `last-run/` stays the latest.
+Every run also writes `last-run/<collection>.report.md` and `.report.json` in the plugin's config directory (the path is logged as `report: …` in `assisted_tagging.log`). Each vehicle gets one category: `identified`, `team-obvious` (team clear, driver not separated), `weak-match`, `no-references`, `number-unmatched`, `conflict` (disagrees with a tag you applied), `overlapped` (a car mostly covered by another in a pack: not matched, its visible part was too small), `already-tagged`, `no-vehicle`. The `.md` gives per-category counts and shares, the identified rate, median top-1 similarity and margin for `team-obvious` and `weak-match`, then the worst boxes per category with their candidates, the failing rule and a suggested lever. It has no images, so it pastes into chat as is. `--report-top N` (default 20) caps the boxes listed per category; the `.json` always has every row, each with its `category`. To rebuild a report from a saved `boxes.json` without re-identifying: `python report.py BOXES_JSON OUT_PREFIX --report-top N`. Photos that failed analysis are counted on a separate line, not in a category. Each `no-vehicle` image is listed with its burst and the detector's note (the strongest class and score it saw), which says whether a miss was a low score or a small box. Each box shows its detector score. Three more sections follow the summary (they appear when `--report-top` is above 0, and the `.json` carries them as `detector_bands`, `sponsor_suggestions` and `bursts`): `## detector score` (boxes and identified count per score band, to judge the `DETECTOR_MIN_SCORE` cutoff), `## sponsor keyword suggestions` (words OCR read on identified boxes of one tag prefix that aren't in `rules.sponsor_keywords` yet, with how many unidentified boxes each would hint), and `## bursts` (capture-time gaps within and between the groups the plugin read, per group id). `--archive-dir DIR` also copies `boxes.json` and the report into `DIR/<YYYYMMDD-HHMMSS>/` and keeps the newest 20 runs; the plugin passes `runs/` in its config directory, so earlier runs survive for comparison while `last-run/` stays the latest.
 
 ### Notes from the darktable source
 
@@ -418,6 +431,7 @@ Every run also writes `last-run/<collection>.report.md` and `.report.json` in th
 - **Registering a lib straight from `luarc` is a startup race.** darktable can report lighttable as the current view before the view has finished initialising, and a lib registered in that window is silently never attached (`src/views/view.c` documents it; the lua-scripts hit it as #19197). The plugin installs its panel from the `view-changed` event into lighttable instead, which fires only once the view is fully up.
 - **`darktable-cli` never runs your `luarc`.** Since 5.6 the user `luarc` is loaded by `script_manager` (GUI only); before that the C code only loaded it when a GUI existed. `--luacmd` still runs, and it's the way to test headlessly. Anything GTK-wrapped (`register_lib`, `preferences.register`) blocks forever headless, so the plugin gates those on `dt.gui`.
 - **Windows shell-outs go through a `.bat` file**, following `lib/dtutils/system.lua` in darktable's lua-scripts: cmd.exe mangles a command line with more than one quoted item. In that file, write the exit code with the redirect first (`> "f" echo %ERRORLEVEL%`): `echo 0> "f"` reads as "redirect handle 0" and leaves `f` empty.
+- **Native groups are read from `img.group_leader`.** Photos sharing a leader are one group, and a photo with no leader, or that is the only photo sharing its leader, is its own group. A RAW+JPEG import pair is a native group (darktable groups them on import), so it counts as one group under **Native groups**. Assisted Grouping writes native groups only when its **Apply darktable groups** is on; with it off, **Native groups** sees just the import pairs and any groups you made by hand.
 - **Combobox `changed_callback` runs asynchronously, and every `selected` assignment fires it** (`src/lua/widget/combobox.c`, `src/bauhaus/bauhaus.c`), even when refilling the list. So the collection list acts only when its value differs from the stored collection.
 
 ## License
