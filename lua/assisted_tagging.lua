@@ -244,6 +244,29 @@ function M.owned_tags(entries, rules)
     return owned
 end
 
+-- The first segment of every entry and unidentified tag ("F1|Ferrari" → "F1").
+function M.owned_roots(entries, rules)
+    rules = rules or M.default_rules()
+    local roots = {}
+    local function add(t) roots[t:match("^[^|]*")] = true end
+    for _, e in pairs(entries) do
+        for _, t in ipairs(e.tags) do add(t) end
+    end
+    for _, t in ipairs(rules.unidentified) do add(t) end
+    return roots
+end
+
+-- The tags in `mine` (one image's ledger) under one of `roots`: tags the plugin attached
+-- for this collection, including those of entries since renamed or removed, which
+-- owned_tags no longer lists. Another collection's roots stay out, so its tags survive.
+function M.ledgered_owned(mine, roots)
+    local out = {}
+    for name in pairs(mine or {}) do
+        if roots[name:match("^[^|]*")] then out[name] = true end
+    end
+    return out
+end
+
 -- rules with the diagnostics in `off` (outcome key → true) blanked, for wanted_tags.
 -- owned_tags keeps the full rules, so the next run detaches what is off.
 -- "shot" covers shot_solo, shot_pack and shot_crowded.
@@ -261,14 +284,15 @@ end
 -- detach, sorted. Only owned tags, or tags starting with an owned prefix (the dynamic
 -- "...Number seen|<digits>" diagnostic, one tag per distinct digit string), are detached.
 -- `protected` (name → true): tags the user applied by hand; never detached.
-function M.tag_changes(have, wanted, owned, owned_prefixes, protected)
+-- `also_owned` (name → true): this image's extra owned tags, from M.ledgered_owned.
+function M.tag_changes(have, wanted, owned, owned_prefixes, protected, also_owned)
     protected = protected or {}
     local attach, detach = {}, {}
     for name in pairs(wanted) do
         if not have[name] then attach[#attach + 1] = name end
     end
     local function is_owned(name)
-        if owned[name] then return true end
+        if owned[name] or (also_owned and also_owned[name]) then return true end
         for _, p in ipairs(owned_prefixes or {}) do
             if name:sub(1, #p) == p then return true end
         end
@@ -832,14 +856,14 @@ local function shell_quote(s)
 end
 
 -- The exit code goes to a temp file renamed onto done_path, so done_path
--- never exists without its code in it. Returns false when it couldn't launch.
+-- never exists without its code in it. Returns false, "tmp" or "wscript" when it couldn't launch.
 local function run_async_command(cmd, done_path)
     local done_tmp = done_path .. ".tmp"
     if IS_WINDOWS then
         local bat = TMP_DIR .. "/dt_assisted_tagging_run.bat"
         local vbs = TMP_DIR .. "/dt_assisted_tagging_run.vbs"
         local f = io.open(bat, "w")
-        if not f then return false end
+        if not f then return false, "tmp" end
         local win_done, win_tmp = done_path:gsub("/", "\\"), done_tmp:gsub("/", "\\")
         f:write("@echo off\r\nchcp 65001>nul\r\n")
         f:write(cmd, " < NUL\r\n")
@@ -848,11 +872,13 @@ local function run_async_command(cmd, done_path)
         f:write('move /y "', win_tmp, '" "', win_done, '" >nul\r\n')
         f:close()
         local f_vbs = io.open(vbs, "wb")
-        if not f_vbs then return false end
+        if not f_vbs then return false, "tmp" end
         f_vbs:write("\xFF\xFE", M.utf16le('Set WshShell = CreateObject("WScript.Shell")\r\n'
             .. 'WScript.Quit WshShell.Run(Chr(34) & "' .. bat:gsub("/", "\\") .. '" & Chr(34), 0, False)\r\n'))
         f_vbs:close()
-        os.execute('wscript.exe "' .. vbs:gsub("/", "\\") .. '"')
+        -- WshShell.Run(..., False) returns 0 once the .bat is started, so anything else means
+        -- wscript is missing or blocked (Windows Script Host turned off by policy)
+        if os.execute('wscript.exe "' .. vbs:gsub("/", "\\") .. '"') ~= true then return false, "wscript" end
     else
         os.execute('( ' .. cmd .. ' ; echo $? > ' .. shell_quote(done_tmp)
             .. ' ; mv -f ' .. shell_quote(done_tmp) .. ' ' .. shell_quote(done_path) .. ' ) >/dev/null 2>&1 &')
@@ -913,6 +939,7 @@ end
 -- `orphan` is a cancelled or stalled process that hadn't exited when its run gave up
 -- waiting; nothing starts until its done file appears.
 local busy, orphan = false, false
+local orphan_since = 0 -- os.time() the current orphan was left running
 -- Jobs clicked while another runs: { label = "...", run = function() ... end }, started in order as each finishes.
 local queue = {}
 -- A run that shows no progress for this long is given up on (it may still be loading
@@ -954,7 +981,7 @@ local function abandon_process()
         if file_exists(DONE_PATH) then return end
         dt.control.sleep(100)
     end
-    orphan = true
+    orphan, orphan_since = true, os.time()
     log("identify.py hasn't exited yet; the next run waits for it")
 end
 
@@ -972,8 +999,13 @@ local function run_python(args, job, from, to, hint)
         .. " 2>> " .. shell_quote(LOG_PATH)
     log("running: " .. cmd)
     flush_log()
-    if not run_async_command(cmd, DONE_PATH) then
-        notify_error(string.format("Assisted Tagging: couldn't start identify.py: no write access to darktable's tmp folder (%s).", TMP_DIR))
+    local launched, why = run_async_command(cmd, DONE_PATH)
+    if not launched then
+        if why == "wscript" then
+            notify_error(_("Assisted Tagging: couldn't start identify.py: wscript.exe didn't run. Windows Script Host may be turned off on this PC (check with your IT admin)."))
+        else
+            notify_error(string.format("Assisted Tagging: couldn't start identify.py: no write access to darktable's tmp folder (%s).", TMP_DIR))
+        end
         return nil, "launch"
     end
     local start, last_progress, last_change = os.time(), nil, os.time()
@@ -984,7 +1016,7 @@ local function run_python(args, job, from, to, hint)
             return nil, "cancelled"
         end
         if file_exists(DONE_PATH) then
-            local code = tonumber((read_file(DONE_PATH) or ""):match("%d+"))
+            local code = tonumber((read_file(DONE_PATH) or ""):match("-?%d+"))
             log("identify.py exit " .. tostring(code))
             return code
         end
@@ -1018,6 +1050,8 @@ local function failure_message(code)
         if found then return found end
     elseif code == 3 then
         return _("Assisted Tagging: Python is missing a package. Install python/requirements.txt into the interpreter set in preferences → Lua options, or see assisted_tagging.log.")
+    elseif code == 9009 or code == 127 then -- cmd.exe / sh: command not found
+        return _("Assisted Tagging: Python wasn't found. Set \"Assisted Tagging: Python interpreter\" in preferences → Lua options.")
     end
     return string.format("Assisted Tagging: identify.py stopped with exit code %s. Details are in assisted_tagging.log in darktable's config folder.",
         tostring(code or "?"))
@@ -1237,7 +1271,13 @@ local function can_start(images, needs_no_images)
         return false
     end
     if not orphan_gone() then
-        dt.print(_("Assisted Tagging: the last run is still stopping. Try again in a moment."))
+        if os.time() - orphan_since < 60 then
+            dt.print(_("Assisted Tagging: the last run is still stopping. Try again in a moment."))
+        else -- the wrapper writes the done file once python exits, so ending it unblocks this
+            dt.print(IS_WINDOWS
+                and _("Assisted Tagging: the last run's python.exe hasn't stopped. End it in Task Manager (Details tab), then try again.")
+                or _("Assisted Tagging: the last run's identify.py hasn't stopped. Run: pkill -f identify.py, then try again."))
+        end
         return false
     end
     if not needs_no_images and (not images or #images == 0) then
@@ -1419,6 +1459,7 @@ local function apply_results(run, job)
     end
 
     local owned = M.owned_tags(entries, rules)
+    local owned_roots = M.owned_roots(entries, rules)
     local owned_prefixes = (rules.diag.number_seen and rules.diag.number_seen ~= "")
         and { rules.diag.number_seen .. "|" } or {}
     -- owned (above) uses the full rules, so switched-off diagnostics are still detached
@@ -1457,7 +1498,7 @@ local function apply_results(run, job)
             if run_tag then wanted[run_tag] = true end
             for _, copy in ipairs(group_of[img.id]) do
                 local attach, detach = M.tag_changes(tags_of(copy), wanted, owned, owned_prefixes,
-                    protected_of[copy.id])
+                    protected_of[copy.id], M.ledgered_owned(ledger[copy.id], owned_roots))
                 -- what the plugin owns on this copy: its earlier tags minus the detached, plus the
                 -- attached; recorded per tag so a failure partway still keeps the ledger true
                 local mine = ledger[copy.id] or {}
@@ -1483,7 +1524,7 @@ local function apply_results(run, job)
                 end
             end
         end
-        if not job.valid then
+        if cancelled(job) then
             say(string.format("Assisted Tagging: stopped while writing tags; %d of %d images were updated. Run again to finish.",
                 i, #primaries))
             return

@@ -684,7 +684,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
     return out
 
 
-def rescue_frames(rows: list, analyses: dict, models: dict) -> dict:
+def rescue_frames(rows: list, analyses: dict, models: dict, progress: str = "") -> dict:
     """analyses with the frames the detector missed filled in from burst-mates: for a no-vehicle
     frame in a burst that has vehicle frames, a weak candidate that tracks a mate's box becomes its
     box when its crop looks like the mate's (rescue.py). Not cached: it depends on the burst."""
@@ -704,9 +704,15 @@ def rescue_frames(rows: list, analyses: dict, models: dict) -> dict:
         return analyses
     log(f"rescue: {len(jobs)} frames with no vehicle have a candidate where a burst-mate's car is")
     out = dict(analyses)
+    write_progress(progress, 0, len(jobs))
     with concurrent.futures.ProcessPoolExecutor(max_workers=min(worker_count(os.cpu_count() or 2), len(jobs)),
                                                 initializer=_init_worker, initargs=(models,)) as executor:
-        for job, result in zip(jobs, executor.map(rescue_frame, jobs)):
+        for n, (job, result) in enumerate(zip(jobs, executor.map(rescue_frame, jobs)), 1):
+            if cancel_requested(progress):
+                log("cancelled")
+                executor.shutdown(wait=False, cancel_futures=True)
+                sys.exit(130)
+            write_progress(progress, n, len(jobs))
             if result is None:
                 log(f"{job[0]}: rescue candidate doesn't look like {os.path.basename(job[2])}'s car, left as no vehicle")
                 continue
@@ -942,13 +948,19 @@ def write_run_outputs(args, data: dict):
         archive_run(written, args.archive_dir, ARCHIVE_KEEP)
 
 
-def open_index(collection: str, models: dict, rules: Rules, embedder) -> ReferenceIndex:
-    """The collection's reference index, keyed on whichever models embed its references."""
+def open_index(collection: str, models: dict, rules: Rules, embedder, progress: str = "") -> ReferenceIndex:
+    """The collection's reference index, keyed on whichever models embed its references.
+    Re-embedding (new embedder or blur setting) ticks `progress`, so the plugin's stall timer
+    doesn't fire, and a cancel stops it; the caller checks cancel_requested afterwards."""
+    def on_progress(done, total):
+        write_progress(progress, done, total)
+        return not cancel_requested(progress)
+
     if rules.kind == "people":
         return ReferenceIndex.load(collection, embedder, face_model_key(models["face_det"], models["face_rec"]),
-                                   dim=FACE_EMBED_DIM)
+                                   dim=FACE_EMBED_DIM, on_progress=on_progress)
     return ReferenceIndex.load(collection, embedder, [embedder_key(models["embedder"]), rules.blur_references],
-                               rules.blur_references, colour=rules.colour_weight > 0)
+                               rules.blur_references, colour=rules.colour_weight > 0, on_progress=on_progress)
 
 
 def identify_people(args, models: dict, entries: dict, rules: Rules, collection: str, face_model: FaceModel):
@@ -956,7 +968,10 @@ def identify_people(args, models: dict, entries: dict, rules: Rules, collection:
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     verify = getattr(args, "verify", False)
     fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
-    index = open_index(collection, models, rules, face_model)
+    index = open_index(collection, models, rules, face_model, args.progress)
+    if cancel_requested(args.progress):
+        log("cancelled")
+        sys.exit(130)
     counts = index.count_by_entry()
     if not counts:
         log(f"collection {args.collection} has no face references yet: nothing can be identified")
@@ -1019,7 +1034,10 @@ def identify(args, models: dict):
     # --verify checks the tags, so they must not steer the match.
     tag_hints_of = {r[0]: [] if verify else [t for t in r[4].split(";") if t] for r in rows}
     fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
-    index = open_index(collection, models, rules, embedder)
+    index = open_index(collection, models, rules, embedder, args.progress)
+    if cancel_requested(args.progress):
+        log("cancelled")
+        sys.exit(130)
     counts = index.count_by_entry()
     if not counts:
         log(f"collection {args.collection} has no references yet: only numbers can identify a car")
@@ -1040,7 +1058,7 @@ def identify(args, models: dict):
         sys.exit(130)
     # --verify compares each frame's own reading with its tags: no inference from burst mates
     if not verify:
-        analyses = rescue_frames(rows, analyses, models)
+        analyses = rescue_frames(rows, analyses, models, args.progress)
 
     def match_all(analyses: dict, quiet: bool = False) -> tuple:
         frames, burst_of, box0_sims, detail = {}, {}, {}, {}
@@ -1139,7 +1157,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     embedder = check_models(models)
-    index = open_index(collection, models, rules, embedder)
+    index = open_index(collection, models, rules, embedder, args.progress)
     rows = read_manifest(args.manifest, 3)
     done = []  # (image id, status, refs the row saved)
     cancelled = False
@@ -1257,7 +1275,10 @@ def audit_references(args, models: dict):
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["segmenter"] = ""
-    index = open_index(collection, models, rules, check_models(models))
+    index = open_index(collection, models, rules, check_models(models), args.progress)
+    if cancel_requested(args.progress):
+        log("cancelled; no audit written")
+        sys.exit(130)
     if len(set(index.entry)) < 2:
         raise InputError(f"{args.collection} needs references for at least 2 entries to audit; add some first")
     def on_progress(done, total):

@@ -34,7 +34,9 @@ class ReferenceIndex:
 
     @classmethod
     def load(cls, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM,
-             colour: bool = False) -> "ReferenceIndex":
+             colour: bool = False, on_progress=None) -> "ReferenceIndex":
+        """on_progress(done, total) is called per reference embedded; returning False stops
+        embedding. The refs embedded so far are saved either way, so the next load carries on."""
         idx = cls(collection_dir, embedder, key, blur, dim, colour)
         stored = idx._read()
         on_disk = idx._scan()
@@ -55,15 +57,20 @@ class ReferenceIndex:
             else:
                 changed = True
         known = set(idx.path)
-        for rel in sorted(on_disk):
-            if rel not in known:
-                try:
-                    vec, h = idx._embed_file(rel)
-                except Exception as e:  # one unreadable crop mustn't stop every run
-                    log(f"reference {rel} can't be read, skipped ({type(e).__name__}); delete or replace it")
-                    continue
+        todo = [rel for rel in sorted(on_disk) if rel not in known]
+        if len(todo) > 1:
+            log(f"references: embedding {len(todo)} (new, or the embedder or blur setting changed)")
+        for n, rel in enumerate(todo, 1):
+            try:
+                vec, h = idx._embed_file(rel)
+            except Exception as e:  # one unreadable crop mustn't stop every run
+                log(f"reference {rel} can't be read, skipped ({type(e).__name__}); delete or replace it")
+            else:
                 idx._append(rel.split("/")[1], rel, vec, h)
                 changed = True
+            if on_progress is not None and on_progress(n, len(todo)) is False:
+                log(f"references: stopped after {n} of {len(todo)}; the rest are embedded next time")
+                break
         if changed:
             idx.save()
         return idx

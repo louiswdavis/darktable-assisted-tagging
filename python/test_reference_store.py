@@ -104,6 +104,17 @@ def run_tests():
     rebuilt = ReferenceIndex.load(d, emb4, ["model", 2])
     check("a new embedder key re-embeds every crop", (rebuilt.count_by_entry(), emb4.calls), ({"Pérez": 1, "HAM": 1}, 2))
 
+    # audit M2: re-embedding ticks progress, and a stop keeps what was embedded
+    ticks = []
+    ReferenceIndex.load(d, FakeEmbedder(), ["model", 3], on_progress=lambda n, t: ticks.append((n, t)))
+    check("re-embedding reports each reference", ticks, [(1, 2), (2, 2)])
+    emb6 = FakeEmbedder()
+    stopped = ReferenceIndex.load(d, emb6, ["model", 4], on_progress=lambda n, t: False)
+    check("a stop after the first reference keeps it", (len(stopped.path), emb6.calls), (1, 1))
+    emb7 = FakeEmbedder()
+    resumed = ReferenceIndex.load(d, emb7, ["model", 4])
+    check("the next load embeds only the rest", (resumed.count_by_entry(), emb7.calls), ({"Pérez": 1, "HAM": 1}, 1))
+
     with open(os.path.join(d, "index.npz"), "wb") as f:
         f.write(b"not a zip")
     emb5 = FakeEmbedder()

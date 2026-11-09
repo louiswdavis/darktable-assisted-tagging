@@ -235,6 +235,22 @@ attach, detach = T.tag_changes({ ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappe
     T.wanted_tags({ row("none") }, entries), owned, nil, { ["F1|Red Bull"] = true })
 check("a protected tag is never detached", table.concat(detach, ","), "F1|Red Bull|Verstappen")
 
+-- ledgered tags of renamed / removed entries (audit M1)
+local roots = T.owned_roots(entries, rules)
+check("owned_roots: entry roots", roots["F1"], true)
+check("owned_roots: diagnostics root is not one", roots["Assisted Tagging"], nil)
+local mine = { ["F1|Red Bull|Old name"] = true, ["MotoGP|Ducati"] = true,
+               ["Assisted Tagging|Run|2026-11-09 10:00"] = true }
+local extra = T.ledgered_owned(mine, roots)
+check("ledgered_owned: a stale tag under the collection's root", extra["F1|Red Bull|Old name"], true)
+check("ledgered_owned: another collection's tag stays out", extra["MotoGP|Ducati"], nil)
+check("ledgered_owned: the run stamp stays out", extra["Assisted Tagging|Run|2026-11-09 10:00"], nil)
+check("ledgered_owned: no ledger is nothing", next(T.ledgered_owned(nil, roots)), nil)
+attach, detach = T.tag_changes(
+    { ["F1|Red Bull|Old name"] = true, ["MotoGP|Ducati"] = true, ["F1|Red Bull|Hand"] = true },
+    T.wanted_tags({ row("number", "VER") }, entries), owned, nil, nil, extra)
+check("a renamed entry's ledgered tag is detached; others stay", table.concat(detach, ","), "F1|Red Bull|Old name")
+
 w, d, ok = T.wanted_tags({ { box = 0, method = "conflict", entry_id = "VER", alt_entry_id = "", shot = "solo" } },
     entries, rules)
 check("a conflict-only image gets no unidentified tags", keys(w), "")

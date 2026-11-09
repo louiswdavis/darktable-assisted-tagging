@@ -75,7 +75,7 @@ curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2
 Optional models. The plugin works without them:
 
 - **Segmentation**, for pack shots with overlapping cars. With it in `models`, a box that overlaps another is read through a car-shaped mask, with the background and the neighbouring car painted grey.
-- **Larger livery embedder.** Not used unless you set **Assisted Tagging: livery embedder model** (preferences → lua options) to `dinov2_base.onnx`; the next run then re-embeds every reference. Compare it first with `python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx --fresh-embed` (re-embeds the refs with that model in memory; `index.npz` is untouched).
+- **Larger livery embedder.** Not used unless you set **Assisted Tagging: livery embedder model** (preferences → lua options) to `dinov2_base.onnx`; the next run then re-embeds every reference before analysing (the progress bar counts the references; on a large collection this takes minutes, and a cancel keeps those already done). Compare it first with `python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx --fresh-embed` (re-embeds the refs with that model in memory; `index.npz` is untouched).
 
 ```
 curl -L -o models/image_segmentation_efficientsam_ti_2025april.onnx https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx
@@ -303,6 +303,7 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 - An image already carrying all of one entry's tags is **skipped** without being analysed.
 - To let a run replace your tags, tick **Replace manual tags** under **Identify selection**. It applies to the next run only and clears itself.
 - If you remove a tag the plugin attached and later apply it again by hand, it counts as yours.
+- After you rename or remove an entry, the next run over those images takes off the old tags the plugin attached. This covers tags under the collection's own top-level tags (e.g. `Motorsport|…`), so tags another collection attached stay.
 - Images tagged by an older version have no ledger, so all their entry tags count as yours.
 
 ## Panel options
