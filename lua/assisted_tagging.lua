@@ -2958,7 +2958,7 @@ local function install_panel()
     }
     local tolerance_entry = dt.new_widget("entry") {
         placeholder = _("neighbour tolerance"),
-        tooltip = _("How many places apart in the sorted number list a neighbouring car can be and still support a doubtful read. A whole number, 0 or more. Only used when the collection's order_weight is above 0.\nDefault: 5. Lower it when cars pass in strict number order; raise it when the order is loose."),
+        tooltip = _("The most places apart in the sorted number list a neighbouring car can be and still support a doubtful read. The collection's order_weight sets how much of it is used: a neighbour up to order_weight × (tolerance + 1) places away counts. A whole number, 0 or more. Only used when order_weight is above 0.\nDefault: 5. Lower it when cars pass in strict number order; raise it when the order is loose."),
         text = "",
     }
 

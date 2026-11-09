@@ -59,12 +59,20 @@ def run_tests():
     out = N.neighbour_aid(frames, burst, times, E, 5, 1.0)
     got = out["f1"][0]
     check("a doubtful read resolves toward its neighbours", (got.method, got.entry_id), ("neighbour", "35"))
-    check("resolved confidence is support x weight", round(got.confidence, 3), round(1 - 1 / 6, 3))
+    check("resolved confidence is the support", round(got.confidence, 3), round(1 - 1 / 6, 3))
     check("the unmatched digits are kept", got.unmatched_number, "36")
     check("other frames are untouched", out["f0"], frames["f0"])
 
-    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5)
+    # 35 sits one place from both neighbours: support 1 - 1/6, needs weight 1/6 or more
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.1)
     check("low weight keeps support below the accept bar", out["f1"][0].method, "none")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 1 / 6)
+    check("weight exactly at the bar resolves", out["f1"][0].method, "neighbour")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.3)
+    check("a weight under 0.5 still resolves", out["f1"][0].method, "neighbour")
+    same, burst, times = shoot(seen("35"), unmatched("36"), seen("38"))
+    check("a tiny weight takes the same car nearby",
+          N.neighbour_aid(same, burst, times, E, 5, 0.01)["f1"][0].entry_id, "35")
 
     far, burst, times = shoot(seen("10"), unmatched("36"), seen("10"))
     far_E = entries("10", "20", "30", "35", "40", "50", "60", "70", "80", "90")

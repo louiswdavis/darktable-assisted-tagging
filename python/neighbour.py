@@ -11,7 +11,6 @@ from match import IDENTIFIED, BoxResult, Entry, _one_confusion_apart
 NEIGHBOUR_WINDOW = 3  # groups either side of a group that can lend support
 NEIGHBOUR_MAX_GAP_S = 120  # a neighbour shot further away than this (a stage break) is ignored
 DOUBT_CONF = 0.90  # a number read below this is doubtful; reads under ocr.OCR_MIN_SCORE (0.80) never get here
-ACCEPT_SCORE = 0.5  # support x order_weight a candidate needs to be taken
 FLAG_MIN_WEIGHT = 0.5  # order_weight at which a doubtful read with no support is flagged
 
 
@@ -57,8 +56,9 @@ def _group_times(frames: dict, burst_of: dict, times: dict) -> dict:
 def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
                   tolerance: int, weight: float) -> dict:
     """frames: image id to [BoxResult]; times: image id to capture seconds (0 or missing = untimed).
-    A `none` box with digits read takes the one candidate whose support from nearby groups, times
-    `weight`, reaches ACCEPT_SCORE (method `neighbour`). A doubtful `number` read that no nearby group
+    A `none` box with digits read takes the one candidate whose support from nearby groups reaches
+    1 - `weight` (method `neighbour`, confidence = support): a neighbour up to weight x (tolerance + 1)
+    places away counts, so 1 uses the whole tolerance and a weight near 0 needs that same car nearby. A doubtful `number` read that no nearby group
     supports is flagged (`order_flag`), result unchanged. Clear reads are never touched.
     Returns `frames` itself when weight is 0 or there is nothing to measure against."""
     positions = entry_positions(entries)
@@ -106,8 +106,10 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
             for r in frames[fid]:
                 if r.method == "none" and r.unmatched_number:
                     cands = {c for d in r.unmatched_number.split(";") for c in candidates_for(d, entries)}
-                    scored = sorted(((support(c, around) * weight, c) for c in cands), reverse=True)
-                    if scored and scored[0][0] >= ACCEPT_SCORE and (len(scored) == 1 or scored[0][0] > scored[1][0]):
+                    scored = sorted(((support(c, around), c) for c in cands), reverse=True)
+                    # the small slack keeps an exact boundary (e.g. 1 - 1/6 at weight 1/6) from failing on float error
+                    if (scored and scored[0][0] > 0 and scored[0][0] >= 1 - weight - 1e-9
+                            and (len(scored) == 1 or scored[0][0] > scored[1][0])):
                         r = replace(r, method="neighbour", entry_id=scored[0][1], confidence=scored[0][0])
                 elif (r.method == "number" and r.confidence < DOUBT_CONF and weight >= FLAG_MIN_WEIGHT
                       and support(r.entry_id, around) == 0):

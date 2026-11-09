@@ -234,7 +234,7 @@ Every key is optional; leave one out for its default.
 
 | `sponsor_keywords` | `{}` | maps a lowercase sponsor word to the tag prefix of its team, e.g. `{"petronas": "Motorsport\|F1\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
 | `tag_prefix` | `""` | a tag path for the whole collection, e.g. `Motorsport\|F1`. Each entry's tags are then built: `prefix\|team`, then `prefix\|team\|name` (`prefix\|name` with no team), then its own `tags` as extras. A driver match writes all of them; a team-only result writes the shared `prefix\|team`. Empty keeps `tags` as the full list. |
-| `order_weight` | `0` | how far the cars pass in number order, from `0` (random: the neighbour aid is off) to `1` (strictly in order). Above 0, groups shot just before and after a doubtful read help identify it; see [How it decides](#how-it-works). Gaps and out-of-order passes are fine, and the list loops (after the highest number comes the lowest). Outside 0–1 stops the run |
+| `order_weight` | `0` | how far the cars pass in number order, from `0` (random: the neighbour aid is off) to `1` (strictly in order). Above 0, groups shot just before and after a doubtful read help identify it: a neighbour up to `order_weight × (neighbour tolerance + 1)` places away in the number list counts, and from `0.5` up an unsupported doubtful read is flagged *Check order*; see [How it decides](#how-it-works). Gaps and out-of-order passes are fine, and the list loops (after the highest number comes the lowest). Outside 0–1 stops the run |
 | `min_read` | `0.85` | how sure a number read must be to count, from `0` to `1`. A read's confidence is the lower of two scores: how sure the text detector is that it found text, and how sure the reader is of its least certain digit. Raise it if plates or signs get read as numbers; lower it if clear numbers are missed. Weaker reads still show in the OCR trace. Outside 0–1 stops the run |
 | `partial_references` | `false` | **Add tagged images as references** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only). |
 
@@ -351,7 +351,7 @@ At the top: the **preset** picker and **☰** (see [Presets](#presets)), and **R
 ### options
 
 - **embedder model file (blank = bundled)** (text field). File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference on the next run.
-- **neighbour tolerance** (text field, default 5). How many places apart in the sorted number list a neighbouring car can be and still support a read; a whole number, 0 or more (anything else refuses the run). Only used when the collection's `order_weight` is above 0.
+- **neighbour tolerance** (text field, default 5). The most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places). A whole number, 0 or more (anything else refuses the run). Only used when the collection's `order_weight` is above 0.
 
 ### tags written
 
