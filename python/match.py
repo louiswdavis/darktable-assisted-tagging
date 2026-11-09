@@ -7,6 +7,9 @@ MATCH_MIN_SIM = 0.60
 MATCH_MIN_MARGIN = 0.10  # on centred similarities (reference_store.best_per_entry); eval_matching.py sweeps it
 BURST_MIN_AGREE = 2
 BURST_MIN_CONFIDENCE = 0.5  # a burst fill below this share of its span is not written
+# a number read at least this sure identifies a burst naming no other entry on its own: it fills the
+# burst with one anchor and whatever share of the burst agrees
+SOLO_ANCHOR_CONF = 0.95
 BURST_MAX_RANK = 2  # the burst's entry must be in the box's own top N by similarity...
 BURST_SIM_SLACK = 0.05  # ...or within this of its top-1
 REFERENCE_MIN_MARGIN = 0.10  # a livery match must lead by this much to be saved as a reference
@@ -316,14 +319,16 @@ def _supported(sims: list, eid: str) -> bool:
     return any(e == eid and (rank < BURST_MAX_RANK or top - s <= BURST_SIM_SLACK) for rank, (e, s) in enumerate(sims))
 
 
-def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, box0_sims: dict = None) -> list:
+def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, box0_sims: dict = None,
+                solo: bool = False) -> list:
     """The frame's rows with box 0 set to the burst's entry, or the rows unchanged when the frame is
     already identified, has no box 0, shows a team-only result for another team (a different car), the
-    confidence is under BURST_MIN_CONFIDENCE, or (with `box0_sims`) box 0's own similarities don't back the entry."""
+    confidence is under BURST_MIN_CONFIDENCE (waived when `solo`: a SOLO_ANCHOR_CONF read anchors the
+    burst), or (with `box0_sims`) box 0's own similarities don't back the entry."""
     rows = frames[fid]
     if any(r.method in IDENTIFIED for r in rows) or not any(r.box == 0 for r in rows):
         return rows
-    if confidence < BURST_MIN_CONFIDENCE:
+    if confidence < BURST_MIN_CONFIDENCE and not solo:
         return rows
     if box0_sims is not None and not (fid in box0_sims and (not box0_sims[fid] or _supported(box0_sims[fid], eid))):
         return rows  # empty sims (a collection without references) leave nothing to contradict the burst
@@ -381,7 +386,8 @@ def _smooth_spikes(ids: list, frames: dict) -> dict:
 def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None, box0_sims: dict = None) -> dict:
     """frames: image id → [BoxResult]. A frame none of whose boxes was identified
     takes its burst's entry on its largest box when at least BURST_MIN_AGREE
-    frames agree on that entry and no frame names another. With `entries`, a
+    frames agree on that entry, or one number read reaches SOLO_ANCHOR_CONF, and no frame names
+    another. With `entries`, a
     frame whose team-only result names another team is left alone: that's
     evidence of a different car. A burst that names several entries is split at the identity
     changes (see _split_burst) using `order` (image id → sort key, shooting order; default the
@@ -407,8 +413,10 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
         if len(agree) != 1:
             continue
         (eid, n), = agree.items()
-        if n < BURST_MIN_AGREE:
+        solo = any(r.method == "number" and r.entry_id == eid and r.confidence >= SOLO_ANCHOR_CONF
+                   for fid in ids for r in frames[fid])
+        if n < BURST_MIN_AGREE and not solo:
             continue
         for fid in ids:
-            out[fid] = _burst_fill(frames, fid, eid, n / len(ids), entries, box0_sims)
+            out[fid] = _burst_fill(frames, fid, eid, n / len(ids), entries, box0_sims, solo)
     return out

@@ -124,6 +124,21 @@ def run_tests():
     one = Mt.burst_consensus({"1": frames["1"], "3": frames["3"]}, {"1": "b", "3": "b"})
     check("a single agreeing frame fills nothing", summary(one["3"][0]), ("none", "", ""))
 
+    sure = {"1": [BoxResult(0, "number", "VER", "", 0.97)], **{k: [BoxResult(0, "none")] for k in "2345"}}
+    out = Mt.burst_consensus(sure, {k: "b" for k in sure})
+    check("one sure number read fills its whole burst", [summary(out[k][0]) for k in "2345"],
+          [("burst", "VER", "")] * 4)
+    check("a solo fill's confidence is still the agreeing share", out["2"][0].confidence, 1 / 5)
+    sure_livery = {"1": [BoxResult(0, "livery", "VER", "", 0.97)], "2": [BoxResult(0, "none")]}
+    check("a sure livery call alone fills nothing",
+          summary(Mt.burst_consensus(sure_livery, {k: "b" for k in sure_livery})["2"][0]), ("none", "", ""))
+    sure_rival = dict(sure, **{"6": [BoxResult(0, "number", "HAM", "", 0.9)]})
+    check("a sure read doesn't fill a burst that names another entry",
+          summary(Mt.burst_consensus(sure_rival, {k: "b" for k in sure_rival})["2"][0]), ("none", "", ""))
+    sure_team = dict(sure, **{"6": [BoxResult(0, "team", "HAM", "LEC", 0.7)]})
+    check("a solo fill leaves another team's car alone",
+          summary(Mt.burst_consensus(sure_team, {k: "b" for k in sure_team}, ENTRIES)["6"][0]), ("team", "HAM", "LEC"))
+
     conflict = dict(frames, **{"6": [BoxResult(0, "number", "HAM", "", 0.9)]})
     out = Mt.burst_consensus(conflict, {k: "b" for k in conflict})
     check("a burst naming two entries fills nothing", summary(out["3"][0]), ("none", "", ""))

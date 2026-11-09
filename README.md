@@ -366,7 +366,8 @@ neighbour aid (only when rules.order_weight > 0): a doubtful or unmatched number
         |
         v
 per group: frames with nothing identified take the group's entry
-           when 2+ frames agree on it and none disagree → burst
+           when 2+ frames agree on it (or one number read is 0.95+ sure)
+           and none disagree → burst
            (experimental: pool livery similarity across the burst → pooled)
         |
         v
@@ -409,6 +410,7 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 | `MATCH_MIN_SIM` | `match.py` | 0.60 | the livery similarity a match needs at all |
 | `MATCH_MIN_MARGIN` | `match.py` | 0.10 | how far the best entry must be ahead of the next one. Similarities are centred on the references' mean once a collection has 20+ references, which spreads them out, so the gate is wider than it looks; `python/eval_matching.py` sweeps it on your own references |
 | `BURST_MIN_AGREE` | `match.py` | 2 | frames that must agree before a burst fills in the rest |
+| `SOLO_ANCHOR_CONF` | `match.py` | 0.95 | a number read this sure fills a burst that names no other entry on its own, however few frames agree |
 | `REFERENCE_MIN_MARGIN` | `match.py` | 0.10 | how far a livery match must lead to be saved by **Add confident vehicles from last run** |
 | `MIN_BOX_FRAC` | `vehicles.py` | 0.005 | the smallest vehicle, as a share of the frame, worth identifying |
 | `MAX_BOXES` | `vehicles.py` | 4 | vehicles identified per frame |
