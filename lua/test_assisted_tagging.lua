@@ -296,10 +296,11 @@ check("a pack still tags its other cars beside a conflict", keys(w), "F1|Ferrari
 check("a pack adds its shot diagnostic once", keys(d),
     "Assisted Tagging|Identification|By number + Assisted Tagging|Identification|Shot|Pack")
 
--- utf16le (review fix 6: the .vbs launcher must survive a non-ASCII tmp path) --
-check("utf16le: ASCII", T.utf16le("a"), "a\0")
-check("utf16le: Latin-1", T.utf16le("é"), "\xE9\0")
-check("utf16le: astral plane uses a surrogate pair", T.utf16le("😀"), "\x3D\xD8\x00\xDE")
+-- pythonw_of (Windows launches through pythonw.exe beside the chosen python.exe) --
+check("pythonw_of: venv python.exe", T.pythonw_of("C:/x/.venv/Scripts/python.exe"), "C:/x/.venv/Scripts/pythonw.exe")
+check("pythonw_of: case-insensitive", T.pythonw_of("C:\\Py\\Python.EXE"), "C:\\Py\\pythonw.exe")
+check("pythonw_of: bare python on PATH", T.pythonw_of("python"), "pythonw")
+check("pythonw_of: other launcher is refused", T.pythonw_of("C:/Windows/py.exe"), nil)
 
 -- hierarchical_tags / sanitize_id -------------------------------------------
 check("hierarchical_tags keeps only tags with a hierarchy", table.concat(T.hierarchical_tags({

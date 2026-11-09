@@ -492,25 +492,19 @@ function M.parse_neighbour_tolerance(text)
     return n or 5
 end
 
--- UTF-8 → UTF-16LE (no BOM), for the .vbs launcher: wscript reads a script as
--- ANSI unless it's UTF-16, which garbles a non-ASCII tmp path.
-function M.utf16le(s)
-    local out = {}
-    for _, c in utf8.codes(s) do
-        if c >= 0x10000 then
-            c = c - 0x10000
-            local hi, lo = 0xD800 + (c >> 10), 0xDC00 + (c & 0x3FF)
-            out[#out + 1] = string.char(hi & 0xFF, hi >> 8, lo & 0xFF, lo >> 8)
-        else
-            out[#out + 1] = string.char(c & 0xFF, c >> 8)
-        end
-    end
-    return table.concat(out)
-end
-
 -- Tags usable to build an entry: hierarchical (A|B), not the plugin's own
 -- diagnostics, and clean enough for entries.json (no , ; ").
 local ASSISTED_PREFIX = "Assisted Tagging|"
+
+-- python.exe → the pythonw.exe beside it (venvs and python.org installs ship both),
+-- which opens no console window. nil for any other name.
+function M.pythonw_of(py)
+    local dir, name = py:match("^(.-)([^/\\]*)$")
+    name = name:lower()
+    if name == "python.exe" then return dir .. "pythonw.exe" end
+    if name == "python" then return dir .. "pythonw" end
+    return nil
+end
 
 function M.hierarchical_tags(names)
     local out = {}
@@ -928,36 +922,49 @@ local function shell_quote(s)
     return "'" .. s:gsub("'", "'\\''") .. "'"
 end
 
--- The exit code goes to a temp file renamed onto done_path, so done_path
--- never exists without its code in it. Returns false, "tmp" or "wscript" when it couldn't launch.
-local function run_async_command(cmd, done_path)
-    local done_tmp = done_path .. ".tmp"
+-- "py -u argv..." quoted for the shell: the log line, and the launch off Windows.
+local function command_line(py, argv)
+    local parts = { shell_quote(py), "-u" }
+    for _, a in ipairs(argv) do parts[#parts + 1] = shell_quote(a) end
+    return table.concat(parts, " ")
+end
+
+-- Starts `py -u argv...` without waiting, stderr to err_path (appended when `append`).
+-- The exit code goes to a temp file renamed onto done_path, so done_path never exists
+-- without its code in it. On Windows python/launch.py runs it under pythonw.exe: no
+-- console window, no script host, nothing executable written to tmp (antivirus
+-- behaviour checks flag a hidden .vbs/.bat chain). Returns false plus why it didn't start.
+local function run_async_python(py, argv, err_path, append, done_path)
     if IS_WINDOWS then
-        local bat = TMP_DIR .. "/dt_assisted_tagging_run.bat"
-        local vbs = TMP_DIR .. "/dt_assisted_tagging_run.vbs"
-        local f = io.open(bat, "w")
-        if not f then return false, "tmp" end
-        local win_done, win_tmp = done_path:gsub("/", "\\"), done_tmp:gsub("/", "\\")
-        f:write("@echo off\r\nchcp 65001>nul\r\n")
-        -- in a .bat, % starts a variable even inside quotes; %% is a literal % (a "50% off" folder)
-        f:write((cmd:gsub("%%", "%%%%")), " < NUL\r\n")
-        -- redirect first: "echo 0> f" would redirect handle 0 and leave f empty
-        f:write('> "', win_tmp, '" echo %ERRORLEVEL%\r\n')
-        f:write('move /y "', win_tmp, '" "', win_done, '" >nul\r\n')
+        local pyw = M.pythonw_of(py)
+        if not pyw then return false, "the Python preference must point at a python.exe" end
+        if pyw:find("[/\\]") and not file_exists(pyw) then return false, pyw .. " is missing" end
+        local job = done_path .. ".job"
+        local f = io.open(job, "w")
+        if not f then return false, "no write access to darktable's tmp folder" end
+        f:write(done_path, "\n", err_path, "\n", append and "a" or "w", "\n", table.concat(argv, "\n"), "\n")
         f:close()
-        local f_vbs = io.open(vbs, "wb")
-        if not f_vbs then return false, "tmp" end
-        f_vbs:write("\xFF\xFE", M.utf16le('Set WshShell = CreateObject("WScript.Shell")\r\n'
-            .. 'WScript.Quit WshShell.Run(Chr(34) & "' .. bat:gsub("/", "\\") .. '" & Chr(34), 0, False)\r\n'))
-        f_vbs:close()
-        -- WshShell.Run(..., False) returns 0 once the .bat is started, so anything else means
-        -- wscript is missing or blocked (Windows Script Host turned off by policy)
-        if os.execute('wscript.exe "' .. vbs:gsub("/", "\\") .. '"') ~= true then return false, "wscript" end
-    else
-        os.execute('( ' .. cmd .. ' ; echo $? > ' .. shell_quote(done_tmp)
-            .. ' ; mv -f ' .. shell_quote(done_tmp) .. ' ' .. shell_quote(done_path) .. ' ) >/dev/null 2>&1 &')
+        local launcher = (argv[1]:match("^(.*)[/\\]") or ".") .. "/launch.py"
+        local ok = os.execute('start "" /B ' .. shell_quote((pyw:gsub("/", "\\")))
+            .. " " .. shell_quote((launcher:gsub("/", "\\"))) .. " " .. shell_quote((job:gsub("/", "\\"))))
+        if not ok then
+            pcall(os.remove, job)
+            return false, pyw .. " didn't start"
+        end
+        return true
     end
+    local done_tmp = done_path .. ".tmp"
+    os.execute('( ' .. command_line(py, argv) .. (append and " 2>> " or " 2> ") .. shell_quote(err_path)
+        .. ' ; echo $? > ' .. shell_quote(done_tmp)
+        .. ' ; mv -f ' .. shell_quote(done_tmp) .. ' ' .. shell_quote(done_path) .. ' ) >/dev/null 2>&1 &')
     return true
+end
+
+-- Lists → one list, in order: argument lists built in parts.
+local function args_of(...)
+    local out = {}
+    for _, part in ipairs({ ... }) do table.move(part, 1, #part, #out + 1, out) end
+    return out
 end
 
 local function read_log_tail()
@@ -1009,7 +1016,7 @@ local function tags_of(img)
     return have
 end
 
--- One identify.py process at a time: runs share the tmp files and the .bat/.vbs launcher.
+-- One identify.py process at a time: runs share the tmp files and the job file.
 -- `orphan` is a cancelled or stalled process that hadn't exited when its run gave up
 -- waiting; nothing starts until its done file appears.
 local busy, orphan = false, false
@@ -1059,7 +1066,7 @@ local function abandon_process()
     log("identify.py hasn't exited yet; the next run waits for it")
 end
 
--- Runs identify.py with `args` (already shell-quoted) and blocks until it exits,
+-- Runs identify.py with the argument list `args` and blocks until it exits,
 -- moving job.percent from `from` to `to` with its progress. Returns the exit
 -- code, or nil plus "cancelled", "stalled" or "launch" (the last two already
 -- reported to the user).
@@ -1068,18 +1075,13 @@ local function run_python(args, job, from, to, hint)
     pcall(os.remove, DONE_PATH)
     pcall(os.remove, PROGRESS_PATH)
     pcall(os.remove, CANCEL_PATH)
-    local cmd = shell_quote(python_bin(script)) .. " -u " .. shell_quote(script) .. " " .. args
-        .. " --progress " .. shell_quote(PROGRESS_PATH)
-        .. " 2>> " .. shell_quote(LOG_PATH)
-    log("running: " .. cmd)
+    local py = python_bin(script)
+    local argv = args_of({ script }, args, { "--progress", PROGRESS_PATH })
+    log("running: " .. command_line(py, argv))
     flush_log()
-    local launched, why = run_async_command(cmd, DONE_PATH)
+    local launched, why = run_async_python(py, argv, LOG_PATH, true, DONE_PATH)
     if not launched then
-        if why == "wscript" then
-            notify_error(_("Assisted Tagging: couldn't start identify.py: wscript.exe didn't run. Windows Script Host may be turned off on this PC (check with your IT admin)."))
-        else
-            notify_error(string.format("Assisted Tagging: couldn't start identify.py: no write access to darktable's tmp folder (%s).", TMP_DIR))
-        end
+        notify_error("Assisted Tagging: couldn't start identify.py: " .. why .. ".")
         return nil, "launch"
     end
     local start, last_progress, last_change = os.time(), nil, os.time()
@@ -1132,21 +1134,22 @@ local function failure_message(code)
 end
 
 local function model_args(script)
-    local args = " --detector " .. shell_quote(model_path("detector_model", script))
-        .. " --ocr-det " .. shell_quote(model_path("ocr_detection_model", script))
-        .. " --ocr-rec " .. shell_quote(model_path("ocr_recognition_model", script))
-        .. " --embedder " .. shell_quote(model_path("embedder_model", script))
+    local args = {
+        "--detector", model_path("detector_model", script),
+        "--ocr-det", model_path("ocr_detection_model", script),
+        "--ocr-rec", model_path("ocr_recognition_model", script),
+        "--embedder", model_path("embedder_model", script),
+    }
     -- face models are optional: only people collections need them, so a missing file is left unset
     for flag, name in pairs({ ["--face-detector"] = "face_detector_model", ["--face-recognizer"] = "face_recognizer_model" }) do
         local path = model_path(name, script)
-        if file_exists(path) then args = args .. " " .. flag .. " " .. shell_quote(path) end
+        if file_exists(path) then args[#args + 1] = flag; args[#args + 1] = path end
     end
     return args
 end
 
 local function collection_args()
-    return " --collections-root " .. shell_quote(collections_root())
-        .. " --collection " .. shell_quote(current_collection())
+    return { "--collections-root", collections_root(), "--collection", current_collection() }
 end
 
 local function read_lines(path)
@@ -1181,15 +1184,11 @@ local function load_entries_csv()
 end
 
 local function cleanup_tmp()
-    -- An orphaned identify.py still needs its cancel flag, and cmd.exe is still
-    -- reading its .bat, so leave those until it exits.
+    -- An orphaned identify.py still needs its cancel flag, so leave the files until it exits.
     if orphan then return end
-    for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", DONE_PATH, PROGRESS_PATH, CANCEL_PATH }) do
+    for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", DONE_PATH, DONE_PATH .. ".job",
+        PROGRESS_PATH, CANCEL_PATH }) do
         pcall(os.remove, p)
-    end
-    if IS_WINDOWS then
-        pcall(os.remove, TMP_DIR .. "/dt_assisted_tagging_run.bat")
-        pcall(os.remove, TMP_DIR .. "/dt_assisted_tagging_run.vbs")
     end
 end
 
@@ -1217,9 +1216,10 @@ local function reload_lists(quiet, show_plan)
             pcall(os.remove, COLLECTIONS_PATH)
             pcall(os.remove, ENTRIES_PATH)
             pcall(os.remove, RULES_PATH)
-            local code, why = run_python("- - --list" .. collection_args()
-                .. " --collections-out " .. shell_quote(COLLECTIONS_PATH)
-                .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH), nil)
+            local code, why = run_python(args_of({ "-", "-", "--list" }, collection_args(), {
+                "--collections-out", COLLECTIONS_PATH,
+                "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH,
+            }), nil)
             flush_log()
             if code == nil and why ~= "cancelled" then return end -- already reported
             if code ~= 0 then
@@ -1672,14 +1672,15 @@ function M.identify_images(images, replace_manual, verify_only)
         job = dt.gui.create_job(_("Assisted Tagging"), true, stop_job)
         job.percent = 0.0
         local script = identify_script()
-        local code, why = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
-            .. collection_args() .. model_args(script) .. (verify_only and " --verify" or "")
-            .. " --neighbour-tolerance " .. neighbour_tolerance()
-            .. " --cache " .. shell_quote(CACHE_PATH)
-            .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH)
-            .. " --boxes-out " .. shell_quote(boxes_path())
-            .. " --report-out " .. shell_quote(report_prefix())
-            .. " --archive-dir " .. shell_quote(RUNS_DIR),
+        local code, why = run_python(args_of({ MANIFEST_PATH, RESULTS_PATH },
+            collection_args(), model_args(script), verify_only and { "--verify" } or {}, {
+                "--neighbour-tolerance", tostring(neighbour_tolerance()),
+                "--cache", CACHE_PATH,
+                "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH,
+                "--boxes-out", boxes_path(),
+                "--report-out", report_prefix(),
+                "--archive-dir", RUNS_DIR,
+            }),
             job, 0, PROGRESS_ANALYSIS, "identifying")
         flush_log()
         dt.print_hinter(" ")
@@ -1720,9 +1721,9 @@ local function run_reference_job(state, rows, mode_args, what)
     end
     state.job = dt.gui.create_job("Assisted Tagging: " .. what, true, stop_job)
     state.job.percent = 0.0
-    local code, why = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
-        .. mode_args .. collection_args() .. model_args(identify_script())
-        .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH),
+    local code, why = run_python(args_of({ MANIFEST_PATH, RESULTS_PATH },
+        mode_args, collection_args(), model_args(identify_script()),
+        { "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH }),
         state.job, 0, 1, what)
     flush_log()
     dt.print_hinter(" ")
@@ -1812,7 +1813,7 @@ function M.add_references(images, entry_id)
             say(_("Assisted Tagging: no selected image carries all of one entry's tags, so nothing was added."))
             return
         end
-        local results = run_reference_job(state, rows, " --add-reference", "adding references")
+        local results = run_reference_job(state, rows, { "--add-reference" }, "adding references")
         if not results then return end
         local added, whole, failed, no_face, multi, team_rule = 0, 0, 0, 0, 0, 0
         for line in results:gmatch("[^\r\n]+") do
@@ -1859,7 +1860,7 @@ function M.promote_references(images)
         for _, img in ipairs((with_paired_jpegs(images))) do
             rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, "" }
         end
-        local results = run_reference_job(state, rows, " --promote-boxes --boxes-in " .. shell_quote(boxes), "saving vehicles as references")
+        local results = run_reference_job(state, rows, { "--promote-boxes", "--boxes-in", boxes }, "saving vehicles as references")
         if not results then return end
         local counts = { added = 0, none_promotable = 0, flagged = 0, stale = 0, failed = 0 }
         for line in results:gmatch("[^\r\n]+") do
@@ -1890,7 +1891,8 @@ function M.audit_references()
     local okr, err = pcall(function()
         local suggest = suggest_crops_check and suggest_crops_check.value
         local quarantine = quarantine_check and quarantine_check.value
-        local results = run_reference_job(state, {}, " --audit-refs" .. (suggest and " --suggest-crops" or "") .. (quarantine and " --quarantine" or ""), "auditing references")
+        local results = run_reference_job(state, {}, args_of({ "--audit-refs" }, suggest and { "--suggest-crops" } or {},
+            quarantine and { "--quarantine" } or {}), "auditing references")
         if not results then return end
         local c, report = {}, ""
         for line in results:gmatch("[^\r\n]+") do
