@@ -60,17 +60,29 @@ class ReferenceIndex:
         todo = [rel for rel in sorted(on_disk) if rel not in known]
         if len(todo) > 1:
             log(f"references: embedding {len(todo)} (new, or the embedder or blur setting changed)")
+        # todo paths aren't in the index yet, so new rows are gathered and stacked once:
+        # _append's vstack per row is quadratic across a full re-embed
+        vecs, hists = [], []
         for n, rel in enumerate(todo, 1):
             try:
                 vec, h = idx._embed_file(rel)
             except Exception as e:  # one unreadable crop mustn't stop every run
                 log(f"reference {rel} can't be read, skipped ({type(e).__name__}); delete or replace it")
             else:
-                idx._append(rel.split("/")[1], rel, vec, h)
-                changed = True
+                vecs.append(np.asarray(vec, np.float32))
+                hists.append(h)
+                idx.entry.append(rel.split("/")[1])
+                idx.path.append(rel)
             if on_progress is not None and on_progress(n, len(todo)) is False:
                 log(f"references: stopped after {n} of {len(todo)}; the rest are embedded next time")
                 break
+        if vecs:
+            new = np.stack(vecs)
+            # an empty index takes the embedder's own width (see _append)
+            idx.emb = new if len(idx.emb) == 0 else np.vstack([idx.emb, new])
+            if colour:
+                idx.hist = np.vstack([idx.hist, np.asarray(hists, np.float32)])
+            changed = True
         if changed:
             idx.save()
         return idx

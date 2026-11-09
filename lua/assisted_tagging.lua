@@ -866,7 +866,8 @@ local function run_async_command(cmd, done_path)
         if not f then return false, "tmp" end
         local win_done, win_tmp = done_path:gsub("/", "\\"), done_tmp:gsub("/", "\\")
         f:write("@echo off\r\nchcp 65001>nul\r\n")
-        f:write(cmd, " < NUL\r\n")
+        -- in a .bat, % starts a variable even inside quotes; %% is a literal % (a "50% off" folder)
+        f:write((cmd:gsub("%%", "%%%%")), " < NUL\r\n")
         -- redirect first: "echo 0> f" would redirect handle 0 and leave f empty
         f:write('> "', win_tmp, '" echo %ERRORLEVEL%\r\n')
         f:write('move /y "', win_tmp, '" "', win_done, '" >nul\r\n')
@@ -1565,8 +1566,16 @@ end
 -- verify_only: analyse fully tagged images too and report disagreements, changing no tags.
 function M.identify_images(images, replace_manual, verify_only)
     local label = verify_only and _("Verify") or _("Identify")
-    if queue_if_busy(label, images and #images > 0, function() M.identify_images(images, replace_manual, verify_only) end) then return end
+    -- the replace box covers one run: it clears once this run is queued or started, not when refused
+    local function used_replace_box()
+        if replace_manual and replace_manual_check then replace_manual_check.value = false end
+    end
+    if queue_if_busy(label, images and #images > 0, function() M.identify_images(images, replace_manual, verify_only) end) then
+        used_replace_box()
+        return
+    end
     if not can_start(images) then return end
+    used_replace_box()
     busy = true
     M.cancel_requested = false
     identify_cancellable = true
@@ -1956,9 +1965,8 @@ local function start_identify(allow_cancel, verify_only)
             return
         end
     end
-    -- One run only: read the box, then clear it so the next run is protected again.
+    -- One run only: M.identify_images clears the box once the run is accepted.
     local replace_manual = not verify_only and replace_manual_check and replace_manual_check.value or false
-    if replace_manual_check and not verify_only then replace_manual_check.value = false end
     M.identify_images(dt.gui.action_images, replace_manual, verify_only)
 end
 

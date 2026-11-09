@@ -78,9 +78,10 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
             for g, ids in members.items()}
     gtimes = _group_times(frames, burst_of, times)
     ordered = sorted(gtimes, key=gtimes.get)
+    slot = {g: i for i, g in enumerate(ordered)}
 
     def window(g) -> list:
-        i = ordered.index(g)
+        i = slot[g]
         near = ordered[max(0, i - NEIGHBOUR_WINDOW):i] + ordered[i + 1:i + 1 + NEIGHBOUR_WINDOW]
         return [eid for n in near if abs(gtimes[n] - gtimes[g]) <= NEIGHBOUR_MAX_GAP_S for eid in seen[n]]
 

@@ -1295,9 +1295,11 @@ def audit_references(args, models: dict):
     if counts["quarantined"]:
         index = open_index(collection, models, rules, check_models(models))  # drops the moved refs now, not at the next audit
         log(f"index refreshed after quarantine: {len(index.entry)} references")
-    with open(args.results, "w", newline="", encoding="utf-8") as f:
+    tmp = args.results + ".tmp"  # Lua reads results once the process exits; never a half-written file
+    with open(tmp, "w", newline="", encoding="utf-8") as f:
         f.writelines(f"{k},{v}\n" for k, v in counts.items())
         f.write(f"report,{report}\n")
+    os.replace(tmp, args.results)
 
 
 def write_collection_outputs(args, collection: str, entries: dict, rules: Rules):
