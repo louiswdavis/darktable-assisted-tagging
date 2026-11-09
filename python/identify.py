@@ -3,7 +3,7 @@ write one result row per vehicle for assisted_tagging.lua.
 
 Modes:
   identify.py MANIFEST RESULTS ...            id,filepath,burst_id[,protected tags,hint prefixes,capture epoch] →
-                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot
+                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot,order_flag
                                               (+ --boxes-out: the per-vehicle boxes.json)
   identify.py MANIFEST RESULTS --add-reference id,filepath,entry_id → id,status
   identify.py MANIFEST RESULTS --promote-boxes --boxes-in F   id,filepath,"" → id,status
@@ -35,6 +35,7 @@ from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
                    burst_consensus, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
+from neighbour import neighbour_aid
 from overlap import HIDDEN, _inter, visible_boxes
 from segment import SEGMENT_CACHE_TOKEN, Segmenter, needs_mask, segmenter_path
 from pod import pod_colour, pod_reading
@@ -66,6 +67,10 @@ DIAG_DEFAULTS = {
     "number": "Assisted Tagging|Identification|By number",
     "livery": "Assisted Tagging|Identification|By livery",
     "burst": "Assisted Tagging|Identification|By burst",
+    # Neighbour aid (rules.order_weight): a doubtful number read settled by the groups shot around it.
+    "neighbour": "Assisted Tagging|Identification|By neighbour",
+    # A doubtful number read that doesn't fit the groups shot around it; the entry tag stays.
+    "check_order": "Assisted Tagging|Identification|Check order",
     "team": "Assisted Tagging|Identification|Team only",
     "none": "Assisted Tagging|Identification|Unidentified",
     # Suffixed with the literal digits read, e.g. "...|Number seen|115": independent of
@@ -112,11 +117,15 @@ class Rules:
     # Motorsport: a tag prefix for the whole collection. An entry's team is appended to it, its name
     # to that, and the entry's own `tags` are extras (see _entry_tags). "" keeps `tags` as the full list.
     tag_prefix: str = ""
+    # Motorsport: how much the groups shot just before and after a photo help a doubtful number read
+    # (neighbour.neighbour_aid): 0 ignores them (random order), 1 expects the numbers strictly in order.
+    order_weight: float = 0.0
 
 
-def _entry_tags(eid: str, item: dict, team: str, name: str, prefix: str, bad) -> tuple:
+def _entry_tags(eid: str, item: dict, team: str, name: str, prefix: str, bad, number: str = "") -> tuple:
     """An entry's tags. Without a prefix, its `tags` list as written. With one: prefix|team,
-    prefix|team|name (prefix|name with no team), then any extra `tags`, without repeats."""
+    prefix|team|name (prefix|name with no team), then any extra `tags`, without repeats. A numbers-only
+    entry (a number, no team, name or tags) gets prefix|number."""
     where = f'entry "{eid}": tags'
     if not prefix:
         if name:
@@ -128,6 +137,8 @@ def _entry_tags(eid: str, item: dict, team: str, name: str, prefix: str, bad) ->
     built = [f"{prefix}|{team}"] if team else []
     if name:
         built.append(f"{prefix}|{team}|{name}" if team else f"{prefix}|{name}")
+    if not built and not extra and number:
+        built = [f"{prefix}|{number}"]
     if not built and not extra:
         raise bad(f'entry "{eid}": needs a team or name to build its tags from rules.tag_prefix, or its own tags')
     return tuple(dict.fromkeys(built + extra))
@@ -149,11 +160,12 @@ def _load_rules(raw, bad) -> Rules:
         raise bad('"rules" must be an object')
     unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling",
                                   "blur_references", "sponsor_keywords", "partial_references",
-                                  "min_sim", "margin", "min_face_px", "colour_weight", "tag_prefix"})
+                                  "min_sim", "margin", "min_face_px", "colour_weight", "tag_prefix",
+                                  "order_weight"})
     if unknown:
         raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics, '
                    f'burst_livery_pooling, blur_references, sponsor_keywords, partial_references, '
-                   f'min_sim, margin, min_face_px, colour_weight, tag_prefix)')
+                   f'min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight)')
     defaults = Rules()
     min_sim, margin, min_px = (raw.get("min_sim", defaults.min_sim), raw.get("margin", defaults.margin),
                                raw.get("min_face_px", defaults.min_face_px))
@@ -169,6 +181,9 @@ def _load_rules(raw, bad) -> Rules:
     colour_weight = raw.get("colour_weight", defaults.colour_weight)
     if isinstance(colour_weight, bool) or not isinstance(colour_weight, (int, float)) or colour_weight < 0:
         raise bad("rules.colour_weight must be a number, 0 or more (0 is off)")
+    order_weight = raw.get("order_weight", defaults.order_weight)
+    if isinstance(order_weight, bool) or not isinstance(order_weight, (int, float)) or not 0 <= order_weight <= 1:
+        raise bad("rules.order_weight must be a number from 0 (random order) to 1 (strictly in order)")
     tag_prefix = raw.get("tag_prefix", defaults.tag_prefix)
     if not isinstance(tag_prefix, str) or _BAD_TAG.search(tag_prefix) or tag_prefix != tag_prefix.strip("| "):
         raise bad('rules.tag_prefix must be a tag path like "Motorsport|F1": no , ; " and no leading or trailing |')
@@ -203,7 +218,7 @@ def _load_rules(raw, bad) -> Rules:
         diag[key] = name.strip()
     return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling, blur_refs,
                  tuple(sponsors.items()), partial, min_sim=float(min_sim), margin=float(margin), min_face_px=min_px,
-                 colour_weight=float(colour_weight), tag_prefix=tag_prefix)
+                 colour_weight=float(colour_weight), tag_prefix=tag_prefix, order_weight=float(order_weight))
 
 
 def load_collection(collection_dir: str) -> tuple:
@@ -268,7 +283,7 @@ def load_collection(collection_dir: str) -> tuple:
         camera = item.get("camera", "")
         if camera not in ("", "yellow", "black"):
             raise bad(f'entry "{eid}": camera must be "yellow" or "black"')
-        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, team, name, rules.tag_prefix, bad), camera)
+        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, team, name, rules.tag_prefix, bad, number), camera)
     if kind == "people":
         if rules_raw is None:
             log("warning: entries.json has no rules block, so the face thresholds use defaults")
@@ -575,7 +590,7 @@ def box_hint(tag_prefixes: list, sponsor: list) -> tuple:
 
 def format_row(image_id: str, r: BoxResult, shot: str = "") -> str:
     return (f"{image_id},{r.box},{r.method},{r.entry_id},{r.alt_entry_id},"
-            f"{r.confidence:.3f},{r.unmatched_number},{shot}")
+            f"{r.confidence:.3f},{r.unmatched_number},{shot},{'1' if r.order_flag else ''}")
 
 
 def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) -> str:
@@ -826,7 +841,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "method": r.method, "confidence": round(r.confidence, 4),
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
-                          "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict",
+                          "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict", "order_flag": r.order_flag,
                           "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "overlap": b.get("overlap", ""), "hires": b.get("hires", False), "masked": b.get("masked", False), "rescued": b.get("rescued", {})})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes}
@@ -1055,6 +1070,13 @@ def identify(args, models: dict):
     if rules.burst_livery_pooling and not verify:
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
     shooting_order = {i: (d["time"] if d["time"] is not None else 0, d["file"]) for i, d in detail.items()}
+    if not verify and rules.order_weight > 0:
+        times = {i: d["time"] or 0 for i, d in detail.items()}
+        aided = neighbour_aid(frames, burst_of, times, entries, args.neighbour_tolerance, rules.order_weight)
+        resolved = sum(1 for i, rs in aided.items() for a, b in zip(rs, frames[i]) if a.method == "neighbour" and b.method != "neighbour")
+        flagged = sum(1 for rs in aided.values() for r in rs if r.order_flag)
+        log(f"neighbour: resolved {resolved}, flagged {flagged} (order weight {rules.order_weight:g}, tolerance {args.neighbour_tolerance})")
+        frames = aided
     if not verify:
         frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims)
 
@@ -1305,6 +1327,8 @@ def main(argv=None):
     parser.add_argument("--quarantine", action="store_true",
                         help="With --audit-refs, move the strongest candidates (2+ checks) into refs-quarantine/ and list them in moved.txt")
     parser.add_argument("--list", action="store_true", help="List collections (and entries) only")
+    parser.add_argument("--neighbour-tolerance", type=int, default=5,
+                        help="Neighbour aid: how many entries apart (in the sorted number list, wrapping round) a nearby group can be and still support a doubtful read; used when the collection's order_weight is above 0")
     parser.add_argument("--verify", action="store_true",
                         help="Also analyse fully tagged images and flag the ones whose result differs from their tags (the plugin then changes no tags)")
     args = parser.parse_args(argv)

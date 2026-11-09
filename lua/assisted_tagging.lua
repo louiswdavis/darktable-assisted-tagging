@@ -18,7 +18,11 @@ M.DIAG_TAGS = {
     number = "Assisted Tagging|Identification|By number",
     livery = "Assisted Tagging|Identification|By livery",
     burst = "Assisted Tagging|Identification|By burst",
-    team = "Assisted Tagging|Identification|Team only",
+    -- Neighbour aid (collection rule order_weight): a doubtful number read settled by the
+    -- groups shot around it, and a read that doesn't fit the cars shot around it.
+    neighbour = "Assisted Tagging|Identification|By neighbour",
+    check_order = "Assisted Tagging|Identification|Check order",
+    team ="Assisted Tagging|Identification|Team only",
     none = "Assisted Tagging|Identification|Unidentified",
     -- Suffixed with the literal digits read, e.g. "...|Number seen|115"; independent of
     -- the outcome tags above, added whenever OCR read a number that didn't resolve.
@@ -186,9 +190,10 @@ function M.wanted_tags(rows, entries, rules)
         if r.shot and r.shot ~= "" then shot = r.shot end
         if r.method == "conflict" then
             held = true
-        elseif e and (r.method == "number" or r.method == "livery" or r.method == "burst" or r.method == "pooled" or r.method == "face") then
+        elseif e and (r.method == "number" or r.method == "livery" or r.method == "burst" or r.method == "pooled" or r.method == "neighbour" or r.method == "face") then
             for _, t in ipairs(e.tags) do wanted[t] = true end
             note(r.method)
+            if r.order_flag then note("check_order") end
             identified = true
         elseif e and r.method == "team" then
             if rules.team_only == "shared tags" then
@@ -352,7 +357,7 @@ end
 function M.read_results(text)
     local rows_of, errored, skipped = {}, {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 8)
+        local p = M.parse_csv_line(line, 9)
         local id = p and tonumber(p[1])
         if id and p[3] == "error" then
             errored[id] = true
@@ -361,10 +366,17 @@ function M.read_results(text)
         elseif id then
             rows_of[id] = rows_of[id] or {}
             table.insert(rows_of[id], { box = tonumber(p[2]), method = p[3], entry_id = p[4],
-                                         alt_entry_id = p[5], unmatched_number = p[7], shot = p[8] })
+                                         alt_entry_id = p[5], unmatched_number = p[7], shot = p[8], order_flag = p[9] == "1" })
         end
     end
     return rows_of, errored, skipped
+end
+
+-- The neighbour-tolerance preference text as a whole number of entries (default 5); anything
+-- else falls back to 5 so a typo can't put a bad value on the command line.
+function M.parse_neighbour_tolerance(text)
+    local n = tonumber((tostring(text or ""):match("^%s*(%d+)%s*$")))
+    return n or 5
 end
 
 -- UTF-8 → UTF-16LE (no BOM), for the .vbs launcher: wscript reads a script as
@@ -637,6 +649,10 @@ if dt.gui then
         "Assisted Tagging: diagnostic tags",
         "Tag how each image was identified (under Assisted Tagging|Identification: By number, By livery, By burst, Team only, Unidentified) for filtering and spot-checks; a collection's rules can rename them. Off removes them on the next run",
         true)
+    dt.preferences.register("assisted_tagging", "neighbour_tolerance", "string",
+        "Assisted Tagging: neighbour tolerance",
+        "Collections with an order weight above 0: how many entries apart (in the sorted number list, wrapping round at the end) a nearby group can be and still support a doubtful number read. Whole number, default 5",
+        "5")
     dt.preferences.register("assisted_tagging", "group_support", "string",
         "Assisted Tagging: grouping support",
         "How photos are grouped for consensus: native (darktable groups), tags (Assisted Grouping tags) or none. Set from the panel",
@@ -734,6 +750,10 @@ local function model_path(name, script)
         if chosen ~= "" then file = chosen end
     end
     return plugin_root(script) .. "/models/" .. file
+end
+
+local function neighbour_tolerance()
+    return M.parse_neighbour_tolerance(dt.preferences.read("assisted_tagging", "neighbour_tolerance", "string"))
 end
 
 local function collections_root()
@@ -1357,7 +1377,7 @@ local function apply_results(run, job)
     local tag_objs, writes, failed, first_error = {}, 0, 0, nil
     local n_tagged, n_unidentified, n_missing = 0, 0, 0
     local n_skipped, n_conflict = 0, 0
-    local by_method = { number = 0, livery = 0, burst = 0, team = 0, pooled = 0, face = 0 }
+    local by_method = { number = 0, livery = 0, burst = 0, team = 0, pooled = 0, face = 0, neighbour = 0 }
     local function tag_named(name)
         tag_objs[name] = tag_objs[name] or tags.create(name)
         return tag_objs[name]
@@ -1417,7 +1437,7 @@ local function apply_results(run, job)
     end
 
     local parts = {}
-    for _, m in ipairs({ { "number", "by number" }, { "livery", "by livery" }, { "burst", "by burst" },
+    for _, m in ipairs({ { "number", "by number" }, { "livery", "by livery" }, { "burst", "by burst" }, { "neighbour", "by neighbour" },
                          { "team", "team only" }, { "pooled", "by pooled burst" }, { "face", "by face" } }) do
         if by_method[m[1]] > 0 then parts[#parts + 1] = string.format("%d %s", by_method[m[1]], m[2]) end
     end
@@ -1461,6 +1481,7 @@ function M.identify_images(images, replace_manual, verify_only)
         local script = identify_script()
         local code, why = run_python(shell_quote(MANIFEST_PATH) .. " " .. shell_quote(RESULTS_PATH)
             .. collection_args() .. model_args(script) .. (verify_only and " --verify" or "")
+            .. " --neighbour-tolerance " .. neighbour_tolerance()
             .. " --cache " .. shell_quote(CACHE_PATH)
             .. " --entries-out " .. shell_quote(ENTRIES_PATH) .. " --rules-out " .. shell_quote(RULES_PATH)
             .. " --boxes-out " .. shell_quote(boxes_path())

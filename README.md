@@ -207,6 +207,7 @@ A file that's just the `[ … ]` list of entries works too, with the default rul
 | `tags` | yes, unless `rules.tag_prefix` is set | one or more darktable tag names (`\|` makes a hierarchy); no `,` `;` or `"`. With `rules.tag_prefix` these are extras added after the built tags |
 | `name` | no | the driver's display name, e.g. `Max Verstappen`; needs `rules.tag_prefix`, which builds `prefix\|team\|name` from it |
 | `number` | no | the race number, 1–3 digits. Leave it out for a car with no number; it can then only be identified by livery. Two entries with the same number are allowed, but that number then identifies neither. |
+| numbers-only entry | | `{"id": "12", "number": "12"}`: an entry with a number and no `team`, `name` or `tags`, under `rules.tag_prefix`, gets the tag `prefix\|12`. Build a whole list from a CSV with `python python/import_numbers.py numbers.csv entries.json --tag-prefix "Rally\|2026"`; see [`rally`](examples/rally) |
 | `team` | no | entries with the same team can fall back to their shared tags when their liveries are too close to call |
 
 The tags are yours to design: put the team tag on both teammates and the driver tag on one, and a team-only result carries exactly the team tag. The examples leave the year out of the tags: the collection already separates seasons for matching, and darktable's collections module filters by capture date. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags and no `number`, so the number still identifies `VER`) or a new collection.
@@ -219,10 +220,11 @@ Every key is optional; leave one out for its default.
 |---|---|---|
 | `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
-| `diagnostics` | the `Assisted Tagging\|Identification\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `pooled`, `team`, `none`, `number_seen`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
+| `diagnostics` | the `Assisted Tagging\|Identification\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `pooled`, `neighbour`, `check_order`, `team`, `none`, `number_seen`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The *diagnostic tags* preference still turns them all off. |
 
 | `sponsor_keywords` | `{}` | maps a lowercase sponsor word to the tag prefix of its team, e.g. `{"petronas": "Motorsport\|F1\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
 | `tag_prefix` | `""` | a tag path for the whole collection, e.g. `Motorsport\|F1`. Each entry's tags are then built: `prefix\|team`, then `prefix\|team\|name` (`prefix\|name` with no team), then its own `tags` as extras. A driver match writes all of them; a team-only result writes the shared `prefix\|team`. Empty keeps `tags` as the full list. |
+| `order_weight` | `0` | how far the cars pass in number order, from `0` (random: the neighbour aid is off) to `1` (strictly in order). Above 0, groups shot just before and after a doubtful read help identify it; see [How it decides](#how-it-decides). Gaps and out-of-order passes are fine, and the list loops (after the highest number comes the lowest). Outside 0–1 stops the run |
 | `partial_references` | `false` | **Add tagged images as references** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only). |
 
 An unknown key, or a misspelt one, stops the run and names it, so a typo can't silently do nothing.
@@ -257,6 +259,8 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 | `Assisted Tagging\|Identification\|By livery` | matched against reference samples |
 | `Assisted Tagging\|Identification\|By burst` | the rest of its burst agreed on one entry |
 | `Assisted Tagging\|Identification\|By pooled burst` | the experimental `burst_livery_pooling` rule resolved it from its burst's pooled livery similarity |
+| `Assisted Tagging\|Identification\|By neighbour` | a doubtful number read was settled by the groups shot just before and after (needs `order_weight` above 0) |
+| `Assisted Tagging\|Identification\|Check order` | a low-confidence number read that no neighbouring group supports; the entry tag stays. Delete the tag once checked |
 | `Assisted Tagging\|Identification\|Team only` | two teammates were too close to call; only their shared tags were added |
 | `Assisted Tagging\|Identification\|Unidentified` | no vehicle, or no confident match |
 | `Assisted Tagging\|Identification\|Number seen\|<digits>` | OCR read these digits but they didn't resolve to one entry; added alongside the outcome tag |
@@ -292,6 +296,7 @@ All under **preferences → lua options**.
 | Assisted Tagging: collections folder | empty (`assisted_tagging/collections` in the config directory) | Where collections live |
 | Assisted Tagging: livery embedder model | empty (`dinov2_small.onnx`) | File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`. Changing it re-embeds every reference on the next run |
 | Assisted Tagging: diagnostic tags | on | The `By number` / `By livery` / … tags above; off removes them on the next run |
+| Assisted Tagging: neighbour tolerance | 5 | how many places apart in the sorted number list a neighbouring car can be and still support a read (whole number; anything else means 5). Only used when a collection's `order_weight` is above 0 |
 | Assisted Tagging: grouping support | native | `native`, `tags` or `none`. Set from the panel's **Grouping support** control, see [Grouping support](#grouping-support) |
 | Assisted Tagging: grouping tag node | empty (newest run) | The tag node whose children are the groups in `tags` mode. Set from the panel |
 
@@ -323,6 +328,11 @@ per box:   sponsor words on the car (or a team tag you applied) narrow the candi
            else                                         → none
         |
         v
+neighbour aid (only when rules.order_weight > 0): a doubtful or unmatched number is
+           checked against the 3 groups shot before and after (within 2 minutes)
+           resolved to a nearby entry → neighbour; unsupported low-confidence read → "Check order" tag
+        |
+        v
 per group: frames with nothing identified take the group's entry
            when 2+ frames agree on it and none disagree → burst
            (experimental: pool livery similarity across the burst → pooled)
@@ -337,6 +347,7 @@ Each outcome above is one of these methods, named consistently from `identify.py
 |---|---|---|
 | `number` | OCR reading an entry's `number` | `…\|By number` |
 | `livery` | the DINOv2 embedding, against reference samples | `…\|By livery` |
+| `neighbour` | the groups shot before and after, for a number that was misread or didn't match (needs `order_weight`) | `…\|By neighbour` |
 | `burst` | the rest of the burst agreeing, when number and livery didn't | `…\|By burst` |
 | `pooled` | the burst's pooled livery similarity (experimental `burst_livery_pooling` rule) | `…\|By pooled burst` |
 | `team` | two teammates too close to call by livery (shared tags only) | `…\|Team only` |

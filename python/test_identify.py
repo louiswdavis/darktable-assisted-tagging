@@ -84,7 +84,7 @@ def run_tests():
         missing = str(e)
     check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
-          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px, colour_weight)')
+          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight)')
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
           'entry "VER": unknown field "tagz" (fields are id, number, team, tags, camera)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
@@ -109,7 +109,7 @@ def run_tests():
     check("a bad team_only value is rejected", load_error({"rules": {"team_only": "both"}, "entries": []}),
           'rules.team_only must be "shared tags" or "none"')
     check("an unknown diagnostic is named", load_error({"rules": {"diagnostics": {"guess": "x"}}, "entries": []}),
-          'unknown diagnostic "guess" (they are number, livery, burst, team, none, number_seen, pooled, shot_solo, shot_pack, shot_crowded)')
+          'unknown diagnostic "guess" (they are number, livery, burst, neighbour, check_order, team, none, number_seen, pooled, shot_solo, shot_pack, shot_crowded)')
 
     # ---- rules.tag_prefix builds tags from team and name
     entries, rules = I.load_collection(collection({"rules": {"tag_prefix": "Motorsport|F1"}, "entries": [
@@ -124,6 +124,18 @@ def run_tests():
     check("prefix: an entry with nothing to build from is rejected",
           load_error({"rules": {"tag_prefix": "F1"}, "entries": [{"id": "X"}]}),
           'entry "X": needs a team or name to build its tags from rules.tag_prefix, or its own tags')
+    n_entries, _ = I.load_collection(collection({"rules": {"tag_prefix": "Rally|2026"}, "entries": [
+        {"id": "12", "number": "12"}, {"id": "7", "number": 7, "team": "Red"}]}))
+    check("numbers-only entry tags come from prefix and number", n_entries["12"].tags, ("Rally|2026|12",))
+    check("an entry with a team keeps the team tag, not the number", n_entries["7"].tags, ("Rally|2026|Red",))
+    check("numbers-only entry without a prefix is rejected",
+          load_error({"entries": [{"id": "12", "number": "12"}]}),
+          'entry "12": tags must be a non-empty list of tag names')
+    check("order_weight defaults to 0", I.load_collection(collection([VER]))[1].order_weight, 0.0)
+    check("order_weight is read", I.load_collection(collection({"rules": {"order_weight": 0.5}, "entries": [VER]}))[1].order_weight, 0.5)
+    for bad_weight in (1.5, -0.1, "x", True):
+        check(f"order_weight {bad_weight!r} is rejected",
+              "rules.order_weight" in load_error({"rules": {"order_weight": bad_weight}, "entries": [VER]}), True)
     check("a trailing | on the prefix is rejected", "tag_prefix" in load_error({"rules": {"tag_prefix": "F1|"}, "entries": []}), True)
 
     # ---- csv outputs and the tag plan
@@ -160,12 +172,14 @@ def run_tests():
     check("the cache key is stable", I.frame_key(frame, models), key)
 
     # ---- results rows
-    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,")
+    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,")
     check("a team row carries the runner-up", I.format_row("7", BoxResult(0, "team", "VER", "TSU", 0.71234)),
-          "7,0,team,VER,TSU,0.712,,")
-    check("a row ends with the shot type", I.format_row("7", BoxResult(0, "number", "VER", "", 0.9), "pack"),
-          "7,0,number,VER,,0.900,,pack")
-    check("a row has eight fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 8)
+          "7,0,team,VER,TSU,0.712,,,")
+    check("a row has the shot type before the order flag", I.format_row("7", BoxResult(0, "number", "VER", "", 0.9), "pack"),
+          "7,0,number,VER,,0.900,,pack,")
+    check("a flagged row ends with 1", I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, order_flag=True), "solo"),
+          "7,0,number,VER,,0.850,,solo,1")
+    check("a row has nine fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 9)
 
     # ---- Review Focus 2: EXIF-rotated frames
     rotated = os.path.join(img, "portrait.jpg")
@@ -244,8 +258,8 @@ def run_tests():
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
     check("number reads, burst consensus and no-vehicle rows come out in manifest order (3-column manifest)", rows,
-          ["1,0,number,VER,,0.950,,solo", "2,0,number,VER,,0.900,,solo", "3,0,burst,VER,,0.667,,solo",
-           "4,-1,none,,,0.000,,", "5,-1,error,,,0.000,,"])
+          ["1,0,number,VER,,0.950,,solo,", "2,0,number,VER,,0.900,,solo,", "3,0,burst,VER,,0.667,,solo,",
+           "4,-1,none,,,0.000,,,", "5,-1,error,,,0.000,,,"])
     check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
     check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
 
@@ -267,9 +281,9 @@ def run_tests():
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a fully tagged image is skipped; solo disagreement is a conflict, also when burst-filled; packs aren't", rows,
-          ["1,-1,skipped,,,0.000,,", "2,0,conflict,VER,,0.900,,solo", "6,0,number,VER,,0.950,,solo",
-           "7,0,number,VER,,0.950,,solo", "8,0,conflict,VER,,0.667,,solo", "9,0,number,VER,,0.950,,pack",
-           "9,1,none,,,0.000,,pack"])
+          ["1,-1,skipped,,,0.000,,,", "2,0,conflict,VER,,0.900,,solo,", "6,0,number,VER,,0.950,,solo,",
+           "7,0,number,VER,,0.950,,solo,", "8,0,conflict,VER,,0.667,,solo,", "9,0,number,VER,,0.950,,pack,",
+           "9,1,none,,,0.000,,pack,"])
     run = json.load(open(args.boxes_out, encoding="utf-8"))
     check("boxes.json names the collection and the skipped images", (run["collection"], run["skipped"]),
           (os.path.basename(coll), ["1"]))

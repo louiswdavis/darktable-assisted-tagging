@@ -12,7 +12,7 @@ domain-agnostic (`vehicles.py`, `embed.py`, `reference_store.py`).
 Other domains that would fit the same pipeline with different identifying
 attributes instead of race number / team:
 
-- **Other sports** (jersey number stands in directly for race number)
+- **Other sports** (jersey number stands in directly for race number). Numbers-only entries and the `order_weight` neighbour aid already cover events where cars are told apart by number alone (see `examples/rally`)
 - **People** — built as the `people` collection kind (YuNet + SFace face embeddings); thresholds still to be set from a Windows `eval_people.py` run
 - **Landmarks** — no number, no "team" grouping concept at all
 - **Flowers / birds / animals** — species/genus grouping could replace "team"

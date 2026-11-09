@@ -40,6 +40,9 @@ class BoxResult:
     # string read, ";"-joined, for one diagnostic tag per string, even when livery/team/
     # burst still identified the vehicle.
     unmatched_number: str = ""
+    # Set by neighbour.neighbour_aid on a doubtful number read that doesn't fit the groups shot
+    # either side of it; the result and its tags stay, the photographer checks it.
+    order_flag: bool = False
 
 
 def match_livery(box: int, sims: list, entries: dict, unmatched: str = "") -> BoxResult:

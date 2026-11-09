@@ -15,7 +15,7 @@ from sponsors import SPONSOR_MIN_CONF
 
 CATEGORIES = ("identified", "team-obvious", "weak-match", "no-references", "number-unmatched",
               "conflict", "overlapped", "already-tagged", "no-vehicle")
-IDENTIFIED_METHODS = ("number", "livery", "burst", "pooled")
+IDENTIFIED_METHODS = ("number", "livery", "burst", "pooled", "neighbour")
 # categories whose boxes are listed one by one; the rest are only counted
 DETAIL_CATEGORIES = ("team-obvious", "weak-match", "no-references", "number-unmatched", "conflict", "overlapped", "no-vehicle")
 MEDIAN_CATEGORIES = ("team-obvious", "weak-match")

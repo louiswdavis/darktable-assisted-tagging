@@ -123,6 +123,22 @@ check("a dropped diagnostic writes none", keys(d), "")
 w, _, ok = T.wanted_tags({ row("number", "GONE") }, entries)
 check("an entry no longer in entries.json identifies nothing", ok, false)
 
+w, d, ok = T.wanted_tags({ row("neighbour", "VER") }, entries)
+check("a neighbour result wants the entry's tags", keys(w), "F1|Red Bull + F1|Red Bull|Verstappen")
+check("a neighbour result gets the By neighbour diagnostic", keys(d), "Assisted Tagging|Identification|By neighbour")
+check("a neighbour result is identified", ok, true)
+local flagged = row("number", "VER")
+flagged.order_flag = true
+w, d = T.wanted_tags({ flagged }, entries)
+check("a flagged read keeps the entry's tags", keys(w), "F1|Red Bull + F1|Red Bull|Verstappen")
+check("a flagged read gets By number and Check order",
+    keys(d), "Assisted Tagging|Identification|By number + Assisted Tagging|Identification|Check order")
+w, d = T.wanted_tags({ flagged }, entries, T.parse_rules_csv("diag_check_order,"))
+check("a dropped Check order diagnostic writes none", keys(d), "Assisted Tagging|Identification|By number")
+check("neighbour tolerance parses a whole number", T.parse_neighbour_tolerance(" 8 "), 8)
+check("neighbour tolerance falls back to 5", T.parse_neighbour_tolerance("abc"), 5)
+check("neighbour tolerance defaults when unset", T.parse_neighbour_tolerance(nil), 5)
+
 -- owned_tags / tag_changes (Review Focus 5) ---------------------------------
 local owned = T.owned_tags(entries, rules)
 check("owned: entry tags", owned["F1|Ferrari|Hamilton"], true)
@@ -153,12 +169,13 @@ check("no matching tags map to no one", T.entry_for_tags({ ["Holiday"] = true },
 
 -- read_results (review fix 4) ----------------------------------------------
 local rows_of, errored, skipped_ids = T.read_results(table.concat({
-    "1,0,number,VER,,0.950,,pack",
-    "1,1,none,,,0.000,,pack",
-    "4,-1,none,,,0.000,,",
-    "5,-1,error,,,0.000,,",
-    "6,-1,skipped,,,0.000,,",
-    "7,0,none,,,0.000,",
+    "1,0,number,VER,,0.950,,pack,",
+    "1,1,none,,,0.000,,pack,",
+    "4,-1,none,,,0.000,,,",
+    "5,-1,error,,,0.000,,,",
+    "6,-1,skipped,,,0.000,,,",
+    "7,0,none,,,0.000,,",
+    "8,0,number,VER,,0.850,,solo,1",
     "garbage",
 }, "\n"))
 check("results group by image id", #rows_of[1], 2)
@@ -168,7 +185,9 @@ check("an errored frame is reported", errored[5], true)
 check("a skipped frame has no rows to apply", rows_of[6], nil)
 check("a skipped frame is reported", skipped_ids[6], true)
 check("rows carry the shot type", rows_of[1][1].shot, "pack")
-check("a 7-field line is rejected", rows_of[7], nil)
+check("an 8-field line is rejected", rows_of[7], nil)
+check("a row carries the order flag", rows_of[8][1].order_flag, true)
+check("an unflagged row has no order flag", rows_of[1][1].order_flag, false)
 
 -- ledger / protected tags / shot + conflict handling ---------------------------
 local led = T.ledger_parse(T.ledger_format({ [3] = { b = true, a = true }, [1] = { z = true } }))
