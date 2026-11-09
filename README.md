@@ -15,13 +15,17 @@ Forked from [darktable-assisted-culling](https://github.com/louiswdavis/darktabl
 
 - [Requirements](#requirements)
 - [Install](#install)
-- [Starting a collection](#starting-a-collection)
-- [Building references](#building-references)
-- [Identifying](#identifying)
+- [Using it](#using-it)
+  - [Starting a collection](#starting-a-collection)
+  - [Building references](#building-references)
+  - [Identifying](#identifying)
+- [Panel options](#panel-options)
 - [Preferences](#preferences)
-- [How it decides](#how-it-decides)
+- [How it works](#how-it-works)
 - [Tuning](#tuning)
 - [Troubleshooting](#troubleshooting)
+- [Limitations](#limitations)
+- [Acceptance checklist](#acceptance-checklist)
 - [Development](#development)
 
 ## Requirements
@@ -123,7 +127,11 @@ echo require "contrib/assisted_tagging" >> "%LOCALAPPDATA%\darktable\luarc"
 
 Start darktable, open **preferences → lua options**, and set **Assisted Tagging: plugin folder** to this repo's folder. From there the plugin finds `python/identify.py`, the `models` folder and the `.venv` by itself. Set **Assisted Tagging: Python interpreter** only if yours lives somewhere else.
 
-## Starting a collection
+## Using it
+
+The **Assisted Tagging** panel is in lighttable. Start a collection, give its entries some references, then identify a selection.
+
+### Starting a collection
 
 A **collection** is one entry list plus its reference samples: normally one series and season (`F1 2026`), or one event (`BTCC 2026 Brands Hatch`). Collections live in the collections folder, by default `assisted_tagging/collections` in darktable's config directory (the panel creates it the first time it loads). Each one is a folder:
 
@@ -138,7 +146,7 @@ collections/
 
 Build one of two ways:
 
-### From already-tagged images (recommended)
+#### From already-tagged images (recommended)
 
 If you've already hand-tagged a handful of photos — one per competitor, e.g. `Motorsport|F1|Red Bull` on both Red Bull cars and `Motorsport|F1|Red Bull|Max Verstappen` on just his — the panel can turn those into a working collection in one click. This isn't motorsport-specific: it only ever reads whatever `A|B|C`-style tags you've already used, so the same button builds a collection for any set of visually-distinguishable, hierarchically-tagged subjects.
 
@@ -159,7 +167,7 @@ Two kinds of selected image don't become an entry, and are reported in the done 
 
 If you want number-based identification but your tags don't already encode the number, or you want custom [rules](#rules), add those by hand afterward (see below). If a collection with that name already exists, nothing is overwritten — pick a new name, or switch to the existing one and use **Add tagged images as references** instead.
 
-### From an example
+#### From an example
 
 No tagged photos yet, or just want to see the shape of a working `entries.json`? The **example** dropdown in the panel lists the collections shipped in [`examples/`](examples) — no images needed, since these ship with their structure already filled in (with placeholder names, not real references):
 
@@ -169,7 +177,7 @@ No tagged photos yet, or just want to see the shape of a working `entries.json`?
 
 Either way, a created collection still needs its placeholder names replaced with your own competitors (and references added, for anything you want livery-matched) before it identifies anything correctly — click **Edit entries.json** in the panel's **collection** section at any time to open the *active* collection's file the same way.
 
-### By hand
+#### By hand
 
 Write `entries.json` yourself for more control than tags alone give you: a race `number`, or custom [rules](#rules). It holds the collection's **entries**, one per competitor, and its **rules**: what each outcome tags. For example:
 
@@ -193,13 +201,14 @@ Here VER gets `Motorsport|F1|Red Bull` and `Motorsport|F1|Red Bull|Max Verstappe
 
 A file that's just the `[ … ]` list of entries works too, with the default rules — this is the shape **Create collection from tagged images** writes when its tags don't share one prefix. When every car's tags are `prefix|team` and `prefix|team|name` under the same prefix, it writes the `tag_prefix` form above instead (with `name` per entry). Either way you can hand-edit the result to add numbers or rules.
 
-[`examples/`](examples) has three collections — pick one from the panel's **example** dropdown (see [above](#from-an-example)), or copy its folder into the collections folder by hand. Each has a README on what it shows and how to supply its references:
+[`examples/`](examples) has four collections — pick one from the panel's **example** dropdown (see [above](#from-an-example)), or copy its folder into the collections folder by hand. Each has a README on what it shows and how to supply its references:
 
 - [`f1-season`](examples/f1-season): a season with near-identical teammates, a one-off livery and number-less cars
 - [`btcc-event`](examples/btcc-event): one race weekend, with a "check me" tag for misses and no team-only tags
 - [`minimal`](examples/minimal): a bare entry list on the default rules
+- [`rally`](examples/rally): number-only entries for cars of no known livery, with the neighbour aid on (`order_weight`)
 
-### Entries
+#### Entries
 
 | Field | Required | Rules |
 |---|---|---|
@@ -212,7 +221,7 @@ A file that's just the `[ … ]` list of entries works too, with the default rul
 
 The tags are yours to design: put the team tag on both teammates and the driver tag on one, and a team-only result carries exactly the team tag. The examples leave the year out of the tags: the collection already separates seasons for matching, and darktable's collections module filters by capture date. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags and no `number`, so the number still identifies `VER`) or a new collection.
 
-### Rules
+#### Rules
 
 Every key is optional; leave one out for its default.
 
@@ -224,18 +233,18 @@ Every key is optional; leave one out for its default.
 
 | `sponsor_keywords` | `{}` | maps a lowercase sponsor word to the tag prefix of its team, e.g. `{"petronas": "Motorsport\|F1\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
 | `tag_prefix` | `""` | a tag path for the whole collection, e.g. `Motorsport\|F1`. Each entry's tags are then built: `prefix\|team`, then `prefix\|team\|name` (`prefix\|name` with no team), then its own `tags` as extras. A driver match writes all of them; a team-only result writes the shared `prefix\|team`. Empty keeps `tags` as the full list. |
-| `order_weight` | `0` | how far the cars pass in number order, from `0` (random: the neighbour aid is off) to `1` (strictly in order). Above 0, groups shot just before and after a doubtful read help identify it; see [How it decides](#how-it-decides). Gaps and out-of-order passes are fine, and the list loops (after the highest number comes the lowest). Outside 0–1 stops the run |
+| `order_weight` | `0` | how far the cars pass in number order, from `0` (random: the neighbour aid is off) to `1` (strictly in order). Above 0, groups shot just before and after a doubtful read help identify it; see [How it decides](#how-it-works). Gaps and out-of-order passes are fine, and the list loops (after the highest number comes the lowest). Outside 0–1 stops the run |
 | `partial_references` | `false` | **Add tagged images as references** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only). |
 
 An unknown key, or a misspelt one, stops the run and names it, so a typo can't silently do nothing.
 
-### Checking what it will tag
+#### Checking what it will tag
 
 Click **Show tag plan** in the panel. It writes `tag-plan.txt` next to the collection's `entries.json`, listing exactly what each outcome writes: every entry's tags and reference count, the team-only tags for each pair of teammates, the unidentified tags, and the diagnostic tags. It also lists entries that can only be identified by number, and entries that can't be identified at all until they have references. The file is rewritten on every run and **Reload**, so it always matches `entries.json`.
 
 After editing `entries.json`, click **Reload** in the panel. A mistake in the file stops the run with the file name and what's wrong.
 
-## Building references
+### Building references
 
 Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong. **Create collection from tagged images** already does this for the images it was given; add more at any time with the panel's **references** section, below **new collection** and **collection**:
 
@@ -247,7 +256,7 @@ Numbers aren't readable in every shot (rear views, motion blur, a number hidden 
 
 Each sample is a JPG in `refs/<entry id>/`, named after the darktable image id. Adding the same photo again replaces its sample. To remove a bad sample, delete its JPG; the next run notices.
 
-## Identifying
+### Identifying
 
 In lighttable, select a batch and click **Identify selection** in the **Assisted Tagging** panel. Progress shows in darktable's message area; click the button again to cancel. A cancelled run changes no tags.
 
@@ -274,7 +283,7 @@ Tick **Tag each run** in the panel to also stamp every image a run writes with `
 
 Re-running is safe: each image's entry and diagnostic tags are synced to the new result, so a frame that moves from one driver to another loses the old driver's tags. Tags that aren't in the active collection are never touched.
 
-### Tags you apply by hand
+#### Tags you apply by hand
 
 The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config directory) of the tags it attached to each image. An entry tag on an image that isn't in its ledger is yours, at any depth (team or driver), and a run never removes it. So a photo you tagged to a team stays that way even when the run can't tell the driver.
 
@@ -284,6 +293,41 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 - To let a run replace your tags, tick **Replace manual tags** under **Identify selection**. It applies to the next run only and clears itself.
 - If you remove a tag the plugin attached and later apply it again by hand, it counts as yours.
 - Images tagged by an older version have no ledger, so all their entry tags count as yours.
+
+## Panel options
+
+The panel has four sections, top to bottom.
+
+### new collection
+
+- **Name** (text field, e.g. `F1 2026`). The folder name for a new collection.
+- **Create collection from tagged images.** Builds the collection from the selected images' tags (see [From already-tagged images](#from-already-tagged-images-recommended)).
+- **example**, **View example**, **Create collection from example.** Pick a shipped example, open its `entries.json`, or copy it into a new collection (see [From an example](#from-an-example)).
+
+### collection
+
+- **collection.** The active collection: a folder in the collections folder with an `entries.json`.
+- **Reload.** Rereads the collections folder and the active `entries.json`.
+- **Show tag plan.** Writes `tag-plan.txt` (see [Checking what it will tag](#checking-what-it-will-tag)).
+- **Edit entries.json.** Opens the file in an editor inside the panel, with **Save entries.json** and **Cancel edit**.
+
+### identify
+
+- **Replace manual tags.** Lets the next run replace tags you applied by hand; clears itself after the run (see [Tags you apply by hand](#tags-you-apply-by-hand)).
+- **Use team tags as hints** (on by default). A team tag you applied narrows matching on a solo shot.
+- **grouping support** (Native groups, Grouping tags, None). What the burst step borrows answers from (see [Grouping support](#grouping-support)).
+- **Grouping tag node (blank = newest run)** (text field). The tag node in Grouping tags mode.
+- **Tag each run.** Stamps every image a run writes with `Assisted Tagging|Run|YYYY-MM-DD HH:MM`.
+- **Verify selection.** Identifies the selection, fully tagged images included, and reports where the result differs from your tags. No tags change.
+- **Identify selection.** Identifies and tags the selection (see [Identifying](#identifying)). Click again to cancel.
+
+### references
+
+- **entry.** The entry **Add as reference** saves under.
+- **Add as reference**, **Add tagged images as references**, **Add confident vehicles from last run.** See [Building references](#building-references).
+- **Audit: suggest re-crops**, **Audit: quarantine poor refs** (both off by default), **Audit references.** See **Audit references** under [Building references](#building-references).
+
+The grouping support choice and tag node are saved as preferences. The checkboxes are not saved between darktable sessions.
 
 ## Preferences
 
@@ -297,22 +341,10 @@ All under **preferences → lua options**.
 | Assisted Tagging: livery embedder model | empty (`dinov2_small.onnx`) | File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`. Changing it re-embeds every reference on the next run |
 | Assisted Tagging: diagnostic tags | on | The `By number` / `By livery` / … tags above; off removes them on the next run |
 | Assisted Tagging: neighbour tolerance | 5 | how many places apart in the sorted number list a neighbouring car can be and still support a read (whole number; anything else means 5). Only used when a collection's `order_weight` is above 0 |
-| Assisted Tagging: grouping support | native | `native`, `tags` or `none`. Set from the panel's **Grouping support** control, see [Grouping support](#grouping-support) |
+| Assisted Tagging: grouping support | native | `native`, `tags` or `none`. Set from the panel's **grouping support** control, see [Grouping support](#grouping-support) |
 | Assisted Tagging: grouping tag node | empty (newest run) | The tag node whose children are the groups in `tags` mode. Set from the panel |
 
-### Grouping support
-
-Tagging no longer clusters photos by capture time. Consensus (the "borrow the answer from the rest of the group" step) runs over groups that something else already made, and the panel's **Grouping support** combobox picks which:
-
-- **Native groups** (default): darktable's own image groups. A photo's group is its group leader.
-- **Grouping tags**: the children of an [Assisted Grouping](../darktable-assisted-grouping/README.md) tag node, e.g. `Assisted Grouping|2026-01-01 12:00:00|Group|NNNN`. The **Grouping tag node (blank = newest run)** entry names the node. Blank uses the newest Assisted Grouping run found on the selected photos. Assisted Grouping must have **Write group tags** on, or there is nothing to find.
-- **None**: every photo is its own group, so nothing is borrowed.
-
-A photo with no group (no native group, or no child tag under the node) is its own group. Groups are not size-checked: a coarse group (a long hand-made stack, or Assisted Grouping's Camera or Parent layers) is treated as one car pass, so the missed-detection rescue may carry an identification across the whole group. The log records the mechanism, how many photos landed in groups of 2 or more, and (in Grouping tags mode only) the node used.
-
-A coarse group is your grouping settings at work: if Assisted Grouping's time gap is set high, or its Camera or Parent layers join unrelated shots, consensus can fill an entry across different cars. Tighten the grouping, switch to **None**, or fix the group, rather than expecting tagging to split it.
-
-## How it decides
+## How it works
 
 ```
 assisted_tagging.lua groups the selection by Grouping support (native, tags or none), writes manifest.csv, runs identify.py
@@ -355,6 +387,18 @@ Each outcome above is one of these methods, named consistently from `identify.py
 
 Frames are decoded at native resolution (a raw file's embedded preview) and each vehicle is cropped from that before reading its number, since a number only a few pixels tall in a downscaled frame is readable in the crop. Detection, OCR text and embeddings are cached per frame in `assisted_tagging/cache.sqlite` in darktable's config directory. Matching isn't, so adding references or editing `entries.json` takes effect on the next run without decoding anything again. The cache key includes the file (path, modified time, size), every model file and the constants that change the cached data; unused entries are dropped after 90 days. Delete the file to start over.
 
+### Grouping support
+
+Tagging no longer clusters photos by capture time. Consensus (the "borrow the answer from the rest of the group" step) runs over groups that something else already made, and the panel's **grouping support** combobox picks which:
+
+- **Native groups** (default): darktable's own image groups. A photo's group is its group leader.
+- **Grouping tags**: the children of an [Assisted Grouping](../darktable-assisted-grouping/README.md) tag node, e.g. `Assisted Grouping|2026-01-01 12:00:00|Group|NNNN`. The **Grouping tag node (blank = newest run)** entry names the node. Blank uses the newest Assisted Grouping run found on the selected photos. Assisted Grouping must have **Write group tags** on, or there is nothing to find.
+- **None**: every photo is its own group, so nothing is borrowed.
+
+A photo with no group (no native group, or no child tag under the node) is its own group. Groups are not size-checked: a coarse group (a long hand-made stack, or Assisted Grouping's Camera or Parent layers) is treated as one car pass, so the missed-detection rescue may carry an identification across the whole group. The log records the mechanism, how many photos landed in groups of 2 or more, and (in Grouping tags mode only) the node used.
+
+A coarse group is your grouping settings at work: if Assisted Grouping's time gap is set high, or its Camera or Parent layers join unrelated shots, consensus can fill an entry across different cars. Tighten the grouping, switch to **None**, or fix the group, rather than expecting tagging to split it.
+
 ## Tuning
 
 The thresholds are starting points, not tuned defaults. Each is a named constant:
@@ -390,26 +434,68 @@ After changing `OCR_MIN_SCORE`, `MIN_BOX_FRAC`, `CROP_DIM` or the detection, OCR
 - **Everything comes back `Unidentified`.** Check the log's `references:` line: an entry with 0 references can only be found by its number.
 - **"cache … is unreadable".** Delete `assisted_tagging/cache.sqlite` in darktable's config directory; the next run rebuilds it.
 
+## Limitations
+
+Known gaps, not yet fixed:
+
+- **Entries with no references** can only be identified by a readable number.
+- **Identical teammates** get only their shared team tag, never a guessed driver.
+- **Packs** get no team-tag hints, and are not checked against the tags you applied.
+- **Groups are not size-checked.** A coarse group can carry one identification across different cars (see [Grouping support](#grouping-support)).
+- **Four vehicles per frame** at most (`MAX_BOXES`); a frame that reaches it gets the *Crowded* tag.
+- **Thresholds are starting points**, not tuned defaults (see [Tuning](#tuning)).
+- **Reference crops** come from previews, unmasked, even when the run re-read a box at higher detail.
+- **Older tags count as yours.** Images tagged before the ledger existed have no ledger rows, so a run never removes their entry tags.
+- **The audit's whole-frame check** also fires on dark or blurred cars, and the first audit is slow (about 8 minutes for 2000 refs).
+- **Run stamps** from **Tag each run** are never removed by the plugin.
+
+## Acceptance checklist
+
+The darktable side of grouping support, the neighbour aid and the `settings:` log line has not been run in darktable yet. Work through these steps on Windows, in order, and note the result of each. The log is `%LOCALAPPDATA%\darktable\assisted_tagging.log`; each run ends with `run finished`.
+
+**Setup**
+
+1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers` and `test_identify`.
+2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable with sections *new collection*, *collection*, *identify*, *references*. No `LUA ERROR` in the darktable log.
+3. **A collection.** Set the plugin folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **collection** dropdown.
+
+**Grouping support** (one run per mode, on a selection holding a burst)
+
+4. **Native groups.** Put the burst in a darktable group, pick *Native groups*, click **Identify selection**. *Expect:* in the log, `identify started`, then `settings: … grouping support native, node (blank), neighbour tolerance 5`, then `group support native: N of M photos in groups of 2+` with N counting the burst.
+5. **Grouping tags, blank node.** Run Assisted Grouping on the selection with **Write group tags** on. Back in tagging, pick *Grouping tags*, leave the node blank, run. *Expect:* `group support tags: N of M photos in groups of 2+, node Assisted Grouping|<stamp>|Group` naming the newest run.
+6. **Grouping tags, wrong node.** Type a node no selected photo carries, run. *Expect:* `group support tags: 0 of M photos in groups of 2+, node <what you typed> (matches no selected photo)`; every photo is its own group.
+7. **None.** Pick *None*, run. *Expect:* `group support none: 0 of M photos in groups of 2+`.
+
+**Neighbour aid and references**
+
+8. **Neighbour aid.** Make a collection from the `rally` example and run on cars shot roughly in number order. *Expect:* `neighbour: resolved N, flagged M (order weight …, tolerance 5)`; frames it settled get *By neighbour*, unsupported low-confidence reads get *Check order*. Set **neighbour tolerance** to 3 and re-run: both the `settings:` and `neighbour:` lines say 3.
+9. **Zero references.** Run on a collection with no references. *Expect:* `collection … has no references yet: only numbers can identify a car`; the run finishes, and cars with no readable number are *Unidentified*.
+
+**Panel**
+
+10. **Cancel.** Start **Identify selection** on a large selection and click it again. *Expect:* "Assisted Tagging: cancelled, no tags were changed."
+11. **No selection.** Clear the selection and click **Identify selection**. *Expect:* "Assisted Tagging: select some images first".
+
+### Report what breaks
+
+For each step that doesn't match, send back:
+
+- the step number, and what happened instead (screenshot if it's visual)
+- `assisted_tagging.log` from `%LOCALAPPDATA%\darktable` (copy it right after the failing step; the next run moves it to `assisted_tagging.prev.log`)
+- any `LUA ERROR` lines from `Documents\Darktable\darktable-log.txt`, with darktable started with `-d lua`
+
 ## Development
 
 ### Tests
 
-From the repo root. The Python tests use synthetic images and stub models, so they need no model files:
+From the repo root. The Python tests use synthetic images and stub models, so they need no model files. `run_tests.py` runs every `python/test_*.py` (or only the ones named, e.g. `match neighbour`), prints one summary line each and writes each one's output to `tests/<name>.txt`:
 
 ```
 # Linux / macOS
-.venv/bin/python python/test_match.py
-.venv/bin/python python/test_report.py
-.venv/bin/python python/test_sponsors.py
-.venv/bin/python python/test_identify.py
-.venv/bin/python python/test_reference_store.py
+.venv/bin/python python/run_tests.py
 
 # Windows
-.venv\Scripts\python python\test_match.py
-.venv\Scripts\python python\test_report.py
-.venv\Scripts\python python\test_sponsors.py
-.venv\Scripts\python python\test_identify.py
-.venv\Scripts\python python\test_reference_store.py
+.venv\Scripts\python python\run_tests.py
 ```
 
 The pure-logic half of the plugin runs under any Lua 5.4 (`cd lua && lua test_assisted_tagging.lua`). No `lua` binary? `pip install lupa` in the venv, then:

@@ -1,10 +1,11 @@
 .venv/
 __pycache__/
 *.pyc
-*.onnx
+*.log
+tests/
 /docs/superpowers
 .superpowers/
+*.onnx
 *.jpg
-collections/*/frame-share-cache.json
-collections/*/refs-quarantine/*.jpg
-collections/*/ref-audit-crops/*.jpg
+/runs/
+/collections/

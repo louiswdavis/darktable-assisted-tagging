@@ -39,14 +39,17 @@ M.DIAG_TAGS = {
 function M.exif_time_to_epoch(s)
     if not s then return nil end
     local y, mo, d, h, mi, se = s:match("(%d+):(%d+):(%d+) (%d+):(%d+):(%d+)")
-    if not y then return nil end
-    return os.time({
+    -- Before 1970 (a zero date, an old scan) os.time raises on Windows: undated.
+    if not y or tonumber(y) < 1970 then return nil end
+    local ok, epoch = pcall(os.time, {
         year = tonumber(y), month = tonumber(mo), day = tonumber(d),
         hour = tonumber(h), min = tonumber(mi), sec = tonumber(se),
         isdst = false, -- constant offset, so a DST change can't split a burst
     })
+    return ok and epoch or nil
 end
 
+-- Copy of the group-key block in darktable-assisted-culling/lua/assisted_culling.lua; change both.
 local GROUP_PREFIX = "Assisted Grouping|"
 local GROUP_STAMP = "^%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d$"
 
@@ -1463,6 +1466,13 @@ function M.identify_images(images, replace_manual, verify_only)
     identify_cancellable = true
     if identify_button then identify_button.label = _("Cancel") end
     start_log(verify_only and "verify started" or "identify started", #images)
+    log(string.format("settings: replace manual %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s",
+        tostring(replace_manual and true or false),
+        tostring(not use_hints_check or use_hints_check.value),
+        tostring(run_tag_check and run_tag_check.value or false),
+        group_support_key(),
+        (group_node_entry and group_node_entry.text ~= "") and group_node_entry.text or "(blank)",
+        tostring(neighbour_tolerance())))
 
     local job, run = nil, nil
     local okr, err = pcall(function()
@@ -2010,7 +2020,7 @@ local function install_panel()
     end
     -- changed_callback is async and fires on every assignment to `selected`: write only on a real change
     group_support_combo = dt.new_widget("combobox") {
-        label = _("Grouping support"),
+        label = _("grouping support"),
         tooltip = _("What groups photos for shared identification. Native groups: darktable's image groups. Grouping tags: the children of the tag node below. None: every photo is its own group."),
         changed_callback = function(self)
             local key
@@ -2098,13 +2108,14 @@ local function install_panel()
         entries_editor,
         save_entries_button,
         cancel_entries_button,
-        verify_button,
-        identify_button,
+        dt.new_widget("section_label") { label = _("identify") },
         replace_manual_check,
         use_hints_check,
-        run_tag_check,
         group_support_combo,
         group_node_entry,
+        run_tag_check,
+        verify_button,
+        identify_button,
         dt.new_widget("section_label") { label = _("references") },
         entry_combo,
         add_button,

@@ -25,6 +25,8 @@ end
 check("parses a normal timestamp", T.exif_time_to_epoch("2026:06:01 14:30:00") ~= nil, true)
 check("returns nil for missing timestamp", T.exif_time_to_epoch(nil), nil)
 check("returns nil for garbage input", T.exif_time_to_epoch("not a date"), nil)
+check("returns nil for an all-zero date", T.exif_time_to_epoch("0000:00:00 00:00:00"), nil)
+check("returns nil for a pre-1970 date", T.exif_time_to_epoch("1965:03:01 12:00:00"), nil)
 
 -- group keys ----------------------------------------------------------------
 local G10 = "Assisted Grouping|2026-11-09 10:00:00|Group"

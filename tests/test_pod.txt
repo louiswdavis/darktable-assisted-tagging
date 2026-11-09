@@ -1,7 +1,0 @@
-ok   yellow share over the line is yellow
-ok   no yellow on a side-on car is black
-ok   no yellow on a head-on car is unclear
-ok   a trace of yellow is unclear
-ok   no reading is unclear
-
-all tests passed
