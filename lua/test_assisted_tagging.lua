@@ -387,6 +387,8 @@ check("extra tags fall back to the bare list", T.entries_json({
     { id = "A", number = "", team = "X", tags = { "P|X", "P|X|A", "P|Other" } },
 }):match("^%[") ~= nil, true)
 
+require("test_preset_block")(T, check)
+
 print("")
 if failures == 0 then
     print("all tests passed")
