@@ -58,6 +58,25 @@ check("number_groups shares and separates",
 local ng2 = T.number_groups({ 7, 8, 9 }, {})
 check("number_groups with no keys at all", ng2[7] .. ng2[8] .. ng2[9], "123")
 
+-- collapse_shots ------------------------------------------------------------
+local function ids(list)
+    local out = {}
+    for _, img in ipairs(list) do out[#out + 1] = tostring(img.id) end
+    return table.concat(out, ",")
+end
+local cp, cg = T.collapse_shots({
+    { id = 1, path = "D:/a", filename = "DSC1.ARW" },
+    { id = 2, path = "D:/a", filename = "dsc1.jpg" },
+    { id = 3, path = "D:/a", filename = "DSC2.ARW" },
+    { id = 4, path = "D:/b", filename = "DSC1.JPG" },
+    { id = 5, path = "D:/a", filename = "DSC1.ARW" },
+})
+check("collapse_shots: JPEG leads its RAW pair, any case", ids(cp), "2,3,4")
+check("collapse_shots: pair and duplicate take the JPEG's tags", ids(cg[2]), "1,2,5")
+check("collapse_shots: RAW alone is read itself", ids(cg[3]), "3")
+check("collapse_shots: same stem in another folder is its own shot", ids(cg[4]), "4")
+check("collapse_shots: the replaced lead has no group", cg[1], nil)
+
 -- csv ---------------------------------------------------------------------
 check("csv_line quotes every field", T.csv_line({ 42, "/a b/c.NEF", 'x"y' }), '"42","/a b/c.NEF","x""y"')
 local p = T.parse_csv_line("7,0,team,VER,TSU,0.712", 6)

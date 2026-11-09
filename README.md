@@ -400,6 +400,8 @@ Each outcome above is one of these methods, named consistently from `identify.py
 
 Frames are decoded at native resolution (a raw file's embedded preview) and each vehicle is cropped from that before reading its number, since a number only a few pixels tall in a downscaled frame is readable in the crop. Detection, OCR text and embeddings are cached per frame in `assisted_tagging/cache.sqlite` in darktable's config directory. Matching isn't, so adding references or editing `entries.json` takes effect on the next run without decoding anything again. The cache key includes the file (path, modified time, size), every model file and the constants that change the cached data; unused entries are dropped after 90 days. Delete the file to start over.
 
+**RAW+JPEG pairs are read once, from the JPEG.** A RAW and a JPEG in the same folder with the same name before the extension (case ignored, as darktable pairs them on import) are one shot, and so are darktable duplicates of a file. The JPEG is read: it has the camera's exposure and colour at full size. Every file in the shot gets the same tags, and a hand tag on any of them is protected for the whole shot. A RAW with no JPEG is read as before. Same name in another folder is a separate shot.
+
 ### Grouping support
 
 Tagging no longer clusters photos by capture time. Consensus (the "borrow the answer from the rest of the group" step) runs over groups that something else already made, and the panel's **grouping support** combobox picks which:

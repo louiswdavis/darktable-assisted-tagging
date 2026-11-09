@@ -117,6 +117,53 @@ function M.number_groups(ids, key_of)
     return group_of
 end
 
+-- Same list as culling's RAW_EXT: LibRaw's camera formats.
+local RAW_EXT = {}
+for ext in ("3fr ari arw bay cr2 cr3 crw dcr dcs dng erf fff iiq k25 kdc mdc mef mos mrw nef nrw "
+    .. "orf ori pef raf raw rw2 rwl sr2 srf srw x3f"):gmatch("%S+") do
+    RAW_EXT[ext] = true
+end
+local FULL_SIZE_EXT = { jpg = true, jpeg = true, png = true, tif = true, tiff = true }
+
+-- "IMG_1.ARW" → "img_1": a RAW and its in-camera JPEG share it (darktable's import pairing
+-- ignores extension and case too).
+function M.shot_stem(filename)
+    return (filename:match("^(.+)%.[^.]*$") or filename):lower()
+end
+
+-- 2 a full-size file (JPEG, TIFF, PNG: the camera's exposure and colour), 1 a RAW, 0 other.
+local function lead_rank(filename)
+    local ext = (filename:match("%.([^.]+)$") or ""):lower()
+    if FULL_SIZE_EXT[ext] then return 2 end
+    return RAW_EXT[ext] and 1 or 0
+end
+
+-- Images → the ones to identify, and per identified id every image that takes its tags.
+-- One shot = darktable duplicates of a file plus a RAW+JPEG pair (same folder and stem),
+-- so the pair always gets the same tags. A shot is read from its best-ranked member.
+function M.collapse_shots(images)
+    local primaries, group_of, lead_of = {}, {}, {}
+    for _, img in ipairs(images) do
+        local key = img.path .. "/" .. M.shot_stem(img.filename)
+        local lead = lead_of[key]
+        if not lead then
+            primaries[#primaries + 1] = img
+            lead_of[key] = { img = img, slot = #primaries }
+            group_of[img.id] = { img }
+        else
+            local group = group_of[lead.img.id]
+            group[#group + 1] = img
+            if lead_rank(img.filename) > lead_rank(lead.img.filename) then
+                group_of[lead.img.id] = nil
+                group_of[img.id] = group
+                primaries[lead.slot] = img
+                lead.img = img
+            end
+        end
+    end
+    return primaries, group_of
+end
+
 function M.csv_line(fields)
     local out = {}
     for i, v in ipairs(fields) do
@@ -1345,19 +1392,8 @@ end
 -- Groups the selection into duplicates (same file, identified once) and groups, and reads the
 -- ledger and the tags the user applied by hand. Returns the run's state and the manifest rows.
 local function prepare_run(images, replace_manual)
-    -- Duplicates (same file) are identified once; the tags go on every copy.
-    local primaries, group_of, seen = {}, {}, {}
-    for _, img in ipairs(images) do
-        local key = img.path .. "/" .. img.filename
-        local lead = seen[key]
-        if lead then
-            table.insert(group_of[lead.id], img)
-        else
-            seen[key] = img
-            group_of[img.id] = { img }
-            table.insert(primaries, img)
-        end
-    end
+    -- Duplicates and RAW+JPEG pairs are identified once, from the JPEG; the tags go on every copy.
+    local primaries, group_of = M.collapse_shots(images)
 
     local time_of, primary_ids = {}, {}
     for _, img in ipairs(primaries) do
@@ -1436,9 +1472,15 @@ local function prepare_run(images, replace_manual)
 
     local rows = {}
     for _, img in ipairs(primaries) do
+        -- a hand tag on any copy (e.g. only the RAW) counts for the shot
+        local sent, hints = {}, {}
+        for _, copy in ipairs(group_of[img.id]) do
+            for name in pairs(sent_protected_of[copy.id]) do sent[name] = true end
+            for name in pairs(hints_of[copy.id]) do hints[name] = true end
+        end
         rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, burst_of[img.id],
-                            table.concat(sorted_names(sent_protected_of[img.id]), ";"),
-                            table.concat(sorted_names(hints_of[img.id]), ";"),
+                            table.concat(sorted_names(sent), ";"),
+                            table.concat(sorted_names(hints), ";"),
                             time_of[img.id] and tostring(time_of[img.id]) or "" }
     end
     return { primaries = primaries, group_of = group_of, protected_of = protected_of, ledger = ledger,
