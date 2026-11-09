@@ -1130,12 +1130,14 @@ end
 
 -- Refreshes the collection and entry lists from disk via identify.py --list,
 -- which also rewrites the collection's tag-plan.txt; show_plan points the user at it.
+-- Returns true once the lists loaded.
 local function reload_lists(quiet, show_plan)
     if busy or not orphan_gone() then
         if not quiet then dt.print(_("Assisted Tagging: busy, try again when the current run finishes.")) end
-        return
+        return false
     end
     busy = true
+    local loaded = false
     local okr, err = pcall(function()
         for attempt = 1, 2 do
             pcall(os.remove, COLLECTIONS_PATH)
@@ -1158,7 +1160,7 @@ local function reload_lists(quiet, show_plan)
                 dt.preferences.write("assisted_tagging", "last_collection", "string", names[1])
             else
                 load_entries_csv()
-                lists_loaded = true
+                lists_loaded, loaded = true, true
                 fill_combo(collection_combo, #names > 0 and names or { _("(no collections)") }, sel or 1)
                 refresh_entry_combo()
                 if #names == 0 then
@@ -1178,6 +1180,7 @@ local function reload_lists(quiet, show_plan)
     busy = false
     flush_log()
     if not okr then notify_error(_("Assisted Tagging: couldn't reload collections. ") .. tostring(err)) end
+    return loaded
 end
 
 -- Subfolders of `root` holding an entries.json: a plain directory listing, not
@@ -1237,6 +1240,21 @@ local function write_rows(path, rows)
     for _, r in ipairs(rows) do f:write(M.csv_line(r), "\n") end
     f:close()
     return true
+end
+
+-- Writes path via path.tmp and a rename, so a crash or full disk leaves the old file whole.
+-- Windows can't rename onto an existing file, so there the old one goes first.
+local function write_file_atomic(path, text)
+    local tmp = path .. ".tmp"
+    local f = io.open(tmp, "w")
+    if not f then return false end
+    local okw = f:write(text)
+    f:close()
+    if not okw then pcall(os.remove, tmp); return false end
+    if IS_WINDOWS then pcall(os.remove, path) end
+    local okr = os.rename(tmp, path)
+    if not okr then pcall(os.remove, tmp) end
+    return okr and true or false
 end
 
 local WRITE_ROWS_FAILED = "couldn't write the image list to darktable's tmp folder (disk full or no write access?)"
@@ -1428,11 +1446,7 @@ end
 
 -- Writes the ledger of the tags this plugin attached.
 local function write_ledger(ledger)
-    local lf = io.open(LEDGER_PATH, "w")
-    if lf then
-        lf:write(M.ledger_format(ledger))
-        lf:close()
-    else
+    if not write_file_atomic(LEDGER_PATH, M.ledger_format(ledger)) then
         log("couldn't write the tag ledger " .. LEDGER_PATH .. "; tags this run attached will count as yours next run")
     end
 end
@@ -1899,14 +1913,11 @@ function M.create_collection(images, raw_name)
     end
 
     make_collection_dir(dir)
-    local f = io.open(dir .. "/entries.json", "w")
-    if not f then
+    if not write_file_atomic(dir .. "/entries.json", M.entries_json(derived)) then
         notify_error(string.format(
             _("Assisted Tagging: couldn't create %s/entries.json (check the collections folder preference)."), dir))
         return
     end
-    f:write(M.entries_json(derived))
-    f:close()
 
     local extra = {}
     if #skipped > 0 then
@@ -1920,7 +1931,11 @@ function M.create_collection(images, raw_name)
         #derived == 1 and "y" or "ies", #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or ""))
 
     dt.preferences.write("assisted_tagging", "last_collection", "string", name)
-    reload_lists(true)
+    if not reload_lists(true) then
+        notify_error(string.format(_("Assisted Tagging: created %s but couldn't load it, so no references were added. "
+            .. "Click Reload, then \"Add tagged images as references\" with the same images selected (why: assisted_tagging.log)."), name))
+        return
+    end
     local active_images = {}
     for _, img in ipairs(images) do
         if entry_of[tostring(img.id)] then active_images[#active_images + 1] = img end
@@ -2053,15 +2068,20 @@ local function install_panel()
         visible = false,
         clicked_callback = function()
             local path = entries_json_path()
-            local f = io.open(path, "w")
-            if not f then
+            local before = read_file(path)
+            if not write_file_atomic(path, entries_editor.text) then
                 notify_error(string.format(_("Assisted Tagging: couldn't write %s (check the collections folder preference)."), path))
                 return
             end
-            f:write(entries_editor.text)
-            f:close()
-            close_entries_editor()
-            reload_lists(false)
+            -- --list reads the new file; if it doesn't load, the old file goes back and the
+            -- editor stays open with the text to fix
+            if reload_lists(false) then
+                close_entries_editor()
+            elseif before then
+                -- no dt.print here: it would replace reload_lists' message saying what's wrong
+                write_file_atomic(path, before)
+                log("entries.json edit didn't load; the previous file was put back and the editor left open")
+            end
         end,
     }
     cancel_entries_button = dt.new_widget("button") {
