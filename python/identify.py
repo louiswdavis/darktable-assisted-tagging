@@ -120,6 +120,9 @@ class Rules:
     # Motorsport: how much the groups shot just before and after a photo help a doubtful number read
     # (neighbour.neighbour_aid): 0 ignores them (random order), 1 expects the numbers strictly in order.
     order_weight: float = 0.0
+    # Motorsport: the least confidence (lower of text detection and the reader's own) a number read needs
+    # to count. Weaker reads stay in the box's OCR trace but name nothing.
+    min_read: float = 0.85
 
 
 def _entry_tags(eid: str, item: dict, team: str, name: str, prefix: str, bad, number: str = "") -> tuple:
@@ -161,11 +164,11 @@ def _load_rules(raw, bad) -> Rules:
     unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling",
                                   "blur_references", "sponsor_keywords", "partial_references",
                                   "min_sim", "margin", "min_face_px", "colour_weight", "tag_prefix",
-                                  "order_weight"})
+                                  "order_weight", "min_read"})
     if unknown:
         raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics, '
                    f'burst_livery_pooling, blur_references, sponsor_keywords, partial_references, '
-                   f'min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight)')
+                   f'min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight, min_read)')
     defaults = Rules()
     min_sim, margin, min_px = (raw.get("min_sim", defaults.min_sim), raw.get("margin", defaults.margin),
                                raw.get("min_face_px", defaults.min_face_px))
@@ -184,6 +187,9 @@ def _load_rules(raw, bad) -> Rules:
     order_weight = raw.get("order_weight", defaults.order_weight)
     if isinstance(order_weight, bool) or not isinstance(order_weight, (int, float)) or not 0 <= order_weight <= 1:
         raise bad("rules.order_weight must be a number from 0 (random order) to 1 (strictly in order)")
+    min_read = raw.get("min_read", defaults.min_read)
+    if isinstance(min_read, bool) or not isinstance(min_read, (int, float)) or not 0 <= min_read <= 1:
+        raise bad("rules.min_read must be a number from 0 to 1")
     tag_prefix = raw.get("tag_prefix", defaults.tag_prefix)
     if not isinstance(tag_prefix, str) or _BAD_TAG.search(tag_prefix) or tag_prefix != tag_prefix.strip("| "):
         raise bad('rules.tag_prefix must be a tag path like "Motorsport|F1": no , ; " and no leading or trailing |')
@@ -218,7 +224,8 @@ def _load_rules(raw, bad) -> Rules:
         diag[key] = name.strip()
     return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling, blur_refs,
                  tuple(sponsors.items()), partial, min_sim=float(min_sim), margin=float(margin), min_face_px=min_px,
-                 colour_weight=float(colour_weight), tag_prefix=tag_prefix, order_weight=float(order_weight))
+                 colour_weight=float(colour_weight), tag_prefix=tag_prefix, order_weight=float(order_weight),
+                 min_read=float(min_read))
 
 
 def load_collection(collection_dir: str) -> tuple:
@@ -441,7 +448,7 @@ def frame_key(filepath: str, models: dict) -> list:
         return [file_key(filepath), "people", *face_model_key(models["face_det"], models["face_rec"]), "face-1"]
     return [file_key(filepath),file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
-            DETECTOR_MIN_SCORE, "ocr-trace-1", "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
+            DETECTOR_MIN_SCORE, "ocr-trace-1", "read-conf-1", "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
             *([SEGMENT_CACHE_TOKEN] if models.get("segmenter") else [])]
 
 
@@ -878,7 +885,8 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         trace = a["ocr_trace"][i]
         prefixes, source = box_hint(tag_hints if len(a["boxes"]) == 1 else [],
                                     sponsor_prefixes(trace, rules.sponsor_keywords))
-        r, hint = hinted_match(i, [tuple(c) for c in ocr], sims, entries, prefixes, source)
+        reads = [tuple(c) for c in ocr if c[1] >= rules.min_read]
+        r, hint = hinted_match(i, reads, sims, entries, prefixes, source)
         r = match_team(r, team_sims, entries)
         pod = a["pod"][i]
         before = r.entry_id

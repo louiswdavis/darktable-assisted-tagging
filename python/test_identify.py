@@ -84,7 +84,7 @@ def run_tests():
         missing = str(e)
     check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
-          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight)')
+          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight, min_read)')
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
           'entry "VER": unknown field "tagz" (fields are id, number, team, tags, camera)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
@@ -136,6 +136,11 @@ def run_tests():
     for bad_weight in (1.5, -0.1, "x", True):
         check(f"order_weight {bad_weight!r} is rejected",
               "rules.order_weight" in load_error({"rules": {"order_weight": bad_weight}, "entries": [VER]}), True)
+    check("min_read defaults to 0.85", I.load_collection(collection([VER]))[1].min_read, 0.85)
+    check("min_read is read", I.load_collection(collection({"rules": {"min_read": 0.9}, "entries": [VER]}))[1].min_read, 0.9)
+    for bad_read in (1.5, -0.1, "x", True):
+        check(f"min_read {bad_read!r} is rejected",
+              "rules.min_read" in load_error({"rules": {"min_read": bad_read}, "entries": [VER]}), True)
     check("a trailing | on the prefix is rejected", "tag_prefix" in load_error({"rules": {"tag_prefix": "F1|"}, "entries": []}), True)
 
     # ---- csv outputs and the tag plan

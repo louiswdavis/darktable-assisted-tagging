@@ -41,15 +41,31 @@ def _letterbox(rgb: np.ndarray, size: int) -> np.ndarray:
     return canvas
 
 
-def _ctc_greedy(out: np.ndarray) -> str:
-    """CRNN output (T × 1 × 37, class 0 blank) → text, repeats and blanks collapsed."""
-    best = out.reshape(out.shape[0], -1).argmax(axis=1)
-    chars, prev = [], 0
-    for c in best:
+def _probs(out: np.ndarray) -> np.ndarray:
+    """CRNN output as per-step class probabilities (T × 37). Rows that are already probabilities pass
+    through; logits and log-probabilities are softmaxed (softmax of log p is p)."""
+    rows = out.reshape(out.shape[0], -1).astype(np.float64)
+    if rows.min() >= 0 and np.allclose(rows.sum(axis=1), 1.0, atol=1e-3):
+        return rows
+    e = np.exp(rows - rows.max(axis=1, keepdims=True))
+    return e / e.sum(axis=1, keepdims=True)
+
+
+def _ctc_greedy(out: np.ndarray) -> tuple:
+    """CRNN output (T × 1 × 37, class 0 blank) → (text, read confidence), repeats and blanks collapsed.
+    A character's confidence is its best step's probability; the read's is its least sure character's,
+    so one doubtful digit makes the whole number doubtful. No characters gives 0."""
+    p = _probs(out)
+    best = p.argmax(axis=1)
+    chars, confs, prev = [], [], 0
+    for t, c in enumerate(best):
         if c != 0 and c != prev:
             chars.append(REC_CHARSET[c - 1])
+            confs.append(p[t, c])
+        elif c != 0:
+            confs[-1] = max(confs[-1], p[t, c])
         prev = c
-    return "".join(chars)
+    return "".join(chars), float(min(confs, default=0.0))
 
 
 class NumberReader:
@@ -67,9 +83,11 @@ class NumberReader:
         self.rec = read_onnx(rec_path)
 
     def read(self, crop_rgb: np.ndarray) -> list:
-        """[(digits, detection confidence)], distinct numbers, most confident first. Also sets
-        `last_trace`: the five most confident detected text regions as [confidence, raw text],
-        accepted or not, so a zero-read crop shows what the reader saw."""
+        """[(digits, confidence)], distinct numbers, most confident first, for text regions detected at
+        OCR_MIN_SCORE or above. Confidence is the lower of the detection score and the recogniser's read
+        confidence: a plate can look very like text and still be read unsurely. Also sets `last_trace`:
+        the five most confident detected text regions as [confidence, raw text], accepted or not, so a
+        zero-read crop shows what the reader saw."""
         bgr = cv2.cvtColor(_letterbox(crop_rgb, DET_INPUT), cv2.COLOR_RGB2BGR)
         quads, confidences = self.det.detect(bgr)
         gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
@@ -78,10 +96,11 @@ class NumberReader:
             m = cv2.getPerspectiveTransform(np.asarray(quad, np.float32).reshape(4, 2), REC_TARGET)
             word = cv2.warpPerspective(gray, m, REC_INPUT)
             self.rec.setInput(cv2.dnn.blobFromImage(word, 1 / 127.5, REC_INPUT, 127.5))
-            text = _ctc_greedy(self.rec.forward())
-            trace.append([float(conf), text])
+            text, read_conf = _ctc_greedy(self.rec.forward())
+            both = min(float(conf), read_conf)
+            trace.append([both, text])
             digits = digits_only(text)
-            if conf >= OCR_MIN_SCORE and digits and conf > best.get(digits, -1.0):
-                best[digits] = float(conf)
+            if conf >= OCR_MIN_SCORE and digits and both > best.get(digits, -1.0):
+                best[digits] = both
         self.last_trace = sorted(trace, reverse=True)[:5]
         return sorted(best.items(), key=lambda kv: kv[1], reverse=True)
