@@ -389,6 +389,23 @@ check("extra tags fall back to the bare list", T.entries_json({
 
 require("test_preset_block")(T, check)
 
+do
+    local d = T.preset_defaults(T.PRESET_SCHEMA)
+    check("tagging schema has 18 keys", #T.PRESET_SCHEMA, 18)
+    check("tagging defaults", table.concat({ tostring(d.use_hints), d.group_support, d.group_node,
+        tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine), d.embedder_file,
+        tostring(d.neighbour_tolerance) }, " "), "true native  false false false  5")
+    local all_on = true
+    for _, item in ipairs(T.PRESET_SCHEMA) do
+        if item.key:match("^tag_") and d[item.key] ~= true then all_on = false end
+    end
+    check("every tag switch defaults on", all_on, true)
+    check("tolerance 3 kept", (T.preset_merge(T.PRESET_SCHEMA, { neighbour_tolerance = 3 })).neighbour_tolerance, 3)
+    check("tolerance from settings number", T.parse_neighbour_tolerance(tostring(3)), 3)
+    check("negative tolerance falls back", T.parse_neighbour_tolerance(tostring(-3)), 5)
+    check("float tolerance falls back", T.parse_neighbour_tolerance(tostring(3.5)), 5)
+end
+
 print("")
 if failures == 0 then
     print("all tests passed")

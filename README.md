@@ -19,6 +19,7 @@ Forked from [darktable-assisted-culling](https://github.com/louiswdavis/darktabl
   - [Starting a collection](#starting-a-collection)
   - [Building references](#building-references)
   - [Identifying](#identifying)
+- [Presets](#presets)
 - [Panel options](#panel-options)
 - [Preferences](#preferences)
 - [How it works](#how-it-works)
@@ -75,7 +76,7 @@ curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2
 Optional models. The plugin works without them:
 
 - **Segmentation**, for pack shots with overlapping cars. With it in `models`, a box that overlaps another is read through a car-shaped mask, with the background and the neighbouring car painted grey.
-- **Larger livery embedder.** Not used unless you set **Assisted Tagging: livery embedder model** (preferences → lua options) to `dinov2_base.onnx`; the next run then re-embeds every reference before analysing (the progress bar counts the references; on a large collection this takes minutes, and a cancel keeps those already done). Compare it first with `python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx --fresh-embed` (re-embeds the refs with that model in memory; `index.npz` is untouched).
+- **Larger livery embedder.** Not used unless you type `dinov2_base.onnx` into the collection's **embedder model file** option in the panel (and **update preset**); the next run then re-embeds every reference before analysing (the progress bar counts the references; on a large collection this takes minutes, and a cancel keeps those already done). Compare it first with `python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx --fresh-embed` (re-embeds the refs with that model in memory; `index.npz` is untouched).
 
 ```
 curl -L -o models/image_segmentation_efficientsam_ti_2025april.onnx https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx
@@ -229,7 +230,7 @@ Every key is optional; leave one out for its default.
 |---|---|---|
 | `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
-| `diagnostics` | the `Assisted Tagging\|Identification\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `pooled`, `neighbour`, `check_order`, `team`, `none`, `number_seen`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The *tag …* preferences still switch each one off for every collection. |
+| `diagnostics` | the `Assisted Tagging\|Identification\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `pooled`, `neighbour`, `check_order`, `team`, `none`, `number_seen`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. The switches under **tags written** in the panel also turn each one off for that collection. |
 
 | `sponsor_keywords` | `{}` | maps a lowercase sponsor word to the tag prefix of its team, e.g. `{"petronas": "Motorsport\|F1\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
 | `tag_prefix` | `""` | a tag path for the whole collection, e.g. `Motorsport\|F1`. Each entry's tags are then built: `prefix\|team`, then `prefix\|team\|name` (`prefix\|name` with no team), then its own `tags` as extras. A driver match writes all of them; a team-only result writes the shared `prefix\|team`. Empty keeps `tags` as the full list. |
@@ -261,7 +262,7 @@ Each sample is a JPG in `refs/<entry id>/`, named after the darktable image id. 
 
 In lighttable, select a batch and click **Identify selection** in the **Assisted Tagging** panel. Progress shows in darktable's message area; click the button again to cancel. A cancelled run changes no tags.
 
-Every vehicle that gets an entry adds that entry's tags to the image, so a photo of two cars battling gets both; the collection's [rules](#rules) decide what team-only and unidentified images get. Images also get a tag saying how they were identified. These are the default names; rules can rename or drop each one per collection, and the *tag …* preferences [switch each one off](#choosing-which-diagnostics-are-written) everywhere:
+Every vehicle that gets an entry adds that entry's tags to the image, so a photo of two cars battling gets both; the collection's [rules](#rules) decide what team-only and unidentified images get. Images also get a tag saying how they were identified. These are the default names; rules can rename or drop each one per collection, and the switches under **tags written** [turn each one off](#choosing-which-diagnostics-are-written):
 
 | Tag | Meaning |
 |---|---|
@@ -280,13 +281,11 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 
 #### Choosing which diagnostics are written
 
-Each row above has its own *"Assisted Tagging: tag …"* switch in preferences → Lua options, all on by default (`Shot` is one switch for all three). Turn off the ones you don't use to keep darktable's tag list short:
+Each row above has its own switch under **tags written** in the panel, saved in the collection's `settings.json` and all on by default (`Shot` is one switch for all three). Each switch's tooltip names the tag it writes under this collection's rules. Turn off the ones you don't use to keep darktable's tag list short:
 
 - **Off** = the next run stops writing that diagnostic and removes it from the images it processes, under whatever name the collection's rules give it. One never written never shows up in the tag list.
 - **Identification doesn't change.** Entry tags, team-only and unidentified tags from `entries.json` are written as before.
 - Images outside the run keep their old diagnostics. darktable keeps tag names nobody uses any more in its tag list; delete them in the tagging module's dictionary.
-
-**Migration:** `diagnostic_tags` (one switch for every diagnostic) was replaced by the ten `tag_<outcome>` keys. If it was off, the first start with this version turns all ten off, once; the old key is then ignored.
 
 Filter on `Assisted Tagging|Identification|By livery` and `Assisted Tagging|Identification|Unidentified` in the **collections** module to spot-check the uncertain ones; an image it got wrong is often a good new reference.
 
@@ -306,9 +305,21 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 - After you rename or remove an entry, the next run over those images takes off the old tags the plugin attached. This covers tags under the collection's own top-level tags (e.g. `Motorsport|…`), so tags another collection attached stay.
 - Images tagged by an older version have no ledger, so all their entry tags count as yours.
 
+## Presets
+
+In Assisted Tagging each collection is a preset: the **preset** picker at the top of the panel lists your collections, and a collection's panel settings live in its folder as `settings.json`, beside `entries.json`.
+
+- **preset**: `template` first, then every collection folder with an `entries.json`, by name. Picking one loads its entries and its settings. The panel opens on the last one you picked.
+- **template**: the built-in defaults. It shows only the **new collection** controls; pick a collection to identify. A collection can't be named `template`.
+- **☰** beside it: **update preset "<name>"** saves the panel's settings into the collection's `settings.json`; **rename preset…** renames the collection folder (type the name, then **OK**); **delete preset** asks first, then deletes `settings.json` only, never the folder, `entries.json` or the references, so the collection goes back to the defaults. **store new preset…** copies the selected collection to a new folder (entries, references and all) with the panel's settings: type the name, **OK**, then it shows how many reference crops and MB it will copy and waits for **Store**. It is refused on **template** and while a run is going. Empty new collections still come from the **new collection** controls.
+- **unsaved changes** shows under the picker when the panel differs from the saved settings. Switching collections drops them. Text fields have no change signal, so their edits show when **☰** is opened or a run starts.
+- A new collection has no `settings.json` and uses the defaults until its first **update preset**. A setting missing from the file uses its default; **update preset** writes every setting. A value that's no longer valid uses the default and logs one line naming the collection and setting.
+- A `settings.json` that can't be read or parsed: the panel says so, names the file, and keeps its current values. The plugin never rewrites a broken file; fix or delete it.
+- While a run is going (or queued), switching, renaming and deleting are refused until it finishes.
+
 ## Panel options
 
-The panel has four sections, top to bottom.
+At the top: the **preset** picker and **☰** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**; on a collection it shows the other sections.
 
 ### new collection
 
@@ -318,8 +329,6 @@ The panel has four sections, top to bottom.
 
 ### collection
 
-- **collection.** The active collection: a folder in the collections folder with an `entries.json`.
-- **Reload.** Rereads the collections folder and the active `entries.json`.
 - **Show tag plan.** Writes `tag-plan.txt` (see [Checking what it will tag](#checking-what-it-will-tag)).
 - **Edit entries.json.** Opens the file in an editor inside the panel, with **Save entries.json** and **Cancel edit**.
 
@@ -339,22 +348,26 @@ The panel has four sections, top to bottom.
 - **Add as reference**, **Add tagged images as references**, **Add confident vehicles from last run.** See [Building references](#building-references).
 - **Audit: suggest re-crops**, **Audit: quarantine poor refs** (both off by default), **Audit references.** See **Audit references** under [Building references](#building-references).
 
-The grouping support choice and tag node are saved as preferences. The checkboxes are not saved between darktable sessions.
+### options
+
+- **embedder model file (blank = bundled)** (text field). File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference on the next run.
+- **neighbour tolerance** (text field, default 5). How many places apart in the sorted number list a neighbouring car can be and still support a read; a whole number, 0 or more (anything else refuses the run). Only used when the collection's `order_weight` is above 0.
+
+### tags written
+
+One switch per diagnostic (default on): `By number`, `By livery`, `By burst`, `By pooled burst`, `By neighbour`, `Check order`, `Team only`, `Unidentified`, `Number seen`, `Shot`. Off removes that diagnostic on the next run; see [Choosing which diagnostics are written](#choosing-which-diagnostics-are-written).
+
+Everything in **identify**, **references**, **options** and **tags written** except **Replace manual tags** is saved with the collection by **update preset**. **Replace manual tags** applies to the next run only.
 
 ## Preferences
 
-All under **preferences → lua options**.
+All under **preferences → lua options**. Everything else is a collection setting, see [Presets](#presets).
 
 | Preference | Default | What it does |
 |---|---|---|
 | Assisted Tagging: Python interpreter | empty (the repo's `.venv`) | Python with `requirements.txt` installed |
 | Assisted Tagging: plugin folder | empty (auto-detect) | This repo's folder; `python/`, `models/`, `examples/` and `.venv` are all found inside it. A folder without `python/identify.py` is an error |
 | Assisted Tagging: collections folder | empty (`assisted_tagging/collections` in the config directory) | Where collections live |
-| Assisted Tagging: livery embedder model | empty (`dinov2_small.onnx`) | File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`. Changing it re-embeds every reference on the next run |
-| Assisted Tagging: tag *Outcome* | on, one per diagnostic | `By number`, `By livery`, `By burst`, `By pooled burst`, `By neighbour`, `Check order`, `Team only`, `Unidentified`, `Number seen`, `Shot`. Off removes that diagnostic on the next run; see [Choosing which diagnostics are written](#choosing-which-diagnostics-are-written) |
-| Assisted Tagging: neighbour tolerance | 5 | how many places apart in the sorted number list a neighbouring car can be and still support a read (whole number; anything else means 5). Only used when a collection's `order_weight` is above 0 |
-| Assisted Tagging: grouping support | native | `native`, `tags` or `none`. Set from the panel's **grouping support** control, see [Grouping support](#grouping-support) |
-| Assisted Tagging: grouping tag node | empty (newest run) | The tag node whose children are the groups in `tags` mode. Set from the panel |
 
 ## How it works
 
@@ -444,7 +457,7 @@ After changing `OCR_MIN_SCORE`, `MIN_BOX_FRAC`, `CROP_DIM` or the detection, OCR
 - **The panel isn't there.** Start darktable with `-d lua` and look for `LUA ERROR` in the log. On Windows the log is `Documents\Darktable\darktable-log.txt`.
 - **Every run writes a log** to `assisted_tagging.log` in darktable's config directory (e.g. `%LOCALAPPDATA%\darktable` on Windows); the run before it is kept as `assisted_tagging.prev.log`. It has the exact command, the reference counts per entry, one line per vehicle with what was read and matched, and any per-image errors.
 - **"…/entries.json: …"** The run stopped on a mistake in that file; the message says which entry and what's wrong.
-- **"… model not found: …"** A model file is missing. Download it into `models/` (see [Install](#2-models)) or fix its preference.
+- **"… model not found: …"** A model file is missing. Download it into `models/` (see [Install](#2-models)) or fix the collection's **embedder model file** option.
 - **"Python is missing a package."** The interpreter the plugin uses doesn't have `requirements.txt` installed; the log names the package.
 - **"no collections yet."** Create a folder with an `entries.json` in the collections folder the message names, then click **Reload**.
 - **Everything comes back `Unidentified`.** Check the log's `references:` line: an entry with 0 references can only be found by its number.
@@ -473,7 +486,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 
 1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers` and `test_identify`.
 2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable with sections *new collection*, *collection*, *identify*, *references*. No `LUA ERROR` in the darktable log.
-3. **A collection.** Set the plugin folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **collection** dropdown.
+3. **A collection.** Set the plugin folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **preset** dropdown.
 
 **Grouping support** (one run per mode, on a selection holding a burst)
 
@@ -491,7 +504,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 
 10. **Cancel.** Start **Identify selection** on a large selection and click it again. *Expect:* "Assisted Tagging: cancelled, no tags were changed."
 11. **No selection.** Clear the selection and click **Identify selection**. *Expect:* "Assisted Tagging: select some images first".
-12. **Diagnostic switches.** Identify a batch with every switch on. In **preferences → lua options**, turn off *Assisted Tagging: tag Shot* and *tag By livery*, then identify the same batch again. *Expect:* the same entry tags as before; no image in the batch has `…|Identification|Shot|…` or `…|By livery`; the other diagnostics are still there. No `LUA ERROR`.
+12. **Diagnostic switches.** Identify a batch with every switch on. Under **tags written** in the panel, turn off *Shot* and *By livery*, choose ☰ → **update preset**, then identify the same batch again. *Expect:* the same entry tags as before; no image in the batch has `…|Identification|Shot|…` or `…|By livery`; the other diagnostics are still there. No `LUA ERROR`.
 
 ### Report what breaks
 

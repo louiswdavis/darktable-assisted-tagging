@@ -892,6 +892,29 @@ function M.preset_order(names)
 end
 -- end preset block
 
+-- A collection's settings (settings.json beside entries.json). The built-in "template"
+-- holds these defaults. replace_manual is a one-off choice per run, not a setting.
+M.PRESET_SCHEMA = {
+    { key = "use_hints", kind = "bool", default = true },
+    { key = "group_support", kind = "choice", choices = { "native", "tags", "none" }, default = "native" },
+    { key = "group_node", kind = "string", default = "" },
+    { key = "run_tag", kind = "bool", default = false },
+    { key = "suggest_crops", kind = "bool", default = false },
+    { key = "quarantine", kind = "bool", default = false },
+    { key = "embedder_file", kind = "string", default = "" },
+    { key = "neighbour_tolerance", kind = "number", default = 5 },
+    { key = "tag_number", kind = "bool", default = true },
+    { key = "tag_livery", kind = "bool", default = true },
+    { key = "tag_burst", kind = "bool", default = true },
+    { key = "tag_pooled", kind = "bool", default = true },
+    { key = "tag_neighbour", kind = "bool", default = true },
+    { key = "tag_check_order", kind = "bool", default = true },
+    { key = "tag_team", kind = "bool", default = true },
+    { key = "tag_none", kind = "bool", default = true },
+    { key = "tag_number_seen", kind = "bool", default = true },
+    { key = "tag_shot", kind = "bool", default = true },
+}
+
 local ok, dt = pcall(require, "darktable")
 if not ok then return M end
 
@@ -957,62 +980,29 @@ if dt.gui then
         "Assisted Tagging: collections folder",
         "Folder with one folder per collection (entries.json + refs). Empty = assisted_tagging/collections in darktable's config folder",
         "")
-    dt.preferences.register("assisted_tagging", "embedder_file", "string",
-        "Assisted Tagging: livery embedder model",
-        "File name in the plugin's models folder used to compare liveries (e.g. dinov2_base.onnx). Empty = dinov2_small.onnx. Changing it re-embeds every reference on the next run",
-        "")
-    dt.preferences.register("assisted_tagging", "neighbour_tolerance", "string",
-        "Assisted Tagging: neighbour tolerance",
-        "Collections with an order weight above 0: how many entries apart (in the sorted number list, wrapping round at the end) a nearby group can be and still support a doubtful number read. Whole number, default 5",
-        "5")
-    dt.preferences.register("assisted_tagging", "group_support", "string",
-        "Assisted Tagging: grouping support",
-        "How photos are grouped for consensus: native (darktable groups), tags (Assisted Grouping tags) or none. Set from the panel",
-        "native")
-    dt.preferences.register("assisted_tagging", "group_node", "string",
-        "Assisted Tagging: grouping tag node",
-        "Tag node whose children are the groups when grouping support is tags. Empty = the newest Assisted Grouping run. Set from the panel",
-        "")
 end
 
--- One "tag_<outcome>" preference per diagnostic under Assisted Tagging|Identification
+-- One "tag_<outcome>" setting per diagnostic under Assisted Tagging|Identification
 -- (keys match M.DIAG_TAGS / the rules' diag_<outcome>; "shot" covers all three Shot tags).
 -- Off = runs stop writing it and detach it from the images they process. Entry and
 -- unidentified tags (entries.json) and identification itself are unchanged.
 local TAG_TOGGLES = {
-    { key = "number", label = "By number" },
-    { key = "livery", label = "By livery" },
-    { key = "burst", label = "By burst" },
-    { key = "pooled", label = "By pooled burst" },
-    { key = "neighbour", label = "By neighbour" },
-    { key = "check_order", label = "Check order" },
-    { key = "team", label = "Team only" },
-    { key = "none", label = "Unidentified" },
-    { key = "number_seen", label = "Number seen" },
-    { key = "shot", label = "Shot" },
+    { key = "number", label = "By number", when = "its race number was read." },
+    { key = "livery", label = "By livery", when = "it matched the entry's reference samples." },
+    { key = "burst", label = "By burst", when = "the rest of its burst agreed on one entry." },
+    { key = "pooled", label = "By pooled burst",
+      when = "the experimental burst_livery_pooling rule resolved it from its burst's pooled livery similarity." },
+    { key = "neighbour", label = "By neighbour",
+      when = "a doubtful number read was settled by the groups shot just before and after. Needs the collection's order_weight above 0." },
+    { key = "check_order", label = "Check order",
+      when = "a low-confidence number read that no neighbouring group supports. The entry tag stays; delete this tag once checked." },
+    { key = "team", label = "Team only", when = "two teammates were too close to call; only their shared tags are added." },
+    { key = "none", label = "Unidentified", when = "no vehicle was found, or no confident match." },
+    { key = "number_seen", label = "Number seen",
+      when = "OCR read digits that didn't resolve to one entry. Added alongside the outcome tag." },
+    { key = "shot", label = "Shot",
+      when = "Solo: one vehicle found. Pack: two or three. Crowded: the detector's limit was reached, so there may be more cars than were identified." },
 }
-
-if dt.gui then
-    for _, t in ipairs(TAG_TOGGLES) do
-        dt.preferences.register("assisted_tagging", "tag_" .. t.key, "bool",
-            "Assisted Tagging: tag " .. t.label,
-            "Write the Assisted Tagging|Identification|" .. t.label .. " diagnostic (or the name a collection's"
-                .. " rules give it). Off: the next run removes it from the images it processes. Entry tags and"
-                .. " identification are unchanged.",
-            true)
-    end
-    -- diagnostic_tags (one switch for every diagnostic) was replaced by the tag_<outcome>
-    -- switches; carry an explicit "off" over once. Read as a string so an unset key ("")
-    -- isn't mistaken for off.
-    if not dt.preferences.read("assisted_tagging", "tag_prefs_migrated", "bool") then
-        if dt.preferences.read("assisted_tagging", "diagnostic_tags", "string") == "FALSE" then
-            for _, t in ipairs(TAG_TOGGLES) do
-                dt.preferences.write("assisted_tagging", "tag_" .. t.key, "bool", false)
-            end
-        end
-        dt.preferences.write("assisted_tagging", "tag_prefs_migrated", "bool", true)
-    end
-end
 
 local function file_exists(name)
     local f = io.open(name, "r")
@@ -1094,26 +1084,35 @@ end
 
 -- A model in the plugin folder's models/. A missing file is passed through
 -- as-is, so identify.py names it in its error.
-local function model_path(name, script)
-    local file = MODEL_FILES[name]
-    if name == "embedder_model" then
-        local chosen = dt.preferences.read("assisted_tagging", "embedder_file", "string") or ""
-        if chosen ~= "" then file = chosen end
-    end
-    return plugin_root(script) .. "/models/" .. file
-end
-
-local function neighbour_tolerance()
-    return M.parse_neighbour_tolerance(dt.preferences.read("assisted_tagging", "neighbour_tolerance", "string"))
-end
-
 local function collections_root()
     local pref = dt.preferences.read("assisted_tagging", "collections_root", "directory") or ""
     return pref ~= "" and pref or DEFAULT_COLLECTIONS_ROOT
 end
 
+-- The selected collection's folder name; "" = the template (no collection).
 local function current_collection()
     return dt.preferences.read("assisted_tagging", "last_collection", "string") or ""
+end
+
+-- The settings a run reads: the selected collection's settings.json, or the panel's values
+-- when a GUI run starts. A collection without settings.json (or the template) uses defaults.
+local function collection_settings(name)
+    local f = name ~= "" and io.open(collections_root() .. "/" .. name .. "/settings.json", "rb")
+    if not f then return M.preset_defaults(M.PRESET_SCHEMA) end
+    local text = f:read("a")
+    f:close()
+    return (M.preset_merge(M.PRESET_SCHEMA, M.preset_decode(text) or {}))
+end
+local settings = collection_settings(current_collection())
+
+local function model_path(name, script)
+    local file = MODEL_FILES[name]
+    if name == "embedder_model" and settings.embedder_file ~= "" then file = settings.embedder_file end
+    return plugin_root(script) .. "/models/" .. file
+end
+
+local function neighbour_tolerance()
+    return M.parse_neighbour_tolerance(tostring(settings.neighbour_tolerance))
 end
 
 local function entries_json_path()
@@ -1235,15 +1234,43 @@ local queue = {}
 -- A run that shows no progress for this long is given up on (it may still be loading
 -- models or re-embedding references, so this is generous).
 local STALL_SECONDS = 300
-local verify_button, identify_button, collection_combo, entry_combo, example_combo = nil, nil, nil, nil, nil
+local verify_button, identify_button, entry_combo, example_combo = nil, nil, nil, nil
+local preset_ctl = nil -- the preset controls; each preset is a collection (set by install_panel)
+local collection_loaded = false -- the last collection switch loaded its entries
 local identify_cancellable = false -- the identify button currently reads "Cancel"
 local replace_manual_check = nil
-local use_hints_check = nil
-local group_support_combo, group_node_entry = nil, nil
-local run_tag_check = nil
-local suggest_crops_check = nil
-local quarantine_check = nil
+local read_panel = nil -- set by install_panel: the panel's values as settings
+
+-- A GUI run reads the panel as it starts; headless runs keep the collection's settings.
+-- False (and says why) when the panel holds a value it can't use.
+local function take_settings()
+    if not read_panel then return true end
+    local s, why = read_panel()
+    if not s then dt.print("Assisted Tagging: " .. why); return false end
+    settings = s
+    return true
+end
 local entries, entry_order, rules = {}, {}, M.default_rules()
+local tag_checks = {} -- TAG_TOGGLES key → its check button (set by install_panel)
+
+-- Writes/When/Off for a tag switch, naming the tag under the loaded collection's rules.
+local function tag_tooltip(t)
+    local keys = t.key == "shot" and { "shot_solo", "shot_pack", "shot_crowded" } or { t.key }
+    local names = {}
+    for _i, k in ipairs(keys) do
+        local name = rules.diag[k] or ""
+        if name ~= "" then names[#names + 1] = k == "number_seen" and name .. "|<digits>" or name end
+    end
+    local writes = #names > 0 and table.concat(names, ", ") or _("nothing: this collection's rules drop it")
+    return string.format(_("Writes: %s\nWhen: %s\nOff: stops writing it and removes it from images on the next run. Identification is unchanged."),
+        writes, _(t.when))
+end
+
+local function refresh_tag_tooltips()
+    for _i, t in ipairs(TAG_TOGGLES) do
+        if tag_checks[t.key] then tag_checks[t.key].tooltip = tag_tooltip(t) end
+    end
+end
 local lists_loaded = false -- reload_lists has filled the collection and entry lists at least once
 -- Starting identify.py imports numpy and cv2, so the first load waits until darktable has opened.
 local STARTUP_RELOAD_DELAY_MS = 5000
@@ -1390,6 +1417,7 @@ end
 local function load_entries_csv()
     entries, entry_order = M.parse_entries_csv(read_file(ENTRIES_PATH))
     rules = M.parse_rules_csv(read_file(RULES_PATH))
+    refresh_tag_tooltips()
 end
 
 local function cleanup_tmp()
@@ -1418,46 +1446,41 @@ local function reload_lists(quiet, show_plan)
         if not quiet then dt.print(_("Assisted Tagging: busy, try again when the current run finishes.")) end
         return false
     end
+    -- rereads the collection folders; a selected collection that has gone falls back to template
+    if preset_ctl then preset_ctl.refresh() end
     busy = true
     local loaded = false
     local okr, err = pcall(function()
-        for attempt = 1, 2 do
-            pcall(os.remove, COLLECTIONS_PATH)
-            pcall(os.remove, ENTRIES_PATH)
-            pcall(os.remove, RULES_PATH)
-            local code, why = run_python(args_of({ "-", "-", "--list" }, collection_args(), {
-                "--collections-out", COLLECTIONS_PATH,
-                "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH,
-            }), nil)
-            flush_log()
-            if code == nil and why ~= "cancelled" then return end -- already reported
-            if code ~= 0 then
-                notify_error(failure_message(code))
-                return
+        pcall(os.remove, COLLECTIONS_PATH)
+        pcall(os.remove, ENTRIES_PATH)
+        pcall(os.remove, RULES_PATH)
+        local code, why = run_python(args_of({ "-", "-", "--list" }, collection_args(), {
+            "--collections-out", COLLECTIONS_PATH,
+            "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH,
+        }), nil)
+        flush_log()
+        if code == nil and why ~= "cancelled" then return end -- already reported
+        if code ~= 0 then
+            notify_error(failure_message(code))
+            return
+        end
+        local names = read_lines(COLLECTIONS_PATH)
+        load_entries_csv()
+        lists_loaded, loaded = true, true
+        refresh_entry_combo()
+        if #names == 0 then
+            say(string.format("Assisted Tagging: no collections yet. Create one under new collection (template selected), "
+                .. "or a folder with an entries.json in %s (see the README), then click Reload.", collections_root()))
+        elseif current_collection() == "" then
+            if not quiet then
+                say(string.format("Assisted Tagging: %d collections. Pick one in the preset list.", #names))
             end
-            local names = read_lines(COLLECTIONS_PATH)
-            local current, sel = current_collection(), nil
-            for i, n in ipairs(names) do if n == current then sel = i end end
-            if not sel and names[1] and attempt == 1 then
-                -- the stored collection is gone: switch to the first one and list its entries
-                dt.preferences.write("assisted_tagging", "last_collection", "string", names[1])
-            else
-                load_entries_csv()
-                lists_loaded, loaded = true, true
-                fill_combo(collection_combo, #names > 0 and names or { _("(no collections)") }, sel or 1)
-                refresh_entry_combo()
-                if #names == 0 then
-                    say(string.format("Assisted Tagging: no collections yet. Create a folder with an entries.json in %s (see the README), then click Reload.",
-                        collections_root()))
-                elseif show_plan then
-                    say(string.format("Assisted Tagging: the tags each outcome writes in %s are listed in %s/%s/tag-plan.txt",
-                        current_collection(), collections_root(), current_collection()))
-                elseif not quiet then
-                    say(string.format("Assisted Tagging: %d collections; %s has %d entries.", #names,
-                        current_collection(), #entry_order))
-                end
-                return
-            end
+        elseif show_plan then
+            say(string.format("Assisted Tagging: the tags each outcome writes in %s are listed in %s/%s/tag-plan.txt",
+                current_collection(), collections_root(), current_collection()))
+        elseif not quiet then
+            say(string.format("Assisted Tagging: %d collections; %s has %d entries.", #names,
+                current_collection(), #entry_order))
         end
     end)
     busy = false
@@ -1610,20 +1633,6 @@ local function sorted_names(set)
     return out
 end
 
-local GROUP_SUPPORT = { { "native", "Native groups" }, { "tags", "Grouping tags" }, { "none", "None" } }
-
-local function group_support_key()
-    local label = group_support_combo and group_support_combo.value
-    for _, g in ipairs(GROUP_SUPPORT) do
-        if g[2] == label then return g[1] end
-    end
-    local stored = dt.preferences.read("assisted_tagging", "group_support", "string")
-    for _, g in ipairs(GROUP_SUPPORT) do
-        if g[1] == stored then return stored end
-    end
-    return "native"
-end
-
 -- Groups the selection into duplicates (same file, identified once) and groups, and reads the
 -- ledger and the tags the user applied by hand. Returns the run's state and the manifest rows.
 local function prepare_run(images, replace_manual)
@@ -1636,7 +1645,7 @@ local function prepare_run(images, replace_manual)
         table.insert(primary_ids, img.id)
     end
 
-    local mechanism = group_support_key()
+    local mechanism = settings.group_support
     local key_of, node, multi = {}, nil, {}
     if mechanism == "native" then
         local items = {}
@@ -1653,13 +1662,8 @@ local function prepare_run(images, replace_manual)
             for name in pairs(have) do names[#names + 1] = name end
             lists[#lists + 1] = names
         end
-        local typed = group_node_entry and group_node_entry.text or dt.preferences.read("assisted_tagging", "group_node", "string")
-        typed = (typed or ""):match("^%s*(.-)%s*$")
-        -- entry widgets have no change callback: save the typed node when a run reads it
-        if typed ~= (dt.preferences.read("assisted_tagging", "group_node", "string") or "") then
-            dt.preferences.write("assisted_tagging", "group_node", "string", typed)
-        end
-        node =typed ~= "" and typed or M.newest_group_node(lists)
+        local typed = settings.group_node:match("^%s*(.-)%s*$")
+        node = typed ~= "" and typed or M.newest_group_node(lists)
         if node then key_of, multi = M.tag_group_keys(items, node) end
     end
     local burst_of = M.number_groups(primary_ids, key_of)
@@ -1683,7 +1687,7 @@ local function prepare_run(images, replace_manual)
     -- editing entries.json.
     local ledger = M.ledger_parse(read_file(LEDGER_PATH))
     local protected_of, hints_of, sent_protected_of = {}, {}, {}
-    local use_hints = not use_hints_check or use_hints_check.value
+    local use_hints = settings.use_hints
     for _, copies in pairs(group_of) do
         for _, copy in ipairs(copies) do
             local have = tags_of(copy)
@@ -1757,11 +1761,11 @@ local function apply_results(run, job)
     -- owned (above) uses the full rules, so switched-off diagnostics are still detached
     local diag_off = {}
     for _, t in ipairs(TAG_TOGGLES) do
-        if not dt.preferences.read("assisted_tagging", "tag_" .. t.key, "bool") then diag_off[t.key] = true end
+        if not settings["tag_" .. t.key] then diag_off[t.key] = true end
     end
     local write_rules = M.mask_diag(rules, diag_off)
     -- one stamp per run; never owned, so later runs leave earlier stamps in place
-    local run_tag = run_tag_check and run_tag_check.value
+    local run_tag = settings.run_tag
         and os.date("Assisted Tagging|Run|%Y-%m-%d %H:%M") or nil
     local tag_objs, writes, failed, first_error = {}, 0, 0, nil
     local n_tagged, n_unidentified, n_missing = 0, 0, 0
@@ -1852,6 +1856,7 @@ function M.identify_images(images, replace_manual, verify_only)
         return
     end
     if not can_start(images) then return end
+    if not take_settings() then return end
     used_replace_box()
     busy = true
     M.cancel_requested = false
@@ -1860,10 +1865,10 @@ function M.identify_images(images, replace_manual, verify_only)
     start_log(verify_only and "verify started" or "identify started", #images)
     log(string.format("settings: replace manual %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s",
         tostring(replace_manual and true or false),
-        tostring(not use_hints_check or use_hints_check.value),
-        tostring(run_tag_check and run_tag_check.value or false),
-        group_support_key(),
-        (group_node_entry and group_node_entry.text ~= "") and group_node_entry.text or "(blank)",
+        tostring(settings.use_hints),
+        tostring(settings.run_tag),
+        settings.group_support,
+        settings.group_node ~= "" and settings.group_node or "(blank)",
         tostring(neighbour_tolerance())))
 
     local job, run = nil, nil
@@ -1990,6 +1995,7 @@ function M.add_references(images, entry_id)
         dt.print(_("Assisted Tagging: the collection has no entries yet. Add them to its entries.json, then click Reload."))
         return
     end
+    if not take_settings() then return end
     busy = true
     M.cancel_requested = false
     start_log(entry_id and ("add references to " .. entry_id) or "add tagged images as references", #images)
@@ -2058,6 +2064,7 @@ function M.promote_references(images)
         dt.print(_("Assisted Tagging: no records for this collection yet. Run Identify first."))
         return
     end
+    if not take_settings() then return end
     busy = true
     M.cancel_requested = false
     start_log("add confident vehicles from last run", #images)
@@ -2092,14 +2099,15 @@ end
 function M.audit_references()
     if queue_if_busy(_("Audit references"), true, M.audit_references) then return end
     if not can_start(nil, true) then return end
+    if not take_settings() then return end
     busy = true
     M.cancel_requested = false
     start_log("audit references", 0)
 
     local state = {}
     local okr, err = pcall(function()
-        local suggest = suggest_crops_check and suggest_crops_check.value
-        local quarantine = quarantine_check and quarantine_check.value
+        local suggest = settings.suggest_crops
+        local quarantine = settings.quarantine
         local results = run_reference_job(state, {}, args_of({ "--audit-refs" }, suggest and { "--suggest-crops" } or {},
             quarantine and { "--quarantine" } or {}), "auditing references")
         if not results then return end
@@ -2140,6 +2148,10 @@ local function new_collection_path(raw_name)
         dt.print(_('Assisted Tagging: collection name can\'t contain / \\ : * ? " < > |'))
         return nil
     end
+    if name:lower() == "template" then
+        dt.print(_('Assisted Tagging: "template" is the built-in preset, pick another name'))
+        return nil
+    end
     local dir = collections_root() .. "/" .. name
     if df.test_file(dir, "e") or file_exists(dir .. "/entries.json") then
         dt.print(string.format(_("Assisted Tagging: %s already exists. Pick a new name, or select it as "
@@ -2147,6 +2159,14 @@ local function new_collection_path(raw_name)
         return nil
     end
     return name, dir
+end
+
+-- Selects a just-created collection in the preset list. True once its entries loaded.
+local function open_new_collection(name)
+    collection_loaded = false
+    preset_ctl.refresh()
+    if not preset_ctl.select(name) then return false end
+    return collection_loaded or reload_lists(true)
 end
 
 local function make_collection_dir(dir)
@@ -2202,8 +2222,7 @@ function M.create_collection_from_example(example, raw_name)
     say(string.format(
         _("Assisted Tagging: created %s from the %s example. Edit its entries.json with your own entries, "
             .. "then click Reload."), name, example))
-    dt.preferences.write("assisted_tagging", "last_collection", "string", name)
-    reload_lists(true)
+    open_new_collection(name)
 end
 
 -- Builds a new collection's entries.json from the hierarchical tags already on
@@ -2247,8 +2266,7 @@ function M.create_collection(images, raw_name)
     say(string.format(_("Assisted Tagging: created %s with %d entr%s%s."), name, #derived,
         #derived == 1 and "y" or "ies", #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or ""))
 
-    dt.preferences.write("assisted_tagging", "last_collection", "string", name)
-    if not reload_lists(true) then
+    if not open_new_collection(name) then
         notify_error(string.format(_("Assisted Tagging: created %s but couldn't load it, so no references were added. "
             .. "Click Reload, then \"Add tagged images as references\" with the same images selected (why: assisted_tagging.log)."), name))
         return
@@ -2290,9 +2308,442 @@ local function selected_example()
     return name
 end
 
+-- Preset controls: drift-guarded copy in grouping, culling and tagging. Change all three.
+-- The preset picker and ☰ menu at the top of the panel. Lua panels can't use darktable's
+-- own presets (lualib.c leaves get_params/set_params NULL), so this builds its own.
+-- Combobox callbacks run later and fire on every `selected` assignment, so each one acts
+-- only when the widget's value differs from `current`.
+
+local PRESET_WHY = {
+    empty = "type a name first",
+    reserved = '"template" is the built-in preset',
+    ["bad character"] = 'a name can\'t hold / \\ : * ? " < > |',
+}
+
+-- Presets as <dir>/<name>.json. The folder is made on first use.
+local function preset_file_store(dir)
+    local windows = dt.configuration.running_os == "windows"
+    local function quote(s)
+        if windows then return '"' .. s:gsub("/", "\\") .. '"' end
+        return "'" .. s:gsub("'", "'\\''") .. "'"
+    end
+    os.execute((windows and "mkdir " or "mkdir -p ") .. quote(dir) .. (windows and " 2>nul" or " 2>/dev/null"))
+    local store = {}
+    function store.path(name) return dir .. "/" .. name .. ".json" end
+    function store.list()
+        local names = {}
+        local p = io.popen(windows and ("dir /b " .. quote(dir .. "/*.json") .. " 2>nul")
+            or ("ls -1 " .. quote(dir) .. " 2>/dev/null"))
+        if not p then return names end
+        for line in p:lines() do
+            local name = line:gsub("\r$", ""):match("^(.+)%.json$")
+            if name then names[#names + 1] = name end
+        end
+        p:close()
+        return names
+    end
+    function store.read(name)
+        local f = io.open(store.path(name), "rb")
+        if not f then return nil end
+        local text = f:read("a")
+        f:close()
+        return text
+    end
+    -- Write a .tmp, then swap it in (Windows can't rename over an existing file).
+    function store.write(name, text)
+        local path = store.path(name)
+        local f = io.open(path .. ".tmp", "wb")
+        if not f then return false end
+        local ok = f:write(text)
+        f:close()
+        if not ok then os.remove(path .. ".tmp"); return false end
+        os.remove(path)
+        return os.rename(path .. ".tmp", path) and true or false
+    end
+    function store.rename(old, new)
+        local ok, err = os.rename(store.path(old), store.path(new))
+        return ok and true or false, err
+    end
+    function store.remove(name)
+        local ok, err = os.remove(store.path(name))
+        return ok and true or false, err
+    end
+    return store
+end
+
+-- o = { prefix, schema, store, read_panel = fn() -> settings | nil, why,
+--       show = fn(settings), remember = fn(name), initial = name, log = fn(msg),
+--       on_change = fn(name, is_template) | nil, can_switch = fn() -> ok, why | nil,
+--       allow_store_new = bool }
+-- Optional store.copy_note(from, to) -> confirm text | nil, why and store.copy(from, to) -> ok, err:
+-- store new then asks first, and copies the selected preset's store (e.g. a folder) before writing.
+-- Returns ctl: ctl.widget (the box to put first in the panel), ctl.widgets, ctl.select(name),
+-- ctl.refresh(), ctl.check_dirty(), ctl.name(), ctl.saved (settings last loaded or saved).
+local function make_preset_controls(o)
+    local ctl = { widgets = {} }
+    local names, current, menu_actions = { "template" }, nil, {}
+    local name_mode
+    local picker, menu, name_entry, name_box, confirm_label, confirm_box, dirty_label
+    local confirm_button, confirm_action, delete_clicked
+
+    local function say(msg) dt.print(o.prefix .. ": " .. msg) end
+
+    local function index_of(name)
+        for i, n in ipairs(names) do
+            if n == name then return i end
+        end
+    end
+
+    local function set_entries(combo, items)
+        for i = #combo, 1, -1 do combo[i] = nil end
+        for i, text in ipairs(items) do combo[i] = text end
+    end
+
+    local function show_picker(name)
+        local i = index_of(name)
+        if i and picker.selected ~= i then picker.selected = i end
+    end
+
+    -- Loads `name` into the panel. False (values untouched) when the file can't be used.
+    local function load(name)
+        local settings
+        if name == "template" then
+            settings = M.preset_defaults(o.schema)
+        else
+            local text = o.store.read(name)
+            local decoded, err
+            if text then decoded, err = M.preset_decode(text) else err = "can't be read" end
+            if not decoded then
+                local msg = string.format('preset "%s": %s %s, panel unchanged', name, o.store.path(name), err)
+                o.log(msg)
+                say(msg)
+                return false
+            end
+            local problems
+            settings, problems = M.preset_merge(o.schema, decoded)
+            for _, key in ipairs(problems) do
+                o.log(string.format('preset "%s": %s invalid, using default', name, key))
+            end
+            if #problems > 0 then
+                say(string.format('preset "%s": %d invalid value(s) set to the default (see the log)', name, #problems))
+            end
+        end
+        ctl.saved = settings
+        o.show(settings)
+        return true
+    end
+
+    local function hide_boxes()
+        name_box.visible = false
+        confirm_box.visible = false
+    end
+
+    local function ask_name(mode)
+        name_mode = mode
+        name_entry.text = mode == "rename" and current or ""
+        confirm_box.visible = false
+        name_box.visible = true
+    end
+
+    local function update()
+        local settings, why = o.read_panel()
+        if not settings then say(why); return end
+        if not o.store.write(current, M.preset_encode(o.schema, settings)) then
+            say("couldn't write " .. o.store.path(current))
+            return
+        end
+        ctl.saved = settings
+        say(string.format('preset "%s" updated', current))
+        ctl.check_dirty()
+    end
+
+    local function ask_confirm(text, button, action)
+        confirm_label.label = text
+        confirm_button.label = button
+        confirm_action = action
+        name_box.visible = false
+        confirm_box.visible = true
+    end
+
+    local function ask_delete()
+        ask_confirm(string.format('Delete preset "%s"?', current), "Delete", delete_clicked)
+    end
+
+    local function set_menu()
+        local items = { "☰" }
+        menu_actions = { false }
+        local function add(text, action)
+            items[#items + 1] = text
+            menu_actions[#menu_actions + 1] = action
+        end
+        if current ~= "template" then add(string.format('update preset "%s"', current), update) end
+        if o.allow_store_new then add("store new preset…", function() ask_name("store") end) end
+        if current ~= "template" then
+            add("rename preset…", function() ask_name("rename") end)
+            add("delete preset", ask_delete)
+        end
+        set_entries(menu, items)
+        menu.selected = 1
+    end
+
+    function ctl.name() return current end
+
+    -- "unsaved changes" when the panel differs from the file. Template has no file.
+    function ctl.check_dirty()
+        local dirty = false
+        if current ~= "template" and ctl.saved then
+            local settings = o.read_panel()
+            dirty = not settings or not M.preset_equal(o.schema, settings, ctl.saved)
+        end
+        dirty_label.visible = dirty
+        return dirty
+    end
+
+    function ctl.select(name)
+        if name ~= "template" and not index_of(name) then name = "template" end
+        if current and o.can_switch then
+            local ok, why = o.can_switch()
+            if not ok then say(why); show_picker(current); return false end
+        end
+        if not load(name) then
+            if current then show_picker(current) else ctl.select("template") end
+            return false
+        end
+        current = name
+        show_picker(name)
+        o.remember(name)
+        hide_boxes()
+        set_menu()
+        if o.on_change then o.on_change(name, name == "template") end
+        ctl.check_dirty()
+        return true
+    end
+
+    -- Rereads the preset list. A selected preset that has gone falls back to template.
+    function ctl.refresh()
+        names = M.preset_order(o.store.list())
+        set_entries(picker, names)
+        if current and not index_of(current) then
+            current = nil
+            ctl.select("template")
+        elseif current then
+            show_picker(current)
+        end
+    end
+
+    local function name_taken(name)
+        for _, n in ipairs(o.store.list()) do
+            if n:lower() == name:lower() and not (name_mode == "rename" and n == current) then return true end
+        end
+        return false
+    end
+
+    local function name_ok_clicked()
+        local name, why = M.preset_name_ok(name_entry.text)
+        if not name then say("preset name: " .. PRESET_WHY[why]); return end
+        if name_taken(name) then say(string.format('a preset called "%s" already exists', name)); return end
+        if name_mode == "store" then
+            local settings, bad = o.read_panel()
+            if not settings then say(bad); return end
+            local from = current
+            local function store_new()
+                if o.store.copy then
+                    local ok, err = o.store.copy(from, name)
+                    if not ok then say(string.format('couldn\'t copy "%s": %s', from, tostring(err))); return end
+                end
+                if not o.store.write(name, M.preset_encode(o.schema, settings)) then
+                    say("couldn't write " .. o.store.path(name))
+                    return
+                end
+                hide_boxes()
+                ctl.refresh()
+                ctl.select(name)
+            end
+            if o.store.copy_note then
+                local text, why = o.store.copy_note(from, name)
+                if not text then say(why); return end
+                ask_confirm(text, "Store", store_new)
+                return
+            end
+            store_new()
+        else
+            local ok, err = o.store.rename(current, name)
+            if not ok then say(string.format('couldn\'t rename "%s": %s', current, tostring(err))); return end
+            name_box.visible = false
+            current = name
+            ctl.refresh()
+            o.remember(name)
+            set_menu()
+        end
+    end
+
+    delete_clicked = function()
+        local ok, err = o.store.remove(current)
+        if not ok then say(string.format('couldn\'t delete "%s": %s', current, tostring(err))); return end
+        confirm_box.visible = false
+        say(string.format('preset "%s" deleted', current))
+        ctl.refresh()
+    end
+
+    picker = dt.new_widget("combobox") {
+        label = "preset",
+        tooltip = "Pick a saved set of panel settings. template = the defaults. Unsaved changes are dropped when you switch. Save with ☰ → update preset.",
+        changed_callback = function(self)
+            local name = self.value
+            if current and name and name ~= "" and name ~= current then ctl.select(name) end
+        end,
+        "template",
+    }
+    menu = dt.new_widget("combobox") {
+        tooltip = "Preset actions: update the selected preset with the panel's values, store the panel as a new preset, rename or delete.",
+        changed_callback = function(self)
+            local i = self.selected
+            if not i or i <= 1 then return end
+            local action = menu_actions[i]
+            self.selected = 1
+            if action then ctl.check_dirty(); action() end
+        end,
+        "☰",
+    }
+    dirty_label = dt.new_widget("label") { label = "unsaved changes", halign = "start", visible = false }
+    name_entry = dt.new_widget("entry") { placeholder = "preset name", text = "" }
+    name_box = dt.new_widget("box") {
+        orientation = "vertical",
+        visible = false,
+        name_entry,
+        dt.new_widget("box") {
+            orientation = "horizontal",
+            dt.new_widget("button") { label = "OK", clicked_callback = name_ok_clicked },
+            dt.new_widget("button") { label = "Cancel", clicked_callback = function() name_box.visible = false end },
+        },
+    }
+    confirm_label = dt.new_widget("label") { label = "", halign = "start" }
+    confirm_button = dt.new_widget("button") {
+        label = "Delete",
+        clicked_callback = function() if confirm_action then confirm_action() end end,
+    }
+    confirm_box = dt.new_widget("box") {
+        orientation = "vertical",
+        visible = false,
+        confirm_label,
+        dt.new_widget("box") {
+            orientation = "horizontal",
+            confirm_button,
+            dt.new_widget("button") { label = "Cancel", clicked_callback = function() confirm_box.visible = false end },
+        },
+    }
+    ctl.widgets = { picker = picker, menu = menu, dirty_label = dirty_label, name_box = name_box, confirm_box = confirm_box }
+    ctl.widget = dt.new_widget("box") {
+        orientation = "vertical",
+        dt.new_widget("box") { orientation = "horizontal", picker, menu },
+        dirty_label,
+        name_box,
+        confirm_box,
+    }
+
+    ctl.refresh()
+    ctl.select(o.initial or "template")
+    return ctl
+end
+-- end preset controls
+
+-- The preset store for make_preset_controls: each collection folder (one holding an
+-- entries.json) is a preset, its settings in settings.json beside entries.json.
+local function collection_store()
+    local store, warned = {}, {}
+    local function dir(name) return collections_root() .. "/" .. name end
+    function store.path(name) return dir(name) .. "/settings.json" end
+    function store.list()
+        local names = {}
+        for _i, name in ipairs(list_examples(collections_root())) do
+            if name:lower() ~= "template" then
+                names[#names + 1] = name
+            elseif not warned[name] then
+                warned[name] = true
+                log(string.format('collection "%s" is hidden: "template" is the built-in preset. Rename its folder to use it.', name))
+            end
+        end
+        return names
+    end
+    -- A collection without settings.json opens with the defaults.
+    function store.read(name)
+        if not file_exists(dir(name) .. "/entries.json") then return nil end
+        return read_file(store.path(name)) or "{}"
+    end
+    function store.write(name, text) return write_file_atomic(store.path(name), text) end
+    -- Renames the collection folder, references and all.
+    function store.rename(old, new)
+        if busy or orphan or #queue > 0 then return false, "a run is using it, rename it when the run finishes" end
+        if df.test_file(dir(new), "e") then return false, dir(new) .. " already exists" end
+        local ok, err = os.rename(dir(old), dir(new))
+        return ok and true or false, err
+    end
+    -- Deletes settings.json only; the collection and its references stay.
+    function store.remove(name)
+        local ok, err = os.remove(store.path(name))
+        return ok and true or false, err
+    end
+    local function run_busy() return busy or orphan or #queue > 0 end
+    -- Files and bytes under `path` (0, 0 when it's missing).
+    local function tree_size(path)
+        local files, bytes = 0, 0
+        local p = io.popen(IS_WINDOWS
+            and ('dir /s /a-d ' .. shell_quote((path:gsub("/", "\\"))) .. ' 2>nul')
+            or ("find " .. shell_quote(path) .. " -type f 2>/dev/null | wc -l; du -sk " .. shell_quote(path) .. " 2>/dev/null"))
+        if not p then return files, bytes end
+        local lines = {}
+        for line in p:lines() do lines[#lines + 1] = line:gsub("\r$", "") end
+        p:close()
+        if IS_WINDOWS then
+            -- the last "N File(s)  1,234 bytes" line is the total over all subfolders
+            for _i, line in ipairs(lines) do
+                local n, b = line:match("^%s*(%d+) File%(s%)%s+([%d,%.%s\194\160]+) bytes")
+                if n then files, bytes = tonumber(n), tonumber((b:gsub("%D", ""))) or 0 end
+            end
+        else
+            files = tonumber((lines[1] or ""):match("%d+")) or 0
+            bytes = (tonumber((lines[2] or ""):match("^%d+")) or 0) * 1024
+        end
+        return files, bytes
+    end
+    -- Store new copies the whole collection folder: entries, references, settings.
+    function store.copy_note(from, to)
+        if from == "template" then
+            return nil, "store new copies a collection: pick one first (new empty collections come from the new collection section)"
+        end
+        if run_busy() then return nil, "a run is using it, store a new one when the run finishes" end
+        if df.test_file(dir(to), "e") then return nil, dir(to) .. " already exists" end
+        local files, bytes = tree_size(dir(from) .. "/refs")
+        return string.format('Copies "%s" to "%s" with its %d reference crops (%.1f MB). Continue?',
+            from, to, files, bytes / 1048576)
+    end
+    function store.copy(from, to)
+        if run_busy() then return false, "a run is using it, store a new one when the run finishes" end
+        if df.test_file(dir(to), "e") then return false, dir(to) .. " already exists" end
+        local ok, _how, code
+        if IS_WINDOWS then
+            ok, _how, code = os.execute('robocopy ' .. shell_quote((dir(from):gsub("/", "\\"))) .. ' '
+                .. shell_quote((dir(to):gsub("/", "\\"))) .. ' /E /NFL /NDL /NJH /NJS /NP >nul')
+            ok = code ~= nil and code < 8 -- robocopy: 0-7 success, 8+ failure
+        else
+            ok = os.execute("cp -R " .. shell_quote(dir(from)) .. " " .. shell_quote(dir(to)))
+        end
+        if not ok or not file_exists(dir(to) .. "/entries.json") then return false, "copy to " .. dir(to) .. " failed" end
+        return true
+    end
+    return store
+end
+
+local GROUP_SUPPORT_LABELS = { native = "native groups", tags = "grouping tags", none = "none" }
+
 local function install_panel()
     if M.module_installed then return end
     M.module_installed = true
+
+    local function changed()
+        if preset_ctl then preset_ctl.check_dirty() end
+    end
+    local panel_ready = false -- the first collection load waits for darktable to open (see the end)
 
     local new_collection_name = dt.new_widget("entry") {
         tooltip = _("Name for the new collection's folder, e.g. \"F1 2026\""),
@@ -2336,30 +2787,9 @@ local function install_panel()
         end,
     }
 
-    -- changed_callback runs asynchronously and also fires when the list is
-    -- refilled, so it acts only on a real change from the stored collection.
-    collection_combo = dt.new_widget("combobox") {
-        label = _("collection"),
-        tooltip = _("A folder in the collections folder with an entries.json (see preferences → Lua options)"),
-        changed_callback = function(self)
-            local name = self.value
-            if not name or name == "" or name == _("(no collections)") or name == current_collection() then return end
-            if busy or orphan or #queue > 0 then
-                -- a run is using the stored collection's entries; switch back
-                dt.print(_("Assisted Tagging: busy, switch collections when the current run finishes."))
-                for i = 1, #self do
-                    if self[i] == current_collection() then self.selected = i end
-                end
-                return
-            end
-            dt.preferences.write("assisted_tagging", "last_collection", "string", name)
-            reload_lists(true)
-        end,
-        _("(click Reload)"),
-    }
     local reload_button = dt.new_widget("button") {
         label = _("Reload"),
-        tooltip = _("Reread the collections folder and the selected collection's entries.json"),
+        tooltip = _("Reread the collections folder (the preset list) and the selected collection's entries.json"),
         clicked_callback = function() reload_lists(false) end,
     }
     local plan_button = dt.new_widget("button") {
@@ -2410,10 +2840,6 @@ local function install_panel()
         label = _("Edit entries.json"),
         tooltip = _("Edit the selected collection's entries.json in place below, then click Save entries.json"),
         clicked_callback = function()
-            if current_collection() == "" then
-                dt.print(_("Assisted Tagging: pick a collection first"))
-                return
-            end
             local path = entries_json_path()
             local text = read_file(path)
             if not text then
@@ -2435,37 +2861,6 @@ local function install_panel()
         label = _("Replace manual tags"),
         tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let the next run replace them. It clears itself after the run."),
         value = false,
-    }
-    use_hints_check = dt.new_widget("check_button") {
-        label = _("Use team tags as hints"),
-        tooltip = _("On: a team tag you applied by hand to a solo shot limits matching to that team's entries. Off: team tags are ignored, so the run can override them; a team tag you applied stays on the image next to whatever the run adds. Driver tags still protect their images either way."),
-        value = true,
-    }
-    local stored_support = dt.preferences.read("assisted_tagging", "group_support", "string")
-    local support_index = 1
-    for i, g in ipairs(GROUP_SUPPORT) do
-        if g[1] == stored_support then support_index = i end
-    end
-    -- changed_callback is async and fires on every assignment to `selected`: write only on a real change
-    group_support_combo = dt.new_widget("combobox") {
-        label = _("grouping support"),
-        tooltip = _("What groups photos for shared identification. Native groups: darktable's image groups. Grouping tags: the children of the tag node below. None: every photo is its own group."),
-        changed_callback = function(self)
-            local key
-            for _, g in ipairs(GROUP_SUPPORT) do
-                if g[2] == self.value then key = g[1] end
-            end
-            if key and key ~= dt.preferences.read("assisted_tagging", "group_support", "string") then
-                dt.preferences.write("assisted_tagging", "group_support", "string", key)
-            end
-        end,
-        GROUP_SUPPORT[1][2], GROUP_SUPPORT[2][2], GROUP_SUPPORT[3][2],
-    }
-    group_support_combo.selected = support_index
-    group_node_entry = dt.new_widget("entry") {
-        placeholder = _("Grouping tag node (blank = newest run)"),
-        tooltip = _("Grouping tags only: the tag node whose children are the groups, e.g. Assisted Grouping|2026-01-01 12:00:00|Group. Blank uses the newest Assisted Grouping run on the selected photos."),
-        text = dt.preferences.read("assisted_tagging", "group_node", "string") or "",
     }
     verify_button = dt.new_widget("button") {
         label = _("Verify selection"),
@@ -2499,28 +2894,102 @@ local function install_panel()
         tooltip = _("Save each vehicle the last Identify run was sure of (number read, or a clear livery match) as a reference of the entry it found. Works for pack shots too: only that car's crop is saved."),
         clicked_callback = function() M.promote_references(dt.gui.action_images) end,
     }
-    run_tag_check = dt.new_widget("check_button") {
-        label = _("Tag each run"),
-        tooltip = _("Add a timestamp tag (Assisted Tagging|Run|YYYY-MM-DD HH:MM) to every image a run writes, so the latest run's photos can be filtered apart from earlier ones. Stamps accumulate; remove old ones in darktable's tag manager."),
-        value = false,
-    }
-    suggest_crops_check = dt.new_widget("check_button") {
-        label = _("Audit: suggest re-crops"),
-        tooltip = _("Also write re-cut copies of wide references (one car found) into ref-audit-crops in the collection folder, for you to review. Nothing in refs/ is changed. The first audit with this ticked is slow (about 8 minutes for 2000 refs); later ones are fast."),
-        value = false,
-    }
-    quarantine_check = dt.new_widget("check_button") {
-        label = _("Audit: quarantine poor refs"),
-        tooltip = _("After the report is written, move the refs flagged by 2+ checks out of refs/ into refs-quarantine in the collection folder (moved.txt lists each). Nothing is deleted: copy a file back into refs/<entry>/ to undo it."),
-        value = false,
-    }
     local audit_button = dt.new_widget("button") {
         label = _("Audit references"),
         tooltip = _("Refresh the collection's reference index from refs/, then write ref-audit.txt in the collection folder listing refs that look wrongly filed. Nothing is moved or deleted."),
         clicked_callback = function() M.audit_references() end,
     }
 
-    local panel_box = dt.new_widget("box") {
+    -- Settings: everything below is part of the collection's preset (settings.json).
+    local checks, check_order = {}, {}
+    local function check(key, label, tooltip)
+        local c = dt.new_widget("check_button") {
+            label = label,
+            tooltip = tooltip,
+            value = false,
+            clicked_callback = changed,
+        }
+        checks[key] = c
+        check_order[#check_order + 1] = key
+        return c
+    end
+
+    local use_hints_check = check("use_hints", _("Use team tags as hints"),
+        _("On: a team tag you applied by hand to a solo shot limits matching to that team's entries. Off: team tags are ignored, so the run can override them; a team tag you applied stays on the image next to whatever the run adds. Driver tags still protect their images either way.\nDefault: on. Turn off when your team tags are unreliable and the run should overrule them."))
+    local run_tag_check = check("run_tag", _("Tag each run"),
+        _("Add a timestamp tag (Assisted Tagging|Run|YYYY-MM-DD HH:MM) to every image a run writes, so the latest run's photos can be filtered apart from earlier ones. Stamps accumulate; remove old ones in darktable's tag manager.\nDefault: off. Turn on when re-running a shoot and you want to review only what changed."))
+    local suggest_crops_check = check("suggest_crops", _("Audit: suggest re-crops"),
+        _("Also write re-cut copies of wide references (one car found) into ref-audit-crops in the collection folder, for you to review. Nothing in refs/ is changed. The first audit with this ticked is slow (about 8 minutes for 2000 refs); later ones are fast.\nDefault: off. Turn on when the audit flags wide refs you want re-cut."))
+    local quarantine_check = check("quarantine", _("Audit: quarantine poor refs"),
+        _("After the report is written, move the refs flagged by 2+ checks out of refs/ into refs-quarantine in the collection folder (moved.txt lists each). Nothing is deleted: copy a file back into refs/<entry>/ to undo it.\nDefault: off. Turn on once you trust the audit's flags for this collection."))
+    local tag_check_list = {}
+    for _i, t in ipairs(TAG_TOGGLES) do
+        local c = check("tag_" .. t.key, t.label, tag_tooltip(t))
+        tag_checks[t.key] = c
+        tag_check_list[#tag_check_list + 1] = c
+    end
+
+    local support_keys
+    for _i, f in ipairs(M.PRESET_SCHEMA) do
+        if f.key == "group_support" then support_keys = f.choices end
+    end
+    local shown_support = "native" -- last shown or picked: the combo's callback acts only on a change
+    local group_support_combo = dt.new_widget("combobox") {
+        label = _("grouping support"),
+        tooltip = _("What groups photos for shared identification. Native groups: darktable's image groups. Grouping tags: the children of the tag node below. None: every photo is its own group.\nDefault: native groups. Pick grouping tags after an Assisted Grouping run you have not applied as darktable groups."),
+        changed_callback = function(self)
+            local key = support_keys[self.selected]
+            if not key or key == shown_support then return end
+            shown_support = key
+            changed()
+        end,
+        _(GROUP_SUPPORT_LABELS[support_keys[1]]), _(GROUP_SUPPORT_LABELS[support_keys[2]]),
+        _(GROUP_SUPPORT_LABELS[support_keys[3]]),
+    }
+    local group_node_entry = dt.new_widget("entry") {
+        placeholder = _("Grouping tag node (blank = newest run)"),
+        tooltip = _("Grouping tags only: the tag node whose children are the groups, e.g. Assisted Grouping|2026-01-01 12:00:00|Group. Blank uses the newest Assisted Grouping run on the selected photos.\nDefault: blank. Set it when the photos carry more than one grouping run."),
+        text = "",
+    }
+    local embedder_entry = dt.new_widget("entry") {
+        placeholder = _("embedder model file (blank = bundled)"),
+        tooltip = _("File name in the plugin's models/ folder used to compare liveries, e.g. dinov2_base.onnx. Changing it re-embeds every reference on the next run.\nDefault: blank (dinov2_small.onnx). Change it to try a larger model when liveries are confused."),
+        text = "",
+    }
+    local tolerance_entry = dt.new_widget("entry") {
+        placeholder = _("neighbour tolerance"),
+        tooltip = _("How many places apart in the sorted number list a neighbouring car can be and still support a doubtful read. A whole number, 0 or more. Only used when the collection's order_weight is above 0.\nDefault: 5. Lower it when cars pass in strict number order; raise it when the order is loose."),
+        text = "",
+    }
+
+    local function trim(s) return (s or ""):match("^%s*(.-)%s*$") end
+
+    read_panel = function()
+        local tolerance = tonumber(trim(tolerance_entry.text):match("^%d+$"))
+        if not tolerance then return nil, _("neighbour tolerance must be a whole number, 0 or more") end
+        local s = {
+            group_support = support_keys[group_support_combo.selected] or shown_support,
+            group_node = trim(group_node_entry.text),
+            embedder_file = trim(embedder_entry.text),
+            neighbour_tolerance = tolerance,
+        }
+        for _i, key in ipairs(check_order) do s[key] = checks[key].value and true or false end
+        return s
+    end
+
+    local function show_panel(s)
+        shown_support = s.group_support
+        for i, key in ipairs(support_keys) do
+            if key == s.group_support and group_support_combo.selected ~= i then group_support_combo.selected = i end
+        end
+        group_node_entry.text = s.group_node
+        embedder_entry.text = s.embedder_file
+        tolerance_entry.text = tostring(s.neighbour_tolerance)
+        for _i, key in ipairs(check_order) do checks[key].value = s[key] end
+    end
+
+    -- template: only the new-collection controls; a collection: everything else
+    local template_box = dt.new_widget("box") {
         orientation = "vertical",
         dt.new_widget("section_label") { label = _("new collection") },
         new_collection_name,
@@ -2528,9 +2997,10 @@ local function install_panel()
         example_combo,
         example_view_button,
         example_create_button,
+    }
+    local collection_box = dt.new_widget("box") {
+        orientation = "vertical",
         dt.new_widget("section_label") { label = _("collection") },
-        collection_combo,
-        reload_button,
         plan_button,
         edit_button,
         entries_editor,
@@ -2552,6 +3022,58 @@ local function install_panel()
         suggest_crops_check,
         quarantine_check,
         audit_button,
+        dt.new_widget("section_label") { label = _("options") },
+        embedder_entry,
+        tolerance_entry,
+        dt.new_widget("section_label") { label = _("tags written") },
+        table.unpack(tag_check_list),
+    }
+
+    preset_ctl = make_preset_controls({
+        prefix = "Assisted Tagging",
+        schema = M.PRESET_SCHEMA,
+        store = collection_store(),
+        read_panel = read_panel,
+        show = show_panel,
+        remember = function(name)
+            dt.preferences.write("assisted_tagging", "last_collection", "string", name == "template" and "" or name)
+        end,
+        initial = current_collection() ~= "" and current_collection() or "template",
+        -- a run may be appending to the log; its lines wait in the buffer until the run ends
+        log = function(msg) log(msg); if not busy then flush_log() end end,
+        on_change = function(name, is_template)
+            template_box.visible = is_template
+            collection_box.visible = not is_template
+            close_entries_editor()
+            collection_loaded = false
+            if is_template then
+                entries, entry_order = {}, {}
+                refresh_entry_combo()
+            elseif panel_ready then
+                collection_loaded = reload_lists(true)
+            end
+        end,
+        -- a run reads the stored collection's entries and refs until it finishes
+        can_switch = function()
+            if busy or orphan or #queue > 0 then
+                return false, "busy, switch collections when the current run finishes"
+            end
+            return true
+        end,
+        allow_store_new = true,
+    })
+
+    local panel_box = dt.new_widget("box") {
+        orientation = "vertical",
+        -- shows the template defaults; nothing is saved
+        reset_callback = function()
+            show_panel(M.preset_defaults(M.PRESET_SCHEMA))
+            changed()
+        end,
+        preset_ctl.widget,
+        reload_button,
+        template_box,
+        collection_box,
     }
 
     dt.register_lib(
@@ -2561,7 +3083,8 @@ local function install_panel()
     )
     dt.control.dispatch(function()
         dt.control.sleep(STARTUP_RELOAD_DELAY_MS)
-        if not lists_loaded then reload_lists(true) end
+        panel_ready = true
+        if not lists_loaded then collection_loaded = reload_lists(true) end
     end)
     reload_examples()
 end
