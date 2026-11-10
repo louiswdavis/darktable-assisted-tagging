@@ -63,7 +63,20 @@ check("superscript digits are not a number", O.digits_only("1²"), None)
 check("circled digits are not a number", O.digits_only("①"), None)
 check("look-alike letters still read as digits", O.digits_only("1O"), "10")
 
-check("the PaddleOCR yml sits beside the model", O.paddle_dict_path(os.path.join("m", "en_rec.onnx")), os.path.join("m", "en_rec.yml"))
+# height_share: quads are bottom-left, top-left, top-right, bottom-right in letterbox pixels.
+def quad(top, bottom, left=10, right=60):
+    return np.array([[left, bottom], [left, top], [right, top], [right, bottom]], np.float32)
+
+
+# a 600 × 300 crop letterboxes to 736 × 368: a 92 px tall region is a quarter of the crop's height
+check("a door number is a fair share of the crop", round(O.height_share(quad(100, 192), 300, 600), 3), 0.25)
+check("a plate character is a small share", O.height_share(quad(100, 118), 300, 600) < O.NUMBER_MIN_HEIGHT, True)
+# a 300 × 600 (tall) crop fills the letterbox's height: 73.6 px is a tenth
+check("a tall crop measures against the full height", round(O.height_share(quad(0, 73.6), 600, 300), 3), 0.1)
+check("a slanted quad uses its longer side", round(O.height_share(
+    np.array([[0, 92], [0, 0], [50, 0], [50, 46]], np.float32), 300, 600), 3), 0.25)
+
+check("the PaddleOCR yml sits beside the model",O.paddle_dict_path(os.path.join("m", "en_rec.onnx")), os.path.join("m", "en_rec.yml"))
 
 import tempfile
 with tempfile.TemporaryDirectory() as tmp:

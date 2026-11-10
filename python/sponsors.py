@@ -19,10 +19,10 @@ def _within_one(a: str, b: str) -> bool:
 
 
 def sponsor_prefixes(ocr_trace: list, keywords: tuple) -> list:
-    """ocr_trace: [[confidence, text], …]; keywords: ((word, tag prefix), …). The one prefix all
-    matched sponsor words agree on, as a one-item list; [] when none match or two prefixes do."""
+    """ocr_trace: [[confidence, text, height share], …]; keywords: ((word, tag prefix), …). The one prefix
+    all matched sponsor words agree on, as a one-item list; [] when none match or two prefixes do."""
     found = set()
-    for conf, text in ocr_trace:
+    for conf, text, *_ in ocr_trace:
         text = text.lower()
         if conf < SPONSOR_MIN_CONF:
             continue

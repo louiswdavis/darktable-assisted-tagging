@@ -11,6 +11,10 @@ import cv2
 from vehicles import file_key, read_onnx
 
 OCR_MIN_SCORE = 0.80
+# a number's text region must be at least this share of the vehicle crop's height. Number plate
+# characters and lone sticker letters sit well under a door or bonnet number. A first guess: the
+# report's "ocr saw" line prints each region's share (h0.12) to tune it from
+NUMBER_MIN_HEIGHT = 0.07
 
 DET_INPUT = 736  # PP-OCRv3 DB takes sides that are multiples of 32
 DET_MEAN = (122.67891434, 116.66876762, 104.00698793)
@@ -51,6 +55,13 @@ def _letterbox(rgb: np.ndarray, size: int) -> np.ndarray:
     canvas = np.full((size, size, 3), 255, np.uint8)
     canvas[:nh, :nw] = cv2.resize(rgb, (nw, nh), interpolation=cv2.INTER_AREA if scale < 1 else cv2.INTER_LINEAR)
     return canvas
+
+
+def height_share(quad, crop_h: int, crop_w: int, size: int = DET_INPUT) -> float:
+    """A letterboxed text quad's height (its longer left or right side) as a share of the crop's height."""
+    q = np.asarray(quad, np.float32).reshape(4, 2)
+    side = max(np.linalg.norm(q[0] - q[1]), np.linalg.norm(q[3] - q[2]))
+    return float(side / (crop_h * size / max(crop_h, crop_w, 1)))
 
 
 def _probs(out: np.ndarray) -> np.ndarray:
@@ -172,19 +183,22 @@ class NumberReader:
 
     def read(self, crop_rgb: np.ndarray) -> list:
         """[(digits, confidence)], distinct numbers, most confident first, for text regions detected at
-        OCR_MIN_SCORE or above. Confidence is the lower of the detection score and the recogniser's read
-        confidence: a plate can look very like text and still be read unsurely. Also sets `last_trace`:
-        the five most confident detected text regions as [confidence, raw text], accepted or not, so a
-        zero-read crop shows what the reader saw."""
+        OCR_MIN_SCORE or above and at least NUMBER_MIN_HEIGHT of the crop's height. Confidence is the
+        lower of the detection score and the recogniser's read confidence: a plate can look very like
+        text and still be read unsurely. Also sets `last_trace`: the five most confident detected text
+        regions as [confidence, raw text, height share], accepted or not, so a zero-read crop shows
+        what the reader saw."""
+        h, w = crop_rgb.shape[:2]
         bgr = cv2.cvtColor(_letterbox(crop_rgb, DET_INPUT), cv2.COLOR_RGB2BGR)
         quads, confidences = self.det.detect(bgr)
         best, trace = {}, []
         for quad, conf in zip(quads, confidences):
             text, read_conf = self.rec.read_word(bgr, quad)
             both = min(float(conf), read_conf)
-            trace.append([both, text])
+            share = height_share(quad, h, w)
+            trace.append([both, text, round(share, 3)])
             digits = digits_only(text)
-            if conf >= OCR_MIN_SCORE and digits and both > best.get(digits, -1.0):
+            if conf >= OCR_MIN_SCORE and digits and share >= NUMBER_MIN_HEIGHT and both > best.get(digits, -1.0):
                 best[digits] = both
         self.last_trace = sorted(trace, reverse=True)[:5]
         return sorted(best.items(), key=lambda kv: kv[1], reverse=True)

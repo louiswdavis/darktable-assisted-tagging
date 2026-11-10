@@ -29,7 +29,7 @@ import time
 from dataclasses import dataclass, replace
 
 from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect, detect_vehicles, detector_model, file_key, load_full, load_hires, log
-from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
+from ocr import NUMBER_MIN_HEIGHT, OCR_MIN_SCORE, NumberReader, ocr_key
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged,
@@ -448,7 +448,7 @@ def frame_key(filepath: str, models: dict) -> list:
         return [file_key(filepath), "people", *face_model_key(models["face_det"], models["face_rec"]), "face-1"]
     return [file_key(filepath),file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
-            DETECTOR_MIN_SCORE, "ocr-trace-1", "read-conf-1", "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
+            DETECTOR_MIN_SCORE, "ocr-trace-2", "read-conf-1", NUMBER_MIN_HEIGHT, "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
             *([SEGMENT_CACHE_TOKEN] if models.get("segmenter") else [])]
 
 

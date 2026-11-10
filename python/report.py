@@ -197,7 +197,7 @@ def sponsor_suggestions(data: dict, all_rows: list) -> list:
     for r in all_rows:
         if r["category"] == "no-vehicle" or "ocr_trace" not in r:
             continue
-        words = {t.lower() for c, t in r["ocr_trace"] if c >= SPONSOR_MIN_CONF and len(t) >= SUGGEST_MIN_LEN and t.isalpha()}
+        words = {t.lower() for c, t, *_ in r["ocr_trace"] if c >= SPONSOR_MIN_CONF and len(t) >= SUGGEST_MIN_LEN and t.isalpha()}
         prefix = None
         if r["category"] == "identified":
             tags = entries[r["entry"]]["tags"]
@@ -237,7 +237,8 @@ def describe(r: dict) -> str:
     if r["ocr"]:
         parts.append("read " + ", ".join(f"`{d}`" for d, _ in r["ocr"]))
     elif r.get("ocr_trace"):
-        parts.append("ocr saw " + ", ".join(f"`{t}` {c:.2f}" for c, t in r["ocr_trace"][:3]))
+        parts.append("ocr saw " + ", ".join(f"`{t}` {c:.2f}" + "".join(f" h{s:.2f}" for s in rest)
+                                            for c, t, *rest in r["ocr_trace"][:3]))
     elif "ocr_trace" in r:
         parts.append("ocr saw no text")
     if r.get("pod"):
