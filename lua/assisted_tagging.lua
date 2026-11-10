@@ -1616,7 +1616,7 @@ local function can_start(images, needs_no_images)
     return true
 end
 
--- Where a run leaves its per-vehicle records, for "Add confident vehicles from last run".
+-- Where a run leaves its per-vehicle records, for "Add from last run".
 local function boxes_path()
     return LAST_RUN_DIR .. "/" .. current_collection() .. ".boxes.json"
 end
@@ -2268,7 +2268,7 @@ function M.create_collection(images, raw_name)
 
     if not open_new_collection(name) then
         notify_error(string.format(_("Assisted Tagging: created %s but couldn't load it, so no references were added. "
-            .. "Click Reload, then \"Add tagged images as references\" with the same images selected (why: assisted_tagging.log)."), name))
+            .. "Click Reload, then \"Add tagged images\" with the same images selected (why: assisted_tagging.log)."), name))
         return
     end
     local active_images = {}
@@ -2309,7 +2309,7 @@ local function selected_example()
 end
 
 -- Preset controls: drift-guarded copy in grouping, culling and tagging. Change all three.
--- The preset picker and ☰ menu at the top of the panel. Lua panels can't use darktable's
+-- The preset picker and actions menu at the top of the panel. Lua panels can't use darktable's
 -- own presets (lualib.c leaves get_params/set_params NULL), so this builds its own.
 -- Combobox callbacks run later and fire on every `selected` assignment, so each one acts
 -- only when the widget's value differs from `current`.
@@ -2470,7 +2470,7 @@ local function make_preset_controls(o)
     end
 
     local function set_menu()
-        local items = { "☰" }
+        local items = { "choose…" }
         menu_actions = { false }
         local function add(text, action)
             items[#items + 1] = text
@@ -2587,7 +2587,7 @@ local function make_preset_controls(o)
 
     picker = dt.new_widget("combobox") {
         label = "preset",
-        tooltip = "Pick a saved set of panel settings. template = the defaults. Unsaved changes are dropped when you switch. Save with ☰ → update preset.",
+        tooltip = "Pick a saved set of panel settings. template = the defaults. Unsaved changes are dropped when you switch. Save with actions → update preset.",
         changed_callback = function(self)
             local name = self.value
             if current and name and name ~= "" and name ~= current then ctl.select(name) end
@@ -2595,6 +2595,7 @@ local function make_preset_controls(o)
         "template",
     }
     menu = dt.new_widget("combobox") {
+        label = "actions",
         tooltip = "Preset actions: update the selected preset with the panel's values, store the panel as a new preset, rename or delete.",
         changed_callback = function(self)
             local i = self.selected
@@ -2603,7 +2604,7 @@ local function make_preset_controls(o)
             self.selected = 1
             if action then ctl.check_dirty(); action() end
         end,
-        "☰",
+        "choose…",
     }
     dirty_label = dt.new_widget("label") { label = "unsaved changes", halign = "start", visible = false }
     name_entry = dt.new_widget("entry") { placeholder = "preset name", text = "" }
@@ -2765,7 +2766,7 @@ local function install_panel()
         text = "",
     }
     local new_collection_button = dt.new_widget("button") {
-        label = _("Create collection from tagged images"),
+        label = _("From tagged images"),
         tooltip = _("Build a new collection from the selected images' existing tags: images carrying the "
             .. "same hierarchical tags (e.g. Series|Team|Driver) become one entry, then each image is "
             .. "added as that entry's reference. A tag only " .. (M.MIN_REFS_PER_ENTRY - 1)
@@ -2793,7 +2794,7 @@ local function install_panel()
         end,
     }
     local example_create_button = dt.new_widget("button") {
-        label = _("Create collection from example"),
+        label = _("From example"),
         tooltip = _("Copy the selected example's entries.json into a new collection with no images needed; "
             .. "edit it afterward with your own entries"),
         clicked_callback = function()
@@ -2899,12 +2900,12 @@ local function install_panel()
         end,
     }
     local add_tagged_button = dt.new_widget("button") {
-        label = _("Add tagged images as references"),
+        label = _("Add tagged images"),
         tooltip = _("For each selected image that already carries all of one entry's tags, save it as a reference of that entry"),
         clicked_callback = function() M.add_references(dt.gui.action_images, nil) end,
     }
     local promote_button = dt.new_widget("button") {
-        label = _("Add confident vehicles from last run"),
+        label = _("Add from last run"),
         tooltip = _("Save each vehicle the last Identify run was sure of (number read, or a clear livery match) as a reference of the entry it found. Works for pack shots too: only that car's crop is saved."),
         clicked_callback = function() M.promote_references(dt.gui.action_images) end,
     }

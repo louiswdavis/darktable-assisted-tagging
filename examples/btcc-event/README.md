@@ -27,6 +27,6 @@ How to add them:
 
 1. Pick a clean frame of each car: one car in shot, not cut off by the frame edge.
 2. In the panel's **references** section, pick the entry in the **entry** list, select the frames, and click **Add as reference**. The largest vehicle in each frame is cropped and saved under `refs/<entry id>/`.
-3. Or tag a handful of practice frames by hand, select them, and click **Add tagged images as references**. Each frame carrying all of one entry's tags is added to that entry.
+3. Or tag a handful of practice frames by hand, select them, and click **Add tagged images**. Each frame carrying all of one entry's tags is added to that entry.
 
 After a run, filter on `Shoot|Check me` for what it missed. A frame it got wrong, fixed by hand, is usually the best next reference. To drop a bad reference, delete its JPG from `refs/<entry id>/`; the next run notices.

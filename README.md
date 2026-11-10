@@ -153,12 +153,12 @@ If you've already hand-tagged a handful of photos — one per competitor, e.g. `
 
 1. In lighttable, select a handful of already-tagged photos — **at least 2 per target**, from different angles.
 2. Under **new collection** in the panel, type a name for the collection, e.g. `F1 2026`.
-3. Click **Create collection from tagged images**.
+3. Under **new collection**, click **From tagged images**.
 
 It reads each selected image's tags down to wherever two images stop being identical: images carrying the exact same tags become one entry, and whatever tag is unique to a photo (the driver tag) is what tells two teammates apart. From that it:
 
 - creates the collection folder with an `entries.json` built from those tag sets, inferring each entry's `team` where a tag is shared with some but not all of the other entries, and its race `number` when the deepest tag's leaf is 1-3 digits (e.g. a `Car|Number|44` convention sets `number: "44"` automatically)
-- adds every selected image as a reference sample of its entry, exactly like [**Add tagged images as references**](#building-references)
+- adds every selected image as a reference sample of its entry, exactly like [**Add tagged images**](#building-references)
 - switches the panel to the new collection and reloads it
 
 Two kinds of selected image don't become an entry, and are reported in the done message rather than silently dropped:
@@ -166,7 +166,7 @@ Two kinds of selected image don't become an entry, and are reported in the done 
 - an image with no tag that looks like `A|B` has nothing to build an entry from
 - a tag that only 1 selected image carries is skipped rather than turned into a single-sample entry — a lone sample tells the matcher nothing about how that target varies across angles and light, so it's better surfaced as "needs more references" than quietly matched (and likely mismatched) later. Select at least 2 photos per target to avoid this.
 
-If you want number-based identification but your tags don't already encode the number, or you want custom [rules](#rules), add those by hand afterward (see below). If a collection with that name already exists, nothing is overwritten — pick a new name, or switch to the existing one and use **Add tagged images as references** instead.
+If you want number-based identification but your tags don't already encode the number, or you want custom [rules](#rules), add those by hand afterward (see below). If a collection with that name already exists, nothing is overwritten — pick a new name, or switch to the existing one and use **Add tagged images** instead.
 
 #### From an example
 
@@ -174,7 +174,7 @@ No tagged photos yet, or just want to see the shape of a working `entries.json`?
 
 1. Pick one in the **example** dropdown.
 2. Click **View example** to open its `entries.json` in your editor and read it, or
-3. type a name under **new collection** and click **Create collection from example** to copy it into a real collection.
+3. type a name under **new collection** and click **From example** to copy it into a real collection.
 
 Either way, a created collection still needs its placeholder names replaced with your own competitors (and references added, for anything you want livery-matched) before it identifies anything correctly — click **Edit entries.json** in the panel's **collection** section at any time to open the *active* collection's file the same way.
 
@@ -200,7 +200,7 @@ Write `entries.json` yourself for more control than tags alone give you: a race 
 
 Here VER gets `Motorsport|F1|Red Bull` and `Motorsport|F1|Red Bull|Max Verstappen`, and SAFETY gets `Motorsport|F1|Safety Car`. Add a `tags` list to an entry for extra tags on top; without `tag_prefix`, `tags` is the full list as before.
 
-A file that's just the `[ … ]` list of entries works too, with the default rules — this is the shape **Create collection from tagged images** writes when its tags don't share one prefix. When every car's tags are `prefix|team` and `prefix|team|name` under the same prefix, it writes the `tag_prefix` form above instead (with `name` per entry). Either way you can hand-edit the result to add numbers or rules.
+A file that's just the `[ … ]` list of entries works too, with the default rules — this is the shape **new collection → From tagged images** writes when its tags don't share one prefix. When every car's tags are `prefix|team` and `prefix|team|name` under the same prefix, it writes the `tag_prefix` form above instead (with `name` per entry). Either way you can hand-edit the result to add numbers or rules.
 
 [`examples/`](examples) has four collections — pick one from the panel's **example** dropdown (see [above](#from-an-example)), or copy its folder into the collections folder by hand. Each has a README on what it shows and how to supply its references:
 
@@ -236,7 +236,7 @@ Every key is optional; leave one out for its default.
 | `tag_prefix` | `""` | a tag path for the whole collection, e.g. `Motorsport\|F1`. Each entry's tags are then built: `prefix\|team`, then `prefix\|team\|name` (`prefix\|name` with no team), then its own `tags` as extras. A driver match writes all of them; a team-only result writes the shared `prefix\|team`. Empty keeps `tags` as the full list. |
 | `order_weight` | `0` | how far the cars pass in number order, from `0` (random: the neighbour aid is off) to `1` (strictly in order). Above 0, groups shot just before and after a doubtful read help identify it: a neighbour up to `order_weight × (neighbour tolerance + 1)` places away in the number list counts, and from `0.5` up an unsupported doubtful read is flagged *Check order*; see [How it decides](#how-it-works). Gaps and out-of-order passes are fine, and the list loops (after the highest number comes the lowest). Outside 0–1 stops the run |
 | `min_read` | `0.85` | how sure a number read must be to count, from `0` to `1`. A read's confidence is the lower of two scores: how sure the text detector is that it found text, and how sure the reader is of its least certain digit. Raise it if plates or signs get read as numbers; lower it if clear numbers are missed. Weaker reads still show in the OCR trace. Outside 0–1 stops the run |
-| `partial_references` | `false` | **Add tagged images as references** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only). |
+| `partial_references` | `false` | **Add tagged images** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only). |
 
 An unknown key, or a misspelt one, stops the run and names it, so a typo can't silently do nothing.
 
@@ -248,11 +248,11 @@ After editing `entries.json`, click **Reload** in the panel. A mistake in the fi
 
 ### Building references
 
-Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong. **Create collection from tagged images** already does this for the images it was given; add more at any time with the panel's **references** section (at the bottom of the panel):
+Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong. **new collection → From tagged images** already does this for the images it was given; add more at any time with the panel's **references** section (at the bottom of the panel):
 
 - **Add as reference**: pick the entry in the **entry** list, select photos of that car, click. The largest vehicle in each photo is cropped and saved under that entry. A photo where no vehicle is found is saved whole, and the done message says how many.
-- **Add tagged images as references**: select photos you've already tagged by hand. Each one carrying *all* of one entry's tags is added under that entry. A photo with only a shared team tag, or with two drivers' tags, is skipped.
-- **Add confident vehicles from last run**: select photos from the last **Identify selection** run. Each vehicle that run was sure of (its number was read, or its livery led the runner-up by `REFERENCE_MIN_MARGIN`) is saved under the entry it found. This works for pack shots: the saved crop is that one car, not the whole photo, so the entry's tag doesn't have to describe the frame. Burst, team-only and held-back results are never saved. Photos changed since the run are skipped.
+- **Add tagged images**: select photos you've already tagged by hand. Each one carrying *all* of one entry's tags is added under that entry. A photo with only a shared team tag, or with two drivers' tags, is skipped.
+- **Add from last run**: select photos from the last **Identify selection** run. Each vehicle that run was sure of (its number was read, or its livery led the runner-up by `REFERENCE_MIN_MARGIN`) is saved under the entry it found. This works for pack shots: the saved crop is that one car, not the whole photo, so the entry's tag doesn't have to describe the frame. Burst, team-only and held-back results are never saved. Photos changed since the run are skipped.
 - **Add-time screening** (vehicle collections): after saving, both reference actions run the audit's mislabel, copy, outlier, colour and crop checks on the new refs. **Add confident vehicles** does not save a box that 2+ checks flag (the log names them; the summary counts them as not saved). **Add references** keeps the ref but logs the flags, since you named the car. Entries with too few refs for a check pass it, and the whole-frame and attractor checks don't run at add time.
 - **Audit references**: needs no selected photos. Refreshes the collection's `index.npz` from `refs/` (deleted or moved crops drop out, new ones are embedded), then writes `ref-audit.txt` in the collection folder. Sections: *strongest candidates* (refs flagged by two or more of the checks below; start there), *mislabel suspects* (closer to another entry's refs than its own by 0.2 or more), *cross-entry copies* (near-identical crop filed under two entries), *outliers* (far from the rest of its entry), *odd crops* (crop size or shape far from the entry's usual: a distant car, a whole frame, a nose-only cut; unusual angles are not flagged by this one), *whole frames* (the vehicle detector finds no car in the ref, or one under 15% of it, so scenery drives its matches; re-crop or delete), *attractors* (correctly filed refs that are the closest match for three or more refs of other teams' entries, so an odd angle or size pulls other cars toward them; teammates' pulls are shown but not counted), *colour outliers* (livery hue and saturation unlike the entry's typical colours from the same event, brightness ignored; refs are grouped into events by filename id, where ids more than 1000 apart are different race weekends, and the event ranges are printed at the top of the report; `looks like [entry]` names a better colour match) and *redundant* (near-duplicates within an entry) and *duplicate groups* (near-identical crops with their similarity; many are burst frames of the same car and fine to keep, so judge by eye). The whole-frame check also fires when the detector misses a dark or blurred car (tight crops often do), so look before deleting; refs with no car found are listed but don't count toward *strongest candidates*. The report shows the first 40 per section and every whole frame is in `ref-audit-frames.txt`. Each ref's car share is cached in `frame-share-cache.json`, so only the first audit is slow (about 8 minutes for 2000 refs, then seconds). Starting another action while one runs queues it; cancelling drops the queue. Two panel checkboxes above the button, both off by default: **Audit: suggest re-crops** also writes re-cut copies of wide refs where the detector found exactly one car into `ref-audit-crops/<entry>/` for you to review and copy over the ref (nothing in `refs/` changes; the first run with it ticked re-detects every ref, about 8 minutes), and **Audit: quarantine poor refs** moves the refs flagged by 2+ checks into `refs-quarantine/<entry>/` after the report is written, listing each in `moved.txt` there, then refreshes `index.npz`. To undo, copy a file back into `refs/<entry>/` and re-run the audit. On a terminal: `--suggest-crops` and `--quarantine`. The audit never moves or deletes anything: check the listed crops, then delete or move them yourself. Entries with 4 to 5 or more refs are needed for the outlier checks. It also runs from a terminal: `python python/audit_refs.py COLLECTION_DIR` (embedding, colour and crop checks only, no index refresh; add `--detector path/to/yolox.onnx` for the whole-frame check). The run log is rewritten, so audit before reading an Identify log.
 
@@ -311,21 +311,21 @@ In Assisted Tagging each collection is a preset: the **preset** picker at the to
 
 - **preset**: `template` first, then every collection folder with an `entries.json`, by name. Picking one loads its entries and its settings. The panel opens on the last one you picked.
 - **template**: the built-in defaults. It shows only the **new collection** controls; pick a collection to identify. A collection can't be named `template`.
-- **☰** beside it: **update preset "<name>"** saves the panel's settings into the collection's `settings.json`; **rename preset…** renames the collection folder (type the name, then **OK**); **delete preset** asks first, then deletes `settings.json` only, never the folder, `entries.json` or the references, so the collection goes back to the defaults. **store new preset…** copies the selected collection to a new folder (entries, references and all) with the panel's settings: type the name, **OK**, then it shows how many reference crops and MB it will copy and waits for **Store**. It is refused on **template** and while a run is going. Empty new collections still come from the **new collection** controls.
-- **unsaved changes** shows under the picker when the panel differs from the saved settings. Switching collections drops them. Text fields have no change signal, so their edits show when **☰** is opened or a run starts.
+- **actions** beside it: **update preset "<name>"** saves the panel's settings into the collection's `settings.json`; **rename preset…** renames the collection folder (type the name, then **OK**); **delete preset** asks first, then deletes `settings.json` only, never the folder, `entries.json` or the references, so the collection goes back to the defaults. **store new preset…** copies the selected collection to a new folder (entries, references and all) with the panel's settings: type the name, **OK**, then it shows how many reference crops and MB it will copy and waits for **Store**. It is refused on **template** and while a run is going. Empty new collections still come from the **new collection** controls.
+- **unsaved changes** shows under the picker when the panel differs from the saved settings. Switching collections drops them. Text fields have no change signal, so their edits show when **actions** is opened or a run starts.
 - A new collection has no `settings.json` and uses the defaults until its first **update preset**. A setting missing from the file uses its default; **update preset** writes every setting. A value that's no longer valid uses the default and logs one line naming the collection and setting.
 - A `settings.json` that can't be read or parsed: the panel says so, names the file, and keeps its current values. The plugin never rewrites a broken file; fix or delete it.
 - While a run is going (or queued), switching, renaming and deleting are refused until it finishes.
 
 ## Panel options
 
-At the top: the **preset** picker and **☰** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**. On a collection it shows, top to bottom: **1 collection**, **2 bursts**, **3 matching**, **4 tags written**, **5 run**, then **references**. Each section has its own heading; all sections stay open. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
+At the top: the **preset** picker and **actions** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**. On a collection it shows, top to bottom: **1 collection**, **2 bursts**, **3 matching**, **4 tags written**, **5 run**, then **references**. Each section has its own heading; all sections stay open. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
 
 ### new collection
 
 - **Name** (text field, e.g. `F1 2026`). The folder name for a new collection.
-- **Create collection from tagged images.** Builds the collection from the selected images' tags (see [From already-tagged images](#from-already-tagged-images-recommended)).
-- **example**, **View example**, **Create collection from example.** Pick a shipped example, open its `entries.json`, or copy it into a new collection (see [From an example](#from-an-example)).
+- **From tagged images.** Builds the collection from the selected images' tags (see [From already-tagged images](#from-already-tagged-images-recommended)).
+- **example**, **View example**, **From example.** Pick a shipped example, open its `entries.json`, or copy it into a new collection (see [From an example](#from-an-example)).
 
 ### 1 collection
 
@@ -357,7 +357,7 @@ One switch per diagnostic (default on): `By number`, `By livery`, `By burst`, `B
 ### references
 
 - **entry.** The entry **Add as reference** saves under.
-- **Add as reference**, **Add tagged images as references**, **Add confident vehicles from last run.** See [Building references](#building-references).
+- **Add as reference**, **Add tagged images**, **Add from last run.** See [Building references](#building-references).
 - **Audit: suggest re-crops**, **Audit: quarantine poor refs** (both off by default), **Audit references.** See **Audit references** under [Building references](#building-references).
 
 Everything in sections 2 to 5 and **references** except **Replace manual tags** is saved with the collection by **update preset**. **Replace manual tags** applies to the next run only.
@@ -441,7 +441,7 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 | `MATCH_MIN_MARGIN` | `match.py` | 0.10 | how far the best entry must be ahead of the next one. Similarities are centred on the references' mean once a collection has 20+ references, which spreads them out, so the gate is wider than it looks; `python/eval_matching.py` sweeps it on your own references |
 | `BURST_MIN_AGREE` | `match.py` | 2 | frames that must agree before a burst fills in the rest |
 | `SOLO_ANCHOR_CONF` | `match.py` | 0.95 | a number read this sure fills a burst that names no other entry on its own, however few frames agree |
-| `REFERENCE_MIN_MARGIN` | `match.py` | 0.10 | how far a livery match must lead to be saved by **Add confident vehicles from last run** |
+| `REFERENCE_MIN_MARGIN` | `match.py` | 0.10 | how far a livery match must lead to be saved by **Add from last run** |
 | `MIN_BOX_FRAC` | `vehicles.py` | 0.005 | the smallest vehicle, as a share of the frame, worth identifying |
 | `MAX_BOXES` | `vehicles.py` | 4 | vehicles identified per frame |
 | `CROP_DIM` | `vehicles.py` | 640 | the long side each vehicle crop is reduced to |
@@ -507,7 +507,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 
 10. **Cancel.** Start **Identify selection** on a large selection and click it again. *Expect:* "Assisted Tagging: cancelled, no tags were changed."
 11. **No selection.** Clear the selection and click **Identify selection**. *Expect:* "Assisted Tagging: select some images first".
-12. **Diagnostic switches.** Identify a batch with every switch on. Under **tags written** in the panel, turn off *Shot* and *By livery*, choose ☰ → **update preset**, then identify the same batch again. *Expect:* the same entry tags as before; no image in the batch has `…|Identification|Shot|…` or `…|By livery`; the other diagnostics are still there. No `LUA ERROR`.
+12. **Diagnostic switches.** Identify a batch with every switch on. Under **tags written** in the panel, turn off *Shot* and *By livery*, choose **actions** → **update preset**, then identify the same batch again. *Expect:* the same entry tags as before; no image in the batch has `…|Identification|Shot|…` or `…|By livery`; the other diagnostics are still there. No `LUA ERROR`.
 
 ### Report what breaks
 
