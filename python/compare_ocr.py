@@ -22,13 +22,21 @@ MODELS = os.path.join(HERE, "..", "models")
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".tif", ".tiff", ".cr2", ".cr3", ".nef", ".arw", ".rw2", ".dng", ".raf", ".orf"}
 
 
+JPEG_EXT = {".jpg", ".jpeg"}
+
+
 def photos(paths: list) -> list:
+    """Files as given, plus each folder's images; a RAW with a same-name JPEG beside it is skipped,
+    as a run reads the pair once, from the JPEG."""
     out = []
     for p in paths:
-        if os.path.isdir(p):
-            out += sorted(os.path.join(p, f) for f in os.listdir(p) if os.path.splitext(f)[1].lower() in IMAGE_EXT)
-        else:
+        if not os.path.isdir(p):
             out.append(p)
+            continue
+        files = [f for f in os.listdir(p) if os.path.splitext(f)[1].lower() in IMAGE_EXT]
+        jpeg_stems = {os.path.splitext(f)[0].lower() for f in files if os.path.splitext(f)[1].lower() in JPEG_EXT}
+        out += sorted(os.path.join(p, f) for f in files
+                      if os.path.splitext(f)[1].lower() in JPEG_EXT or os.path.splitext(f)[0].lower() not in jpeg_stems)
     return out
 
 

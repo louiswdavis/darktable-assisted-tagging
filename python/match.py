@@ -14,6 +14,11 @@ BURST_MAX_RANK = 2  # the burst's entry must be in the box's own top N by simila
 BURST_SIM_SLACK = 0.05  # ...or within this of its top-1
 REFERENCE_MIN_MARGIN = 0.10  # a livery match must lead by this much to be saved as a reference
 
+# a number read under rules.min_read but at least this sure counts when WEAK_AGREE_MIN frames of
+# one group read it (agreeing_reads)
+WEAK_READ_MIN = 0.5
+WEAK_AGREE_MIN = 2
+
 CONFUSABLE_DIGITS = {frozenset(p) for p in ("56", "17", "06", "08", "38", "35", "14")}  # pairs OCR swaps on race numbers
 MISREAD_TOP_N = 3  # a misread number only backs an entry in the livery's own top N
 
@@ -138,6 +143,45 @@ def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
         if fuzzy:
             return BoxResult(box, "livery", fuzzy[0], "", fuzzy[1], unmatched)
     return match_livery(box, sims, entries, unmatched)
+
+
+def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict) -> dict:
+    """`frames` with weak number reads promoted where a group agrees on them. `weak` is
+    {frame_id: {box: [(digits, confidence)]}}, the reads under rules.min_read. In a group, an entry
+    whose number (held by no other entry) is read at WEAK_READ_MIN or more on unidentified boxes of
+    WEAK_AGREE_MIN or more frames becomes `number` on those boxes, when it is the only entry so
+    agreed and no number, livery or neighbour result in the group names another entry."""
+    by_number: dict = {}
+    for e in entries.values():
+        if e.number:
+            by_number.setdefault(e.number, []).append(e.id)
+    groups: dict = {}
+    for fid in frames:
+        groups.setdefault(burst_of.get(fid, fid), []).append(fid)
+    out = dict(frames)
+    for ids in groups.values():
+        hits: dict = {}  # entry -> {frame: (box, confidence)}, the surest box per frame
+        for fid in ids:
+            for r in frames[fid]:
+                if r.method != "none" or r.box < 0:
+                    continue
+                for digits, conf in weak.get(fid, {}).get(r.box, []):
+                    eids = by_number.get(digits, [])
+                    if len(eids) != 1 or conf < WEAK_READ_MIN:
+                        continue
+                    seen = hits.setdefault(eids[0], {})
+                    if fid not in seen or conf > seen[fid][1]:
+                        seen[fid] = (r.box, conf)
+        agreed = [eid for eid, by_frame in hits.items() if len(by_frame) >= WEAK_AGREE_MIN]
+        if len(agreed) != 1:
+            continue
+        eid = agreed[0]
+        if any(r.method in BURST_ANCHORS and r.entry_id != eid for fid in ids for r in frames[fid]):
+            continue
+        for fid, (box, conf) in hits[eid].items():
+            out[fid] = [replace(r, method="number", entry_id=eid, alt_entry_id="", confidence=conf, unmatched_number="")
+                        if r.box == box else r for r in frames[fid]]
+    return out
 
 
 def entries_under(entries: dict, prefixes: list) -> dict:
