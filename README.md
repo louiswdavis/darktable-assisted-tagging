@@ -415,7 +415,7 @@ match, pass 1, per box:  sponsor words on the car (or a team tag you applied) na
 hires re-read: boxes still unidentified are read again from a half-size RAW decode → match, pass 2
         |
         v
-weak reads: a number read under min read (but at least 0.5) on unidentified boxes of 2+ frames
+weak reads: a number read under min read (but at least 0.7) on unidentified boxes of 2+ frames
            of one group → number, when only one entry is read that way and nothing else in the group
            names another entry
         |
@@ -477,7 +477,7 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 | `MATCH_MIN_MARGIN` | `match.py` | 0.10 | how far the best entry must be ahead of the next one. Similarities are centred on the references' mean once a collection has 20+ references, which spreads them out, so the gate is wider than it looks; `python/eval_matching.py` sweeps it on your own references |
 | `BURST_MIN_AGREE` | `match.py` | 2 | frames that must agree before a burst fills in the rest |
 | `SOLO_ANCHOR_CONF` | `match.py` | 0.95 | a number read this sure fills a burst that names no other entry on its own, however few frames agree |
-| `WEAK_READ_MIN` | `match.py` | 0.5 | the lowest read that counts when frames of one group agree on a number below min read |
+| `WEAK_READ_MIN` | `match.py` | 0.7 | the lowest read that counts when frames of one group agree on a number below min read |
 | `WEAK_AGREE_MIN` | `match.py` | 2 | how many frames of the group must agree on it |
 | `BURST_MIN_CONFIDENCE` | `match.py` | 0.5 | the share of the group the entry must cover before a burst fill is written |
 | `LOOKALIKE_MIN_SIM` | `neighbour.py` | 0.85 | how alike a box with no number and a nearby identified car must look for the neighbour look-alike |

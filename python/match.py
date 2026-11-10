@@ -16,7 +16,7 @@ REFERENCE_MIN_MARGIN = 0.10  # a livery match must lead by this much to be saved
 
 # a number read under rules.min_read but at least this sure counts when WEAK_AGREE_MIN frames of
 # one group read it (agreeing_reads)
-WEAK_READ_MIN = 0.5
+WEAK_READ_MIN = 0.7  # the rally's old-reader misreads of a lone letter as 5 sat at about 0.6
 WEAK_AGREE_MIN = 2
 
 CONFUSABLE_DIGITS = {frozenset(p) for p in ("56", "17", "06", "08", "38", "35", "14")}  # pairs OCR swaps on race numbers

@@ -229,18 +229,18 @@ def run_tests():
     # weak reads agreeing across a group
     blank = {k: [BoxResult(0, "none")] for k in "123"}
     grp = {k: "g" for k in blank}
-    weak = {"1": {0: [("44", 0.6)]}, "2": {0: [("44", 0.55)]}, "3": {0: [("16", 0.7)]}}
+    weak = {"1": {0: [("44", 0.8)]}, "2": {0: [("44", 0.75)]}, "3": {0: [("16", 0.8)]}}
     out = Mt.agreeing_reads(blank, grp, weak, ENTRIES)
-    check("two frames' weak reads agree: number", (summary(out["1"][0]), out["1"][0].confidence), (("number", "HAM", ""), 0.6))
+    check("two frames' weak reads agree: number", (summary(out["1"][0]), out["1"][0].confidence), (("number", "HAM", ""), 0.8))
     check("the second agreeing frame too", summary(out["2"][0]), ("number", "HAM", ""))
     check("a lone weak read stays none", summary(out["3"][0]), ("none", "", ""))
     check("one frame alone doesn't agree",
-          summary(Mt.agreeing_reads(blank, grp, {"1": {0: [("44", 0.6)]}}, ENTRIES)["1"][0]), ("none", "", ""))
+          summary(Mt.agreeing_reads(blank, grp, {"1": {0: [("44", 0.8)]}}, ENTRIES)["1"][0]), ("none", "", ""))
     check("same read in different groups doesn't agree",
           summary(Mt.agreeing_reads(blank, {"1": "a", "2": "b", "3": "c"}, weak, ENTRIES)["1"][0]), ("none", "", ""))
     check("a read under WEAK_READ_MIN doesn't count",
-          summary(Mt.agreeing_reads(blank, grp, {"1": {0: [("44", 0.4)]}, "2": {0: [("44", 0.6)]}}, ENTRIES)["2"][0]), ("none", "", ""))
-    two = {"1": {0: [("44", 0.6)]}, "2": {0: [("44", 0.6), ("16", 0.6)]}, "3": {0: [("16", 0.6)]}}
+          summary(Mt.agreeing_reads(blank, grp, {"1": {0: [("44", 0.6)]}, "2": {0: [("44", 0.8)]}}, ENTRIES)["2"][0]), ("none", "", ""))
+    two = {"1": {0: [("44", 0.8)]}, "2": {0: [("44", 0.8), ("16", 0.8)]}, "3": {0: [("16", 0.8)]}}
     check("two entries agreed in one group: neither",
           summary(Mt.agreeing_reads(blank, grp, two, ENTRIES)["1"][0]), ("none", "", ""))
     rival = dict(blank, **{"3": [BoxResult(0, "livery", "LEC", "", 0.7)]})
@@ -254,7 +254,7 @@ def run_tests():
     check("a number two entries share agrees on neither",
           summary(Mt.agreeing_reads(blank, grp, weak, shared)["1"][0]), ("none", "", ""))
     hidden = {"1": [BoxResult(0, "none"), BoxResult(1, "none")], "2": [BoxResult(0, "none")]}
-    out = Mt.agreeing_reads(hidden, {"1": "g", "2": "g"}, {"1": {1: [("44", 0.6)]}, "2": {0: [("44", 0.6)]}}, ENTRIES)
+    out = Mt.agreeing_reads(hidden, {"1": "g", "2": "g"}, {"1": {1: [("44", 0.8)]}, "2": {0: [("44", 0.8)]}}, ENTRIES)
     check("only the box that read it changes", (summary(out["1"][0]), summary(out["1"][1])), (("none", "", ""), ("number", "HAM", "")))
 
     # shot_type / decided_by / already_tagged / conflicts / promotable
