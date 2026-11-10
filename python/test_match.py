@@ -226,6 +226,37 @@ def run_tests():
     check("burst doesn't override a team-only result for another team", summary(out["3"][0]), ("team", "HAM", "LEC"))
     check("burst does upgrade a team-only result for its own team", summary(out["4"][0]), ("burst", "VER", ""))
 
+    # weak reads agreeing across a group
+    blank = {k: [BoxResult(0, "none")] for k in "123"}
+    grp = {k: "g" for k in blank}
+    weak = {"1": {0: [("44", 0.6)]}, "2": {0: [("44", 0.55)]}, "3": {0: [("16", 0.7)]}}
+    out = Mt.agreeing_reads(blank, grp, weak, ENTRIES)
+    check("two frames' weak reads agree: number", (summary(out["1"][0]), out["1"][0].confidence), (("number", "HAM", ""), 0.6))
+    check("the second agreeing frame too", summary(out["2"][0]), ("number", "HAM", ""))
+    check("a lone weak read stays none", summary(out["3"][0]), ("none", "", ""))
+    check("one frame alone doesn't agree",
+          summary(Mt.agreeing_reads(blank, grp, {"1": {0: [("44", 0.6)]}}, ENTRIES)["1"][0]), ("none", "", ""))
+    check("same read in different groups doesn't agree",
+          summary(Mt.agreeing_reads(blank, {"1": "a", "2": "b", "3": "c"}, weak, ENTRIES)["1"][0]), ("none", "", ""))
+    check("a read under WEAK_READ_MIN doesn't count",
+          summary(Mt.agreeing_reads(blank, grp, {"1": {0: [("44", 0.4)]}, "2": {0: [("44", 0.6)]}}, ENTRIES)["2"][0]), ("none", "", ""))
+    two = {"1": {0: [("44", 0.6)]}, "2": {0: [("44", 0.6), ("16", 0.6)]}, "3": {0: [("16", 0.6)]}}
+    check("two entries agreed in one group: neither",
+          summary(Mt.agreeing_reads(blank, grp, two, ENTRIES)["1"][0]), ("none", "", ""))
+    rival = dict(blank, **{"3": [BoxResult(0, "livery", "LEC", "", 0.7)]})
+    check("an identified rival in the group blocks it",
+          summary(Mt.agreeing_reads(rival, grp, weak, ENTRIES)["1"][0]), ("none", "", ""))
+    same = dict(blank, **{"3": [BoxResult(0, "livery", "HAM", "", 0.7)]})
+    out = Mt.agreeing_reads(same, grp, weak, ENTRIES)
+    check("an identified box of the same entry allows it; it is untouched",
+          (summary(out["1"][0]), summary(out["3"][0])), (("number", "HAM", ""), ("livery", "HAM", "")))
+    shared = dict(ENTRIES, **{"X": Entry("X", "44", "", ("F1|X",))})
+    check("a number two entries share agrees on neither",
+          summary(Mt.agreeing_reads(blank, grp, weak, shared)["1"][0]), ("none", "", ""))
+    hidden = {"1": [BoxResult(0, "none"), BoxResult(1, "none")], "2": [BoxResult(0, "none")]}
+    out = Mt.agreeing_reads(hidden, {"1": "g", "2": "g"}, {"1": {1: [("44", 0.6)]}, "2": {0: [("44", 0.6)]}}, ENTRIES)
+    check("only the box that read it changes", (summary(out["1"][0]), summary(out["1"][1])), (("none", "", ""), ("number", "HAM", "")))
+
     # shot_type / decided_by / already_tagged / conflicts / promotable
     check("shot: no boxes", Mt.shot_type(0, 4), "")
     check("shot: one box is solo", Mt.shot_type(1, 4), "solo")

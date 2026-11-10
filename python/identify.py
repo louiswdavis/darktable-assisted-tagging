@@ -32,7 +32,7 @@ from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, M
 from ocr import OCR_MIN_SCORE, NumberReader, ocr_key
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
-from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, BoxResult, Entry, already_tagged,
+from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged,
                    burst_consensus, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid
@@ -1100,6 +1100,16 @@ def identify(args, models: dict):
     if wanted and not cancel_requested(args.progress):
         analyses = refine_frames(wanted, analyses, models, args.cache, args.progress)
     frames, burst_of, box0_sims, detail = match_all(analyses)
+    if not verify:
+        weak = {fid: {i: [tuple(c) for c in b["ocr"] if WEAK_READ_MIN <= c[1] < rules.min_read]
+                      for i, b in enumerate(d["boxes"]) if b["overlap"] != HIDDEN}
+                for fid, d in detail.items()}
+        agreed = agreeing_reads(frames, burst_of, weak, entries)
+        for fid, rs in agreed.items():
+            for a, b in zip(rs, frames[fid]):
+                if a.method != b.method:
+                    log(f"{fid}: box {a.box}: number {a.entry_id} (weak read {a.confidence:.2f}, agreed across the group)")
+        frames = agreed
     if rules.burst_livery_pooling and not verify:
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
     shooting_order = {i: (d["time"] if d["time"] is not None else 0, d["file"]) for i, d in detail.items()}
