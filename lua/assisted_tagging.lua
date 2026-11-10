@@ -1789,9 +1789,6 @@ local function prepare_run(images, replace_manual)
             end
             ledger[copy.id] = next(kept) and kept or nil
             protected_of[copy.id] = replace_manual and {} or M.protected_tags(have, kept, entries)
-            for name in pairs(replace_manual and {} or M.hand_colour_tags(have, kept, rules.diag.colour)) do
-                protected_of[copy.id][name] = true
-            end
             hints_of[copy.id] = replace_manual and {} or M.hint_prefixes(have, kept, entries)
             -- the identifier sees protected tags for skip and conflict checks; with hints off a team tag
             -- is not among them, but protected_of still keeps the run from detaching it
@@ -1801,6 +1798,10 @@ local function prepare_run(images, replace_manual)
             end
             sent_protected_of[copy.id] = sent
             if not use_hints then hints_of[copy.id] = {} end
+            -- hand colour tags only stop a detach; sent to the identifier they'd read as entry tags
+            for name in pairs(replace_manual and {} or M.hand_colour_tags(have, kept, rules.diag.colour)) do
+                protected_of[copy.id][name] = true
+            end
         end
     end
 

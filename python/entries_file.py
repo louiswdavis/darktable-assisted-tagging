@@ -12,16 +12,19 @@ def _entry(entry: dict) -> str:
     return "{ " + inner + " }" if inner else "{}"
 
 
-def dump(data) -> str:
+def dump(data, inline_rules: bool = False) -> str:
     """The canonical layout, as the examples and assisted_tagging.lua's M.entries_json write it: one
     entry per line (`{ "id": ..., ... }`), indented 4 under an object's "entries" and 2 in a bare
-    list; every other top-level value (the rules block) is 2-space indented JSON. Key order is kept."""
+    list; every other top-level value (the rules block) is 2-space indented JSON, or with
+    `inline_rules` one line (`{ "tag_prefix": ... }`, as M.entries_json writes it). Key order is kept."""
     if isinstance(data, list):
         return "[\n" + ",\n".join("  " + _entry(e) for e in data) + "\n]\n"
     lines = []
     for key, value in data.items():
         if key == "entries" and isinstance(value, list):
             text = "[\n" + ",\n".join("    " + _entry(e) for e in value) + "\n  ]" if value else "[]"
+        elif inline_rules and isinstance(value, dict):
+            text = _entry(value)
         else:
             text = json.dumps(value, indent=2, ensure_ascii=False).replace("\n", "\n  ")
         lines.append(f"  {json.dumps(key, ensure_ascii=False)}: {text}")
@@ -49,9 +52,11 @@ def set_colours(path: str, colours: dict) -> tuple:
             changed = True
     if not changed:
         return False, "unchanged"
-    if dump(json.loads(text)).rstrip() != text.rstrip():
+    original = json.loads(text)
+    inline = next((i for i in (False, True) if dump(original, i).rstrip() == text.rstrip()), None)
+    if inline is None:
         return False, "layout"
-    out = dump(data).rstrip() + text[len(text.rstrip()):]
+    out = dump(data, inline).rstrip() + text[len(text.rstrip()):]
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8", newline="") as f:
         f.write(out.replace("\n", eol))

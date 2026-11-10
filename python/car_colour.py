@@ -79,6 +79,7 @@ def colour_relation(entry_colour: str, seen: str) -> int:
 
 
 def palette_digest(palette) -> str:
-    """Short sha1 over the palette bounds (names excluded) and the body-region constants, for the cache key."""
-    bounds = [[list(r) for r in ranges] for _, ranges in palette]
+    """Short sha1 over the palette names and bounds and the body-region constants, for the cache key.
+    Names count: cached shares are keyed by name, so a rename must re-read."""
+    bounds = [(name, [list(r) for r in ranges]) for name, ranges in palette]
     return hashlib.sha1(repr((bounds, BODY_X, BODY_Y, REGION_MAX_DIM)).encode()).hexdigest()[:8]

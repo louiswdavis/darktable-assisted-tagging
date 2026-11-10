@@ -70,6 +70,8 @@ check("digest is stable", C.palette_digest(C.PALETTE) == C.palette_digest(C.PALE
 name, ranges = C.PALETTE[0]
 tweaked = ((name, ((ranges[0][0] + 1,) + tuple(ranges[0][1:]),) + tuple(ranges[1:])),) + tuple(C.PALETTE[1:])
 check("digest changes with a bound", C.palette_digest(C.PALETTE) != C.palette_digest(tweaked), True)
+renamed = (("Crimson", ranges),) + tuple(C.PALETTE[1:])
+check("digest changes with a name", C.palette_digest(C.PALETTE) != C.palette_digest(renamed), True)
 
 if failures:
     print(f"{failures} test(s) failed")
