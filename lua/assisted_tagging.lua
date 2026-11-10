@@ -2647,6 +2647,39 @@ local function make_preset_controls(o)
 end
 -- end preset controls
 
+-- Section block: drift-guarded copy in grouping, culling and tagging. Change all three.
+-- A collapsible panel section: the header button toggles the body box. While collapsed
+-- the header shows o.summary() in brackets, so its settings can be checked unopened.
+-- visible = false also stops darktable's show-all from unhiding a collapsed body.
+local function make_section(o)
+    local s = { open = o.open ~= false }
+    local body = { orientation = "vertical" }
+    for i = 1, #o.widgets do body[#body + 1] = o.widgets[i] end
+    s.body = dt.new_widget("box")(body)
+    s.header = dt.new_widget("button") { label = o.title }
+    function s.refresh()
+        local text = (o.number and (o.number .. "  ") or "") .. (s.open and "▾ " or "▸ ") .. o.title
+        local extra = (not s.open and o.summary) and o.summary() or ""
+        if extra ~= "" then text = text .. "  (" .. extra .. ")" end
+        s.header.label = text
+    end
+    s.header.clicked_callback = function()
+        s.open = not s.open
+        s.body.visible = s.open
+        s.refresh()
+    end
+    s.body.visible = s.open
+    s.refresh()
+    s.widget = dt.new_widget("box") { orientation = "vertical", s.header, s.body }
+    return s
+end
+
+-- Plain numbered heading for a section that never collapses (the run step).
+local function step_label(number, title)
+    return dt.new_widget("section_label") { label = number .. "  " .. title }
+end
+-- end section block
+
 -- The preset store for make_preset_controls: each collection folder (one holding an
 -- entries.json) is a preset, its settings in settings.json beside entries.json.
 local function collection_store()
@@ -2740,8 +2773,13 @@ local function install_panel()
     if M.module_installed then return end
     M.module_installed = true
 
+    local sections = {}
+    local function refresh_sections()
+        for i = 1, #sections do sections[i].refresh() end
+    end
     local function changed()
         if preset_ctl then preset_ctl.check_dirty() end
+        refresh_sections()
     end
     local panel_ready = false -- the first collection load waits for darktable to open (see the end)
 
@@ -2986,7 +3024,42 @@ local function install_panel()
         embedder_entry.text = s.embedder_file
         tolerance_entry.text = tostring(s.neighbour_tolerance)
         for _i, key in ipairs(check_order) do checks[key].value = s[key] end
+        refresh_sections()
     end
+
+    local function count_on(list)
+        local n = 0
+        for i = 1, #list do if list[i].value then n = n + 1 end end
+        return n
+    end
+    local collection_section = make_section {
+        number = 1, title = _("collection"),
+        widgets = { plan_button, edit_button, entries_editor, save_entries_button, cancel_entries_button },
+    }
+    local bursts_section = make_section {
+        number = 2, title = _("bursts"),
+        widgets = { group_support_combo, group_node_entry },
+        summary = function() return group_support_combo.value or "" end,
+    }
+    local matching_section = make_section {
+        number = 3, title = _("matching"), open = false,
+        widgets = { use_hints_check, embedder_entry, tolerance_entry },
+        summary = function()
+            return string.format(_("hints %s, tolerance %s"),
+                use_hints_check.value and _("on") or _("off"), trim(tolerance_entry.text))
+        end,
+    }
+    local tags_section = make_section {
+        number = 4, title = _("tags written"), open = false,
+        widgets = tag_check_list,
+        summary = function() return string.format(_("%d of %d"), count_on(tag_check_list), #tag_check_list) end,
+    }
+    local references_section = make_section {
+        title = _("references"), open = false,
+        widgets = { entry_combo, add_button, add_tagged_button, promote_button,
+            suggest_crops_check, quarantine_check, audit_button },
+    }
+    sections = { collection_section, bursts_section, matching_section, tags_section, references_section }
 
     -- template: only the new-collection controls; a collection: everything else
     local template_box = dt.new_widget("box") {
@@ -3000,33 +3073,16 @@ local function install_panel()
     }
     local collection_box = dt.new_widget("box") {
         orientation = "vertical",
-        dt.new_widget("section_label") { label = _("collection") },
-        plan_button,
-        edit_button,
-        entries_editor,
-        save_entries_button,
-        cancel_entries_button,
-        dt.new_widget("section_label") { label = _("identify") },
+        collection_section.widget,
+        bursts_section.widget,
+        matching_section.widget,
+        tags_section.widget,
+        step_label(5, _("run")),
         replace_manual_check,
-        use_hints_check,
-        group_support_combo,
-        group_node_entry,
         run_tag_check,
         verify_button,
         identify_button,
-        dt.new_widget("section_label") { label = _("references") },
-        entry_combo,
-        add_button,
-        add_tagged_button,
-        promote_button,
-        suggest_crops_check,
-        quarantine_check,
-        audit_button,
-        dt.new_widget("section_label") { label = _("options") },
-        embedder_entry,
-        tolerance_entry,
-        dt.new_widget("section_label") { label = _("tags written") },
-        table.unpack(tag_check_list),
+        references_section.widget,
     }
 
     preset_ctl = make_preset_controls({

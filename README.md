@@ -248,7 +248,7 @@ After editing `entries.json`, click **Reload** in the panel. A mistake in the fi
 
 ### Building references
 
-Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong. **Create collection from tagged images** already does this for the images it was given; add more at any time with the panel's **references** section, below **new collection** and **collection**:
+Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong. **Create collection from tagged images** already does this for the images it was given; add more at any time with the panel's **references** section (folded, at the bottom of the panel):
 
 - **Add as reference**: pick the entry in the **entry** list, select photos of that car, click. The largest vehicle in each photo is cropped and saved under that entry. A photo where no vehicle is found is saved whole, and the done message says how many.
 - **Add tagged images as references**: select photos you've already tagged by hand. Each one carrying *all* of one entry's tags is added under that entry. A photo with only a shared team tag, or with two drivers' tags, is skipped.
@@ -319,7 +319,7 @@ In Assisted Tagging each collection is a preset: the **preset** picker at the to
 
 ## Panel options
 
-At the top: the **preset** picker and **☰** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**; on a collection it shows the other sections.
+At the top: the **preset** picker and **☰** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**. On a collection it shows, top to bottom: **1 collection**, **2 bursts**, **3 matching**, **4 tags written**, **5 run**, then **references**. Click a section's header to fold it; a folded header shows a short summary in brackets, e.g. `4 ▸ tags written (10 of 10)`. Sections 3, 4 and **references** start folded. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
 
 ### new collection
 
@@ -327,17 +327,29 @@ At the top: the **preset** picker and **☰** (see [Presets](#presets)), and **R
 - **Create collection from tagged images.** Builds the collection from the selected images' tags (see [From already-tagged images](#from-already-tagged-images-recommended)).
 - **example**, **View example**, **Create collection from example.** Pick a shipped example, open its `entries.json`, or copy it into a new collection (see [From an example](#from-an-example)).
 
-### collection
+### 1 collection
 
 - **Show tag plan.** Writes `tag-plan.txt` (see [Checking what it will tag](#checking-what-it-will-tag)).
 - **Edit entries.json.** Opens the file in an editor inside the panel, with **Save entries.json** and **Cancel edit**.
 
-### identify
+### 2 bursts
 
-- **Replace manual tags.** Lets the next run replace tags you applied by hand; clears itself after the run (see [Tags you apply by hand](#tags-you-apply-by-hand)).
-- **Use team tags as hints** (on by default). A team tag you applied narrows matching on a solo shot.
 - **grouping support** (Native groups, Grouping tags, None). What the burst step borrows answers from (see [Grouping support](#grouping-support)).
 - **Grouping tag node (blank = newest run)** (text field). The tag node in Grouping tags mode.
+
+### 3 matching
+
+- **Use team tags as hints** (on by default). A team tag you applied narrows matching on a solo shot.
+- **embedder model file (blank = bundled)** (text field). File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference on the next run.
+- **neighbour tolerance** (text field, default 5). The most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places). A whole number, 0 or more (anything else refuses the run). Only used when the collection's `order_weight` is above 0.
+
+### 4 tags written
+
+One switch per diagnostic (default on): `By number`, `By livery`, `By burst`, `By pooled burst`, `By neighbour`, `Check order`, `Team only`, `Unidentified`, `Number seen`, `Shot`. Off removes that diagnostic on the next run; see [Choosing which diagnostics are written](#choosing-which-diagnostics-are-written).
+
+### 5 run
+
+- **Replace manual tags.** Lets the next run replace tags you applied by hand; clears itself after the run (see [Tags you apply by hand](#tags-you-apply-by-hand)).
 - **Tag each run.** Stamps every image a run writes with `Assisted Tagging|Run|YYYY-MM-DD HH:MM`.
 - **Verify selection.** Identifies the selection, fully tagged images included, and reports where the result differs from your tags. No tags change.
 - **Identify selection.** Identifies and tags the selection (see [Identifying](#identifying)). Click again to cancel.
@@ -348,16 +360,7 @@ At the top: the **preset** picker and **☰** (see [Presets](#presets)), and **R
 - **Add as reference**, **Add tagged images as references**, **Add confident vehicles from last run.** See [Building references](#building-references).
 - **Audit: suggest re-crops**, **Audit: quarantine poor refs** (both off by default), **Audit references.** See **Audit references** under [Building references](#building-references).
 
-### options
-
-- **embedder model file (blank = bundled)** (text field). File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference on the next run.
-- **neighbour tolerance** (text field, default 5). The most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places). A whole number, 0 or more (anything else refuses the run). Only used when the collection's `order_weight` is above 0.
-
-### tags written
-
-One switch per diagnostic (default on): `By number`, `By livery`, `By burst`, `By pooled burst`, `By neighbour`, `Check order`, `Team only`, `Unidentified`, `Number seen`, `Shot`. Off removes that diagnostic on the next run; see [Choosing which diagnostics are written](#choosing-which-diagnostics-are-written).
-
-Everything in **identify**, **references**, **options** and **tags written** except **Replace manual tags** is saved with the collection by **update preset**. **Replace manual tags** applies to the next run only.
+Everything in sections 2 to 5 and **references** except **Replace manual tags** is saved with the collection by **update preset**. **Replace manual tags** applies to the next run only.
 
 ## Preferences
 
@@ -485,7 +488,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 **Setup**
 
 1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers` and `test_identify`.
-2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable with sections *new collection*, *collection*, *identify*, *references*. No `LUA ERROR` in the darktable log.
+2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, sections *1 collection* to *5 run* and a folded *references* section. No `LUA ERROR` in the darktable log.
 3. **A collection.** Set the plugin folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **preset** dropdown.
 
 **Grouping support** (one run per mode, on a selection holding a burst)
