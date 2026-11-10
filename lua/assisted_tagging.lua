@@ -3016,9 +3016,14 @@ local function install_panel()
         orientation = "vertical",
         make_section(1, _("collection"),
             { plan_button, edit_button, entries_editor, save_entries_button, cancel_entries_button }),
-        make_section(2, _("bursts"), { group_support_combo, group_node_entry }),
+        make_section(2, _("bursts"), {
+            group_support_combo,
+            dt.new_widget("label") { label = _("grouping tag node"), halign = "start" },
+            group_node_entry,
+        }),
         make_section(3, _("matching"), {
             use_hints_check,
+            dt.new_widget("label") { label = _("embedder model file"), halign = "start" },
             embedder_entry,
             dt.new_widget("label") { label = _("neighbour tolerance"), halign = "start" },
             tolerance_entry,
