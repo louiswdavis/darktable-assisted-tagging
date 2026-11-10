@@ -1,0 +1,12 @@
+ok   a lone box is visible
+ok   apart boxes are visible
+ok   the weaker level box is trimmed
+ok   the stronger level box stays whole
+ok   with equal scores the earlier box stays whole
+ok   two level boxes overlapping 63% hide only one
+ok   a mostly covered box is hidden
+ok   the box in front is not cut by one behind
+ok   a contained box is hidden
+ok   trimmed box keeps score and class
+ok   a middle cut keeps the wider side
+all tests passed

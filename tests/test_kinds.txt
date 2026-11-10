@@ -1,0 +1,9 @@
+ok   default kind
+ok   check_kind: motorsport
+ok   check_kind: people
+ok   check_kind: unknown kind names both valid kinds
+ok   people rejects number
+ok   motorsport allows number
+ok   people allows id and tags
+ok   motorsport rejects an unknown field
+all tests passed

@@ -1,0 +1,12 @@
+ok   a nearby candidate of similar size tracks
+ok   a far candidate doesn't
+ok   a candidate of a very different size doesn't
+ok   the highest-scoring tracking candidate wins
+ok   no candidates
+ok   a degenerate mate box tracks nothing
+ok   only the missed frame with a tracking candidate is planned
+ok   the nearest mate is used (a before c on a tie)
+ok   a frame with no candidates isn't planned
+ok   a burst with no vehicle anywhere plans nothing
+ok   an unanalysed frame is skipped
+all tests passed

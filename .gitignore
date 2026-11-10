@@ -1,10 +1,12 @@
 .venv/
 __pycache__/
 *.pyc
-tests/
+# *.log
+# tests/
 /docs/superpowers
 .superpowers/
 *.onnx
+*.yml
 *.jpg
 /runs/
 /collections/
