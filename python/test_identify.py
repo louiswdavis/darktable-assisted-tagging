@@ -66,7 +66,7 @@ def run_tests():
     check("rules: renamed, dropped and default diagnostics", dict(rules.diagnostics),
           dict(I.DIAG_DEFAULTS, burst="", team="X|Team"))
     check("default diagnostics sit under Assisted Tagging|Motorsport",
-          all(v.startswith("Assisted Tagging|Identification|") for v in I.DIAG_DEFAULTS.values()), True)
+          all(v.startswith("Assisted Tagging|Identification|") for k, v in I.DIAG_DEFAULTS.items() if k != "colour"), True)
 
     check("duplicate id is rejected", load_error([VER, VER]), 'entry "VER" appears twice')
     check("a comma in a tag is rejected", load_error([dict(VER, tags=["a,b"])]),
@@ -85,7 +85,7 @@ def run_tests():
         missing = str(e)
     check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
-          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight, min_read)')
+          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight, min_read, colour_tags, colour_palette)')
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
           'entry "VER": unknown field "tagz" (fields are id, number, team, tags, camera)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
@@ -110,7 +110,7 @@ def run_tests():
     check("a bad team_only value is rejected", load_error({"rules": {"team_only": "both"}, "entries": []}),
           'rules.team_only must be "shared tags" or "none"')
     check("an unknown diagnostic is named", load_error({"rules": {"diagnostics": {"guess": "x"}}, "entries": []}),
-          'unknown diagnostic "guess" (they are number, livery, burst, neighbour, check_order, team, none, number_seen, pooled, shot_solo, shot_pack, shot_crowded)')
+          'unknown diagnostic "guess" (they are number, livery, burst, neighbour, check_order, team, none, number_seen, colour, check_colour, pooled, shot_solo, shot_pack, shot_crowded)')
 
     # ---- rules.tag_prefix builds tags from team and name
     entries, rules = I.load_collection(collection({"rules": {"tag_prefix": "Motorsport|F1"}, "entries": [
@@ -201,16 +201,30 @@ def run_tests():
     check("changing OCR_MIN_SCORE changes the cache key", I.frame_key(frame, models) != key, True)
     I.OCR_MIN_SCORE = saved
     check("the cache key is stable", I.frame_key(frame, models), key)
+    models["car_colour"] = None
+    check("no colour tags leaves the cache key as it was", I.frame_key(frame, models),
+          [V.file_key(frame), V.file_key(models["detector"]), I.ocr_key(models["ocr_det"], models["ocr_rec"]),
+           I.embedder_key(models["embedder"]), V.CROP_DIM, V.MIN_BOX_FRAC, V.BOX_MARGIN_TRIM, I.OCR_MIN_SCORE,
+           V.DETECTOR_MIN_SCORE, "ocr-trace-2", "read-conf-1", I.NUMBER_MIN_HEIGHT, "pod-2", "cand-1", "overlap-2"])
+    models["car_colour"] = C.PALETTE
+    colour_key = I.frame_key(frame, models)
+    check("colour tags add the palette to the cache key", colour_key[-2:], ["car-colour-1", C.palette_digest(C.PALETTE)])
+    models["car_colour"] = (("Crimson", C.PALETTE[0][1]),) + tuple(C.PALETTE[1:])
+    check("renaming a palette colour keeps the cache key", I.frame_key(frame, models), colour_key)
+    models["car_colour"] = None
 
     # ---- results rows
-    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,")
+    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,,,")
     check("a team row carries the runner-up", I.format_row("7", BoxResult(0, "team", "VER", "TSU", 0.71234)),
-          "7,0,team,VER,TSU,0.712,,,")
+          "7,0,team,VER,TSU,0.712,,,,,")
     check("a row has the shot type before the order flag", I.format_row("7", BoxResult(0, "number", "VER", "", 0.9), "pack"),
-          "7,0,number,VER,,0.900,,pack,")
-    check("a flagged row ends with 1", I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, order_flag=True), "solo"),
-          "7,0,number,VER,,0.850,,solo,1")
-    check("a row has nine fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 9)
+          "7,0,number,VER,,0.900,,pack,,,")
+    check("a flagged row has 1 in the order flag", I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, order_flag=True), "solo"),
+          "7,0,number,VER,,0.850,,solo,1,,")
+    check("a row ends with the colour and its flag",
+          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, colour="Red", colour_flag=True), "solo").endswith(",Red,1"), True)
+    check("a row with no colour ends with two empty fields", I.format_row("7", BoxResult(0, "none"), "solo").endswith(",,"), True)
+    check("a row has eleven fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 11)
 
     # ---- Review Focus 2: EXIF-rotated frames
     rotated = os.path.join(img, "portrait.jpg")
@@ -289,8 +303,8 @@ def run_tests():
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
     check("number reads, burst consensus and no-vehicle rows come out in manifest order (3-column manifest)", rows,
-          ["1,0,number,VER,,0.950,,solo,", "2,0,number,VER,,0.900,,solo,", "3,0,burst,VER,,0.667,,solo,",
-           "4,-1,none,,,0.000,,,", "5,-1,error,,,0.000,,,"])
+          ["1,0,number,VER,,0.950,,solo,,,", "2,0,number,VER,,0.900,,solo,,,", "3,0,burst,VER,,0.667,,solo,,,",
+           "4,-1,none,,,0.000,,,,,", "5,-1,error,,,0.000,,,,,"])
     check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
     check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
 
@@ -312,9 +326,9 @@ def run_tests():
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a fully tagged image is skipped; solo disagreement is a conflict, also when burst-filled; packs aren't", rows,
-          ["1,-1,skipped,,,0.000,,,", "2,0,conflict,VER,,0.900,,solo,", "6,0,number,VER,,0.950,,solo,",
-           "7,0,number,VER,,0.950,,solo,", "8,0,conflict,VER,,0.667,,solo,", "9,0,number,VER,,0.950,,pack,",
-           "9,1,none,,,0.000,,pack,"])
+          ["1,-1,skipped,,,0.000,,,,,", "2,0,conflict,VER,,0.900,,solo,,,", "6,0,number,VER,,0.950,,solo,,,",
+           "7,0,number,VER,,0.950,,solo,,,", "8,0,conflict,VER,,0.667,,solo,,,", "9,0,number,VER,,0.950,,pack,,,",
+           "9,1,none,,,0.000,,pack,,,"])
     run = json.load(open(args.boxes_out, encoding="utf-8"))
     check("boxes.json names the collection and the skipped images", (run["collection"], run["skipped"]),
           (os.path.basename(coll), ["1"]))
@@ -358,14 +372,14 @@ def run_tests():
                       rules_out=args.rules_out, boxes_out="", boxes_in=promo_boxes)
     write_promo([100, 50])
     I.promote_boxes(pargs, {"embedder": "fake"})
-    check("promote adds a confident box", open(results, encoding="utf-8").read().strip(), "1,added")
+    check("promote adds a confident box", open(results, encoding="utf-8").read().strip(), "1,added,")
     refs = sorted(os.listdir(os.path.join(coll, "refs")))
     check("only the wide-margin box became a reference", refs, ["VER"])
     I.promote_boxes(pargs, {"embedder": "fake"})
     check("promoting again replaces rather than duplicates", len(os.listdir(os.path.join(coll, "refs", "VER"))), 1)
     write_promo([10, 10])
     I.promote_boxes(pargs, {"embedder": "fake"})
-    check("a file that no longer matches the run is stale", open(results, encoding="utf-8").read().strip(), "1,stale")
+    check("a file that no longer matches the run is stale", open(results, encoding="utf-8").read().strip(), "1,stale,")
 
     # ---- add-time screening: refs flagged by 2+ audit checks are refused (skip) or kept with a log line (warn)
     import audit_refs
@@ -374,11 +388,11 @@ def run_tests():
     audit_refs.screen_refs = lambda collection, rels: {r: ["outlier", "colour"] for r in rels}
     try:
         I.promote_boxes(pargs, {"embedder": "fake"})
-        check("a promoted box the audit checks flag is not saved", open(results, encoding="utf-8").read().strip(), "1,flagged")
+        check("a promoted box the audit checks flag is not saved", open(results, encoding="utf-8").read().strip(), "1,flagged,")
         check("a flagged box's crop is deleted", os.listdir(os.path.join(coll, "refs", "VER")), [])
         audit_refs.screen_refs = lambda collection, rels: {r: ["outlier"] for r in rels}
         I.promote_boxes(pargs, {"embedder": "fake"})
-        check("one flag alone does not refuse a box", open(results, encoding="utf-8").read().strip(), "1,added")
+        check("one flag alone does not refuse a box", open(results, encoding="utf-8").read().strip(), "1,added,")
         kept = os.listdir(os.path.join(coll, "refs", "VER"))
         with open(os.path.join(coll, "refs", "VER", kept[0]), "rb") as f:
             before = f.read()
@@ -388,6 +402,51 @@ def run_tests():
         with open(os.path.join(coll, "refs", "VER", kept[0]), "rb") as f:
             check("a refused re-promote puts the earlier sample back", f.read() == before, True)
     finally:
+        audit_refs.screen_refs = real_screen
+
+    # ---- reference actions fill an entry's colour (rules.colour_tags)
+    import entries_file
+    real_detect = I.detect_vehicles
+    I.detect_vehicles = lambda rgb, detector: ([(0, 0, 50, 50)], "")
+    # refs cut from one crop pile up here; screening them is the block above's subject
+    audit_refs.screen_refs = lambda collection, rels: {}
+    vmodels = {"embedder": "fake", "detector": ""}
+    ccoll = collection(entries_file.dump({"rules": {"colour_tags": True, "partial_references": True}, "entries": [VER, TSU]}), root=root)
+    centries = os.path.join(ccoll, "entries.json")
+
+    def ref_job(job, coll_dir, row, boxes_in=""):
+        with open(manifest, "w", encoding="utf-8") as f:
+            f.write(row + "\n")
+        job(Namespace(manifest=manifest, results=results, progress=os.path.join(img, "p3.txt"), cache="",
+                      collections_root=root, collection=os.path.basename(coll_dir), entries_out=args.entries_out,
+                      rules_out=args.rules_out, boxes_out="", boxes_in=boxes_in), dict(vmodels))
+        return open(results, encoding="utf-8").read().strip()
+
+    try:
+        before = open(os.path.join(coll, "entries.json"), encoding="utf-8").read()
+        check("colour off: a hand colour gives no colour note", ref_job(I.add_references, coll, f'"1","{real_jpg}","VER","Red"'), "1,added,")
+        check("colour off: entries.json isn't written", open(os.path.join(coll, "entries.json"), encoding="utf-8").read(), before)
+
+        before = open(centries, encoding="utf-8").read()
+        check("a team reference gets no colour", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","F1|Red Bull","Red"'), "1,added,")
+        check("a team reference leaves entries.json alone", open(centries, encoding="utf-8").read(), before)
+
+        old_boxes = os.path.join(img, "old.boxes.json")
+        with open(old_boxes, "w", encoding="utf-8") as f:
+            json.dump({"collection": os.path.basename(ccoll), "skipped": [], "images": {"1": {
+                "shot": "solo", "file": real_jpg, "frame": [100, 50], "boxes": [
+                    {"box": 0, "bbox": [0, 0, 50, 50], "entry": "VER", "alt_entry": "", "method": "number",
+                     "confidence": 0.95, "candidates": [], "ocr": [], "decided_by": "number", "gap": 0.0, "conflict": False}]}}}, f)
+        check("an old boxes.json box without colour_shares is still added, with no colour",
+              ref_job(I.promote_boxes, ccoll, f'"1","{real_jpg}",""', old_boxes), "1,added,")
+        check("an old boxes.json box leaves entries.json alone", open(centries, encoding="utf-8").read(), before)
+
+        check("a hand colour on an entry without one is set", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","VER","Red"'), "1,added,set")
+        check("entries.json gains the colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
+        check("a different reading of a coloured entry differs", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","VER","Blue"'), "1,added,differs")
+        check("a differing reading leaves the colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
+    finally:
+        I.detect_vehicles = real_detect
         audit_refs.screen_refs = real_screen
 
     # ---- Review Focus 4: cancel leaves no results

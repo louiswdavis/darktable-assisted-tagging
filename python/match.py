@@ -3,6 +3,8 @@ consensus. Pure functions over OCR candidates and similarities."""
 
 from dataclasses import dataclass, replace
 
+from car_colour import colour_relation
+
 MATCH_MIN_SIM = 0.60
 MATCH_MIN_MARGIN = 0.10  # on centred similarities (reference_store.best_per_entry); eval_matching.py sweeps it
 BURST_MIN_AGREE = 2
@@ -155,7 +157,8 @@ def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict) -> d
     {frame_id: {box: [(digits, confidence)]}}, the reads under rules.min_read. In a group, an entry
     whose number (held by no other entry) is read at WEAK_READ_MIN or more on unidentified boxes of
     WEAK_AGREE_MIN or more frames becomes `number` on those boxes, when it is the only entry so
-    agreed and no number, livery or neighbour result in the group names another entry."""
+    agreed and no number, livery or neighbour result in the group names another entry. A read naming
+    an entry whose colour disagrees with the box's isn't counted."""
     by_number: dict = {}
     for e in entries.values():
         if e.number:
@@ -172,7 +175,7 @@ def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict) -> d
                     continue
                 for digits, conf in weak.get(fid, {}).get(r.box, []):
                     eids = by_number.get(digits, [])
-                    if len(eids) != 1 or conf < WEAK_READ_MIN:
+                    if len(eids) != 1 or conf < WEAK_READ_MIN or colour_relation(entries[eids[0]].colour, r.colour) == -1:
                         continue
                     seen = hits.setdefault(eids[0], {})
                     if fid not in seen or conf > seen[fid][1]:
@@ -187,6 +190,17 @@ def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict) -> d
             out[fid] = [replace(r, method="number", entry_id=eid, alt_entry_id="", confidence=conf, unmatched_number="")
                         if r.box == box else r for r in frames[fid]]
     return out
+
+
+def colour_check(frames: dict, entries: dict) -> dict:
+    """`frames` with `colour_flag` set on `number` results whose entry's colour disagrees with the
+    box's colour. The result itself stays; the photographer checks it."""
+    def check(r: BoxResult) -> BoxResult:
+        e = entries.get(r.entry_id)
+        if r.method == "number" and e is not None and colour_relation(e.colour, r.colour) == -1:
+            return replace(r, colour_flag=True)
+        return r
+    return {fid: [check(r) for r in rs] for fid, rs in frames.items()}
 
 
 def entries_under(entries: dict, prefixes: list) -> dict:

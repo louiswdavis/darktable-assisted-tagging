@@ -93,6 +93,7 @@ def rows(data: dict) -> list:
                         "top1": round(top1_of(box), 4),
                         "margin": round(margin_of(box), 4), "candidates": box["candidates"],
                         "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []), "pod": box.get("pod", {}), "hint": box.get("hint", {}),
+                        **({"colour": box.get("colour", ""), "colour_shares": box["colour_shares"]} if "colour_shares" in box else {}),
                         "lever": lever(cat, box, entries)})
     return out
 
@@ -106,7 +107,13 @@ def summarize(data: dict, all_rows: list) -> dict:
         if sel:
             medians[c] = {"top1": round(statistics.median(r["top1"] for r in sel), 4),
                           "margin": round(statistics.median(r["margin"] for r in sel), 4)}
+    coloured = [r for r in all_rows if "colour_shares" in r]
+    colours = {}
+    for r in coloured:
+        name = r["colour"] or NO_COLOUR
+        colours[name] = colours.get(name, 0) + 1
     return {"total": total,
+            "colours": colours,
             "errors": sum(1 for i in data["images"].values() if i["status"] == "error"),
             "counts": counts,
             "shares": {c: (counts[c] / total if total else 0.0) for c in CATEGORIES},
@@ -227,6 +234,17 @@ def pct(x: float) -> str:
     return f"{x * 100:.0f}%"
 
 
+NO_COLOUR = "no colour"
+SHARE_MIN = 0.05
+ABBREVIATIONS = {"Black": "Bk", "Blue": "Bl"}
+
+
+def colour_part(r: dict) -> str:
+    """`colour Red (R0.71 W0.12)`: the decided colour and every share of 0.05 or more, largest first."""
+    shown = sorted(((n, s) for n, s in r["colour_shares"].items() if s >= SHARE_MIN), key=lambda p: -p[1])
+    return f"colour {r['colour'] or 'unclear'} (" + " ".join(f"{ABBREVIATIONS.get(n, n[:1])}{s:.2f}" for n, s in shown) + ")"
+
+
 def describe(r: dict) -> str:
     if r["category"] == "no-vehicle":
         return f"`{r['image']}` burst {r['burst']}: {r['note'] or 'no detector note'}"
@@ -243,6 +261,8 @@ def describe(r: dict) -> str:
         parts.append("ocr saw no text")
     if r.get("pod"):
         parts.append(f"pod {pod_colour(r['pod']) or 'unclear'} (yellow {r['pod']['yellow']:.3f}, aspect {r['pod']['aspect']:.1f})")
+    if r.get("colour_shares"):
+        parts.append(colour_part(r))
     if r.get("rescued"):
         parts.append(f"rescued from {r['rescued']['from']} (crop similarity {r['rescued']['sim']:.2f})")
     h = r.get("hint")
@@ -273,6 +293,8 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int, extra: dict =
     hinted = [r["hint"] for r in all_rows if r.get("hint")]
     if hinted:
         out.append(f"- hints: {len(hinted)} applied, {sum(1 for h in hinted if h['dropped'])} dropped")
+    if summary["colours"]:
+        out.append("- colours: " + ", ".join(f"{n} {c}" for n, c in summary["colours"].items()))
     if summary["errors"]:
         out.append(f"- images that failed analysis (not counted above): {summary['errors']}")
     bands = extra["detector_bands"]

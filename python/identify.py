@@ -3,7 +3,7 @@ write one result row per vehicle for assisted_tagging.lua.
 
 Modes:
   identify.py MANIFEST RESULTS ...            id,filepath,burst_id[,protected tags,hint prefixes,capture epoch] →
-                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot,order_flag
+                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot,order_flag,colour,colour_flag
                                               (+ --boxes-out: the per-vehicle boxes.json)
   identify.py MANIFEST RESULTS --add-reference id,filepath,entry_id → id,status
   identify.py MANIFEST RESULTS --promote-boxes --boxes-in F   id,filepath,"" → id,status
@@ -31,10 +31,11 @@ from dataclasses import dataclass, replace
 from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect, detect_vehicles, detector_model, file_key, load_full, load_hires, log
 from ocr import NUMBER_MIN_HEIGHT, OCR_MIN_SCORE, NumberReader, ocr_key
 import car_colour
+import entries_file
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged,
-                   burst_consensus, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
+                   burst_consensus, colour_check, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid
 from overlap import HIDDEN, _inter, visible_boxes
@@ -501,6 +502,7 @@ def frame_key(filepath: str, models: dict) -> list:
     return [file_key(filepath),file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
             DETECTOR_MIN_SCORE, "ocr-trace-2", "read-conf-1", NUMBER_MIN_HEIGHT, "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
+            *(["car-colour-1", car_colour.palette_digest(models["car_colour"])] if models.get("car_colour") else []),
             *([SEGMENT_CACHE_TOKEN] if models.get("segmenter") else [])]
 
 
@@ -558,7 +560,8 @@ def _read_boxes(rgb, boxes: list, hi=None) -> dict:
     """OCR candidates, pod reading and embedding of each box, in the analysis shape. With `hi`, a
     sharper decode of the same frame, the crops (OCR, embedding, colour) come from it; boxes stay in
     `rgb`'s pixels."""
-    ocr, trace, emb, pod, hist, overlap, masked = [], [], [], [], [], [], []
+    ocr, trace, emb, pod, hist, overlap, masked, shares = [], [], [], [], [], [], [], []
+    palette = _W["models"].get("car_colour")
     scale = hi.shape[1] / rgb.shape[1] if hi is not None else 1.0
     seen_boxes = visible_boxes(boxes)
     wants_mask = needs_mask(boxes, [state for _, state in seen_boxes]) if _W.get("segmenter") else [False] * len(boxes)
@@ -577,9 +580,13 @@ def _read_boxes(rgb, boxes: list, hi=None) -> dict:
         emb.append(encode(_W["embedder"].embed(crop)))
         if _W["models"].get("colour"):
             hist.append(encode(colour_hist(crop)))
+        if palette:
+            shares.append({} if state == HIDDEN else car_colour.colour_shares(crop, palette, masked=cut is not None))
     out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "pod": pod, "emb": emb, "overlap": overlap, "masked": masked}
     if hist:
         out["hist"] = hist
+    if palette:
+        out["car_colour"] = shares
     return out
 
 
@@ -649,7 +656,8 @@ def box_hint(tag_prefixes: list, sponsor: list) -> tuple:
 
 def format_row(image_id: str, r: BoxResult, shot: str = "") -> str:
     return (f"{image_id},{r.box},{r.method},{r.entry_id},{r.alt_entry_id},"
-            f"{r.confidence:.3f},{r.unmatched_number},{shot},{'1' if r.order_flag else ''}")
+            f"{r.confidence:.3f},{r.unmatched_number},{shot},{'1' if r.order_flag else ''},"
+            f"{r.colour},{'1' if r.colour_flag else ''}")
 
 
 def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) -> str:
@@ -659,7 +667,8 @@ def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) ->
     bw, bh = box[2] - box[0], box[3] - box[1]
     fw, fh = frame
     frac = f"; box {bw:.0f}x{bh:.0f} ({bw * bh / max(fw * fh, 1):.1%} of frame)"
-    return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}; livery {top}{unmatched}{frac})"
+    colour = f"; colour {r.colour}" if r.colour else ""
+    return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}; livery {top}{unmatched}{colour}{frac})"
 
 
 def check_models(models: dict):
@@ -818,7 +827,7 @@ def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, p
         if not read:
             continue
         a = dict(analyses[p])
-        for key in ("ocr", "ocr_trace", "emb", "hist"):
+        for key in ("ocr", "ocr_trace", "emb", "hist", "car_colour"):
             if key in a and key in read:
                 a[key] = [read[key][i] if i in idx else v for i, v in enumerate(a[key])]
         a["hires"] = [i in idx for i in range(len(a["boxes"]))]
@@ -908,7 +917,8 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict", "order_flag": r.order_flag,
-                          "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "overlap": b.get("overlap", ""), "hires": b.get("hires", False), "masked": b.get("masked", False), "rescued": b.get("rescued", {})})
+                          "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "overlap": b.get("overlap", ""), "hires": b.get("hires", False), "masked": b.get("masked", False), "rescued": b.get("rescued", {}),
+                          "colour": r.colour, "colour_shares": b.get("colour_shares", {})})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes}
     return {"collection": collection,
@@ -953,8 +963,11 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         if r.entry_id != before and not quiet:
             log(f"{image_id}: pod {pod_colour(pod)} moved {before} -> {r.entry_id}")
         overlap = a.get("overlap", [""] * len(a["ocr"]))[i]
+        shares = a["car_colour"][i] if "car_colour" in a else {}
         if overlap == HIDDEN:
             r = BoxResult(i, "none")
+        elif shares:
+            r = replace(r, colour=car_colour.decide_colour(shares))
         if not quiet:
             log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
                 + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else "")
@@ -963,7 +976,8 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         results.append(r)
         boxes_out.append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
                           "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "pod_colour": pod_colour(pod), "hint": hint,
-                          "overlap": overlap, "hires": a.get("hires", [])[i:i + 1] == [True], "masked": a.get("masked", [])[i:i + 1] == [True], "rescued": a.get("rescued", {})})
+                          "overlap": overlap, "hires": a.get("hires", [])[i:i + 1] == [True], "masked": a.get("masked", [])[i:i + 1] == [True], "rescued": a.get("rescued", {}),
+                          "colour_shares": shares})
         if i == 0:
             box0_sims[image_id] = sims
     return results
@@ -1081,6 +1095,7 @@ def identify(args, models: dict):
         rules = replace(rules, order_weight=float(override))
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
+    models["car_colour"] = rules.colour_palette if rules.kind != "people" and rules.colour_tags else None
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     embedder = check_models(models)
     if rules.kind == "people":
@@ -1192,6 +1207,10 @@ def identify(args, models: dict):
         log(f"neighbour: resolved {resolved}, flagged {flagged} (order weight {rules.order_weight:g}, tolerance {args.neighbour_tolerance})")
         frames = aided
     if not verify:
+        frames = colour_check(frames, entries)
+        colour_flagged = sum(1 for rs in frames.values() for r in rs if r.colour_flag)
+        if colour_flagged:
+            log(f"colour: flagged {colour_flagged} number reads whose entry's colour disagrees")
         frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims)
 
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
@@ -1234,27 +1253,85 @@ def screen_new_refs(collection: str, index: ReferenceIndex, done: list, mode: st
     return out
 
 
+_NOTE_RANK = {"": 0, "set": 1, "differs": 2, "layout": 3}
+
+
+def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: list) -> list:
+    """Writes the job's colour proposals (`proposed[i]`: [(entry id, colour)] for row `done[i]`) to
+    entries.json in one entries_file.set_colours call. Only entries without a colour get one; the first
+    proposal per entry wins. Returns each row's colour_note: "set", "differs", "layout" or ""; a row
+    with several outcomes reports the most serious (layout, then differs, then set)."""
+    names = [n for n, _ in rules.colour_palette] + [car_colour.MULTI]
+    notes = [""] * len(done)
+    chosen, rows_of = {}, {}  # entry id → colour; entry id → rows whose proposal is the chosen one
+
+    def mark(i, note):
+        if _NOTE_RANK[note] > _NOTE_RANK[notes[i]]:
+            notes[i] = note
+
+    for i, ((image_id, status, _), props) in enumerate(zip(done, proposed)):
+        if status == "flagged":
+            continue
+        for eid, colour in props:
+            if colour not in names:
+                log(f"{image_id}: colour {colour} isn't in rules.colour_palette, so entry {eid} doesn't get it")
+                continue
+            have = entries[eid].colour or chosen.get(eid, "")
+            if not have:
+                chosen[eid] = colour
+                rows_of.setdefault(eid, []).append(i)
+            elif colour == chosen.get(eid) and not entries[eid].colour:
+                rows_of[eid].append(i)
+            elif colour != have:
+                where = "in entries.json" if entries[eid].colour else "from an earlier reference in this job"
+                log(f"entry {eid}: colour is {have} {where}, this reference reads {colour}; left as {have}")
+                mark(i, "differs")
+    if not chosen:
+        return notes
+    try:
+        written, reason = entries_file.set_colours(path, chosen)
+    except (OSError, ValueError) as e:
+        log(f"couldn't update entries.json ({type(e).__name__}: {e})")
+        written, reason = False, "layout"
+    for eid, colour in chosen.items():
+        if written:
+            log(f"entry {eid}: colour set to {colour} in entries.json")
+        elif reason == "layout":
+            log(f'entries.json isn\'t one entry per line; add "colour": "{colour}" to entry {eid} by hand')
+        else:
+            continue
+        for i in rows_of[eid]:
+            mark(i, "set" if written else "layout")
+    return notes
+
+
 def run_reference_job(args, models: dict, handle_row, screen: str = ""):
-    """Runs `handle_row(index, entries, rules, image_id, filepath, entry_id) -> status` over the
-    manifest rows, writing one `id,status` results row and a progress tick per row. References added
-    before a cancel are kept; the reference index is saved either way. `screen` ("warn" or "skip")
-    then checks the new refs with screen_new_refs; people collections are never screened."""
+    """Runs `handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour) -> (status,
+    proposals)` over the manifest rows (an optional 4th column is the image's hand-applied colour),
+    writing one `id,status,colour_note` results row and a progress tick per row. `proposals` is
+    [(entry id, colour)] for fill_colours. References added before a cancel are kept, colours aren't
+    written; the reference index is saved either way. `screen` ("warn" or "skip") then checks the new
+    refs with screen_new_refs; people collections are never screened."""
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
+    models["car_colour"] = rules.colour_palette if rules.kind != "people" and rules.colour_tags else None
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     embedder = check_models(models)
     index = open_index(collection, models, rules, embedder, args.progress)
-    rows = read_manifest(args.manifest, 3)
+    rows = read_manifest(args.manifest, 3, optional=1)
     done = []  # (image id, status, refs the row saved)
+    proposed = []  # per row: [(entry id, colour)]
     cancelled = False
-    for n, (image_id, filepath, entry_id) in enumerate(rows, 1):
+    for n, (image_id, filepath, entry_id, hand_colour) in enumerate(rows, 1):
         if cancel_requested(args.progress):
             cancelled = True
             break
         index.added = []
-        done.append((image_id, handle_row(index, entries, rules, image_id, filepath, entry_id), list(index.added)))
+        status, proposals = handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour)
+        done.append((image_id, status, list(index.added)))
+        proposed.append(proposals)
         write_progress(args.progress, n, len(rows))
     index.save()
     if cancelled:
@@ -1262,9 +1339,10 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
         sys.exit(130)
     if screen and rules.kind != "people":
         done = screen_new_refs(collection, index, done, screen)
+    notes = fill_colours(os.path.join(collection, "entries.json"), entries, rules, done, proposed)
     tmp = args.results + ".tmp"
     with open(tmp, "w", newline="", encoding="utf-8") as f:
-        f.writelines(f"{image_id},{status}\n" for image_id, status, _ in done)
+        f.writelines(f"{image_id},{status},{note}\n" for (image_id, status, _), note in zip(done, notes))
     os.replace(tmp, args.results)
     write_collection_outputs(args, collection, entries, rules)
 
@@ -1275,19 +1353,19 @@ def add_references(args, models: dict):
     def handle_people(index, entries, rules, image_id, filepath, entry_id):
         if entry_id not in entries:
             log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")
-            return "failed"
+            return "failed", []
         try:
             crop, status = reference_face(load_full(filepath), index.embedder)
             if crop is None:
                 log(f"{image_id}: {status.replace('_', ' ')}; a face reference needs a photo with exactly one face")
-                return status
+                return status, []
             log(f"{image_id}: reference {index.add(entry_id, image_id, crop)}")
-            return "added"
+            return "added", []
         except Exception as e:
             log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
-            return "failed"
+            return "failed", []
 
-    def handle(index, entries, rules, image_id, filepath, entry_id):
+    def handle(index, entries, rules, image_id, filepath, entry_id, hand_colour):
         nonlocal teams
         if rules.kind == "people":
             return handle_people(index, entries, rules, image_id, filepath, entry_id)
@@ -1297,23 +1375,29 @@ def add_references(args, models: dict):
         is_team = entry_id not in entries and entry_id in teams
         if entry_id not in entries and not is_team:
             log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")
-            return "failed"
+            return "failed", []
         if is_team and not rules.partial_references:
             log(f"{image_id}: only tagged to {entry_id}; set rules.partial_references to save team references")
-            return "team_refs_off"
+            return "team_refs_off", []
         try:
             rgb = load_full(filepath)
             boxes, note = detect_vehicles(rgb, models["detector"])
             if is_team and len(boxes) != 1:
                 log(f"{image_id}: {len(boxes)} vehicles found; only a solo shot can be a team reference")
-                return "team_not_solo"
+                return "team_not_solo", []
             box = boxes[0] if boxes else (0, 0, rgb.shape[1], rgb.shape[0])
-            rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop_box(rgb, box))
+            crop = crop_box(rgb, box)
+            rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop)
             log(f"{image_id}: reference {rel}" + ("" if boxes else f" (whole frame; {note})"))
-            return "added" if boxes else "no_vehicle_whole_frame"
+            proposals = []
+            if rules.colour_tags and not is_team:
+                colour = hand_colour or (car_colour.decide_colour(car_colour.colour_shares(crop, rules.colour_palette))
+                                         if boxes else "")
+                proposals = [(entry_id, colour)] if colour else []
+            return ("added" if boxes else "no_vehicle_whole_frame"), proposals
         except Exception as e:
             log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
-            return "failed"
+            return "failed", []
 
     run_reference_job(args, models, handle, screen="warn")
 
@@ -1333,23 +1417,28 @@ def promote_boxes(args, models: dict):
     if run.get("kind") == "people":
         raise InputError("promoting boxes isn't available for people collections; add face references from hand-tagged photos")
 
-    def handle(index, entries, rules, image_id, filepath, _entry):
+    def handle(index, entries, rules, image_id, filepath, _entry, hand_colour):
         record = images.get(image_id)
         wanted = [b for b in record["boxes"] if promotable(b) and b["entry"] in entries] if record else []
         if not wanted:
-            return "none_promotable"
+            return "none_promotable", []
         try:
             rgb = load_full(filepath)
             if [rgb.shape[1], rgb.shape[0]] != record["frame"]:
                 log(f"{image_id}: the file no longer matches the last run (frame size changed), skipped")
-                return "stale"
+                return "stale", []
+            proposals = []
             for b in wanted:
                 rel = index.add(b["entry"], f"{image_id}_b{b['box']}", crop_box(rgb, b["bbox"]))
                 log(f"{image_id}: box {b['box']} ({b['method']}) reference {rel}")
-            return "added"
+                # a boxes.json from before colour reading has no shares, so gives no colour
+                colour = hand_colour if hand_colour and len(wanted) == 1 else car_colour.decide_colour(b.get("colour_shares", {}))
+                if rules.colour_tags and colour:
+                    proposals.append((b["entry"], colour))
+            return "added", proposals
         except Exception as e:
             log(f"{image_id}: couldn't add references ({type(e).__name__}: {e})")
-            return "failed"
+            return "failed", []
 
     run_reference_job(args, models, handle, screen="skip")
 
@@ -1362,6 +1451,7 @@ def audit_references(args, models: dict):
     entries, rules = load_collection(collection)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
+    models["car_colour"] = rules.colour_palette if rules.kind != "people" and rules.colour_tags else None
     models["segmenter"] = ""
     index = open_index(collection, models, rules, check_models(models), args.progress)
     if cancel_requested(args.progress):

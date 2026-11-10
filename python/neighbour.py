@@ -6,6 +6,7 @@ a loop (highest number, then lowest) is one step. Pure functions on plain data; 
 
 from dataclasses import replace
 
+from car_colour import colour_relation
 from match import IDENTIFIED, BoxResult, Entry, _one_confusion_apart
 
 NEIGHBOUR_WINDOW = 3  # groups either side of a group that can lend support
@@ -83,7 +84,8 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
     places away counts, so 1 uses the whole tolerance and a weight near 0 needs that same car nearby.
     With `similar` (see lookalike), a `none` box still unresolved takes the car of the nearby
     identified box it looks like (method `neighbour`, confidence = sim), number order aside. A doubtful
-    `number` read that no nearby group supports is flagged (`order_flag`), result unchanged. Clear
+    `number` read that no nearby group supports is flagged (`order_flag`), result unchanged. A candidate
+    or look-alike box whose colour disagrees with the box's is passed over. Clear
     reads are never touched. Returns `frames` itself when weight is 0 or there is nothing to measure against."""
     positions = entry_positions(entries)
     if weight <= 0 or not positions:
@@ -120,6 +122,9 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
                 best = max(best, 1 - d / (tolerance + 1))
         return best
 
+    def box_colour(fid: str, box: int) -> str:
+        return next((r.colour for r in frames[fid] if r.box == box), "")
+
     out = dict(frames)
     for g in ordered:
         near_boxes = window_boxes(g)
@@ -131,14 +136,16 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
             for r in frames[fid]:
                 if r.method == "none" and r.box >= 0:
                     if r.unmatched_number:
-                        cands = {c for d in r.unmatched_number.split(";") for c in candidates_for(d, entries)}
+                        cands = {c for d in r.unmatched_number.split(";") for c in candidates_for(d, entries)
+                                 if colour_relation(entries[c].colour, r.colour) != -1}
                         scored = sorted(((support(c, around), c) for c in cands), reverse=True)
                         # the small slack keeps an exact boundary (e.g. 1 - 1/6 at weight 1/6) from failing on float error
                         if (scored and scored[0][0] > 0 and scored[0][0] >= 1 - weight - 1e-9
                                 and (len(scored) == 1 or scored[0][0] > scored[1][0])):
                             r = replace(r, method="neighbour", entry_id=scored[0][1], confidence=scored[0][0], via="order")
                     if r.method == "none" and similar is not None:
-                        hit = lookalike(similar, fid, r.box, near_boxes)
+                        same = [nb for nb in near_boxes if colour_relation(box_colour(nb[0], nb[1]), r.colour) != -1]
+                        hit = lookalike(similar, fid, r.box, same)
                         if hit:
                             r = replace(r, method="neighbour", entry_id=hit[0], confidence=hit[1], via="lookalike")
                 elif (r.method == "number" and r.confidence < DOUBT_CONF and weight >= FLAG_MIN_WEIGHT

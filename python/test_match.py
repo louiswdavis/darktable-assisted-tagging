@@ -257,6 +257,29 @@ def run_tests():
     out = Mt.agreeing_reads(hidden, {"1": "g", "2": "g"}, {"1": {1: [("44", 0.8)]}, "2": {0: [("44", 0.8)]}}, ENTRIES)
     check("only the box that read it changes", (summary(out["1"][0]), summary(out["1"][1])), (("none", "", ""), ("number", "HAM", "")))
 
+    # colour tie-break on weak reads: a read naming an entry of another colour isn't counted
+    red = {k: [BoxResult(0, "none", colour="Red")] for k in "12"}
+    red_grp = {k: "g" for k in red}
+    red_weak = {"1": {0: [("44", 0.75)]}, "2": {0: [("44", 0.75)]}}
+    def coloured(c):
+        return dict(ENTRIES, HAM=replace(ENTRIES["HAM"], colour=c))
+    check("weak reads of a Blue entry on red boxes stay none",
+          summary(Mt.agreeing_reads(red, red_grp, red_weak, coloured("Blue"))["1"][0]), ("none", "", ""))
+    check("weak reads of a Red entry on red boxes agree",
+          summary(Mt.agreeing_reads(red, red_grp, red_weak, coloured("Red"))["1"][0]), ("number", "HAM", ""))
+    check("weak reads with no entry colour agree as before",
+          summary(Mt.agreeing_reads(red, red_grp, red_weak, coloured(""))["1"][0]), ("number", "HAM", ""))
+
+    # colour_check: a number read whose entry's colour disagrees is flagged, the result kept
+    num = {"1": [BoxResult(0, "number", "HAM", "", 0.99, colour="Red")]}
+    out = Mt.colour_check(num, coloured("Blue"))["1"][0]
+    check("a Blue entry read on a red box is flagged", (out.colour_flag, summary(out)), (True, ("number", "HAM", "")))
+    check("no entry colour, no flag", Mt.colour_check(num, coloured(""))["1"][0].colour_flag, False)
+    multi = {"1": [BoxResult(0, "number", "HAM", "", 0.99, colour="Multi")]}
+    check("a Multi entry on a Multi box is not flagged", Mt.colour_check(multi, coloured("Multi"))["1"][0].colour_flag, False)
+    liv = {"1": [BoxResult(0, "livery", "HAM", "", 0.8, colour="Red")]}
+    check("only number results are flagged", Mt.colour_check(liv, coloured("Blue"))["1"][0].colour_flag, False)
+
     # shot_type / decided_by / already_tagged / conflicts / promotable
     check("shot: no boxes", Mt.shot_type(0, 4), "")
     check("shot: one box is solo", Mt.shot_type(1, 4), "solo")

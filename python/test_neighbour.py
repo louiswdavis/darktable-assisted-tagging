@@ -3,6 +3,7 @@
 
 import os
 import sys
+from dataclasses import replace
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import neighbour as N
@@ -155,6 +156,31 @@ def run_tests():
     frames, burst, times = shoot(seen("34"), BoxResult(-1, "none"), seen("38"))
     out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.99}))
     check("a frame with no vehicle is not looked at", out["f1"][0].method, "none")
+
+    # Colour tie-break on number order: 33 and 37 tie at full support for a read "3".
+    def painted(colours):
+        return {n: Entry(n, n, "", (), "", c) for n, c in colours.items()}
+    C = painted({"33": "Red", "35": "", "37": "Blue"})
+    frames, burst, times = shoot(seen("33"), BoxResult(0, "none", unmatched_number="3", colour="Red"), seen("37"))
+    out = N.neighbour_aid(frames, burst, times, C, 5, 1.0)
+    check("an order tie on a red box goes to the Red entry", (out["f1"][0].method, out["f1"][0].entry_id), ("neighbour", "33"))
+    check("an order tie with no entry colours stays a tie",
+          N.neighbour_aid(frames, burst, times, painted({"33": "", "35": "", "37": ""}), 5, 1.0)["f1"][0].method, "none")
+    frames, burst, times = shoot(seen("33"), unmatched("3"), seen("37"))
+    check("an order tie on a box with no colour stays a tie", N.neighbour_aid(frames, burst, times, C, 5, 1.0)["f1"][0].method, "none")
+
+    # Colour tie-break on look-alike: a nearby box of another colour can't lend its entry.
+    def lookalike_frames(near, here):
+        return shoot(replace(seen("34"), colour=near), BoxResult(0, "none", colour=here), replace(seen("38"), colour=near))
+    frames, burst, times = lookalike_frames("White", "Red")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.92, "f2": 0.60}))
+    check("a white look-alike can't lend to a red box", out["f1"][0].method, "none")
+    frames, burst, times = lookalike_frames("Red", "Red")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.92, "f2": 0.60}))
+    check("a red look-alike lends to a red box", (out["f1"][0].method, out["f1"][0].entry_id), ("neighbour", "34"))
+    frames, burst, times = lookalike_frames("", "")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.92, "f2": 0.60}))
+    check("a look-alike with no colours lends as before", (out["f1"][0].method, out["f1"][0].entry_id), ("neighbour", "34"))
 
     if failures == 0:
         print("all tests passed")

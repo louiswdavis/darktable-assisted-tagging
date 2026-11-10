@@ -68,6 +68,20 @@ def run_tests():
     check("pod_stats: percentiles", (stats["yellow_p10"], stats["black_p90"]), (0.0007, 0.01))
     check("pod_stats: no camera colours, no stats", R.pod_stats(data({"1": image([podbox("a", 0.01)])}), []), {})
 
+    def colourbox(colour, shares, n=0):
+        return dict(box("number", "number", n=n), colour=colour, colour_shares=shares)
+
+    c_data = data({"1": image([colourbox("Red", {"Red": 0.71, "White": 0.12, "Black": 0.04}),
+                               colourbox("", {"Red": 0.2, "Blue": 0.3, "Black": 0.25}, 1), box("number", "number", n=2)]),
+                   "2": image([colourbox("Red", {"Red": 0.9})])})
+    c_rows = R.rows(c_data)
+    check("describe: colour part with abbreviations, shares under 0.05 omitted",
+          "colour Red (R0.71 W0.12)" in R.describe(c_rows[0]), True)
+    check("describe: Bk and Bl abbreviations, no decided colour", "colour unclear (Bl0.30 Bk0.25 R0.20)" in R.describe(c_rows[1]), True)
+    check("describe: no colour_shares, no colour part", "colour" in R.describe(c_rows[2]), False)
+    check("summarize: cars per colour plus no colour", R.summarize(c_data, c_rows)["colours"], {"Red": 2, "no colour": 1})
+    check("summarize: no colour data, no counts", R.summarize(data({"1": image([box()])}), R.rows(data({"1": image([box()])})))["colours"], {})
+
     check("lever: shared tag, no team set", R.lever("weak-match", box(), ENTRIES), "set team on a and b")
     other = box(cands=(("a", 0.7), ("c", 0.69)))
     check("lever: no shared tag, runner-up has refs", R.lever("weak-match", other, ENTRIES), "")

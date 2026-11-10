@@ -245,6 +245,59 @@ check("an 8-field line is rejected", rows_of[7], nil)
 check("a row carries the order flag", rows_of[8][1].order_flag, true)
 check("an unflagged row has no order flag", rows_of[1][1].order_flag, false)
 
+-- colour columns ----------------------------------------------------------------
+do
+    local ro = T.read_results(table.concat({
+        "20,0,number,VER,,0.950,,solo,",
+        "21,0,number,VER,,0.950,,solo,,Red",
+        "22,0,none,,,0.000,,solo,,Multi,1",
+    }, "\n"))
+    check("9-column row has no colour", ro[20][1].colour, "")
+    check("9-column row has no colour flag", ro[20][1].colour_flag, false)
+    check("10-column row carries the colour", ro[21][1].colour, "Red")
+    check("10-column row has no colour flag", ro[21][1].colour_flag, false)
+    check("11-column row carries colour and flag", ro[22][1].colour .. tostring(ro[22][1].colour_flag), "Multitrue")
+    local CB = "Assisted Tagging|Colour"
+    local ident, unident, none_box = row("number", "VER"), row("none"), row("none")
+    ident.colour, unident.colour, none_box.colour = "Red", "Blue", "Red"
+    none_box.box = -1
+    local _w, dd = T.wanted_tags({ ident }, entries)
+    check("identified row gets the colour tag", dd[CB .. "|Red"], true)
+    _w, dd = T.wanted_tags({ unident }, entries)
+    check("unidentified row gets the colour tag", dd[CB .. "|Blue"], true)
+    _w, dd = T.wanted_tags({ none_box }, entries)
+    check("box -1 row gets no colour tag", dd[CB .. "|Red"], nil)
+    local no_colour = T.default_rules()
+    no_colour.diag.colour = ""
+    _w, dd = T.wanted_tags({ ident }, entries, no_colour)
+    check("colour rule blank writes no colour tag", dd[CB .. "|Red"], nil)
+    local fl = row("number", "VER")
+    fl.colour, fl.colour_flag = "Red", true
+    _w, dd = T.wanted_tags({ fl }, entries)
+    check("colour flag adds Check colour", dd["Assisted Tagging|Identification|Check colour"], true)
+    _w, dd = T.wanted_tags({ fl }, entries, T.mask_diag(T.default_rules(), { colour = true }))
+    check("mask_diag: colour off blanks colour", dd[CB .. "|Red"], nil)
+    _w, dd = T.wanted_tags({ fl }, entries, T.mask_diag(T.default_rules(), { check_colour = true }))
+    check("mask_diag: check_colour off blanks it", dd["Assisted Tagging|Identification|Check colour"], nil)
+    check("owned: colour check tag", T.owned_tags(entries, rules)["Assisted Tagging|Identification|Check colour"], true)
+    local pre = T.owned_prefixes(rules)
+    local has = false
+    for _, p in ipairs(pre) do if p == CB .. "|" then has = true end end
+    check("owned_prefixes includes the colour base", has, true)
+    check("hand_colour: one hand colour", T.hand_colour({ [CB .. "|Red"] = true }, {}, CB), "Red")
+    check("hand_colour: two colours", T.hand_colour({ [CB .. "|Red"] = true, [CB .. "|Blue"] = true }, {}, CB), nil)
+    check("hand_colour: ledgered tag", T.hand_colour({ [CB .. "|Red"] = true }, { [CB .. "|Red"] = true }, CB), nil)
+    check("hand_colour: empty base", T.hand_colour({ [CB .. "|Red"] = true }, {}, ""), nil)
+    do
+        local have = { [CB .. "|Red"] = true, [CB .. "|White"] = true }
+        local ledger_set = { [CB .. "|White"] = true }
+        local prot = T.hand_colour_tags(have, ledger_set, CB)
+        local _, detach = T.tag_changes(have, { [CB .. "|Blue"] = true }, {}, pre, prot, ledger_set)
+        check("hand colour tag survives a Blue reading", table.concat(detach, ";"), CB .. "|White")
+        check("hand_colour_tags: empty base", next(T.hand_colour_tags(have, {}, "")), nil)
+    end
+end
+
 -- ledger / protected tags / shot + conflict handling ---------------------------
 local led = T.ledger_parse(T.ledger_format({ [3] = { b = true, a = true }, [1] = { z = true } }))
 check("ledger round-trips", led[3].a and led[3].b and led[1].z, true)
@@ -252,6 +305,18 @@ check("ledger output is sorted", T.ledger_format({ [3] = { b = true, a = true },
     "1,z\n3,a\n3,b\n")
 check("an empty ledger formats to nothing", T.ledger_format({}), "")
 check("a missing ledger file parses to empty", next(T.ledger_parse(nil)), nil)
+
+-- reference results.csv: id,status,colour_note; older files have no colour_note
+do
+    local rows, notes = T.parse_reference_results("1,added,set\n2,added,differs\n3,added,\n4,stale\n5,added,set\n6,added,layout\n")
+    check("reference results: every row parses", #rows, 6)
+    check("reference results: a 2-column row reads an empty note", rows[4][2] .. "|" .. rows[4][3], "stale|")
+    check("reference results: colour notes are counted", notes.set .. "," .. notes.differs .. "," .. notes.layout, "2,1,1")
+    check("reference results: the done message names each count", table.concat(T.colour_note_extras(notes), "; "),
+        "2 entries got a colour; 1 colour readings differ from entries.json (see log); 1 colours to add by hand (see log)")
+    local _, none = T.parse_reference_results("1,added\n")
+    check("reference results: no colour notes, nothing to add", #T.colour_note_extras(none), 0)
+end
 
 local prot = T.protected_tags(
     { ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true, ["Holiday"] = true },
@@ -396,7 +461,8 @@ require("test_preset_block")(T, check)
 
 do
     local d = T.preset_defaults(T.PRESET_SCHEMA)
-    check("tagging schema has 20 keys", #T.PRESET_SCHEMA, 20)
+    check("tagging schema has 22 keys", #T.PRESET_SCHEMA, 22)
+    check("colour keys default on", tostring(d.tag_colour) .. tostring(d.tag_check_colour), "truetrue")
     check("tagging defaults", table.concat({ tostring(d.use_hints), d.group_support, d.group_node,
         tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine), d.embedder_file,
         d.ocr_rec_file, tostring(d.neighbour_tolerance) }, " "), "true native  false false false   5")

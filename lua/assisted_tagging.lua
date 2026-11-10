@@ -27,6 +27,9 @@ M.DIAG_TAGS = {
     -- Suffixed with the literal digits read, e.g. "...|Number seen|115"; independent of
     -- the outcome tags above, added whenever OCR read a number that didn't resolve.
     number_seen = "Assisted Tagging|Identification|Number seen",
+    -- Suffixed with the decided colour, e.g. "...|Colour|Red"; independent of the outcome.
+    colour = "Assisted Tagging|Colour",
+    check_colour = "Assisted Tagging|Identification|Check colour",
     -- Experimental (rules.burst_livery_pooling): a frame resolved by pooling box-0
     -- livery similarity across its burst rather than on its own.
     pooled = "Assisted Tagging|Identification|By pooled burst",
@@ -294,6 +297,12 @@ function M.wanted_tags(rows, entries, rules)
                 end
             end
         end
+        -- Independent of the outcome; a no-vehicle row (box -1) has no colour to report.
+        if r.box >= 0 and r.colour and r.colour ~= "" then
+            local base = rules.diag.colour
+            if base and base ~= "" then diag[base .. "|" .. r.colour] = true end
+            if r.colour_flag then note("check_colour") end
+        end
     end
     if shot then note("shot_" .. shot) end
     if not identified and not held then
@@ -353,6 +362,42 @@ function M.mask_diag(rules, off)
     return masked
 end
 
+-- Prefixes of the dynamic diagnostics (one tag per value): "...Number seen|<digits>"
+-- and "...Colour|<colour>".
+function M.owned_prefixes(rules)
+    local out = {}
+    for _, k in ipairs({ "number_seen", "colour" }) do
+        local base = rules.diag[k]
+        if base and base ~= "" then out[#out + 1] = base .. "|" end
+    end
+    return out
+end
+
+-- The colour the user set by hand: the suffix of the one tag under `base` that is in
+-- `have` but not in `ledger_set` (the plugin's own). nil for none, several, or no base.
+function M.hand_colour(have, ledger_set, base)
+    if not base or base == "" then return nil end
+    local prefix, found, n = base .. "|", nil, 0
+    for name in pairs(have) do
+        if name:sub(1, #prefix) == prefix and not (ledger_set and ledger_set[name]) then
+            found, n = name:sub(#prefix + 1), n + 1
+        end
+    end
+    return n == 1 and found or nil
+end
+
+-- The tags under `base` in `have` that are not in `ledger_set`: colours the user set by
+-- hand, which a run must never detach. Empty for no base.
+function M.hand_colour_tags(have, ledger_set, base)
+    local out = {}
+    if not base or base == "" then return out end
+    local prefix = base .. "|"
+    for name in pairs(have) do
+        if name:sub(1, #prefix) == prefix and not (ledger_set and ledger_set[name]) then out[name] = true end
+    end
+    return out
+end
+
 -- have: an image's tag names (name → true). Returns the names to attach and to
 -- detach, sorted. Only owned tags, or tags starting with an owned prefix (the dynamic
 -- "...Number seen|<digits>" diagnostic, one tag per distinct digit string), are detached.
@@ -394,6 +439,30 @@ function M.ledger_parse(text)
         end
     end
     return ledger
+end
+
+-- A reference job's results.csv (`id,status,colour_note`; files from before colour notes have
+-- no third column) → its rows { id, status, note } and the count of each colour note.
+function M.parse_reference_results(text)
+    local rows, notes = {}, { set = 0, differs = 0, layout = 0 }
+    for line in (text or ""):gmatch("[^\r\n]+") do
+        local p = M.parse_csv_line(line, 3) or M.parse_csv_line(line, 2)
+        if p then
+            p[3] = p[3] or ""
+            rows[#rows + 1] = p
+            if notes[p[3]] then notes[p[3]] = notes[p[3]] + 1 end
+        end
+    end
+    return rows, notes
+end
+
+-- The done-message clauses for a reference job's colour notes; only non-zero counts.
+function M.colour_note_extras(notes)
+    local out = {}
+    if notes.set > 0 then out[#out + 1] = string.format("%d entries got a colour", notes.set) end
+    if notes.differs > 0 then out[#out + 1] = string.format("%d colour readings differ from entries.json (see log)", notes.differs) end
+    if notes.layout > 0 then out[#out + 1] = string.format("%d colours to add by hand (see log)", notes.layout) end
+    return out
 end
 
 function M.ledger_format(ledger)
@@ -470,7 +539,7 @@ end
 function M.read_results(text)
     local rows_of, errored, skipped = {}, {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 9)
+        local p = M.parse_csv_line(line, 11) or M.parse_csv_line(line, 10) or M.parse_csv_line(line, 9)
         local id = p and tonumber(p[1])
         if id and p[3] == "error" then
             errored[id] = true
@@ -479,7 +548,8 @@ function M.read_results(text)
         elseif id then
             rows_of[id] = rows_of[id] or {}
             table.insert(rows_of[id], { box = tonumber(p[2]), method = p[3], entry_id = p[4],
-                                         alt_entry_id = p[5], unmatched_number = p[7], shot = p[8], order_flag = p[9] == "1" })
+                                         alt_entry_id = p[5], unmatched_number = p[7], shot = p[8], order_flag = p[9] == "1",
+                                         colour = p[10] or "", colour_flag = p[11] == "1" })
         end
     end
     return rows_of, errored, skipped
@@ -924,6 +994,8 @@ M.PRESET_SCHEMA = {
     { key = "tag_team", kind = "bool", default = true },
     { key = "tag_none", kind = "bool", default = true },
     { key = "tag_number_seen", kind = "bool", default = true },
+    { key = "tag_colour", kind = "bool", default = true },
+    { key = "tag_check_colour", kind = "bool", default = true },
     { key = "tag_shot", kind = "bool", default = true },
 }
 
@@ -1012,6 +1084,10 @@ local TAG_TOGGLES = {
     { key = "none", label = "Unidentified", when = "no vehicle was found, or no confident match." },
     { key = "number_seen", label = "Number seen",
       when = "OCR read digits that didn't resolve to one entry. Added alongside the outcome tag." },
+    { key = "colour", label = "Colour",
+      when = "a colour was decided for the vehicle. Added alongside the outcome tag." },
+    { key = "check_colour", label = "Check colour",
+      when = "the number read is confident but the car's colour differs from its entry's. Delete this tag once checked." },
     { key = "shot", label = "Shot",
       when = "Solo: one vehicle found. Pack: two or three. Crowded: the detector's limit was reached, so there may be more cars than were identified." },
 }
@@ -1272,7 +1348,10 @@ local function tag_tooltip(t)
     local names = {}
     for _i, k in ipairs(keys) do
         local name = rules.diag[k] or ""
-        if name ~= "" then names[#names + 1] = k == "number_seen" and name .. "|<digits>" or name end
+        if name ~= "" then
+            names[#names + 1] = k == "number_seen" and name .. "|<digits>"
+                or k == "colour" and name .. "|<colour>" or name
+        end
     end
     local writes = #names > 0 and table.concat(names, ", ") or _("nothing: this collection's rules drop it")
     return string.format(_("Writes: %s\nWhen: %s\nOff: stops writing it and removes it from images on the next run. Identification is unchanged."),
@@ -1710,6 +1789,9 @@ local function prepare_run(images, replace_manual)
             end
             ledger[copy.id] = next(kept) and kept or nil
             protected_of[copy.id] = replace_manual and {} or M.protected_tags(have, kept, entries)
+            for name in pairs(replace_manual and {} or M.hand_colour_tags(have, kept, rules.diag.colour)) do
+                protected_of[copy.id][name] = true
+            end
             hints_of[copy.id] = replace_manual and {} or M.hint_prefixes(have, kept, entries)
             -- the identifier sees protected tags for skip and conflict checks; with hints off a team tag
             -- is not among them, but protected_of still keeps the run from detaching it
@@ -1769,8 +1851,7 @@ local function apply_results(run, job)
 
     local owned = M.owned_tags(entries, rules)
     local owned_roots = M.owned_roots(entries, rules)
-    local owned_prefixes = (rules.diag.number_seen and rules.diag.number_seen ~= "")
-        and { rules.diag.number_seen .. "|" } or {}
+    local owned_prefixes = M.owned_prefixes(rules)
     -- owned (above) uses the full rules, so switched-off diagnostics are still detached
     local diag_off = {}
     for _, t in ipairs(TAG_TOGGLES) do
@@ -2020,6 +2101,7 @@ function M.add_references(images, entry_id)
     local okr, err = pcall(function()
         local rows, n_skipped, sent = {}, 0, {}
         local _, pick_of = with_paired_jpegs(images)
+        local ledger = M.ledger_parse(read_file(LEDGER_PATH))
         for _, img in ipairs(images) do
             -- the entry comes from the selected image's tags; the crop from its paired JPEG
             local src = pick_of[img.id]
@@ -2033,7 +2115,8 @@ function M.add_references(images, entry_id)
             if eid then
                 if not sent[src.id] then
                     sent[src.id] = true
-                    rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid }
+                    rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid,
+                        M.hand_colour(tags_of(img), ledger[img.id], rules.diag.colour) or "" }
                 end
             else
                 n_skipped = n_skipped + 1
@@ -2047,16 +2130,16 @@ function M.add_references(images, entry_id)
         local results = run_reference_job(state, rows, { "--add-reference" }, "adding references")
         if not results then return end
         local added, whole, failed, no_face, multi, team_rule = 0, 0, 0, 0, 0, 0
-        for line in results:gmatch("[^\r\n]+") do
-            local p = M.parse_csv_line(line, 2)
-            if p and p[2] == "added" then added = added + 1
-            elseif p and (p[2] == "team_refs_off" or p[2] == "team_not_solo") then team_rule = team_rule + 1
-            elseif p and p[2] == "no_face" then no_face = no_face + 1
-            elseif p and p[2] == "multiple_faces" then multi = multi + 1
-            elseif p and p[2] == "no_vehicle_whole_frame" then added = added + 1; whole = whole + 1
-            elseif p then failed = failed + 1 end
+        local parsed, notes = M.parse_reference_results(results)
+        for _, p in ipairs(parsed) do
+            if p[2] == "added" then added = added + 1
+            elseif p[2] == "team_refs_off" or p[2] == "team_not_solo" then team_rule = team_rule + 1
+            elseif p[2] == "no_face" then no_face = no_face + 1
+            elseif p[2] == "multiple_faces" then multi = multi + 1
+            elseif p[2] == "no_vehicle_whole_frame" then added = added + 1; whole = whole + 1
+            else failed = failed + 1 end
         end
-        local extra = {}
+        local extra = M.colour_note_extras(notes)
         if whole > 0 then extra[#extra + 1] = string.format("%d used the whole frame", whole) end
         if no_face > 0 then extra[#extra + 1] = string.format("%d had no face", no_face) end
         if multi > 0 then extra[#extra + 1] = string.format("%d had several faces, so can't name one person", multi) end
@@ -2089,17 +2172,17 @@ function M.promote_references(images)
     local okr, err = pcall(function()
         -- Identify recorded boxes for the JPEG of a RAW+JPEG pair, so a selected RAW reads its JPEG's
         local rows = {}
+        local ledger = M.ledger_parse(read_file(LEDGER_PATH))
         for _, img in ipairs((with_paired_jpegs(images))) do
-            rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, "" }
+            rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, "",
+                M.hand_colour(tags_of(img), ledger[img.id], rules.diag.colour) or "" }
         end
         local results = run_reference_job(state, rows, { "--promote-boxes", "--boxes-in", boxes }, "saving vehicles as references")
         if not results then return end
         local counts = { added = 0, none_promotable = 0, flagged = 0, stale = 0, failed = 0 }
-        for line in results:gmatch("[^\r\n]+") do
-            local p = M.parse_csv_line(line, 2)
-            if p then counts[p[2]] = (counts[p[2]] or 0) + 1 end
-        end
-        local extra = {}
+        local parsed, notes = M.parse_reference_results(results)
+        for _, p in ipairs(parsed) do counts[p[2]] = (counts[p[2]] or 0) + 1 end
+        local extra = M.colour_note_extras(notes)
         if counts.none_promotable > 0 then extra[#extra + 1] = string.format("%d images had none confident enough", counts.none_promotable) end
         if counts.flagged > 0 then extra[#extra + 1] = string.format("%d not saved: the audit checks flagged them (see log)", counts.flagged) end
         if counts.stale > 0 then extra[#extra + 1] = string.format("%d changed since the run (run Identify again)", counts.stale) end
