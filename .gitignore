@@ -1,7 +1,6 @@
 .venv/
 __pycache__/
 *.pyc
-*.log
 tests/
 /docs/superpowers
 .superpowers/
