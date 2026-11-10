@@ -6,6 +6,7 @@ __pycache__/
 /docs/superpowers
 .superpowers/
 *.onnx
+*.yml
 *.jpg
 /runs/
 /collections/
