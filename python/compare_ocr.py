@@ -45,12 +45,12 @@ def shown(reads: list) -> str:
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0], fromfile_prefix_chars="@")
     ap.add_argument("--detector", default=os.path.join(MODELS, "object_detection_yolox_2022nov.onnx"))
     ap.add_argument("--ocr-det", default=os.path.join(MODELS, "text_detection_en_ppocrv3_2023may.onnx"))
     ap.add_argument("--rec", action="append", required=True, help="a recogniser model; give it two or more times")
     ap.add_argument("--out", help="also write every read to this CSV")
-    ap.add_argument("paths", nargs="+", help="photos, or folders of photos")
+    ap.add_argument("paths", nargs="+", help="photos, or folders of photos; @list.txt reads one path per line")
     args = ap.parse_args()
     if len(args.rec) < 2:
         ap.error("give --rec at least twice")
