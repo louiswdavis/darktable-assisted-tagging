@@ -248,7 +248,7 @@ After editing `entries.json`, click **Reload** in the panel. A mistake in the fi
 
 ### Building references
 
-Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong. **Create collection from tagged images** already does this for the images it was given; add more at any time with the panel's **references** section (folded, at the bottom of the panel):
+Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong. **Create collection from tagged images** already does this for the images it was given; add more at any time with the panel's **references** section (at the bottom of the panel):
 
 - **Add as reference**: pick the entry in the **entry** list, select photos of that car, click. The largest vehicle in each photo is cropped and saved under that entry. A photo where no vehicle is found is saved whole, and the done message says how many.
 - **Add tagged images as references**: select photos you've already tagged by hand. Each one carrying *all* of one entry's tags is added under that entry. A photo with only a shared team tag, or with two drivers' tags, is skipped.
@@ -319,7 +319,7 @@ In Assisted Tagging each collection is a preset: the **preset** picker at the to
 
 ## Panel options
 
-At the top: the **preset** picker and **☰** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**. On a collection it shows, top to bottom: **1 collection**, **2 bursts**, **3 matching**, **4 tags written**, **5 run**, then **references**. Click a section's header to fold it; a folded header shows a short summary in brackets, e.g. `4 ▸ tags written (10 of 10)`. Sections 3, 4 and **references** start folded. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
+At the top: the **preset** picker and **☰** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**. On a collection it shows, top to bottom: **1 collection**, **2 bursts**, **3 matching**, **4 tags written**, **5 run**, then **references**. Each section has its own heading; all sections stay open. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
 
 ### new collection
 
@@ -488,7 +488,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 **Setup**
 
 1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers` and `test_identify`.
-2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, sections *1 collection* to *5 run* and a folded *references* section. No `LUA ERROR` in the darktable log.
+2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, sections *1 collection* to *5 run* and *references*, each under its own heading. No `LUA ERROR` in the darktable log.
 3. **A collection.** Set the plugin folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **preset** dropdown.
 
 **Grouping support** (one run per mode, on a selection holding a burst)
