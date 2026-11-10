@@ -113,8 +113,17 @@ def run_tests():
     check("an agreeing burst upgrades a team-only frame", summary(out["4"][0]), ("burst", "VER", ""))
     check("burst confidence is the agreeing share of the burst", out["3"][0].confidence, 2 / 4)
     novehicle = dict(frames, **{"5": [BoxResult(-1, "none")]})
-    check("a frame with no vehicle stays none", summary(Mt.burst_consensus(novehicle, {k: "b" for k in novehicle})["5"][0]),
-          ("none", "", ""))
+    check("a frame with no vehicle under the confidence floor stays none",
+          summary(Mt.burst_consensus(novehicle, {k: "b" for k in novehicle})["5"][0]), ("none", "", ""))
+    small = {"1": frames["1"], "2": frames["2"], "5": [BoxResult(-1, "none")]}
+    filled = Mt.burst_consensus(small, {k: "b" for k in small})["5"]
+    check("a frame with no vehicle takes its burst's entry", [(r.box, *summary(r)) for r in filled], [(-1, "burst", "VER", "")])
+    nb = {"1": [BoxResult(0, "neighbour", "VER", "", 0.8)], "2": frames["2"], "3": frames["3"]}
+    check("a neighbour result anchors a burst", summary(Mt.burst_consensus(nb, {k: "b" for k in nb})["3"][0]), ("burst", "VER", ""))
+    check("a neighbour result is not overwritten by the burst",
+          summary(Mt.burst_consensus(nb, {k: "b" for k in nb})["1"][0]), ("neighbour", "VER", ""))
+    err = {"1": frames["1"], "2": frames["2"], "5": [BoxResult(-1, "error")]}
+    check("an error frame is never filled", Mt.burst_consensus(err, {k: "b" for k in err})["5"][0].method, "error")
     sparse = dict(frames, **{k: [BoxResult(0, "none")] for k in "567"})
     check("a burst fill under the confidence floor is not written",
           summary(Mt.burst_consensus(sparse, {k: "b" for k in sparse})["3"][0]), ("none", "", ""))

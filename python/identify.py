@@ -637,6 +637,7 @@ def check_models(models: dict):
         except Exception as e:
             raise InputError(f"{label} model can't be loaded ({models[key]}): {type(e).__name__}: {e}. "
                              f"Download it again (see the README).") from e
+    log(f"number reader: {loaded['ocr_det'].rec.name} ({os.path.basename(models['ocr_rec'])})")
     return loaded["embedder"]
 
 
@@ -1020,6 +1021,12 @@ def identify_people(args, models: dict, entries: dict, rules: Rules, collection:
 def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules = load_collection(collection)
+    override = getattr(args, "order_weight", None)
+    if override is not None:
+        if not 0 <= override <= 1:
+            log("--order-weight must be from 0 (random order) to 1 (strictly in order)")
+            sys.exit(2)
+        rules = replace(rules, order_weight=float(override))
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
@@ -1098,8 +1105,27 @@ def identify(args, models: dict):
     shooting_order = {i: (d["time"] if d["time"] is not None else 0, d["file"]) for i, d in detail.items()}
     if not verify and rules.order_weight > 0:
         times = {i: d["time"] or 0 for i, d in detail.items()}
-        aided = neighbour_aid(frames, burst_of, times, entries, args.neighbour_tolerance, rules.order_weight)
-        resolved = sum(1 for i, rs in aided.items() for a, b in zip(rs, frames[i]) if a.method == "neighbour" and b.method != "neighbour")
+        emb_cache: dict = {}
+
+        def box_emb(fid: str, box: int):
+            if (fid, box) not in emb_cache:
+                a = analyses.get(detail[fid]["file"])
+                embs = a.get("emb", []) if a else []
+                emb_cache[fid, box] = decode(embs[box]) if 0 <= box < len(embs) else None
+            return emb_cache[fid, box]
+
+        def similar(fid: str, box: int, ofid: str, obox: int):
+            a, b = box_emb(fid, box), box_emb(ofid, obox)
+            return None if a is None or b is None else float((a * b).sum())
+
+        aided = neighbour_aid(frames, burst_of, times, entries, args.neighbour_tolerance, rules.order_weight, similar)
+        resolved = 0
+        for i, rs in aided.items():
+            for a, b in zip(rs, frames[i]):
+                if a.method == "neighbour" and b.method != "neighbour":
+                    resolved += 1
+                    how = f"read {b.unmatched_number}, fits the number order" if a.via == "order" else "looks like a nearby car"
+                    log(f"{i}: box {a.box}: neighbour {a.entry_id} ({how}, {a.confidence:.3f})")
         flagged = sum(1 for rs in aided.values() for r in rs if r.order_flag)
         log(f"neighbour: resolved {resolved}, flagged {flagged} (order weight {rules.order_weight:g}, tolerance {args.neighbour_tolerance})")
         frames = aided
@@ -1360,6 +1386,8 @@ def main(argv=None):
     parser.add_argument("--list", action="store_true", help="List collections (and entries) only")
     parser.add_argument("--neighbour-tolerance", type=int, default=5,
                         help="Neighbour aid: how many entries apart (in the sorted number list, wrapping round) a nearby group can be and still support a doubtful read; used when the collection's order_weight is above 0")
+    parser.add_argument("--order-weight", type=float, default=None,
+                        help="Neighbour aid: overrides the collection's rules.order_weight for this run, from 0 (random order: off) to 1 (strictly in order)")
     parser.add_argument("--verify", action="store_true",
                         help="Also analyse fully tagged images and flag the ones whose result differs from their tags (the plugin then changes no tags)")
     args = parser.parse_args(argv)

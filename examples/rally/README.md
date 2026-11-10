@@ -9,7 +9,7 @@ Cars of no known livery, passing in loops, identified by their race number alone
 
 ## Order weight
 
-`rules.order_weight` says how much the cars pass in number order:
+`rules.order_weight` in `entries.json` says how much the cars pass in number order. The panel's **order weight** field (section **3 matching**) overrides it for the collection without editing the file: blank uses `entries.json`, a number from 0 to 1 replaces it, and **update preset** saves it.
 
 | Weight | Meaning | How far a neighbour can be (tolerance 5) |
 |---|---|---|
@@ -27,6 +27,9 @@ Cars may skip numbers (withdrawn, not yet arrived) and may pass out of order, so
 It looks at the three groups shot before and after a doubtful read, within 2 minutes (a longer pause is a stage break, and neighbours across it are ignored).
 
 - A car whose number wasn't read, but is one confusable digit away from an entry (5/6, 1/7, 0/6, 0/8, 3/8, 3/5, 1/4) or has a digit added or dropped, takes that entry when its neighbours sit close to it in the list. Tagged `Assisted Tagging|Identification|By neighbour`.
+- A car with no number read at all takes the car of a nearby identified box whose crop looks like it (livery embedding similarity 0.85 or more, and 0.05 clear of any other nearby car). Also tagged **By neighbour**; the run log says `looks like a nearby car`. Only in this mode (order weight above 0), because in a race series teammates look alike.
 - A number read at under 0.90 confidence with no neighbour near it keeps its tag and gets `Assisted Tagging|Identification|Check order`. Filter on it to spot-check; delete the tag once you've checked (or fixed) the photo.
 
-**Tolerance** is the most list positions away that can count as near; `order_weight` decides how much of it is used. Set it in the panel's **options** section as **neighbour tolerance** (default 5; a whole number). It is saved with the collection's preset.
+A neighbour result then counts like a read number in its group: the rest of the group (frames with no vehicle found included) can take it, see **How it works** in the plugin README.
+
+**Tolerance** is the most list positions away that can count as near; `order_weight` decides how much of it is used. Set it in the panel's **3 matching** section as **neighbour tolerance** (default 5; a whole number). It is saved with the collection's preset.

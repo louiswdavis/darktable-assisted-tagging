@@ -189,6 +189,11 @@ check("mask_diag: number_seen off drops the Number seen tags", keys(d), "Assiste
 check("neighbour tolerance parses a whole number", T.parse_neighbour_tolerance(" 8 "), 8)
 check("neighbour tolerance falls back to 5", T.parse_neighbour_tolerance("abc"), 5)
 check("neighbour tolerance defaults when unset", T.parse_neighbour_tolerance(nil), 5)
+check("order weight blank means the collection's", T.parse_order_weight("  "), "")
+check("order weight unset means the collection's", T.parse_order_weight(nil), "")
+check("order weight in range is kept as text", T.parse_order_weight(" 0.5 "), "0.5")
+check("order weight above 1 is refused", T.parse_order_weight("1.5"), nil)
+check("order weight text is refused", T.parse_order_weight("x"), nil)
 
 -- owned_tags / tag_changes (Review Focus 5) ---------------------------------
 local owned = T.owned_tags(entries, rules)
@@ -391,10 +396,10 @@ require("test_preset_block")(T, check)
 
 do
     local d = T.preset_defaults(T.PRESET_SCHEMA)
-    check("tagging schema has 18 keys", #T.PRESET_SCHEMA, 18)
+    check("tagging schema has 20 keys", #T.PRESET_SCHEMA, 20)
     check("tagging defaults", table.concat({ tostring(d.use_hints), d.group_support, d.group_node,
         tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine), d.embedder_file,
-        tostring(d.neighbour_tolerance) }, " "), "true native  false false false  5")
+        d.ocr_rec_file, tostring(d.neighbour_tolerance) }, " "), "true native  false false false   5")
     local all_on = true
     for _, item in ipairs(T.PRESET_SCHEMA) do
         if item.key:match("^tag_") and d[item.key] ~= true then all_on = false end

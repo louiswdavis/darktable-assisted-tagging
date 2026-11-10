@@ -1,5 +1,5 @@
 # Run with: python python/test_neighbour.py
-# Exercises neighbour.py's number-order aid; no models or files needed.
+# Exercises neighbour.py's number-order aid and look-alike check; no models or files needed.
 
 import os
 import sys
@@ -130,6 +130,31 @@ def run_tests():
     one = entries("5")
     frames, burst, times = shoot(seen("5", 0.85), seen("5", 0.85))
     check("one entry in the list", N.neighbour_aid(frames, burst, times, one, 5, 1.0)["f0"][0].order_flag, False)
+
+    # Look-alike: an unread box takes the nearby car its crop resembles.
+    blank = BoxResult(0, "none")
+    frames, burst, times = shoot(seen("34"), blank, seen("38"))
+
+    def sims(table):
+        return lambda fid, box, ofid, obox: table.get(ofid)
+
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.92, "f2": 0.60}))
+    got = out["f1"][0]
+    check("an unread box takes the car it looks like", (got.method, got.entry_id, got.via), ("neighbour", "34", "lookalike"))
+    check("look-alike confidence is the sim", got.confidence, 0.92)
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.80, "f2": 0.60}))
+    check("a look-alike under the floor is left", out["f1"][0].method, "none")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.92, "f2": 0.90}))
+    check("two cars that look alike are left", out["f1"][0].method, "none")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({}))
+    check("no embeddings leave the box", out["f1"][0].method, "none")
+    check("no similar callback leaves the box", N.neighbour_aid(frames, burst, times, E, 5, 0.5)["f1"][0].method, "none")
+    frames, burst, times = shoot(seen("34"), unmatched("36"), seen("37"))
+    out = N.neighbour_aid(frames, burst, times, E, 5, 1.0, sims({"f0": 0.99, "f2": 0.10}))
+    check("a number-order resolve comes before the look-alike", (out["f1"][0].entry_id, out["f1"][0].via), ("35", "order"))
+    frames, burst, times = shoot(seen("34"), BoxResult(-1, "none"), seen("38"))
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.99}))
+    check("a frame with no vehicle is not looked at", out["f1"][0].method, "none")
 
     if failures == 0:
         print("all tests passed")

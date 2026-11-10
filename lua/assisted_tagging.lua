@@ -492,6 +492,16 @@ function M.parse_neighbour_tolerance(text)
     return n or 5
 end
 
+-- The order-weight panel text: "" (blank: the collection's rules.order_weight applies), or a
+-- number from 0 to 1 as text. Returns the trimmed text, or nil when it is neither.
+function M.parse_order_weight(text)
+    local t = tostring(text or ""):match("^%s*(.-)%s*$")
+    if t == "" then return "" end
+    local n = tonumber(t)
+    if n and n >= 0 and n <= 1 then return t end
+    return nil
+end
+
 -- Tags usable to build an entry: hierarchical (A|B), not the plugin's own
 -- diagnostics, and clean enough for entries.json (no , ; ").
 local ASSISTED_PREFIX = "Assisted Tagging|"
@@ -902,7 +912,9 @@ M.PRESET_SCHEMA = {
     { key = "suggest_crops", kind = "bool", default = false },
     { key = "quarantine", kind = "bool", default = false },
     { key = "embedder_file", kind = "string", default = "" },
+    { key = "ocr_rec_file", kind = "string", default = "" },
     { key = "neighbour_tolerance", kind = "number", default = 5 },
+    { key = "order_weight", kind = "string", default = "" },
     { key = "tag_number", kind = "bool", default = true },
     { key = "tag_livery", kind = "bool", default = true },
     { key = "tag_burst", kind = "bool", default = true },
@@ -1108,6 +1120,7 @@ local settings = collection_settings(current_collection())
 local function model_path(name, script)
     local file = MODEL_FILES[name]
     if name == "embedder_model" and settings.embedder_file ~= "" then file = settings.embedder_file end
+    if name == "ocr_recognition_model" and settings.ocr_rec_file ~= "" then file = settings.ocr_rec_file end
     return plugin_root(script) .. "/models/" .. file
 end
 
@@ -1863,13 +1876,15 @@ function M.identify_images(images, replace_manual, verify_only)
     identify_cancellable = true
     if identify_button then identify_button.label = _("Cancel") end
     start_log(verify_only and "verify started" or "identify started", #images)
-    log(string.format("settings: replace manual %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s",
+    local order_weight = M.parse_order_weight(settings.order_weight) or ""
+    log(string.format("settings: replace manual %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s, order weight %s",
         tostring(replace_manual and true or false),
         tostring(settings.use_hints),
         tostring(settings.run_tag),
         settings.group_support,
         settings.group_node ~= "" and settings.group_node or "(blank)",
-        tostring(neighbour_tolerance())))
+        tostring(neighbour_tolerance()),
+        order_weight ~= "" and order_weight or "(collection's)"))
 
     local job, run = nil, nil
     local okr, err = pcall(function()
@@ -1887,7 +1902,8 @@ function M.identify_images(images, replace_manual, verify_only)
         job.percent = 0.0
         local script = identify_script()
         local code, why = run_python(args_of({ MANIFEST_PATH, RESULTS_PATH },
-            collection_args(), model_args(script), verify_only and { "--verify" } or {}, {
+            collection_args(), model_args(script), verify_only and { "--verify" } or {},
+            order_weight ~= "" and { "--order-weight", order_weight } or {}, {
                 "--neighbour-tolerance", tostring(neighbour_tolerance()),
                 "--cache", CACHE_PATH,
                 "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH,
@@ -2971,9 +2987,19 @@ local function install_panel()
         tooltip = _("File name in the plugin's models/ folder used to compare liveries, e.g. dinov2_base.onnx. Changing it re-embeds every reference on the next run.\nDefault: blank (dinov2_small.onnx). Change it to try a larger model when liveries are confused."),
         text = "",
     }
+    local ocr_rec_entry = dt.new_widget("entry") {
+        placeholder = _("number reader model file (blank = bundled)"),
+        tooltip = _("File name in the plugin's models/ folder used to read race numbers, e.g. en_PP-OCRv5_mobile_rec.onnx. A PaddleOCR model needs its inference.yml beside it, renamed to the model's name with .yml. Changing it re-reads every photo on the next run.\nDefault: blank (text_recognition_CRNN_EN_2021sep.onnx). Change it when numbers are missed or misread."),
+        text = "",
+    }
     local tolerance_entry = dt.new_widget("entry") {
         placeholder = _("neighbour tolerance"),
         tooltip = _("The most places apart in the sorted number list a neighbouring car can be and still support a doubtful read. The collection's order_weight sets how much of it is used: a neighbour up to order_weight × (tolerance + 1) places away counts. A whole number, 0 or more. Only used when order_weight is above 0.\nDefault: 5. Lower it when cars pass in strict number order; raise it when the order is loose."),
+        text = "",
+    }
+    local order_weight_entry = dt.new_widget("entry") {
+        placeholder = _("blank = collection's"),
+        tooltip = _("How far the cars pass in number order, from 0 (random: the neighbour aid is off) to 1 (strictly in order); 0.5 is loose order. Overrides the collection's rules.order_weight in entries.json.\nDefault: blank (use entries.json; 0 when it has none). Set 0.5 for a rally or club event shot roughly in number order."),
         text = "",
     }
 
@@ -2982,11 +3008,15 @@ local function install_panel()
     read_panel = function()
         local tolerance = tonumber(trim(tolerance_entry.text):match("^%d+$"))
         if not tolerance then return nil, _("neighbour tolerance must be a whole number, 0 or more") end
+        local weight = M.parse_order_weight(order_weight_entry.text)
+        if not weight then return nil, _("order weight must be blank or a number from 0 to 1") end
         local s = {
             group_support = support_keys[group_support_combo.selected] or shown_support,
             group_node = trim(group_node_entry.text),
             embedder_file = trim(embedder_entry.text),
+            ocr_rec_file = trim(ocr_rec_entry.text),
             neighbour_tolerance = tolerance,
+            order_weight = weight,
         }
         for _i, key in ipairs(check_order) do s[key] = checks[key].value and true or false end
         return s
@@ -2999,7 +3029,9 @@ local function install_panel()
         end
         group_node_entry.text = s.group_node
         embedder_entry.text = s.embedder_file
+        ocr_rec_entry.text = s.ocr_rec_file
         tolerance_entry.text = tostring(s.neighbour_tolerance)
+        order_weight_entry.text = s.order_weight
         for _i, key in ipairs(check_order) do checks[key].value = s[key] end
     end
 
@@ -3026,8 +3058,12 @@ local function install_panel()
             use_hints_check,
             dt.new_widget("label") { label = _("embedder model file"), halign = "start" },
             embedder_entry,
+            dt.new_widget("label") { label = _("number reader model file"), halign = "start" },
+            ocr_rec_entry,
             dt.new_widget("label") { label = _("neighbour tolerance"), halign = "start" },
             tolerance_entry,
+            dt.new_widget("label") { label = _("order weight"), halign = "start" },
+            order_weight_entry,
         }),
         make_section(4, _("tags written"), tag_check_list),
         step_label(5, _("run")),

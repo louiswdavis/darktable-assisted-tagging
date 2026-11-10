@@ -18,6 +18,7 @@ CONFUSABLE_DIGITS = {frozenset(p) for p in ("56", "17", "06", "08", "38", "35", 
 MISREAD_TOP_N = 3  # a misread number only backs an entry in the livery's own top N
 
 IDENTIFIED = ("number", "livery")
+BURST_ANCHORS = IDENTIFIED + ("neighbour",)  # results that can anchor a burst fill
 
 
 @dataclass(frozen=True)
@@ -46,6 +47,9 @@ class BoxResult:
     # Set by neighbour.neighbour_aid on a doubtful number read that doesn't fit the groups shot
     # either side of it; the result and its tags stay, the photographer checks it.
     order_flag: bool = False
+    # How neighbour.neighbour_aid settled a `neighbour` result: "order" (a misread fits the number
+    # order) or "lookalike" (the crop looks like a nearby identified car). Log only; not in results.csv.
+    via: str = ""
 
 
 def match_livery(box: int, sims: list, entries: dict, unmatched: str = "") -> BoxResult:
@@ -324,11 +328,16 @@ def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, bo
     """The frame's rows with box 0 set to the burst's entry, or the rows unchanged when the frame is
     already identified, has no box 0, shows a team-only result for another team (a different car), the
     confidence is under BURST_MIN_CONFIDENCE (waived when `solo`: a SOLO_ANCHOR_CONF read anchors the
-    burst), or (with `box0_sims`) box 0's own similarities don't back the entry."""
+    burst), or (with `box0_sims`) box 0's own similarities don't back the entry. A frame where no
+    vehicle was found (a lone box -1 `none` row) takes the entry on that row: nothing in it contradicts the burst."""
     rows = frames[fid]
-    if any(r.method in IDENTIFIED for r in rows) or not any(r.box == 0 for r in rows):
+    if any(r.method in BURST_ANCHORS for r in rows):
         return rows
     if confidence < BURST_MIN_CONFIDENCE and not solo:
+        return rows
+    if all(r.box < 0 and r.method == "none" for r in rows):
+        return [replace(r, method="burst", entry_id=eid, alt_entry_id="", confidence=confidence) for r in rows]
+    if not any(r.box == 0 for r in rows):
         return rows
     if box0_sims is not None and not (fid in box0_sims and (not box0_sims[fid] or _supported(box0_sims[fid], eid))):
         return rows  # empty sims (a collection without references) leave nothing to contradict the burst
@@ -348,7 +357,7 @@ def _split_burst(ids: list, frames: dict) -> list:
     belong to either car and stay unfilled."""
     anchors = []
     for pos, fid in enumerate(ids):
-        ident = [r.entry_id for r in frames[fid] if r.box == 0 and r.method in IDENTIFIED]
+        ident = [r.entry_id for r in frames[fid] if r.box == 0 and r.method in BURST_ANCHORS]
         if ident:
             anchors.append((pos, ident[0]))
     runs: list = []
@@ -371,7 +380,7 @@ def _smooth_spikes(ids: list, frames: dict) -> dict:
     """`frames` with each isolated `livery` anchor set to the entry its neighbouring anchors agree on:
     a livery call is weaker than a number, and one flanked on both sides by the same other car is
     a misread of that car, not a car passing for one frame."""
-    anchors = [(fid, [r for r in frames[fid] if r.box == 0 and r.method in IDENTIFIED]) for fid in ids]
+    anchors = [(fid, [r for r in frames[fid] if r.box == 0 and r.method in BURST_ANCHORS]) for fid in ids]
     anchors = [(fid, rs[0]) for fid, rs in anchors if rs]
     out = dict(frames)
     for n in range(1, len(anchors) - 1):
@@ -386,8 +395,8 @@ def _smooth_spikes(ids: list, frames: dict) -> dict:
 def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None, box0_sims: dict = None) -> dict:
     """frames: image id → [BoxResult]. A frame none of whose boxes was identified
     takes its burst's entry on its largest box when at least BURST_MIN_AGREE
-    frames agree on that entry, or one number read reaches SOLO_ANCHOR_CONF, and no frame names
-    another. With `entries`, a
+    frames agree on that entry (a number, livery or neighbour result), or one number read reaches
+    SOLO_ANCHOR_CONF, and no frame names another. With `entries`, a
     frame whose team-only result names another team is left alone: that's
     evidence of a different car. A burst that names several entries is split at the identity
     changes (see _split_burst) using `order` (image id → sort key, shooting order; default the
@@ -400,7 +409,7 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
     for ids in members.values():
         agree: dict = {}
         for fid in ids:
-            for eid in {r.entry_id for r in frames[fid] if r.method in IDENTIFIED}:
+            for eid in {r.entry_id for r in frames[fid] if r.method in BURST_ANCHORS}:
                 agree[eid] = agree.get(eid, 0) + 1
         if len(agree) > 1:
             ordered = sorted(ids, key=order.__getitem__) if order else ids

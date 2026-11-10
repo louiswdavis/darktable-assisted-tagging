@@ -32,7 +32,7 @@ Forked from [darktable-assisted-culling](https://github.com/louiswdavis/darktabl
 ## Requirements
 
 - darktable 5.6, built with Lua (the official builds are).
-- Python 3.10+ with the packages in `python/requirements.txt`: `opencv-python-headless` (4.x, pinned `<5`), `numpy`, `Pillow`, `rawpy` and `onnxruntime`.
+- Python 3.10+ with the packages in `python/requirements.txt`: `opencv-python-headless` (4.x, pinned `<5`), `numpy`, `Pillow`, `rawpy`, `onnxruntime` and `PyYAML` (only the PP-OCRv5 number reader uses it).
 - About 160 MB of models, listed below.
 
 `rawpy` needs `libraw`. The Windows and macOS wheels bundle it; on Linux install `libraw-dev` first, or skip `rawpy` if you only shoot JPEG.
@@ -87,6 +87,25 @@ curl -L -o models/dinov2_base.onnx https://huggingface.co/onnx-community/dinov2-
 |---|---|---|---|
 | `image_segmentation_efficientsam_ti_2025april.onnx` | | outlines an overlapped car | OpenCV model zoo (EfficientSAM), Apache-2.0 |
 | `dinov2_base.onnx` | about 350 MB | livery matching, larger than `dinov2_small.onnx` | DINOv2 ViT-B/14 via onnx-community, Apache-2.0 |
+
+**Newer number reader (PP-OCRv5).** An optional alternative to the CRNN recogniser that reads colour crops at a larger size and was trained on far more text. The text detector stays the same; only the reading step changes. Download the model and its `inference.yml`, and save the yml under the model's name with `.yml`, because the plugin treats a recogniser as PaddleOCR when that file sits beside it:
+
+```
+curl -L -o models/en_PP-OCRv5_mobile_rec.onnx https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/main/inference.onnx
+curl -L -o models/en_PP-OCRv5_mobile_rec.yml https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/main/inference.yml
+```
+
+| File | Size | Job | Source, licence |
+|---|---|---|---|
+| `en_PP-OCRv5_mobile_rec.onnx` + `.yml` | 7.9 MB | reads the text, replacing the CRNN | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
+
+Compare it with the CRNN on your own photos before switching. This prints each vehicle's reads from both, marks the ones that differ, and counts how many vehicles each got a number on:
+
+```
+python python/compare_ocr.py --rec models/text_recognition_CRNN_EN_2021sep.onnx --rec models/en_PP-OCRv5_mobile_rec.onnx --out compare.csv <a folder of photos>
+```
+
+To use it, type `en_PP-OCRv5_mobile_rec.onnx` into the collection's **number reader model file** option and **update preset**. The run log's `number reader:` line names the recogniser in use. Every photo is read again on the next run, because the model is part of the cache key. A yml whose dictionary doesn't fit the model stops the run at the start with an error.
 
 **Audit references** (panel button, `python/audit_refs.py`) needs nothing beyond the packages in `requirements.txt` and the models above.
 
@@ -341,6 +360,8 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 
 - **Use team tags as hints** (on by default). A team tag you applied narrows matching on a solo shot.
 - **embedder model file (blank = bundled)** (text field). File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference on the next run.
+- **number reader model file** (text field, blank = bundled CRNN). File name in `models/` of the text recogniser, e.g. `en_PP-OCRv5_mobile_rec.onnx` with its `.yml` beside it (see [Models](#2-models)). Changing it re-reads every photo on the next run.
+- **order weight** (text field, blank = `entries.json`). Overrides the collection's `rules.order_weight` without editing the file: a number from 0 to 1, where 0 turns the neighbour aid off. Anything else refuses the run.
 - **neighbour tolerance** (text field, default 5). The most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places). A whole number, 0 or more (anything else refuses the run). Only used when the collection's `order_weight` is above 0.
 
 ### 4 tags written
@@ -379,23 +400,33 @@ assisted_tagging.lua groups the selection by Grouping support (native, tags or n
         |
         v
 identify.py, per frame:  decode at full resolution → YOLOX vehicle boxes (up to 4)
-        |                → per box: crop → read numbers → DINOv2 embedding
+        |                → per box: crop (EfficientSAM mask when boxes overlap)
+        |                → read numbers → DINOv2 embedding         (all cached)
+        |                no vehicle found → a weaker candidate box that looks like a
+        |                group mate's car is kept (rescue)
         v
-per box:   sponsor words on the car (or a team tag you applied) narrow the candidates to one team, then
+match, pass 1, per box:  sponsor words on the car (or a team tag you applied) narrow the candidates to one team, then
            one number matches one entry                 → number
            else best livery match clear of the next one → livery
            else best two are teammates                  → team (shared tags only)
            else                                         → none
         |
         v
-neighbour aid (only when rules.order_weight > 0): a doubtful or unmatched number is
-           checked against the 3 groups shot before and after (within 2 minutes)
-           resolved to a nearby entry → neighbour; unsupported low-confidence read → "Check order" tag
+hires re-read: boxes still unidentified are read again from a half-size RAW decode → match, pass 2
         |
         v
-per group: frames with nothing identified take the group's entry
-           when 2+ frames agree on it (or one number read is 0.95+ sure)
-           and none disagree → burst
+neighbour aid (only when order weight > 0), against the 3 groups shot before and after (within 2 minutes):
+           a misread or unmatched number near a nearby entry in the list → neighbour (order)
+           a box with no number read that looks like a nearby identified car → neighbour (look-alike)
+           unsupported low-confidence read → "Check order" tag
+        |
+        v
+per group: frames with nothing identified take the group's entry when
+           it is anchored by number, livery or neighbour results,
+           2+ frames agree on it (or one number read is 0.95+ sure),
+           none disagree, and it covers at least half the group → burst
+           frames where no vehicle was found are filled too (box -1);
+           frames that errored or were skipped never are
            (experimental: pool livery similarity across the burst → pooled)
         |
         v
@@ -408,7 +439,7 @@ Each outcome above is one of these methods, named consistently from `identify.py
 |---|---|---|
 | `number` | OCR reading an entry's `number` | `…\|By number` |
 | `livery` | the DINOv2 embedding, against reference samples | `…\|By livery` |
-| `neighbour` | the groups shot before and after, for a number that was misread or didn't match (needs `order_weight`) | `…\|By neighbour` |
+| `neighbour` | the groups shot before and after: a number that was misread or didn't match, or a box with no number that looks like a nearby car (needs `order_weight`) | `…\|By neighbour` |
 | `burst` | the rest of the burst agreeing, when number and livery didn't | `…\|By burst` |
 | `pooled` | the burst's pooled livery similarity (experimental `burst_livery_pooling` rule) | `…\|By pooled burst` |
 | `team` | two teammates too close to call by livery (shared tags only) | `…\|Team only` |
@@ -441,6 +472,10 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 | `MATCH_MIN_MARGIN` | `match.py` | 0.10 | how far the best entry must be ahead of the next one. Similarities are centred on the references' mean once a collection has 20+ references, which spreads them out, so the gate is wider than it looks; `python/eval_matching.py` sweeps it on your own references |
 | `BURST_MIN_AGREE` | `match.py` | 2 | frames that must agree before a burst fills in the rest |
 | `SOLO_ANCHOR_CONF` | `match.py` | 0.95 | a number read this sure fills a burst that names no other entry on its own, however few frames agree |
+| `BURST_MIN_CONFIDENCE` | `match.py` | 0.5 | the share of the group the entry must cover before a burst fill is written |
+| `LOOKALIKE_MIN_SIM` | `neighbour.py` | 0.85 | how alike a box with no number and a nearby identified car must look for the neighbour look-alike |
+| `LOOKALIKE_MARGIN` | `neighbour.py` | 0.05 | how far that car must lead the best-looking other car nearby |
+| `DOUBT_CONF` | `neighbour.py` | 0.90 | a number read below this is doubtful, so the neighbour aid checks it |
 | `REFERENCE_MIN_MARGIN` | `match.py` | 0.10 | how far a livery match must lead to be saved by **Add from last run** |
 | `MIN_BOX_FRAC` | `vehicles.py` | 0.005 | the smallest vehicle, as a share of the frame, worth identifying |
 | `MAX_BOXES` | `vehicles.py` | 4 | vehicles identified per frame |
@@ -546,6 +581,8 @@ python python/identify.py manifest.csv results.csv --collections-root collection
     --detector models/object_detection_yolox_2022nov.onnx --ocr-det models/text_detection_en_ppocrv3_2023may.onnx \
     --ocr-rec models/text_recognition_CRNN_EN_2021sep.onnx --embedder models/dinov2_small.onnx
 ```
+
+`--ocr-rec` takes the PP-OCRv5 model too (its `.yml` beside it). `--order-weight 0.5` overrides the collection's `rules.order_weight` for the run, and `--neighbour-tolerance N` sets the tolerance, as the panel's fields do.
 
 `results.csv` gets `id,box,method,entry_id,alt_entry_id,confidence,unmatched_number,shot` per vehicle (box −1 for a frame with no vehicle; method `skipped` or `conflict` as above). Exit codes: 0 ok, 2 bad input (the message is on stderr), 3 missing package, 130 cancelled.
 

@@ -12,6 +12,10 @@ NEIGHBOUR_WINDOW = 3  # groups either side of a group that can lend support
 NEIGHBOUR_MAX_GAP_S = 120  # a neighbour shot further away than this (a stage break) is ignored
 DOUBT_CONF = 0.90  # a number read below this is doubtful; reads under ocr.OCR_MIN_SCORE (0.80) never get here
 FLAG_MIN_WEIGHT = 0.5  # order_weight at which a doubtful read with no support is flagged
+# Look-alike: an unread box takes the car of an identified box in a nearby group whose crop it resembles.
+# Raw embedding cosine between the two crops (same embedder, same run); first guesses, tune from the run log.
+LOOKALIKE_MIN_SIM = 0.85
+LOOKALIKE_MARGIN = 0.05  # over the best-looking box of any other car nearby
 
 
 def entry_positions(entries: dict) -> dict:
@@ -53,14 +57,34 @@ def _group_times(frames: dict, burst_of: dict, times: dict) -> dict:
     return out
 
 
+def lookalike(similar, fid: str, box: int, around: list):
+    """(entry id, sim) of the identified nearby box the crop most resembles, or None when the best is
+    under LOOKALIKE_MIN_SIM or another car's best is within LOOKALIKE_MARGIN of it. `around` is
+    [(frame id, box, entry id)]; `similar(fid, box, other fid, other box)` is a cosine or None."""
+    best: dict = {}
+    for ofid, obox, eid in around:
+        s = similar(fid, box, ofid, obox)
+        if s is not None and s > best.get(eid, -1.0):
+            best[eid] = s
+    if not best:
+        return None
+    ranked = sorted(best.items(), key=lambda kv: kv[1], reverse=True)
+    top_eid, top = ranked[0]
+    if top < LOOKALIKE_MIN_SIM or (len(ranked) > 1 and top - ranked[1][1] < LOOKALIKE_MARGIN):
+        return None
+    return top_eid, top
+
+
 def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
-                  tolerance: int, weight: float) -> dict:
+                  tolerance: int, weight: float, similar=None) -> dict:
     """frames: image id to [BoxResult]; times: image id to capture seconds (0 or missing = untimed).
     A `none` box with digits read takes the one candidate whose support from nearby groups reaches
     1 - `weight` (method `neighbour`, confidence = support): a neighbour up to weight x (tolerance + 1)
-    places away counts, so 1 uses the whole tolerance and a weight near 0 needs that same car nearby. A doubtful `number` read that no nearby group
-    supports is flagged (`order_flag`), result unchanged. Clear reads are never touched.
-    Returns `frames` itself when weight is 0 or there is nothing to measure against."""
+    places away counts, so 1 uses the whole tolerance and a weight near 0 needs that same car nearby.
+    With `similar` (see lookalike), a `none` box still unresolved takes the car of the nearby
+    identified box it looks like (method `neighbour`, confidence = sim), number order aside. A doubtful
+    `number` read that no nearby group supports is flagged (`order_flag`), result unchanged. Clear
+    reads are never touched. Returns `frames` itself when weight is 0 or there is nothing to measure against."""
     positions = entry_positions(entries)
     if weight <= 0 or not positions:
         return frames
@@ -73,17 +97,17 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
     members: dict = {}
     for fid in frames:
         members.setdefault(burst_of.get(fid, fid), []).append(fid)
-    seen = {g: [r.entry_id for fid in ids for r in frames[fid]
+    seen = {g: [(fid, r.box, r.entry_id) for fid in ids for r in frames[fid]
                 if r.method in IDENTIFIED and pos(r.entry_id) is not None]
             for g, ids in members.items()}
     gtimes = _group_times(frames, burst_of, times)
     ordered = sorted(gtimes, key=gtimes.get)
     slot = {g: i for i, g in enumerate(ordered)}
 
-    def window(g) -> list:
+    def window_boxes(g) -> list:
         i = slot[g]
         near = ordered[max(0, i - NEIGHBOUR_WINDOW):i] + ordered[i + 1:i + 1 + NEIGHBOUR_WINDOW]
-        return [eid for n in near if abs(gtimes[n] - gtimes[g]) <= NEIGHBOUR_MAX_GAP_S for eid in seen[n]]
+        return [hit for n in near if abs(gtimes[n] - gtimes[g]) <= NEIGHBOUR_MAX_GAP_S for hit in seen[n]]
 
     def support(eid: str, around: list) -> float:
         p = pos(eid)
@@ -98,19 +122,25 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
 
     out = dict(frames)
     for g in ordered:
-        around = window(g)
+        near_boxes = window_boxes(g)
+        around = [eid for _fid, _box, eid in near_boxes]
         if not around:
             continue
         for fid in members[g]:
             boxes = []
             for r in frames[fid]:
-                if r.method == "none" and r.unmatched_number:
-                    cands = {c for d in r.unmatched_number.split(";") for c in candidates_for(d, entries)}
-                    scored = sorted(((support(c, around), c) for c in cands), reverse=True)
-                    # the small slack keeps an exact boundary (e.g. 1 - 1/6 at weight 1/6) from failing on float error
-                    if (scored and scored[0][0] > 0 and scored[0][0] >= 1 - weight - 1e-9
-                            and (len(scored) == 1 or scored[0][0] > scored[1][0])):
-                        r = replace(r, method="neighbour", entry_id=scored[0][1], confidence=scored[0][0])
+                if r.method == "none" and r.box >= 0:
+                    if r.unmatched_number:
+                        cands = {c for d in r.unmatched_number.split(";") for c in candidates_for(d, entries)}
+                        scored = sorted(((support(c, around), c) for c in cands), reverse=True)
+                        # the small slack keeps an exact boundary (e.g. 1 - 1/6 at weight 1/6) from failing on float error
+                        if (scored and scored[0][0] > 0 and scored[0][0] >= 1 - weight - 1e-9
+                                and (len(scored) == 1 or scored[0][0] > scored[1][0])):
+                            r = replace(r, method="neighbour", entry_id=scored[0][1], confidence=scored[0][0], via="order")
+                    if r.method == "none" and similar is not None:
+                        hit = lookalike(similar, fid, r.box, near_boxes)
+                        if hit:
+                            r = replace(r, method="neighbour", entry_id=hit[0], confidence=hit[1], via="lookalike")
                 elif (r.method == "number" and r.confidence < DOUBT_CONF and weight >= FLAG_MIN_WEIGHT
                       and support(r.entry_id, around) == 0):
                     r = replace(r, order_flag=True)
