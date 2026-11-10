@@ -33,6 +33,7 @@ class Entry:
     team: str
     tags: tuple
     camera: str = ""  # onboard camera pod colour ("yellow" / "black"), a teammate tie-break; "" when unknown
+    colour: str = ""  # body colour (a palette name or "Multi"), a doubtful-decision tie-break; "" when unknown
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,10 @@ class BoxResult:
     # How neighbour.neighbour_aid settled a `neighbour` result: "order" (a misread fits the number
     # order) or "lookalike" (the crop looks like a nearby identified car). Log only; not in results.csv.
     via: str = ""
+    # The box's decided body colour (car_colour), carried through every later rewrite; "" when none.
+    colour: str = ""
+    # A confident number read whose entry's colour disagrees with `colour`; the result stays, the photographer checks it.
+    colour_flag: bool = False
 
 
 def match_livery(box: int, sims: list, entries: dict, unmatched: str = "") -> BoxResult:

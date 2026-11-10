@@ -12,6 +12,7 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import car_colour as C
 import identify as I
 import vehicles as V
 from embed import encode
@@ -141,6 +142,31 @@ def run_tests():
     for bad_read in (1.5, -0.1, "x", True):
         check(f"min_read {bad_read!r} is rejected",
               "rules.min_read" in load_error({"rules": {"min_read": bad_read}, "entries": [VER]}), True)
+    # ---- colour tags
+    check("colour_tags defaults off", I.load_collection(collection([VER]))[1].colour_tags, False)
+    check("colour_tags is read", I.load_collection(collection({"rules": {"colour_tags": True}, "entries": [VER]}))[1].colour_tags, True)
+    check("colour_tags must be a bool", "colour_tags" in load_error({"rules": {"colour_tags": "yes"}, "entries": [VER]}), True)
+    blue = dict(C.PALETTE)["Blue"]
+    check("default palette is the built-in one", I.load_collection(collection([VER]))[1].colour_palette, C.PALETTE)
+    _, navy = I.load_collection(collection({"rules": {"colour_palette": {"Navy": "Blue"}}, "entries": [VER]}))
+    check("a built-in name renames and drops the rest", navy.colour_palette, (("Navy", blue),))
+    _, custom = I.load_collection(collection({"rules": {"colour_palette": {"Teal": [
+        {"hue": [80, 95], "sat": [60, 255], "val": [40, 255]}, {"hue": [96, 100]}]}}, "entries": [VER]}))
+    check("bounds objects map to 6-tuples, missing sat/val is full range", custom.colour_palette,
+          (("Teal", ((80, 95, 60, 255, 40, 255), (96, 100, 0, 255, 0, 255))),))
+    for bad_palette in ({"Multi": "Red"}, {"Red": "Pink"}, {"Red": [{"hue": [9, 3]}]}, {"Red": [{"hue": [0, 300]}]},
+                        {"A|B": "Red"}, {}, {"Red": []}):
+        check(f"colour_palette {bad_palette!r} is rejected",
+              "colour_palette" in load_error({"rules": {"colour_palette": bad_palette}, "entries": [VER]}), True)
+    entries, _ = I.load_collection(collection([dict(VER, colour="Red"), dict(TSU, colour="Multi")]))
+    check("entry colour is read", (entries["VER"].colour, entries["TSU"].colour), ("Red", "Multi"))
+    check("entry colour defaults empty", I.load_collection(collection([VER]))[0]["VER"].colour, "")
+    msg = load_error([dict(VER, colour="Pink")])
+    check("unknown entry colour names the entry and colour", 'entry "VER"' in msg and "Pink" in msg, True)
+    msg = load_error({"rules": {"colour_palette": {"Red": "Red"}}, "entries": [dict(VER, colour="Blue")]})
+    check("entry colour outside the palette names the entry and colour", 'entry "VER"' in msg and "Blue" in msg, True)
+    _, diag = I.load_collection(collection({"rules": {"diagnostics": {"colour": "Rally|Colour"}}, "entries": [VER]}))
+    check("colour diagnostic is renamable", dict(diag.diagnostics)["colour"], "Rally|Colour")
     check("a trailing | on the prefix is rejected", "tag_prefix" in load_error({"rules": {"tag_prefix": "F1|"}, "entries": []}), True)
 
     # ---- csv outputs and the tag plan
