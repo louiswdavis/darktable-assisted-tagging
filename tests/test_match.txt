@@ -62,6 +62,17 @@ ok   consensus fills only the largest box
 ok   a frame with one identified box isn't filled
 ok   burst doesn't override a team-only result for another team
 ok   burst does upgrade a team-only result for its own team
+ok   two frames' weak reads agree: number
+ok   the second agreeing frame too
+ok   a lone weak read stays none
+ok   one frame alone doesn't agree
+ok   same read in different groups doesn't agree
+ok   a read under WEAK_READ_MIN doesn't count
+ok   two entries agreed in one group: neither
+ok   an identified rival in the group blocks it
+ok   an identified box of the same entry allows it; it is untouched
+ok   a number two entries share agrees on neither
+ok   only the box that read it changes
 ok   shot: no boxes
 ok   shot: one box is solo
 ok   shot: two boxes is a pack

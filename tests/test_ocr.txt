@@ -11,6 +11,10 @@ ok   a PaddleOCR charset decodes
 ok   superscript digits are not a number
 ok   circled digits are not a number
 ok   look-alike letters still read as digits
+ok   a door number is a fair share of the crop
+ok   a plate character is a small share
+ok   a tall crop measures against the full height
+ok   a slanted quad uses its longer side
 ok   the PaddleOCR yml sits beside the model
 ok   the dictionary keeps every entry a string
 ok   one class more adds the space
