@@ -1,0 +1,22 @@
+ok   two sure digits read
+ok   the read's confidence is its least sure digit
+ok   a repeat collapses, a blank splits
+ok   a repeated step keeps its best probability
+ok   one doubtful digit makes the read doubtful
+ok   nothing read gives confidence 0
+ok   probabilities pass through
+ok   log-probabilities come back as probabilities
+ok   logits are softmaxed
+ok   a PaddleOCR charset decodes
+ok   superscript digits are not a number
+ok   circled digits are not a number
+ok   look-alike letters still read as digits
+ok   the PaddleOCR yml sits beside the model
+ok   the dictionary keeps every entry a string
+ok   one class more adds the space
+ok   a dictionary that doesn't fit the model raises
+ok   PaddleOCR input is 1 x 3 x 48 x 320 for a short word
+ok   the word is scaled to 1, the padding is 0
+ok   a long word widens the input
+ok   a quad warps flat at its own size
+all passed

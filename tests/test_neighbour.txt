@@ -1,0 +1,43 @@
+ok   positions skip gaps and are ordered
+ok   positions collapse leading zeros
+ok   positions skip non-digit numbers
+ok   distance wraps around the end
+ok   distance inside the list
+ok   look-alike digit is a candidate
+ok   an inserted digit is a candidate
+ok   a dropped digit is a candidate
+ok   an exact match is not a candidate
+ok   weight 0 returns the input unchanged
+ok   empty entries returns the input unchanged
+ok   a doubtful read resolves toward its neighbours
+ok   resolved confidence is the support
+ok   the unmatched digits are kept
+ok   other frames are untouched
+ok   low weight keeps support below the accept bar
+ok   weight exactly at the bar resolves
+ok   a weight under 0.5 still resolves
+ok   a tiny weight takes the same car nearby
+ok   neighbours beyond the tolerance give no support
+ok   no candidate stays none
+ok   a clear read is never flagged
+ok   a misfit doubtful read is flagged
+ok   a flagged read keeps its entry
+ok   no flag below the flag weight
+ok   wrap-around neighbours support a read
+ok   the same number next door counts as support
+ok   neighbours across a stage break are ignored
+ok   untimed neighbours are ignored
+ok   an untimed photo is left alone
+ok   a group's own frames don't support each other
+ok   no frames
+ok   one group, no neighbours
+ok   one entry in the list
+ok   an unread box takes the car it looks like
+ok   look-alike confidence is the sim
+ok   a look-alike under the floor is left
+ok   two cars that look alike are left
+ok   no embeddings leave the box
+ok   no similar callback leaves the box
+ok   a number-order resolve comes before the look-alike
+ok   a frame with no vehicle is not looked at
+all tests passed
