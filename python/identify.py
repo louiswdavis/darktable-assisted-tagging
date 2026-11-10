@@ -30,6 +30,7 @@ from dataclasses import dataclass, replace
 
 from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect, detect_vehicles, detector_model, file_key, load_full, load_hires, log
 from ocr import NUMBER_MIN_HEIGHT, OCR_MIN_SCORE, NumberReader, ocr_key
+import car_colour
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged,
@@ -76,6 +77,10 @@ DIAG_DEFAULTS = {
     # Suffixed with the literal digits read, e.g. "...|Number seen|115": independent of
     # the outcome above, applied whenever OCR read a number that matched zero or 2+ entries.
     "number_seen": "Assisted Tagging|Identification|Number seen",
+    # Suffixed with the car's body colour, e.g. "...|Colour|Red" (rules.colour_tags).
+    "colour": "Assisted Tagging|Colour",
+    # A confident number read whose entry's colour disagrees with the colour seen; the entry tag stays.
+    "check_colour": "Assisted Tagging|Identification|Check colour",
     # Written instead of "livery"/"team" when burst_livery_pooling resolved a frame
     # that didn't clear the threshold on its own.
     "pooled": "Assisted Tagging|Identification|By pooled burst",
@@ -123,6 +128,10 @@ class Rules:
     # Motorsport: the least confidence (lower of text detection and the reader's own) a number read needs
     # to count. Weaker reads stay in the box's OCR trace but name nothing.
     min_read: float = 0.85
+    # Motorsport: read each car's body colour and write it as a tag (car_colour). Off: nothing runs.
+    colour_tags: bool = False
+    # ((tag name, ((hue_lo, hue_hi, sat_lo, sat_hi, val_lo, val_hi), ...)), ...): the colours read, in output order.
+    colour_palette: tuple = car_colour.PALETTE
 
 
 def _entry_tags(eid: str, item: dict, team: str, name: str, prefix: str, bad, number: str = "") -> tuple:
@@ -156,6 +165,40 @@ def _check_tags(tags, where: str, bad, allow_empty: bool = False):
             raise bad(f'{where}: tag "{t}" can\'t contain , ; or "')
 
 
+def _load_palette(raw, bad) -> tuple:
+    """rules.colour_palette → the PALETTE shape: {tag name: built-in name | [{"hue": [lo, hi], "sat": [lo, hi], "val": [lo, hi]}, ...]}.
+    A missing sat or val is the full range (0, 255); hue is required."""
+    if not isinstance(raw, dict) or not raw:
+        raise bad("rules.colour_palette must be an object mapping tag names to a built-in colour name or a list of bounds")
+    builtin = dict(car_colour.PALETTE)
+    out = []
+    for name, spec in raw.items():
+        if not name.strip() or _BAD_TAG.search(name) or "|" in name or name == car_colour.MULTI:
+            raise bad(f'rules.colour_palette: "{name}" must be a tag name without | , ; " and not "{car_colour.MULTI}"')
+        if isinstance(spec, str):
+            if spec not in builtin:
+                raise bad(f'rules.colour_palette.{name}: "{spec}" is not a built-in colour ({", ".join(builtin)})')
+            out.append((name, builtin[spec]))
+            continue
+        if not isinstance(spec, list) or not spec:
+            raise bad(f"rules.colour_palette.{name} must be a built-in colour name or a non-empty list of bounds")
+        ranges = []
+        for item in spec:
+            if not isinstance(item, dict) or "hue" not in item or set(item) - {"hue", "sat", "val"}:
+                raise bad(f'rules.colour_palette.{name}: each bounds object needs "hue" and may have "sat" and "val"')
+            bounds = []
+            for key, top in (("hue", 179), ("sat", 255), ("val", 255)):
+                lo_hi = item.get(key, [0, 255])
+                if not (isinstance(lo_hi, list) and len(lo_hi) == 2
+                        and all(isinstance(v, int) and not isinstance(v, bool) for v in lo_hi)
+                        and 0 <= lo_hi[0] <= lo_hi[1] <= top):
+                    raise bad(f"rules.colour_palette.{name}.{key} must be [lo, hi] whole numbers, 0 to {top}, lo at most hi")
+                bounds.extend(lo_hi)
+            ranges.append(tuple(bounds))
+        out.append((name, tuple(ranges)))
+    return tuple(out)
+
+
 def _load_rules(raw, bad) -> Rules:
     if raw is None:
         return Rules()
@@ -164,11 +207,12 @@ def _load_rules(raw, bad) -> Rules:
     unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling",
                                   "blur_references", "sponsor_keywords", "partial_references",
                                   "min_sim", "margin", "min_face_px", "colour_weight", "tag_prefix",
-                                  "order_weight", "min_read"})
+                                  "order_weight", "min_read", "colour_tags", "colour_palette"})
     if unknown:
         raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics, '
                    f'burst_livery_pooling, blur_references, sponsor_keywords, partial_references, '
-                   f'min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight, min_read)')
+                   f'min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight, min_read, '
+                   f'colour_tags, colour_palette)')
     defaults = Rules()
     min_sim, margin, min_px = (raw.get("min_sim", defaults.min_sim), raw.get("margin", defaults.margin),
                                raw.get("min_face_px", defaults.min_face_px))
@@ -190,6 +234,10 @@ def _load_rules(raw, bad) -> Rules:
     min_read = raw.get("min_read", defaults.min_read)
     if isinstance(min_read, bool) or not isinstance(min_read, (int, float)) or not 0 <= min_read <= 1:
         raise bad("rules.min_read must be a number from 0 to 1")
+    colour_tags = raw.get("colour_tags", defaults.colour_tags)
+    if not isinstance(colour_tags, bool):
+        raise bad("rules.colour_tags must be true or false")
+    colour_palette = _load_palette(raw["colour_palette"], bad) if "colour_palette" in raw else defaults.colour_palette
     tag_prefix = raw.get("tag_prefix", defaults.tag_prefix)
     if not isinstance(tag_prefix, str) or _BAD_TAG.search(tag_prefix) or tag_prefix != tag_prefix.strip("| "):
         raise bad('rules.tag_prefix must be a tag path like "Motorsport|F1": no , ; " and no leading or trailing |')
@@ -225,7 +273,7 @@ def _load_rules(raw, bad) -> Rules:
     return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling, blur_refs,
                  tuple(sponsors.items()), partial, min_sim=float(min_sim), margin=float(margin), min_face_px=min_px,
                  colour_weight=float(colour_weight), tag_prefix=tag_prefix, order_weight=float(order_weight),
-                 min_read=float(min_read))
+                 min_read=float(min_read), colour_tags=colour_tags, colour_palette=colour_palette)
 
 
 def load_collection(collection_dir: str) -> tuple:
@@ -271,7 +319,7 @@ def load_collection(collection_dir: str) -> tuple:
             raise bad(f'entry "{eid}" appears twice')
         unknown = check_entry_fields(kind, item)
         if unknown:
-            fields = "id, tags" if kind == "people" else "id, number, team, name, tags, camera"
+            fields = "id, tags" if kind == "people" else "id, number, team, name, tags, camera, colour"
             raise bad(f'entry "{eid}": unknown field "{unknown}" (fields are {fields})')
         if kind == "people":
             _check_tags(item.get("tags"), f'entry "{eid}": tags', bad)
@@ -290,7 +338,11 @@ def load_collection(collection_dir: str) -> tuple:
         camera = item.get("camera", "")
         if camera not in ("", "yellow", "black"):
             raise bad(f'entry "{eid}": camera must be "yellow" or "black"')
-        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, team, name, rules.tag_prefix, bad, number), camera)
+        colour = item.get("colour", "")
+        colours = [n for n, _ in rules.colour_palette] + [car_colour.MULTI]
+        if colour != "" and colour not in colours:
+            raise bad(f'entry "{eid}": colour "{colour}" is not one of {", ".join(colours)}')
+        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, team, name, rules.tag_prefix, bad, number), camera, colour)
     if kind == "people":
         if rules_raw is None:
             log("warning: entries.json has no rules block, so the face thresholds use defaults")
