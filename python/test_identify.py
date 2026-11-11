@@ -57,11 +57,11 @@ def load_error(data) -> str:
 
 def run_tests():
     # ---- loading entries.json
-    entries, rules = I.load_collection(collection([VER, TSU]))
+    entries, rules, _fe = I.load_collection(collection([VER, TSU]))
     check("a bare list loads entries in file order", list(entries), ["VER", "TSU"])
     check("an int number is read as text", entries["TSU"].number, "22")
     check("a bare list gets the default rules", rules, I.Rules())
-    entries, rules = I.load_collection(collection({"rules": {"team_only": "none", "unidentified": ["F1|Check"],
+    entries, rules, _fe = I.load_collection(collection({"rules": {"team_only": "none", "unidentified": ["F1|Check"],
                                                              "diagnostics": {"burst": "", "team": "X|Team"}},
                                                    "entries": [VER]}))
     check("rules: team_only", rules.team_only, "none")
@@ -96,11 +96,11 @@ def run_tests():
     LH = {"id": "Lando Norris", "tags": ["People|Professions|F1 Drivers|Lando Norris"]}
     PX = {"id": "Max Verstappen", "tags": ["People|Professions|F1 Drivers|Max Verstappen"]}
     check("kind defaults to motorsport", I.load_collection(collection([VER, TSU]))[1].kind, "motorsport")
-    p_entries, p_rules = I.load_collection(collection({"kind": "people", "entries": [LH, PX]}))
+    p_entries, p_rules, _fe = I.load_collection(collection({"kind": "people", "entries": [LH, PX]}))
     check("a people collection loads", (p_rules.kind, list(p_entries), p_entries["Lando Norris"].tags),
           ("people", ["Lando Norris", "Max Verstappen"], ("People|Professions|F1 Drivers|Lando Norris",)))
     check("people face rules have defaults", (p_rules.min_sim, p_rules.margin, p_rules.min_face_px), (0.50, 0.05, 48))
-    _, tuned = I.load_collection(collection({"kind": "people", "rules": {"min_sim": 0.6, "margin": 0, "min_face_px": 64},
+    _, tuned, _fe = I.load_collection(collection({"kind": "people", "rules": {"min_sim": 0.6, "margin": 0, "min_face_px": 64},
                                              "entries": [LH]}))
     check("people face rules are read", (tuned.min_sim, tuned.margin, tuned.min_face_px), (0.6, 0.0, 64))
     check("a people entry with a number is rejected", load_error({"kind": "people", "entries": [dict(LH, number="3")]}),
@@ -116,7 +116,7 @@ def run_tests():
           'unknown diagnostic "guess" (they are number, livery, burst, neighbour, check_order, team, none, number_seen, colour, check_colour, pooled, shot_solo, shot_pack, shot_crowded)')
 
     # ---- rules.tag_prefix builds tags from team and name
-    entries, rules = I.load_collection(collection({"rules": {"tag_prefix": "Motorsport|F1"}, "entries": [
+    entries, rules, _fe = I.load_collection(collection({"rules": {"tag_prefix": "Motorsport|F1"}, "entries": [
         {"id": "VER", "team": "Red Bull", "name": "Max Verstappen", "tags": ["Extra|Champion", "Motorsport|F1|Red Bull"]},
         {"id": "RB", "team": "Red Bull"}, {"id": "SC", "name": "Safety Car"}]}))
     check("prefix: team, then team|name, then extras without repeats", entries["VER"].tags,
@@ -128,7 +128,7 @@ def run_tests():
     check("prefix: an entry with nothing to build from is rejected",
           load_error({"rules": {"tag_prefix": "F1"}, "entries": [{"id": "X"}]}),
           'entry "X": needs a team or name to build its tags from rules.tag_prefix, or its own tags')
-    n_entries, _ = I.load_collection(collection({"rules": {"tag_prefix": "Rally|2026"}, "entries": [
+    n_entries, _, _fe = I.load_collection(collection({"rules": {"tag_prefix": "Rally|2026"}, "entries": [
         {"id": "12", "number": "12"}, {"id": "7", "number": 7, "team": "Red"}]}))
     check("numbers-only entry tags come from prefix and number", n_entries["12"].tags, ("Rally|2026|12",))
     check("an entry with a team keeps the team tag, not the number", n_entries["7"].tags, ("Rally|2026|Red",))
@@ -151,9 +151,9 @@ def run_tests():
     check("colour_tags must be a bool", "colour_tags" in load_error({"rules": {"colour_tags": "yes"}, "entries": [VER]}), True)
     blue = dict(C.PALETTE)["Blue"]
     check("default palette is the built-in one", I.load_collection(collection([VER]))[1].colour_palette, C.PALETTE)
-    _, navy = I.load_collection(collection({"rules": {"colour_palette": {"Navy": "Blue"}}, "entries": [VER]}))
+    _, navy, _fe = I.load_collection(collection({"rules": {"colour_palette": {"Navy": "Blue"}}, "entries": [VER]}))
     check("a built-in name renames and drops the rest", navy.colour_palette, (("Navy", blue),))
-    _, custom = I.load_collection(collection({"rules": {"colour_palette": {"Teal": [
+    _, custom, _fe = I.load_collection(collection({"rules": {"colour_palette": {"Teal": [
         {"hue": [80, 95], "sat": [60, 255], "val": [40, 255]}, {"hue": [96, 100]}]}}, "entries": [VER]}))
     check("bounds objects map to 6-tuples, missing sat/val is full range", custom.colour_palette,
           (("Teal", ((80, 95, 60, 255, 40, 255), (96, 100, 0, 255, 0, 255))),))
@@ -161,19 +161,19 @@ def run_tests():
                         {"A|B": "Red"}, {}, {"Red": []}):
         check(f"colour_palette {bad_palette!r} is rejected",
               "colour_palette" in load_error({"rules": {"colour_palette": bad_palette}, "entries": [VER]}), True)
-    entries, _ = I.load_collection(collection([dict(VER, colour="Red"), dict(TSU, colour="Multi")]))
+    entries, _, _fe = I.load_collection(collection([dict(VER, colour="Red"), dict(TSU, colour="Multi")]))
     check("entry colour is read", (entries["VER"].colour, entries["TSU"].colour), ("Red", "Multi"))
     check("entry colour defaults empty", I.load_collection(collection([VER]))[0]["VER"].colour, "")
     msg = load_error([dict(VER, colour="Pink")])
     check("unknown entry colour names the entry and colour", 'entry "VER"' in msg and "Pink" in msg, True)
     msg = load_error({"rules": {"colour_palette": {"Red": "Red"}}, "entries": [dict(VER, colour="Blue")]})
     check("entry colour outside the palette names the entry and colour", 'entry "VER"' in msg and "Blue" in msg, True)
-    _, diag = I.load_collection(collection({"rules": {"diagnostics": {"colour": "Rally|Colour"}}, "entries": [VER]}))
+    _, diag, _fe = I.load_collection(collection({"rules": {"diagnostics": {"colour": "Rally|Colour"}}, "entries": [VER]}))
     check("colour diagnostic is renamable", dict(diag.diagnostics)["colour"], "Rally|Colour")
     check("a trailing | on the prefix is rejected", "tag_prefix" in load_error({"rules": {"tag_prefix": "F1|"}, "entries": []}), True)
 
     # ---- csv outputs and the tag plan
-    entries, rules = I.load_collection(collection({"rules": {"unidentified": ["F1|Check"]},
+    entries, rules, _fe = I.load_collection(collection({"rules": {"unidentified": ["F1|Check"]},
                                                    "entries": [VER, TSU, {"id": "SC", "tags": ["F1|Safety Car"]}]}))
     out = tempfile.mkdtemp()
     I.write_entries_csv(entries, os.path.join(out, "e.csv"))
@@ -332,7 +332,7 @@ def run_tests():
     check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
     check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
 
-    _, shot_rules = I.load_collection(collection({"rules": {"diagnostics": {"shot_pack": "Mine|Pack", "shot_solo": ""}},
+    _, shot_rules, _fe = I.load_collection(collection({"rules": {"diagnostics": {"shot_pack": "Mine|Pack", "shot_solo": ""}},
                                                   "entries": [VER]}))
     check("shot diagnostics can be renamed or dropped like the others",
           (dict(shot_rules.diagnostics)["shot_pack"], dict(shot_rules.diagnostics)["shot_solo"],
