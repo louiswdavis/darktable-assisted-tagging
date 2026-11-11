@@ -2,6 +2,7 @@
 # Exercises identify.py's entries/rules loading, cache key, output and run flow,
 # plus vehicles.py's decode and crop, on synthetic files; no models needed.
 
+import ast
 import json
 import os
 import sys
@@ -13,7 +14,9 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import car_colour as C
+import fingerprint as FP
 import identify as I
+import ocr as O
 import vehicles as V
 from embed import encode
 from match import BoxResult
@@ -196,22 +199,43 @@ def run_tests():
     models = {k: frame for k in ("detector", "ocr_det", "ocr_rec", "embedder")}
     models["kind"] = "motorsport"
     key = I.frame_key(frame, models)
-    saved = I.OCR_MIN_SCORE
-    I.OCR_MIN_SCORE = 0.5
+    fp = FP.analysis_fingerprint()
+    check("the fingerprint is 12 hex chars", len(fp) == 12 and all(c in "0123456789abcdef" for c in fp), True)
+    saved = O.OCR_MIN_SCORE
+    O.OCR_MIN_SCORE = 0.5
+    FP._FINGERPRINT = ""
+    check("changing OCR_MIN_SCORE changes the fingerprint", FP.analysis_fingerprint() != fp, True)
     check("changing OCR_MIN_SCORE changes the cache key", I.frame_key(frame, models) != key, True)
-    I.OCR_MIN_SCORE = saved
+    O.OCR_MIN_SCORE = saved
+    FP._FINGERPRINT = ""
+    check("restoring the constant restores the fingerprint", FP.analysis_fingerprint(), fp)
     check("the cache key is stable", I.frame_key(frame, models), key)
     models["car_colour"] = None
     check("no colour tags leaves the cache key as it was", I.frame_key(frame, models),
           [V.file_key(frame), V.file_key(models["detector"]), I.ocr_key(models["ocr_det"], models["ocr_rec"]),
-           I.embedder_key(models["embedder"]), V.CROP_DIM, V.MIN_BOX_FRAC, V.BOX_MARGIN_TRIM, I.OCR_MIN_SCORE,
-           V.DETECTOR_MIN_SCORE, "ocr-trace-2", "read-conf-1", I.NUMBER_MIN_HEIGHT, "pod-2", "cand-1", "overlap-2"])
+           I.embedder_key(models["embedder"]), fp, "ocr-trace-2", "read-conf-1", "pod-2", "cand-1", "overlap-2"])
     models["car_colour"] = C.PALETTE
     colour_key = I.frame_key(frame, models)
     check("colour tags add the palette to the cache key", colour_key[-2:], ["car-colour-1", C.palette_digest(C.PALETTE)])
     models["car_colour"] = (("Crimson", C.PALETTE[0][1]),) + tuple(C.PALETTE[1:])
     check("renaming a palette colour changes the cache key", I.frame_key(frame, models) != colour_key, True)
     models["car_colour"] = None
+    models["segmenter"] = frame
+    check("the segmenter model file joins the cache key", I.frame_key(frame, models)[-2:], ["mask-1", V.file_key(frame)])
+    del models["segmenter"]
+    people = {"kind": "people", "face_det": frame, "face_rec": frame}
+    check("the people key carries the fingerprint", FP.analysis_fingerprint() in I.frame_key(frame, people), True)
+    check("the cache key carries no stray version", "1" not in I.IdentifyCache._key(["x"]), True)
+
+    # ---- every per-frame constant is filed as a cache input or neutral
+    for mod in FP.CACHE_INPUTS:
+        tree = ast.parse(open(mod.__file__, encoding="utf-8").read())
+        names = [t.id for node in tree.body if isinstance(node, (ast.Assign, ast.AnnAssign))
+                 for t in (node.targets if isinstance(node, ast.Assign) else [node.target])
+                 if isinstance(t, ast.Name) and t.id.lstrip("_").isupper() and t.id != "__all__"]
+        filed = FP.CACHE_INPUTS[mod] + FP.CACHE_NEUTRAL[mod]
+        check(f"{mod.__name__}: every constant is filed once", sorted(n for n in names if filed.count(n) != 1), [])
+        check(f"{mod.__name__}: nothing filed that does not exist", sorted(set(filed) - set(names)), [])
 
     # ---- results rows
     check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,,,")
@@ -459,7 +483,8 @@ def run_tests():
     except SystemExit as e:
         code = e.code
     check("a cancelled run exits 130", code, 130)
-    check("a cancelled run writes no results", os.path.exists(results) or os.path.exists(results + ".tmp"), False)
+    check("a cancelled run writes no results (nor leaves a temp file)",
+          [n for n in os.listdir(os.path.dirname(results)) if n.startswith(os.path.basename(results))], [])
     I.check_models, I.Embedder, I.run_frames, I.refine_frames = real
 
     # ---- Stage B: hints

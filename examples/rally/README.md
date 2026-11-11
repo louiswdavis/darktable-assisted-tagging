@@ -4,7 +4,7 @@ Cars of no known livery, passing in loops, identified by their race number alone
 
 ## Using it
 
-1. Copy this folder's `entries.json` into a new collection folder, or build one from your own list: put one number per line in a CSV, then run `python python/import_numbers.py numbers.csv entries.json --tag-prefix "Rally|2026" --order-weight 0.5`. It refuses to overwrite an existing file and stops on a duplicate or non-number.
+1. Copy this folder's `entries.json` into a new collection folder, or build one from your own list: put one number per line in a CSV, then run `python python/import_numbers.py numbers.csv entries.json --tag-prefix "Rally|2026" --order-weight 0.5`. It refuses to overwrite an existing file and stops on a duplicate or non-number. A full start list with drivers, teams and classes goes in through the panel's **Import start list** (section **1 collection**) or `python python/import_start_list.py <collection folder> --csv start.csv --tag-prefix "Rally|2026"`.
 2. Click **Reload**, then **Identify selection** on the batch.
 
 ## Order weight

@@ -8,6 +8,27 @@
 ]]
 
 local M = {}
+local THIS_DIR = (debug.getinfo(1, "S").source:sub(2):match("^(.*)[/\\]")) or "."
+
+-- plugin_common.lua lives beside this file; when this file was copied into lua/contrib by
+-- hand it is found through the plugin folder preference instead.
+local function load_common()
+    local dirs, tried = { THIS_DIR }, {}
+    local ok_dt, dt0 = pcall(require, "darktable")
+    if ok_dt then
+        local ok_p, folder = pcall(dt0.preferences.read, "assisted_tagging", "plugin_folder", "directory")
+        if ok_p and folder and folder ~= "" then dirs[#dirs + 1] = folder .. "/lua" end
+    end
+    for _, dir in ipairs(dirs) do
+        local path = dir .. "/plugin_common.lua"
+        local chunk = loadfile(path)
+        if chunk then return chunk() end
+        tried[#tried + 1] = path
+    end
+    error("assisted_tagging: plugin_common.lua not found (tried " .. table.concat(tried, ", ")
+        .. "). Copy it next to assisted_tagging.lua, or set the plugin folder preference.")
+end
+local C = load_common()
 
 M.cancel_requested = false
 M.module_installed = false
@@ -52,94 +73,16 @@ function M.exif_time_to_epoch(s)
     return ok and epoch or nil
 end
 
--- Copy of the group-key block in darktable-assisted-culling/lua/assisted_culling.lua; change both.
-local GROUP_PREFIX = "Assisted Grouping|"
-local GROUP_STAMP = "^%d%d%d%d%-%d%d%-%d%d %d%d:%d%d:%d%d$"
-
--- Greatest-stamp "Assisted Grouping|<stamp>|Group" among the tag names, or nil.
-function M.newest_group_node(tag_lists)
-    local best
-    for _, tags in ipairs(tag_lists) do
-        for _, name in ipairs(tags) do
-            if name:sub(1, #GROUP_PREFIX) == GROUP_PREFIX then
-                local stamp, rest = name:sub(#GROUP_PREFIX + 1):match("^([^|]+)|(.*)$")
-                if stamp and stamp:match(GROUP_STAMP) and (rest == "Group" or rest:sub(1, 6) == "Group|") then
-                    if not best or stamp > best then best = stamp end
-                end
-            end
-        end
-    end
-    return best and (GROUP_PREFIX .. best .. "|Group") or nil
+-- Shared with the other two plugins (plugin_common.lua); re-exported for the tests.
+M.newest_group_node, M.tag_group_keys, M.native_group_keys, M.number_groups =
+    C.newest_group_node, C.tag_group_keys, C.native_group_keys, C.number_groups
+M.shot_stem, M.is_raw, M.csv_line, M.parse_csv_line, M.parse_report_line, M.pythonw_of =
+    C.shot_stem, C.is_raw, C.csv_line, C.parse_csv_line, C.parse_csv_fields, C.pythonw_of
+local lead_rank = C.lead_rank
+for name, fn in pairs(C) do
+    if type(name) == "string" and name:match("^preset_") then M[name] = fn end
 end
 
--- id -> child name under node (first by name); second return lists ids with several children.
-function M.tag_group_keys(items, node)
-    local prefix = node .. "|"
-    local key_of, multi = {}, {}
-    for _, item in ipairs(items) do
-        local children = {}
-        for name in pairs(item.tags) do
-            if name:sub(1, #prefix) == prefix then
-                local child = name:sub(#prefix + 1)
-                if child ~= "" and not child:find("|", 1, true) then children[#children + 1] = child end
-            end
-        end
-        if #children > 0 then
-            table.sort(children)
-            key_of[item.id] = children[1]
-            if #children > 1 then multi[#multi + 1] = item.id end
-        end
-    end
-    return key_of, multi
-end
-
-function M.native_group_keys(items)
-    local key_of = {}
-    for _, item in ipairs(items) do
-        if item.leader then key_of[item.id] = tostring(item.leader) end
-    end
-    return key_of
-end
-
--- Dense integers from 1 by first appearance; an id with no key gets its own.
-function M.number_groups(ids, key_of)
-    local group_of, by_key, n = {}, {}, 0
-    for _, id in ipairs(ids) do
-        local key = key_of[id]
-        if key == nil then
-            n = n + 1
-            group_of[id] = n
-        else
-            if not by_key[key] then
-                n = n + 1
-                by_key[key] = n
-            end
-            group_of[id] = by_key[key]
-        end
-    end
-    return group_of
-end
-
--- Same list as culling's RAW_EXT: LibRaw's camera formats.
-local RAW_EXT = {}
-for ext in ("3fr ari arw bay cr2 cr3 crw dcr dcs dng erf fff iiq k25 kdc mdc mef mos mrw nef nrw "
-    .. "orf ori pef raf raw rw2 rwl sr2 srf srw x3f"):gmatch("%S+") do
-    RAW_EXT[ext] = true
-end
-local FULL_SIZE_EXT = { jpg = true, jpeg = true, png = true, tif = true, tiff = true }
-
--- "IMG_1.ARW" → "img_1": a RAW and its in-camera JPEG share it (darktable's import pairing
--- ignores extension and case too).
-function M.shot_stem(filename)
-    return (filename:match("^(.+)%.[^.]*$") or filename):lower()
-end
-
--- 2 a full-size file (JPEG, TIFF, PNG: the camera's exposure and colour), 1 a RAW, 0 other.
-local function lead_rank(filename)
-    local ext = (filename:match("%.([^.]+)$") or ""):lower()
-    if FULL_SIZE_EXT[ext] then return 2 end
-    return RAW_EXT[ext] and 1 or 0
-end
 
 -- Images → the ones to identify, and per identified id every image that takes its tags.
 -- One shot = darktable duplicates of a file plus a RAW+JPEG pair (same folder and stem),
@@ -193,22 +136,6 @@ function M.prefer_paired(images, pool)
     return out, swapped, pick_of
 end
 
-function M.csv_line(fields)
-    local out = {}
-    for i, v in ipairs(fields) do
-        out[i] = '"' .. tostring(v):gsub('"', '""') .. '"'
-    end
-    return table.concat(out, ",")
-end
-
-function M.parse_csv_line(line, n)
-    local parts = {}
-    for part in (line .. ","):gmatch("([^,]*),") do
-        table.insert(parts, part)
-    end
-    if #parts ~= n then return nil end
-    return parts
-end
 
 local function split(s, sep)
     local out = {}
@@ -426,20 +353,32 @@ function M.tag_changes(have, wanted, owned, owned_prefixes, protected, also_owne
     return attach, detach
 end
 
--- Ledger: the tags the plugin attached, per image id, persisted as `id,tag` lines. A
--- tag on an image that's not in its ledger was applied by the user.
-function M.ledger_parse(text)
-    local ledger = {}
+-- Ledger: the tags the plugin attached, per image id, persisted as `<library>,id,tag` lines. A
+-- tag on an image that's not in its ledger was applied by the user. `library` is C.library_key:
+-- image ids restart in every library, so only library `lib`'s lines are parsed (keyed by id);
+-- other libraries' lines are kept in ledger.other and written back unchanged. Lines from
+-- before the library column (`id,tag`) belong to `lib`.
+function M.ledger_parse(text, lib)
+    lib = lib or ""
+    local ledger = { other = {} }
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 2)
-        local id = p and tonumber(p[1])
-        if id and p[2] ~= "" then
+        local p = M.parse_csv_line(line, 3)
+        if not p then
+            p = M.parse_csv_line(line, 2)
+            if p then table.insert(p, 1, lib) end
+        end
+        local id = p and tonumber(p[2])
+        if p and p[1] ~= lib then
+            ledger.other[#ledger.other + 1] = table.concat(p, ",")
+        elseif id and p[3] ~= "" then
             ledger[id] = ledger[id] or {}
-            ledger[id][p[2]] = true
+            ledger[id][p[3]] = true
         end
     end
     return ledger
 end
+
+M.ledger_prune = C.ledger_prune
 
 -- A reference job's results.csv (`id,status,colour_note`; files from before colour notes have
 -- no third column) → its rows { id, status, note } and the count of each colour note.
@@ -465,9 +404,12 @@ function M.colour_note_extras(notes)
     return out
 end
 
-function M.ledger_format(ledger)
+function M.ledger_format(ledger, lib)
+    lib = lib or ""
     local ids = {}
-    for id in pairs(ledger) do ids[#ids + 1] = id end
+    for id in pairs(ledger) do
+        if type(id) == "number" then ids[#ids + 1] = id end
+    end
     table.sort(ids)
     local out = {}
     for _, id in ipairs(ids) do
@@ -475,9 +417,33 @@ function M.ledger_format(ledger)
         for name in pairs(ledger[id]) do names[#names + 1] = name end
         table.sort(names)
         -- unquoted: parse_csv_line doesn't unquote, and tag names never hold a comma
-        for _, name in ipairs(names) do out[#out + 1] = id .. "," .. name end
+        for _, name in ipairs(names) do out[#out + 1] = lib .. "," .. id .. "," .. name end
     end
+    for _, line in ipairs(ledger.other or {}) do out[#out + 1] = line end
     return #out > 0 and table.concat(out, "\n") .. "\n" or ""
+end
+
+-- Diagnostic, unidentified and number-seen / colour tags among `have` that the plugin
+-- didn't attach (not in `ledger_set`): applied by hand, so a run must never detach them.
+-- Only ever added to the detach protection, not sent to the identifier.
+function M.hand_diag_tags(have, ledger_set, rules)
+    rules = rules or M.default_rules()
+    local fixed = {}
+    for _, t in ipairs(rules.unidentified) do fixed[t] = true end
+    for _, t in pairs(rules.diag) do if t ~= "" then fixed[t] = true end end
+    for _, t in pairs(M.DIAG_TAGS) do fixed[t] = true end
+    local prefixes = M.owned_prefixes(rules)
+    local out = {}
+    for name in pairs(have) do
+        if not (ledger_set and ledger_set[name]) then
+            local hit = fixed[name]
+            for _, p in ipairs(prefixes) do
+                if name:sub(1, #p) == p then hit = true end
+            end
+            if hit then out[name] = true end
+        end
+    end
+    return out
 end
 
 -- Entry tags among `have` that the plugin didn't attach (not in `ledger_set`): the
@@ -576,15 +542,6 @@ end
 -- diagnostics, and clean enough for entries.json (no , ; ").
 local ASSISTED_PREFIX = "Assisted Tagging|"
 
--- python.exe → the pythonw.exe beside it (venvs and python.org installs ship both),
--- which opens no console window. nil for any other name.
-function M.pythonw_of(py)
-    local dir, name = py:match("^(.-)([^/\\]*)$")
-    name = name:lower()
-    if name == "python.exe" then return dir .. "pythonw.exe" end
-    if name == "python" then return dir .. "pythonw" end
-    return nil
-end
 
 function M.hierarchical_tags(names)
     local out = {}
@@ -763,214 +720,6 @@ function M.entries_json(entries)
     return "[\n" .. table.concat(parts, ",\n") .. "\n]\n"
 end
 
--- Preset block: drift-guarded copy in grouping, culling and tagging. Change all three
--- (test_preset_block.lua is the matching tests). Presets are flat JSON objects: string,
--- number and boolean values only, so a small codec does instead of a JSON library.
--- Schema item: { key, kind = "bool"|"string"|"number"|"choice", default, choices }.
-
-local function utf8_char(cp)
-    if cp < 0x80 then return string.char(cp) end
-    if cp < 0x800 then return string.char(0xC0 + math.floor(cp / 0x40), 0x80 + cp % 0x40) end
-    if cp < 0x10000 then
-        return string.char(0xE0 + math.floor(cp / 0x1000), 0x80 + math.floor(cp / 0x40) % 0x40, 0x80 + cp % 0x40)
-    end
-    return string.char(0xF0 + math.floor(cp / 0x40000), 0x80 + math.floor(cp / 0x1000) % 0x40,
-        0x80 + math.floor(cp / 0x40) % 0x40, 0x80 + cp % 0x40)
-end
-
-local JSON_ESCAPES = { ['"'] = '"', ["\\"] = "\\", ["/"] = "/", b = "\b", f = "\f", n = "\n", r = "\r", t = "\t" }
-
--- Returns the decoded flat object, or nil and why.
-function M.preset_decode(text)
-    if type(text) ~= "string" then return nil, "no text" end
-    local pos = 1
-    if text:sub(1, 3) == "\239\187\191" then pos = 4 end
-    local function skip() pos = text:find("[^ \t\r\n]", pos) or (#text + 1) end
-    local function fail(why) return nil, string.format("%s at character %d", why, pos) end
-    local function read_string()
-        pos = pos + 1 -- opening quote
-        local out = {}
-        while true do
-            local c = text:sub(pos, pos)
-            if c == "" then return nil end
-            if c == '"' then pos = pos + 1; return table.concat(out) end
-            if c == "\\" then
-                local e = text:sub(pos + 1, pos + 1)
-                if e == "u" then
-                    local cp = tonumber(text:sub(pos + 2, pos + 5), 16)
-                    if not cp or #text:sub(pos + 2, pos + 5) ~= 4 then return nil end
-                    pos = pos + 6
-                    if cp >= 0xD800 and cp <= 0xDBFF and text:sub(pos, pos + 1) == "\\u" then
-                        local lo = tonumber(text:sub(pos + 2, pos + 5), 16)
-                        if lo and lo >= 0xDC00 and lo <= 0xDFFF then
-                            cp = 0x10000 + (cp - 0xD800) * 0x400 + (lo - 0xDC00)
-                            pos = pos + 6
-                        end
-                    end
-                    out[#out + 1] = utf8_char(cp)
-                elseif JSON_ESCAPES[e] then
-                    out[#out + 1] = JSON_ESCAPES[e]
-                    pos = pos + 2
-                else
-                    return nil
-                end
-            else
-                local stop = text:find('["\\]', pos) or (#text + 1)
-                out[#out + 1] = text:sub(pos, stop - 1)
-                pos = stop
-            end
-        end
-    end
-
-    skip()
-    if text:sub(pos, pos) ~= "{" then return fail("expected {") end
-    pos = pos + 1
-    local obj = {}
-    skip()
-    if text:sub(pos, pos) == "}" then
-        pos = pos + 1
-    else
-        while true do
-            skip()
-            if text:sub(pos, pos) ~= '"' then return fail("expected a key") end
-            local key = read_string()
-            if not key then return fail("bad key") end
-            skip()
-            if text:sub(pos, pos) ~= ":" then return fail("expected :") end
-            pos = pos + 1
-            skip()
-            local c = text:sub(pos, pos)
-            if c == '"' then
-                local v = read_string()
-                if not v then return fail("bad string") end
-                obj[key] = v
-            elseif c == "t" and text:sub(pos, pos + 3) == "true" then
-                obj[key] = true; pos = pos + 4
-            elseif c == "f" and text:sub(pos, pos + 4) == "false" then
-                obj[key] = false; pos = pos + 5
-            elseif c == "n" and text:sub(pos, pos + 3) == "null" then
-                obj[key] = nil; pos = pos + 4
-            elseif c == "{" or c == "[" then
-                return fail("nested values aren't supported")
-            else
-                local num = text:match("^-?%d+%.?%d*[eE]?[-+]?%d*", pos)
-                local v = num and tonumber(num)
-                if not v then return fail("bad value") end
-                obj[key] = v
-                pos = pos + #num
-            end
-            skip()
-            local sep = text:sub(pos, pos)
-            pos = pos + 1
-            if sep == "}" then break end
-            if sep ~= "," then pos = pos - 1; return fail("expected , or }") end
-        end
-    end
-    skip()
-    if pos <= #text then return fail("unexpected text after }") end
-    return obj
-end
-
-local function json_string(s)
-    return '"' .. s:gsub('[%c"\\]', function(c)
-        if c == '"' then return '\\"' end
-        if c == "\\" then return "\\\\" end
-        if c == "\n" then return "\\n" end
-        if c == "\r" then return "\\r" end
-        if c == "\t" then return "\\t" end
-        return string.format("\\u%04x", c:byte())
-    end) .. '"'
-end
-
-local function json_number(n)
-    if n == math.floor(n) and math.abs(n) < 2 ^ 53 then return string.format("%d", n) end
-    return string.format("%.14g", n)
-end
-
--- One key per line in schema order, "version" first.
-function M.preset_encode(schema, settings)
-    local lines = { '  "version": 1' }
-    for _, item in ipairs(schema) do
-        local v = settings[item.key]
-        if v == nil then v = item.default end
-        local text
-        if type(v) == "boolean" then text = tostring(v)
-        elseif type(v) == "number" then text = json_number(v)
-        else text = json_string(tostring(v)) end
-        lines[#lines + 1] = "  " .. json_string(item.key) .. ": " .. text
-    end
-    return "{\n" .. table.concat(lines, ",\n") .. "\n}\n"
-end
-
-local function preset_value_ok(item, v)
-    if item.kind == "bool" then return type(v) == "boolean" end
-    if item.kind == "number" then return type(v) == "number" end
-    if item.kind == "string" then return type(v) == "string" end
-    if type(v) ~= "string" then return false end
-    for _, c in ipairs(item.choices or {}) do
-        if c == v then return true end
-    end
-    return false
-end
-
-function M.preset_defaults(schema)
-    local out = {}
-    for _, item in ipairs(schema) do out[item.key] = item.default end
-    return out
-end
-
--- Every schema key set: the decoded value when valid, else the default. Returns the
--- settings and the keys whose stored value was unusable (missing keys aren't problems).
-function M.preset_merge(schema, decoded)
-    local out, problems = {}, {}
-    for _, item in ipairs(schema) do
-        local v = decoded and decoded[item.key]
-        if v == nil then
-            out[item.key] = item.default
-        elseif preset_value_ok(item, v) then
-            out[item.key] = v
-        else
-            out[item.key] = item.default
-            problems[#problems + 1] = item.key
-        end
-    end
-    return out, problems
-end
-
-function M.preset_equal(schema, a, b)
-    for _, item in ipairs(schema) do
-        if a[item.key] ~= b[item.key] then return false end
-    end
-    return true
-end
-
--- Same characters as a folder name can't hold on Windows; "template" is the built-in preset.
-function M.preset_name_ok(raw)
-    local name = (raw or ""):gsub("^%s+", ""):gsub("%s+$", "")
-    if name == "" then return nil, "empty" end
-    if name:lower() == "template" then return nil, "reserved" end
-    if name:find('[/\\:*?"<>|]') then return nil, "bad character" end
-    return name
-end
-
--- "template" first, then the names sorted case-insensitively, without duplicates.
-function M.preset_order(names)
-    local seen, rest = {}, {}
-    for _, n in ipairs(names) do
-        if n:lower() ~= "template" and not seen[n] then
-            seen[n] = true
-            rest[#rest + 1] = n
-        end
-    end
-    table.sort(rest, function(x, y)
-        local lx, ly = x:lower(), y:lower()
-        if lx == ly then return x < y end
-        return lx < ly
-    end)
-    table.insert(rest, 1, "template")
-    return rest
-end
--- end preset block
 
 -- A collection's settings (settings.json beside entries.json). The built-in "template"
 -- holds these defaults. replace_manual is a one-off choice per run, not a setting.
@@ -1020,24 +769,29 @@ local PROGRESS_ANALYSIS = 0.8
 local WRITE_BUDGET = 12
 local WRITE_SLEEP_MS = 20
 
-local IS_WINDOWS = dt.configuration.running_os == "windows"
-local THIS_DIR = (debug.getinfo(1, "S").source:sub(2):match("^(.*)[/\\]")) or "."
+local IS_WINDOWS = C.IS_WINDOWS
 
 local TMP_DIR = dt.configuration.tmp_dir
-local MANIFEST_PATH = TMP_DIR .. "/dt_assisted_tagging_manifest.csv"
-local RESULTS_PATH = TMP_DIR .. "/dt_assisted_tagging_results.csv"
-local ENTRIES_PATH = TMP_DIR .. "/dt_assisted_tagging_entries.csv"
-local RULES_PATH = TMP_DIR .. "/dt_assisted_tagging_rules.csv"
-local COLLECTIONS_PATH = TMP_DIR .. "/dt_assisted_tagging_collections.csv"
-local PROGRESS_PATH = TMP_DIR .. "/dt_assisted_tagging_progress.txt"
+-- Leftovers of a darktable that crashed or was killed mid-run; a day old is surely not live.
+C.sweep_temp(TMP_DIR, "dt_assisted_tagging_", 86400)
+-- This instance's temp files: named per darktable instance, so two darktables (or a
+-- crashed one's orphaned identify.py) never read or write each other's.
+local TMP_BASE = C.temp_base(TMP_DIR, "dt_assisted_tagging_")
+local MANIFEST_PATH = TMP_BASE .. "manifest.csv"
+local RESULTS_PATH = TMP_BASE .. "results.csv"
+local ENTRIES_PATH = TMP_BASE .. "entries.csv"
+local RULES_PATH = TMP_BASE .. "rules.csv"
+local COLLECTIONS_PATH = TMP_BASE .. "collections.csv"
+local PROGRESS_PATH = TMP_BASE .. "progress.txt"
 local CANCEL_PATH = PROGRESS_PATH .. ".cancel"
-local DONE_PATH = TMP_DIR .. "/dt_assisted_tagging_done.txt"
+local DONE_PATH = TMP_BASE .. "done.txt"
 -- The run log: this plugin's lines plus identify.py's stderr. Kept in the
 -- config dir, which outlives tmp_dir; the run before it is kept as .prev.log.
 local LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.log"
 local PREV_LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.prev.log"
 local CACHE_PATH = dt.configuration.config_dir .. "/assisted_tagging/cache.sqlite"
 local LEDGER_PATH = dt.configuration.config_dir .. "/assisted_tagging/ledger.csv"
+local LIB_KEY = C.library_key(dt)
 local LAST_RUN_DIR = dt.configuration.config_dir .. "/assisted_tagging/last-run"
 local RUNS_DIR = dt.configuration.config_dir .. "/assisted_tagging/runs"
 local DEFAULT_COLLECTIONS_ROOT = dt.configuration.config_dir .. "/assisted_tagging/collections"
@@ -1045,7 +799,8 @@ local DEFAULT_COLLECTIONS_ROOT = dt.configuration.config_dir .. "/assisted_taggi
 local MODEL_FILES = {
     detector_model = "object_detection_yolox_2022nov.onnx",
     ocr_detection_model = "text_detection_en_ppocrv3_2023may.onnx",
-    ocr_recognition_model = "text_recognition_CRNN_EN_2021sep.onnx",
+    ocr_recognition_model = "en_PP-OCRv5_mobile_rec.onnx",  -- needs its .yml beside it
+    ocr_recognition_fallback = "text_recognition_CRNN_EN_2021sep.onnx",
     embedder_model = "dinov2_small.onnx",
     face_detector_model = "face_detection_yunet_2023mar.onnx",
     face_recognizer_model = "face_recognition_sface_2021dec.onnx",
@@ -1092,27 +847,7 @@ local TAG_TOGGLES = {
       when = "Solo: one vehicle found. Pack: two or three. Crowded: the detector's limit was reached, so there may be more cars than were identified." },
 }
 
-local function file_exists(name)
-    local f = io.open(name, "r")
-    if f ~= nil then f:close(); return true else return false end
-end
-
-local function first_existing(paths)
-    for _, p in ipairs(paths) do
-        if p and p ~= "" and file_exists(p) then
-            return p
-        end
-    end
-    return nil
-end
-
-local function read_file(path)
-    local f = io.open(path, "r")
-    if not f then return nil end
-    local t = f:read("*a")
-    f:close()
-    return t
-end
+local file_exists, first_existing, read_file = C.file_exists, C.first_existing, C.read_file
 
 local function plugin_folder_pref()
     local folder = (dt.preferences.read("assisted_tagging", "plugin_folder", "directory") or ""):gsub("[/\\]+$", "")
@@ -1210,48 +945,7 @@ local function examples_root()
     return plugin_root(plugin_folder_pref() == "" and identify_script() or nil) .. "/examples"
 end
 
-local function shell_quote(s)
-    if IS_WINDOWS then return '"' .. s .. '"' end
-    return "'" .. s:gsub("'", "'\\''") .. "'"
-end
-
--- "py -u argv..." quoted for the shell: the log line, and the launch off Windows.
-local function command_line(py, argv)
-    local parts = { shell_quote(py), "-u" }
-    for _, a in ipairs(argv) do parts[#parts + 1] = shell_quote(a) end
-    return table.concat(parts, " ")
-end
-
--- Starts `py -u argv...` without waiting, stderr to err_path (appended when `append`).
--- The exit code goes to a temp file renamed onto done_path, so done_path never exists
--- without its code in it. On Windows python/launch.py runs it under pythonw.exe: no
--- console window, no script host, nothing executable written to tmp (antivirus
--- behaviour checks flag a hidden .vbs/.bat chain). Returns false plus why it didn't start.
-local function run_async_python(py, argv, err_path, append, done_path)
-    if IS_WINDOWS then
-        local pyw = M.pythonw_of(py)
-        if not pyw then return false, "the Python preference must point at a python.exe" end
-        if pyw:find("[/\\]") and not file_exists(pyw) then return false, pyw .. " is missing" end
-        local job = done_path .. ".job"
-        local f = io.open(job, "w")
-        if not f then return false, "no write access to darktable's tmp folder" end
-        f:write(done_path, "\n", err_path, "\n", append and "a" or "w", "\n", table.concat(argv, "\n"), "\n")
-        f:close()
-        local launcher = (argv[1]:match("^(.*)[/\\]") or ".") .. "/launch.py"
-        local ok = os.execute('start "" /B ' .. shell_quote((pyw:gsub("/", "\\")))
-            .. " " .. shell_quote((launcher:gsub("/", "\\"))) .. " " .. shell_quote((job:gsub("/", "\\"))))
-        if not ok then
-            pcall(os.remove, job)
-            return false, pyw .. " didn't start"
-        end
-        return true
-    end
-    local done_tmp = done_path .. ".tmp"
-    os.execute('( ' .. command_line(py, argv) .. (append and " 2>> " or " 2> ") .. shell_quote(err_path)
-        .. ' ; echo $? > ' .. shell_quote(done_tmp)
-        .. ' ; mv -f ' .. shell_quote(done_tmp) .. ' ' .. shell_quote(done_path) .. ' ) >/dev/null 2>&1 &')
-    return true
-end
+local shell_quote, command_line, run_async_python = C.shell_quote, C.command_line, C.run_async_python
 
 -- Lists → one list, in order: argument lists built in parts.
 local function args_of(...)
@@ -1457,11 +1151,23 @@ local function failure_message(code)
         tostring(code or "?"))
 end
 
+-- The collection's reader when one is set; else PP-OCRv5, or the CRNN with one
+-- warning when the v5 model or its .yml isn't in models/ (an older install).
+local function ocr_rec_path(script)
+    local path = model_path("ocr_recognition_model", script)
+    if settings.ocr_rec_file ~= "" then return path end
+    if file_exists(path) and file_exists((path:gsub("%.onnx$", ".yml"))) then return path end
+    local fallback = model_path("ocr_recognition_fallback", script)
+    log(string.format("number reader: %s or its .yml is missing from models/, using %s (see the README to download PP-OCRv5)",
+        MODEL_FILES.ocr_recognition_model, MODEL_FILES.ocr_recognition_fallback))
+    return fallback
+end
+
 local function model_args(script)
     local args = {
         "--detector", model_path("detector_model", script),
         "--ocr-det", model_path("ocr_detection_model", script),
-        "--ocr-rec", model_path("ocr_recognition_model", script),
+        "--ocr-rec", ocr_rec_path(script),
         "--embedder", model_path("embedder_model", script),
     }
     -- face models are optional: only people collections need them, so a missing file is left unset
@@ -1636,20 +1342,7 @@ local function write_rows(path, rows)
     return true
 end
 
--- Writes path via path.tmp and a rename, so a crash or full disk leaves the old file whole.
--- Windows can't rename onto an existing file, so there the old one goes first.
-local function write_file_atomic(path, text)
-    local tmp = path .. ".tmp"
-    local f = io.open(tmp, "w")
-    if not f then return false end
-    local okw = f:write(text)
-    f:close()
-    if not okw then pcall(os.remove, tmp); return false end
-    if IS_WINDOWS then pcall(os.remove, path) end
-    local okr = os.rename(tmp, path)
-    if not okr then pcall(os.remove, tmp) end
-    return okr and true or false
-end
+local write_file_atomic = C.write_file_atomic
 
 local WRITE_ROWS_FAILED = "couldn't write the image list to darktable's tmp folder (disk full or no write access?)"
 
@@ -1773,7 +1466,7 @@ local function prepare_run(images, replace_manual)
     -- dropped, so a tag removed and re-applied by hand counts as the user's again.
     -- Protection and hints read the entries loaded at the last Reload or run, so Reload after
     -- editing entries.json.
-    local ledger = M.ledger_parse(read_file(LEDGER_PATH))
+    local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
     local protected_of, hints_of, sent_protected_of = {}, {}, {}
     local use_hints = settings.use_hints
     for _, copies in pairs(group_of) do
@@ -1798,6 +1491,10 @@ local function prepare_run(images, replace_manual)
             for name in pairs(replace_manual and {} or M.hand_colour_tags(have, kept, rules.diag.colour)) do
                 protected_of[copy.id][name] = true
             end
+            -- likewise hand-applied diagnostic, unidentified and number-seen tags
+            for name in pairs(replace_manual and {} or M.hand_diag_tags(have, kept, rules)) do
+                protected_of[copy.id][name] = true
+            end
         end
     end
 
@@ -1818,10 +1515,32 @@ local function prepare_run(images, replace_manual)
              applying = false }, rows
 end
 
--- Writes the ledger of the tags this plugin attached.
+-- Whether image `id` is still in the library. A get_image error counts as gone, as does a
+-- stale image whose fields can't be read; ledger_prune skips the prune when nothing resolves.
+local function image_exists(id)
+    local ok, name = pcall(function()
+        local img = dt.database.get_image(id)
+        return img and img.filename
+    end)
+    return ok and name ~= nil
+end
+
+-- Writes the ledger of the tags this plugin attached, first dropping the rows of images no
+-- longer in the library. A failed write is tried once more, then reported on screen.
 local function write_ledger(ledger)
-    if not write_file_atomic(LEDGER_PATH, M.ledger_format(ledger)) then
-        log("couldn't write the tag ledger " .. LEDGER_PATH .. "; tags this run attached will count as yours next run")
+    local pruned, skipped = M.ledger_prune(ledger, image_exists)
+    if pruned > 0 then log(string.format("ledger: dropped %d images no longer in the library", pruned)) end
+    if skipped then log("ledger: prune skipped, no image id resolved") end
+    local text = M.ledger_format(ledger, LIB_KEY)
+    local ok_w, err = write_file_atomic(LEDGER_PATH, text)
+    if not ok_w then
+        dt.control.sleep(200)
+        ok_w, err = write_file_atomic(LEDGER_PATH, text)
+    end
+    if not ok_w then
+        log("ledger: couldn't save " .. LEDGER_PATH .. " after two tries: " .. tostring(err))
+        notify_error(_("Assisted Tagging: couldn't save the tag ledger ") .. LEDGER_PATH .. " (" .. tostring(err)
+            .. "). Tags this run attached will count as yours next run.")
     end
 end
 
@@ -2098,7 +1817,7 @@ function M.add_references(images, entry_id)
     local okr, err = pcall(function()
         local rows, n_skipped, sent = {}, 0, {}
         local _, pick_of = with_paired_jpegs(images)
-        local ledger = M.ledger_parse(read_file(LEDGER_PATH))
+        local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         for _, img in ipairs(images) do
             -- the entry comes from the selected image's tags; the crop from its paired JPEG
             local src = pick_of[img.id]
@@ -2169,7 +1888,7 @@ function M.promote_references(images)
     local okr, err = pcall(function()
         -- Identify recorded boxes for the JPEG of a RAW+JPEG pair, so a selected RAW reads its JPEG's
         local rows = {}
-        local ledger = M.ledger_parse(read_file(LEDGER_PATH))
+        local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         for _, img in ipairs((with_paired_jpegs(images))) do
             rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, "",
                 M.hand_colour(tags_of(img), ledger[img.id], rules.diag.colour) or "" }
@@ -2404,359 +2123,9 @@ local function selected_example()
     return name
 end
 
--- Preset controls: drift-guarded copy in grouping, culling and tagging. Change all three.
--- The preset picker and actions menu at the top of the panel. Lua panels can't use darktable's
--- own presets (lualib.c leaves get_params/set_params NULL), so this builds its own.
--- Combobox callbacks run later and fire on every `selected` assignment, so each one acts
--- only when the widget's value differs from `current`.
+local preset_file_store, make_preset_controls = C.preset_file_store, C.make_preset_controls
 
-local PRESET_WHY = {
-    empty = "type a name first",
-    reserved = '"template" is the built-in preset',
-    ["bad character"] = 'a name can\'t hold / \\ : * ? " < > |',
-}
-
--- Presets as <dir>/<name>.json. The folder is made on first use.
-local function preset_file_store(dir)
-    local windows = dt.configuration.running_os == "windows"
-    local function quote(s)
-        if windows then return '"' .. s:gsub("/", "\\") .. '"' end
-        return "'" .. s:gsub("'", "'\\''") .. "'"
-    end
-    os.execute((windows and "mkdir " or "mkdir -p ") .. quote(dir) .. (windows and " 2>nul" or " 2>/dev/null"))
-    local store = {}
-    function store.path(name) return dir .. "/" .. name .. ".json" end
-    function store.list()
-        local names = {}
-        local p = io.popen(windows and ("dir /b " .. quote(dir .. "/*.json") .. " 2>nul")
-            or ("ls -1 " .. quote(dir) .. " 2>/dev/null"))
-        if not p then return names end
-        for line in p:lines() do
-            local name = line:gsub("\r$", ""):match("^(.+)%.json$")
-            if name then names[#names + 1] = name end
-        end
-        p:close()
-        return names
-    end
-    function store.read(name)
-        local f = io.open(store.path(name), "rb")
-        if not f then return nil end
-        local text = f:read("a")
-        f:close()
-        return text
-    end
-    -- Write a .tmp, then swap it in (Windows can't rename over an existing file).
-    function store.write(name, text)
-        local path = store.path(name)
-        local f = io.open(path .. ".tmp", "wb")
-        if not f then return false end
-        local ok = f:write(text)
-        f:close()
-        if not ok then os.remove(path .. ".tmp"); return false end
-        os.remove(path)
-        return os.rename(path .. ".tmp", path) and true or false
-    end
-    function store.rename(old, new)
-        local ok, err = os.rename(store.path(old), store.path(new))
-        return ok and true or false, err
-    end
-    function store.remove(name)
-        local ok, err = os.remove(store.path(name))
-        return ok and true or false, err
-    end
-    return store
-end
-
--- o = { prefix, schema, store, read_panel = fn() -> settings | nil, why,
---       show = fn(settings), remember = fn(name), initial = name, log = fn(msg),
---       on_change = fn(name, is_template) | nil, can_switch = fn() -> ok, why | nil,
---       allow_store_new = bool }
--- Optional store.copy_note(from, to) -> confirm text | nil, why and store.copy(from, to) -> ok, err:
--- store new then asks first, and copies the selected preset's store (e.g. a folder) before writing.
--- Returns ctl: ctl.widget (the box to put first in the panel), ctl.widgets, ctl.select(name),
--- ctl.refresh(), ctl.check_dirty(), ctl.name(), ctl.saved (settings last loaded or saved).
-local function make_preset_controls(o)
-    local ctl = { widgets = {} }
-    local names, current, menu_actions = { "template" }, nil, {}
-    local name_mode
-    local picker, menu, name_entry, name_box, confirm_label, confirm_box, dirty_label
-    local confirm_button, confirm_action, delete_clicked
-
-    local function say(msg) dt.print(o.prefix .. ": " .. msg) end
-
-    local function index_of(name)
-        for i, n in ipairs(names) do
-            if n == name then return i end
-        end
-    end
-
-    local function set_entries(combo, items)
-        for i = #combo, 1, -1 do combo[i] = nil end
-        for i, text in ipairs(items) do combo[i] = text end
-    end
-
-    local function show_picker(name)
-        local i = index_of(name)
-        if i and picker.selected ~= i then picker.selected = i end
-    end
-
-    -- Loads `name` into the panel. False (values untouched) when the file can't be used.
-    local function load(name)
-        local settings
-        if name == "template" then
-            settings = M.preset_defaults(o.schema)
-        else
-            local text = o.store.read(name)
-            local decoded, err
-            if text then decoded, err = M.preset_decode(text) else err = "can't be read" end
-            if not decoded then
-                local msg = string.format('preset "%s": %s %s, panel unchanged', name, o.store.path(name), err)
-                o.log(msg)
-                say(msg)
-                return false
-            end
-            local problems
-            settings, problems = M.preset_merge(o.schema, decoded)
-            for _, key in ipairs(problems) do
-                o.log(string.format('preset "%s": %s invalid, using default', name, key))
-            end
-            if #problems > 0 then
-                say(string.format('preset "%s": %d invalid value(s) set to the default (see the log)', name, #problems))
-            end
-        end
-        ctl.saved = settings
-        o.show(settings)
-        return true
-    end
-
-    local function hide_boxes()
-        name_box.visible = false
-        confirm_box.visible = false
-    end
-
-    local function ask_name(mode)
-        name_mode = mode
-        name_entry.text = mode == "rename" and current or ""
-        confirm_box.visible = false
-        name_box.visible = true
-    end
-
-    local function update()
-        local settings, why = o.read_panel()
-        if not settings then say(why); return end
-        if not o.store.write(current, M.preset_encode(o.schema, settings)) then
-            say("couldn't write " .. o.store.path(current))
-            return
-        end
-        ctl.saved = settings
-        say(string.format('preset "%s" updated', current))
-        ctl.check_dirty()
-    end
-
-    local function ask_confirm(text, button, action)
-        confirm_label.label = text
-        confirm_button.label = button
-        confirm_action = action
-        name_box.visible = false
-        confirm_box.visible = true
-    end
-
-    local function ask_delete()
-        ask_confirm(string.format('Delete preset "%s"?', current), "Delete", delete_clicked)
-    end
-
-    local function set_menu()
-        local items = { "choose…" }
-        menu_actions = { false }
-        local function add(text, action)
-            items[#items + 1] = text
-            menu_actions[#menu_actions + 1] = action
-        end
-        if current ~= "template" then add(string.format('update preset "%s"', current), update) end
-        if o.allow_store_new then add("store new preset…", function() ask_name("store") end) end
-        if current ~= "template" then
-            add("rename preset…", function() ask_name("rename") end)
-            add("delete preset", ask_delete)
-        end
-        set_entries(menu, items)
-        menu.selected = 1
-    end
-
-    function ctl.name() return current end
-
-    -- "unsaved changes" when the panel differs from the file. Template has no file.
-    function ctl.check_dirty()
-        local dirty = false
-        if current ~= "template" and ctl.saved then
-            local settings = o.read_panel()
-            dirty = not settings or not M.preset_equal(o.schema, settings, ctl.saved)
-        end
-        dirty_label.visible = dirty
-        return dirty
-    end
-
-    function ctl.select(name)
-        if name ~= "template" and not index_of(name) then name = "template" end
-        if current and o.can_switch then
-            local ok, why = o.can_switch()
-            if not ok then say(why); show_picker(current); return false end
-        end
-        if not load(name) then
-            if current then show_picker(current) else ctl.select("template") end
-            return false
-        end
-        current = name
-        show_picker(name)
-        o.remember(name)
-        hide_boxes()
-        set_menu()
-        if o.on_change then o.on_change(name, name == "template") end
-        ctl.check_dirty()
-        return true
-    end
-
-    -- Rereads the preset list. A selected preset that has gone falls back to template.
-    function ctl.refresh()
-        names = M.preset_order(o.store.list())
-        set_entries(picker, names)
-        if current and not index_of(current) then
-            current = nil
-            ctl.select("template")
-        elseif current then
-            show_picker(current)
-        end
-    end
-
-    local function name_taken(name)
-        for _, n in ipairs(o.store.list()) do
-            if n:lower() == name:lower() and not (name_mode == "rename" and n == current) then return true end
-        end
-        return false
-    end
-
-    local function name_ok_clicked()
-        local name, why = M.preset_name_ok(name_entry.text)
-        if not name then say("preset name: " .. PRESET_WHY[why]); return end
-        if name_taken(name) then say(string.format('a preset called "%s" already exists', name)); return end
-        if name_mode == "store" then
-            local settings, bad = o.read_panel()
-            if not settings then say(bad); return end
-            local from = current
-            local function store_new()
-                if o.store.copy then
-                    local ok, err = o.store.copy(from, name)
-                    if not ok then say(string.format('couldn\'t copy "%s": %s', from, tostring(err))); return end
-                end
-                if not o.store.write(name, M.preset_encode(o.schema, settings)) then
-                    say("couldn't write " .. o.store.path(name))
-                    return
-                end
-                hide_boxes()
-                ctl.refresh()
-                ctl.select(name)
-            end
-            if o.store.copy_note then
-                local text, why = o.store.copy_note(from, name)
-                if not text then say(why); return end
-                ask_confirm(text, "Store", store_new)
-                return
-            end
-            store_new()
-        else
-            local ok, err = o.store.rename(current, name)
-            if not ok then say(string.format('couldn\'t rename "%s": %s', current, tostring(err))); return end
-            name_box.visible = false
-            current = name
-            ctl.refresh()
-            o.remember(name)
-            set_menu()
-        end
-    end
-
-    delete_clicked = function()
-        local ok, err = o.store.remove(current)
-        if not ok then say(string.format('couldn\'t delete "%s": %s', current, tostring(err))); return end
-        confirm_box.visible = false
-        say(string.format('preset "%s" deleted', current))
-        ctl.refresh()
-    end
-
-    picker = dt.new_widget("combobox") {
-        label = "preset",
-        tooltip = "Pick a saved set of panel settings. template = the defaults. Unsaved changes are dropped when you switch. Save with actions → update preset.",
-        changed_callback = function(self)
-            local name = self.value
-            if current and name and name ~= "" and name ~= current then ctl.select(name) end
-        end,
-        "template",
-    }
-    menu = dt.new_widget("combobox") {
-        label = "actions",
-        tooltip = "Preset actions: update the selected preset with the panel's values, store the panel as a new preset, rename or delete.",
-        changed_callback = function(self)
-            local i = self.selected
-            if not i or i <= 1 then return end
-            local action = menu_actions[i]
-            self.selected = 1
-            if action then ctl.check_dirty(); action() end
-        end,
-        "choose…",
-    }
-    dirty_label = dt.new_widget("label") { label = "unsaved changes", halign = "start", visible = false }
-    name_entry = dt.new_widget("entry") { placeholder = "preset name", text = "" }
-    name_box = dt.new_widget("box") {
-        orientation = "vertical",
-        visible = false,
-        name_entry,
-        dt.new_widget("box") {
-            orientation = "horizontal",
-            dt.new_widget("button") { label = "OK", clicked_callback = name_ok_clicked },
-            dt.new_widget("button") { label = "Cancel", clicked_callback = function() name_box.visible = false end },
-        },
-    }
-    confirm_label = dt.new_widget("label") { label = "", halign = "start" }
-    confirm_button = dt.new_widget("button") {
-        label = "Delete",
-        clicked_callback = function() if confirm_action then confirm_action() end end,
-    }
-    confirm_box = dt.new_widget("box") {
-        orientation = "vertical",
-        visible = false,
-        confirm_label,
-        dt.new_widget("box") {
-            orientation = "horizontal",
-            confirm_button,
-            dt.new_widget("button") { label = "Cancel", clicked_callback = function() confirm_box.visible = false end },
-        },
-    }
-    ctl.widgets = { picker = picker, menu = menu, dirty_label = dirty_label, name_box = name_box, confirm_box = confirm_box }
-    ctl.widget = dt.new_widget("box") {
-        orientation = "vertical",
-        dt.new_widget("box") { orientation = "horizontal", picker, menu },
-        dirty_label,
-        name_box,
-        confirm_box,
-    }
-
-    ctl.refresh()
-    ctl.select(o.initial or "template")
-    return ctl
-end
--- end preset controls
-
--- Section block: drift-guarded copy in grouping, culling and tagging. Change all three.
--- A panel section is a section_label heading ("1  title"; number optional) above its widgets.
--- Sections don't fold: Lua has no clickable heading widget, and a button header looks like a button.
-local function step_label(number, title)
-    return dt.new_widget("section_label") { label = (number and (number .. "  ") or "") .. title }
-end
-
-local function make_section(number, title, widgets)
-    local body = { orientation = "vertical", step_label(number, title) }
-    for i = 1, #widgets do body[#body + 1] = widgets[i] end
-    return dt.new_widget("box")(body)
-end
--- end section block
+local step_label, make_section = C.step_label, C.make_section
 
 -- The preset store for make_preset_controls: each collection folder (one holding an
 -- entries.json) is a preset, its settings in settings.json beside entries.json.
@@ -2779,7 +2148,7 @@ local function collection_store()
     -- A collection without settings.json opens with the defaults.
     function store.read(name)
         if not file_exists(dir(name) .. "/entries.json") then return nil end
-        return read_file(store.path(name)) or "{}"
+        return C.read_file_or_tmp(store.path(name)) or "{}"
     end
     function store.write(name, text) return write_file_atomic(store.path(name), text) end
     -- Renames the collection folder, references and all.
@@ -2925,7 +2294,7 @@ local function install_panel()
         visible = false,
         clicked_callback = function()
             local path = entries_json_path()
-            local before = read_file(path)
+            local before = C.read_file_or_tmp(path)
             if not write_file_atomic(path, entries_editor.text) then
                 notify_error(string.format(_("Assisted Tagging: couldn't write %s (check the collections folder preference)."), path))
                 return
@@ -2952,7 +2321,7 @@ local function install_panel()
         tooltip = _("Edit the selected collection's entries.json in place below, then click Save entries.json"),
         clicked_callback = function()
             local path = entries_json_path()
-            local text = read_file(path)
+            local text = C.read_file_or_tmp(path)
             if not text then
                 notify_error(string.format(_("Assisted Tagging: couldn't read %s."), path))
                 return
@@ -2961,6 +2330,73 @@ local function install_panel()
             entries_editor.visible = true
             save_entries_button.visible = true
             cancel_entries_button.visible = true
+        end,
+    }
+    local start_list_file = dt.new_widget("file_chooser_button") {
+        title = _("Start list CSV"),
+        value = "",
+        is_directory = false,
+    }
+    local start_list_columns = dt.new_widget("entry") {
+        placeholder = _("columns: number=No.; driver=Driver (blank = usual header names)"),
+        text = "",
+        tooltip = _("Which CSV header holds each role, as role=header pairs separated by ;. Roles: number, driver, co-driver, team, class. Blank finds them by their usual names; only number is required."),
+    }
+    local start_list_text = dt.new_widget("text_view") {
+        editable = true,
+        text = "",
+        tooltip = _("Or paste an entry list here, one entry per line, number first, e.g. 12 Smith / Jones. Pasted text is used instead of the chosen file."),
+    }
+    local import_start_list_button = dt.new_widget("button") {
+        label = _("Import start list"),
+        tooltip = _("Add the CSV's or the pasted entries to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
+        clicked_callback = function()
+            if busy or not orphan_gone() then
+                dt.print(_("Assisted Tagging: busy, try again when the current run finishes."))
+                return
+            end
+            local script = identify_script()
+            local argv = { plugin_root(script) .. "/python/import_start_list.py", collections_root() .. "/" .. current_collection() }
+            local pasted = start_list_text.text or ""
+            if pasted:match("%S") then
+                local path = TMP_DIR .. "/assisted_tagging_start_list.txt"
+                if not write_file_atomic(path, pasted) then
+                    notify_error(_("Assisted Tagging: couldn't write the pasted list to darktable's tmp folder."))
+                    return
+                end
+                argv[#argv + 1] = "--text"
+                argv[#argv + 1] = path
+            elseif (start_list_file.value or "") ~= "" then
+                argv[#argv + 1] = "--csv"
+                argv[#argv + 1] = start_list_file.value
+                local cols = start_list_columns.text or ""
+                if cols:match("%S") then
+                    argv[#argv + 1] = "--columns"
+                    argv[#argv + 1] = cols
+                end
+            else
+                dt.print(_("Assisted Tagging: choose a start list CSV or paste the entries first."))
+                return
+            end
+            local cmd = command_line(python_bin(script), argv) .. " 2>&1"
+            -- cmd.exe strips the outer quotes of a quoted command line, so the whole thing gets one more pair
+            if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
+            log("import start list: " .. cmd)
+            local p = io.popen(cmd)
+            if not p then
+                notify_error(_("Assisted Tagging: couldn't start Python for the start list import."))
+                return
+            end
+            local out = (p:read("a") or ""):gsub("%s+$", "")
+            local ok = p:close()
+            log("import start list: " .. (out ~= "" and out or (ok and "no output" or "failed")))
+            if not ok then
+                notify_error("Assisted Tagging: " .. (out ~= "" and out or _("the start list import failed, see the log.")))
+                return
+            end
+            start_list_text.text = ""
+            -- quiet reload: the import's own summary is the message to keep on screen
+            if reload_lists(true) then dt.print("Assisted Tagging: " .. out) end
         end,
     }
     identify_button = dt.new_widget("button") {
@@ -3069,7 +2505,7 @@ local function install_panel()
     }
     local ocr_rec_entry = dt.new_widget("entry") {
         placeholder = _("number reader model file (blank = bundled)"),
-        tooltip = _("File name in the plugin's models/ folder used to read race numbers, e.g. en_PP-OCRv5_mobile_rec.onnx. A PaddleOCR model needs its inference.yml beside it, renamed to the model's name with .yml. Changing it re-reads every photo on the next run.\nDefault: blank (text_recognition_CRNN_EN_2021sep.onnx). Change it when numbers are missed or misread."),
+        tooltip = _("File name in the plugin's models/ folder used to read race numbers, e.g. en_PP-OCRv5_mobile_rec.onnx. A PaddleOCR model needs its inference.yml beside it, renamed to the model's name with .yml. Changing it re-reads every photo on the next run.\nDefault: blank (en_PP-OCRv5_mobile_rec.onnx, or text_recognition_CRNN_EN_2021sep.onnx when the v5 files are missing). Type the CRNN name to go back to the older reader."),
         text = "",
     }
     local tolerance_entry = dt.new_widget("entry") {
@@ -3128,7 +2564,9 @@ local function install_panel()
     local collection_box = dt.new_widget("box") {
         orientation = "vertical",
         make_section(1, _("collection"),
-            { plan_button, edit_button, entries_editor, save_entries_button, cancel_entries_button }),
+            { plan_button, edit_button, entries_editor, save_entries_button, cancel_entries_button,
+              dt.new_widget("label") { label = _("start list"), halign = "start" },
+              start_list_file, start_list_columns, start_list_text, import_start_list_button }),
         make_section(2, _("bursts"), {
             group_support_combo,
             dt.new_widget("label") { label = _("grouping tag node"), halign = "start" },

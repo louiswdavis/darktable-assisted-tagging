@@ -3,8 +3,9 @@ anything else. Only a file already in the canonical layout (`dump`) is rewritten
 is left alone, so a hand-formatted file never gets reflowed."""
 
 import json
-import os
 import shutil
+
+from common import atomic_write
 
 
 def _entry(entry: dict) -> str:
@@ -57,9 +58,7 @@ def set_colours(path: str, colours: dict) -> tuple:
     if inline is None:
         return False, "layout"
     out = dump(data, inline).rstrip() + text[len(text.rstrip()):]
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8", newline="") as f:
+    with atomic_write(path, newline="") as f:
         f.write(out.replace("\n", eol))
-    shutil.copy2(path, path + ".bak")
-    os.replace(tmp, path)
+        shutil.copy2(path, path + ".bak")  # the original, before the replace on exit
     return True, "set"

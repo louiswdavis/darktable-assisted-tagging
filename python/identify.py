@@ -19,6 +19,7 @@ Exit codes: 0 ok, 2 bad input (message on stderr), 3 missing package, 130 cancel
 import argparse
 import concurrent.futures
 import csv
+import hashlib
 import json
 import os
 import re
@@ -28,12 +29,14 @@ import sys
 import time
 from dataclasses import dataclass, replace
 
-from vehicles import BOX_MARGIN_TRIM, CROP_DIM, DETECTOR_MIN_SCORE, MAX_BOXES, MIN_BOX_FRAC, crop_box, detect, detect_vehicles, detector_model, file_key, load_full, load_hires, log
-from ocr import NUMBER_MIN_HEIGHT, OCR_MIN_SCORE, NumberReader, ocr_key
+from vehicles import MAX_BOXES, crop_box, detect, detect_vehicles, detector_model, file_key, load_full, load_hires, log
+from common import atomic_write
+from ocr import NumberReader, ocr_key
 import car_colour
 import entries_file
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
+from fingerprint import analysis_fingerprint
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged,
                    burst_consensus, colour_check, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
@@ -49,7 +52,6 @@ from reference_store import ReferenceIndex
 from people import FACE_EMBED_DIM, FaceModel, face_model_key
 from people_run import analyse_frame_people, build_boxes_people, match_frame_people, reference_face
 
-IDENTIFY_CACHE_VERSION = 1
 MAX_WORKERS = 4  # each worker holds every model plus a full-resolution decode
 CACHE_MAX_AGE_DAYS = 90
 CACHE_COMMIT_EVERY = 50
@@ -463,7 +465,7 @@ class IdentifyCache:
 
     @staticmethod
     def _key(parts) -> str:
-        return json.dumps(list(parts) + [IDENTIFY_CACHE_VERSION], separators=(",", ":"))
+        return json.dumps(list(parts), separators=(",", ":"))
 
     def get(self, *parts):
         if not self.db or any(p is None for p in parts):
@@ -496,14 +498,17 @@ class IdentifyCache:
 
 
 def frame_key(filepath: str, models: dict) -> list:
-    """Cache key parts for a frame's analysis. Entries and references stay out of it."""
+    """Cache key parts for a frame's analysis: the file, every model file, the
+    constants fingerprint and a token per cached stage (bumped on a code-only
+    change to that stage). Entries and references stay out of it."""
     if models["kind"] == "people":
-        return [file_key(filepath), "people", *face_model_key(models["face_det"], models["face_rec"]), "face-1"]
-    return [file_key(filepath),file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
-            embedder_key(models["embedder"]), CROP_DIM, MIN_BOX_FRAC, BOX_MARGIN_TRIM, OCR_MIN_SCORE,
-            DETECTOR_MIN_SCORE, "ocr-trace-2", "read-conf-1", NUMBER_MIN_HEIGHT, "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
+        return [file_key(filepath), "people", *face_model_key(models["face_det"], models["face_rec"]),
+                analysis_fingerprint(), "face-1"]
+    return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
+            embedder_key(models["embedder"]), analysis_fingerprint(),
+            "ocr-trace-2", "read-conf-1", "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
             *(["car-colour-1", car_colour.palette_digest(models["car_colour"])] if models.get("car_colour") else []),
-            *([SEGMENT_CACHE_TOKEN] if models.get("segmenter") else [])]
+            *([SEGMENT_CACHE_TOKEN, file_key(models["segmenter"])] if models.get("segmenter") else [])]
 
 
 # ---------------------------------------------------------------- progress
@@ -690,7 +695,8 @@ def check_models(models: dict):
             raise InputError(f"{label} model not found: {models[key] or '(not set)'}")
     loaders = (("object detector", "detector", lambda: detector_model(models["detector"])),
                ("OCR", "ocr_det", lambda: NumberReader(models["ocr_det"], models["ocr_rec"])),
-               ("embedder", "embedder", lambda: Embedder(models["embedder"])))
+               ("embedder", "embedder", lambda: Embedder(models["embedder"])),
+               *([("segmenter", "segmenter", lambda: Segmenter(models["segmenter"]))] if models.get("segmenter") else []))
     loaded = {}
     for label, key, load in loaders:
         try:
@@ -783,6 +789,13 @@ def rescue_frames(rows: list, analyses: dict, models: dict, progress: str = "") 
     return out
 
 
+def hires_key(boxes: list) -> list:
+    """The re-read's cache key parts: the box list is in it, so a box rescued from a burst
+    never reuses a re-read made without it."""
+    digest = hashlib.sha1(json.dumps(sorted(boxes, key=repr), default=str).encode()).hexdigest()[:12]
+    return ["hires-2", digest]
+
+
 def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, progress: str = "") -> dict:
     """analyses with the boxes in `wanted` (filepath → box indices) re-read from a sharper decode of
     the frame: OCR, embedding and colour replace the first-pass ones, and `hires` lists the boxes
@@ -791,7 +804,7 @@ def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, p
     try:
         reads, todo = {}, []
         for p in wanted:
-            hit = cache.get(*frame_key(p, models), "hires-1")
+            hit = cache.get(*frame_key(p, models), *hires_key(analyses[p]["boxes"]))
             if hit is None:
                 todo.append(p)
             else:
@@ -812,7 +825,7 @@ def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, p
                     p = futures[fut]
                     try:
                         reads[p] = fut.result()
-                        cache.put(reads[p], *frame_key(p, models), "hires-1")
+                        cache.put(reads[p], *frame_key(p, models), *hires_key(analyses[p]["boxes"]))
                     except Exception as e:
                         log(f"{p}: couldn't re-read at higher detail ({type(e).__name__}: {e}), first pass kept")
                     done += 1
@@ -934,10 +947,8 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
 def write_boxes(path: str, data: dict):
     """Writes build_boxes' record atomically."""
     os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
+    with atomic_write(path) as f:
         json.dump(data, f)
-    os.replace(tmp, path)
 
 
 def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, rules: Rules, team_of: dict,
@@ -987,8 +998,7 @@ def write_results(path: str, frames: dict, shots: dict) -> dict:
     """Writes the results.csv rows atomically and logs the burst and conflict decisions; returns
     the count of vehicles per method."""
     by_method: dict = {}
-    tmp = path + ".tmp"
-    with open(tmp, "w", newline="", encoding="utf-8") as f:
+    with atomic_write(path, newline="") as f:
         for image_id, results in frames.items():
             for r in results:
                 if r.method == "burst":
@@ -997,22 +1007,36 @@ def write_results(path: str, frames: dict, shots: dict) -> dict:
                     log(f"{image_id}: box {r.box}: {r.entry_id} shares no tag with the ones you applied; left as you tagged it")
                 by_method[r.method] = by_method.get(r.method, 0) + 1
                 f.write(format_row(image_id, r, shots[image_id]) + "\n")
-    os.replace(tmp, path)
     return by_method
 
 
+def best_effort(what: str, write):
+    """Runs a side-file write after results.csv exists: a failure is a warning, never exit 1."""
+    try:
+        write()
+    except Exception as e:
+        log(f"warning: couldn't write {what} ({type(e).__name__}: {e}); the results still apply")
+
+
 def write_run_outputs(args, data: dict):
-    """boxes.json, the report and the archive copy, as the run's flags ask."""
+    """boxes.json, the report and the archive copy, as the run's flags ask. Best effort."""
     written = []
-    if args.boxes_out:
+
+    def boxes():
         write_boxes(args.boxes_out, data)
         written.append(args.boxes_out)
-    if args.report_out:
+
+    def report():
         md_path, json_path = write_report(data, args.report_out, args.report_top)
         written += [md_path, json_path]
         log(f"report: {md_path}")
+
+    if args.boxes_out:
+        best_effort("boxes.json", boxes)
+    if args.report_out:
+        best_effort("the report", report)
     if args.archive_dir:
-        archive_run(written, args.archive_dir, ARCHIVE_KEEP)
+        best_effort("the archive copy", lambda: archive_run(written, args.archive_dir, ARCHIVE_KEEP))
 
 
 def open_index(collection: str, models: dict, rules: Rules, embedder, progress: str = "") -> ReferenceIndex:
@@ -1340,10 +1364,8 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
     if screen and rules.kind != "people":
         done = screen_new_refs(collection, index, done, screen)
     notes = fill_colours(os.path.join(collection, "entries.json"), entries, rules, done, proposed)
-    tmp = args.results + ".tmp"
-    with open(tmp, "w", newline="", encoding="utf-8") as f:
+    with atomic_write(args.results, newline="") as f:
         f.writelines(f"{image_id},{status},{note}\n" for (image_id, status, _), note in zip(done, notes))
-    os.replace(tmp, args.results)
     write_collection_outputs(args, collection, entries, rules)
 
 
@@ -1473,20 +1495,20 @@ def audit_references(args, models: dict):
     if counts["quarantined"]:
         index = open_index(collection, models, rules, check_models(models))  # drops the moved refs now, not at the next audit
         log(f"index refreshed after quarantine: {len(index.entry)} references")
-    tmp = args.results + ".tmp"  # Lua reads results once the process exits; never a half-written file
-    with open(tmp, "w", newline="", encoding="utf-8") as f:
+    # Lua reads results once the process exits; never a half-written file
+    with atomic_write(args.results, newline="") as f:
         f.writelines(f"{k},{v}\n" for k, v in counts.items())
         f.write(f"report,{report}\n")
-    os.replace(tmp, args.results)
 
 
 def write_collection_outputs(args, collection: str, entries: dict, rules: Rules):
-    """entries.csv and rules.csv for assisted_tagging.lua, and the collection's tag-plan.txt for the user."""
+    """entries.csv and rules.csv for assisted_tagging.lua, and the collection's tag-plan.txt for the user.
+    Best effort: the run's results are already written."""
     if args.entries_out:
-        write_entries_csv(entries, args.entries_out)
+        best_effort("entries.csv", lambda: write_entries_csv(entries, args.entries_out))
     if args.rules_out:
-        write_rules_csv(rules, args.rules_out)
-    log(f"tag plan: {write_tag_plan(collection, args.collection, entries, rules)}")
+        best_effort("rules.csv", lambda: write_rules_csv(rules, args.rules_out))
+    best_effort("tag-plan.txt", lambda: log(f"tag plan: {write_tag_plan(collection, args.collection, entries, rules)}"))
 
 
 def list_mode(args):
@@ -1512,7 +1534,7 @@ def main(argv=None):
     parser.add_argument("--detector", default="", help="YOLOX .onnx")
     parser.add_argument("--segmenter", default="", help="EfficientSAM .onnx (default: next to the detector, if present)")
     parser.add_argument("--ocr-det", default="", help="PP-OCRv3 text detection .onnx")
-    parser.add_argument("--ocr-rec", default="", help="CRNN text recognition .onnx")
+    parser.add_argument("--ocr-rec", default="", help="text recognition .onnx: PP-OCRv5 (its .yml beside it) or CRNN")
     parser.add_argument("--embedder", default="", help="DINOv2 .onnx")
     parser.add_argument("--face-detector", default="", help="YuNet .onnx (people collections)")
     parser.add_argument("--face-recognizer", default="", help="SFace .onnx (people collections)")

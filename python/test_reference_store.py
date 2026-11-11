@@ -67,6 +67,17 @@ def run_tests():
     check("matching ranks the identical sample first", [e for e, _ in best], ["VER", "Pérez"])
     check("an identical sample scores 1", round(best[0][1], 5), 1.0)
 
+    # a crop replaced by hand (same name, other content) is embedded again on the next load
+    Image.fromarray(crop(120)).save(os.path.join(d, "refs", "VER", "13.jpg"), quality=92)
+    os.utime(os.path.join(d, "refs", "VER", "13.jpg"), ns=(1, 1))  # a clock-identical overwrite still differs in size or mtime
+    emb_r = FakeEmbedder()
+    replaced = ReferenceIndex.load(d, emb_r, ["model", 1])
+    check("a replaced crop is re-embedded", (replaced.count_by_entry(), emb_r.calls), ({"Pérez": 1, "VER": 1}, 1))
+    check("the re-embedding reads the new content", int(np.argmax(replaced.emb[replaced.path.index("refs/VER/13.jpg")])), 120)
+    emb_s = FakeEmbedder()
+    ReferenceIndex.load(d, emb_s, ["model", 1])
+    check("the replaced crop's new stat is saved", emb_s.calls, 0)
+
     os.remove(os.path.join(d, "refs", "VER", "13.jpg"))
     pruned = ReferenceIndex.load(d, FakeEmbedder(), ["model", 1])
     check("a deleted crop drops out of the index", pruned.count_by_entry(), {"Pérez": 1})

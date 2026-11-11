@@ -1,0 +1,9 @@
+ok   common.py matches the shared copy
+ok   RAW_EXTENSIONS has the dot form
+FAIL RAW_EXTENSIONS count: got 32, want 31
+ok   atomic_write keeps the old file on failure
+ok   atomic_write replaces on success
+ok   atomic_write binary mode
+ok   atomic_write leaves no temp file
+
+1 test(s) failed

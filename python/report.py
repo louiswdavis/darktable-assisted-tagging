@@ -8,6 +8,8 @@ import argparse
 import json
 import os
 import statistics
+
+from common import atomic_write
 import sys
 
 from pod import pod_colour
@@ -382,10 +384,8 @@ def write_report(data: dict, out_prefix: str, top: int) -> tuple:
         for path, text in ((paths[0], render_people_md(data, all_rows, top)),
                            (paths[1], json.dumps({"kind": "people", "collection": data["collection"],
                                                   "thresholds": data["thresholds"], "rows": all_rows}))):
-            tmp = path + ".tmp"
-            with open(tmp, "w", encoding="utf-8") as f:
+            with atomic_write(path) as f:
                 f.write(text)
-            os.replace(tmp, path)
         return paths
     all_rows = rows(data)
     summary = summarize(data, all_rows)
@@ -395,10 +395,8 @@ def write_report(data: dict, out_prefix: str, top: int) -> tuple:
     for path, text in ((paths[0], render_md(data, all_rows, summary, top, extra)),
                        (paths[1], json.dumps({"collection": data["collection"], "thresholds": data["thresholds"],
                                               "summary": summary, **extra, "rows": all_rows}))):
-        tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
+        with atomic_write(path) as f:
             f.write(text)
-        os.replace(tmp, path)
     return paths
 
 

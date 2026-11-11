@@ -9,6 +9,7 @@ import numpy as np
 from PIL import Image
 
 from colour import COLOUR_DIM, colour_hist
+from common import atomic_write
 from embed import EMBED_DIM, degrade
 from vehicles import log
 
@@ -29,6 +30,7 @@ class ReferenceIndex:
         self.hist = np.zeros((0, COLOUR_DIM), np.float32)
         self.entry: list = []
         self.path: list = []
+        self.stat: list = []  # "mtime_ns:size" of each crop when embedded, so a replaced crop is re-embedded
         self.added: list = []  # paths add() has saved since a caller last cleared this
         self.replaced: dict = {}  # rel -> (crop bytes, entry, embedding, histogram) add() overwrote
 
@@ -42,11 +44,13 @@ class ReferenceIndex:
         on_disk = idx._scan()
         changed = stored is None
         if stored is not None:
-            emb, entry, path, stored_key, hist = stored
+            emb, entry, path, stored_key, hist, stat = stored
             if stored_key == idx.key:
-                keep = [i for i, p in enumerate(path) if p in on_disk]
-                changed = len(keep) != len(path)
+                # an index saved without stats keeps every crop still on disk and gains their stats
+                keep = [i for i, p in enumerate(path) if p in on_disk and (stat is None or stat[i] == on_disk[p])]
+                changed = len(keep) != len(path) or stat is None
                 idx.emb, idx.entry, idx.path = emb[keep], [entry[i] for i in keep], [path[i] for i in keep]
+                idx.stat = [on_disk[path[i]] for i in keep]
                 if colour:
                     if hist is not None and len(hist) == len(path):
                         idx.hist = hist[keep]
@@ -59,7 +63,7 @@ class ReferenceIndex:
         known = set(idx.path)
         todo = [rel for rel in sorted(on_disk) if rel not in known]
         if len(todo) > 1:
-            log(f"references: embedding {len(todo)} (new, or the embedder or blur setting changed)")
+            log(f"references: embedding {len(todo)} (new or replaced, or the embedder or blur setting changed)")
         # todo paths aren't in the index yet, so new rows are gathered and stacked once:
         # _append's vstack per row is quadratic across a full re-embed
         vecs, hists = [], []
@@ -73,6 +77,7 @@ class ReferenceIndex:
                 hists.append(h)
                 idx.entry.append(rel.split("/")[1])
                 idx.path.append(rel)
+                idx.stat.append(on_disk[rel])
             if on_progress is not None and on_progress(n, len(todo)) is False:
                 log(f"references: stopped after {n} of {len(todo)}; the rest are embedded next time")
                 break
@@ -95,12 +100,18 @@ class ReferenceIndex:
             with np.load(p, allow_pickle=False) as z:
                 return (z["emb"].astype(np.float32), [str(s) for s in z["entry"]],
                         [str(s) for s in z["path"]], str(z["key"]),
-                        z["hist"].astype(np.float32) if "hist" in z.files else None)
+                        z["hist"].astype(np.float32) if "hist" in z.files else None,
+                        [str(s) for s in z["stat"]] if "stat" in z.files else None)
         except Exception:
             return None  # an unreadable index is rebuilt from the crops
 
-    def _scan(self) -> set:
-        found = set()
+    def _stat(self, rel: str) -> str:
+        st = os.stat(os.path.join(self.dir, *rel.split("/")))
+        return f"{st.st_mtime_ns}:{st.st_size}"
+
+    def _scan(self) -> dict:
+        """rel -> stat of every crop under refs/."""
+        found = {}
         if not os.path.isdir(self.refs):
             return found
         for entry_id in os.listdir(self.refs):
@@ -108,7 +119,8 @@ class ReferenceIndex:
             if os.path.isdir(d):
                 for name in os.listdir(d):
                     if name.lower().endswith(".jpg"):
-                        found.add(f"refs/{entry_id}/{name}")
+                        rel = f"refs/{entry_id}/{name}"
+                        found[rel] = self._stat(rel)
         return found
 
     def _read_crop(self, rel: str) -> np.ndarray:
@@ -125,9 +137,10 @@ class ReferenceIndex:
                 colour_hist(crop) if self.colour else None)
 
     def _append(self, entry_id: str, rel: str, vec: np.ndarray, hist=None):
+        """Records vec for the crop already written at rel."""
         if rel in self.path:
             i = self.path.index(rel)
-            self.emb[i], self.entry[i] = vec, entry_id
+            self.emb[i], self.entry[i], self.stat[i] = vec, entry_id, self._stat(rel)
             if self.colour:
                 self.hist[i] = hist
             return
@@ -138,6 +151,7 @@ class ReferenceIndex:
         self.emb = row if len(self.emb) == 0 else np.vstack([self.emb, row])
         self.entry.append(entry_id)
         self.path.append(rel)
+        self.stat.append(self._stat(rel))
 
     def add(self, entry_id: str, image_id: str, crop_rgb: np.ndarray) -> str:
         """Saves the crop as refs/<entry_id>/<image_id>.jpg, replacing an earlier
@@ -150,7 +164,7 @@ class ReferenceIndex:
             self.emb = np.delete(self.emb, i, axis=0)
             if self.colour:
                 self.hist = np.delete(self.hist, i, axis=0)
-            del self.entry[i], self.path[i]
+            del self.entry[i], self.path[i], self.stat[i]
             try:
                 os.remove(os.path.join(self.dir, *other.split("/")))
             except OSError:
@@ -184,16 +198,16 @@ class ReferenceIndex:
         self.emb = np.delete(self.emb, i, axis=0)
         if self.colour:
             self.hist = np.delete(self.hist, i, axis=0)
-        del self.entry[i], self.path[i]
+        del self.entry[i], self.path[i], self.stat[i]
         os.remove(os.path.join(self.dir, *rel.split("/")))
 
     def save(self):
         os.makedirs(self.dir, exist_ok=True)
-        tmp = os.path.join(self.dir, INDEX_NAME + ".tmp.npz")
         extra = {"hist": self.hist} if self.colour else {}
-        np.savez(tmp, emb=self.emb, entry=np.array(self.entry, dtype=str),
-                 path=np.array(self.path, dtype=str), key=np.array(self.key), **extra)
-        os.replace(tmp, os.path.join(self.dir, INDEX_NAME))
+        with atomic_write(os.path.join(self.dir, INDEX_NAME), "wb") as f:  # a file object, so savez adds no .npz
+            np.savez(f, emb=self.emb, entry=np.array(self.entry, dtype=str),
+                     path=np.array(self.path, dtype=str), stat=np.array(self.stat, dtype=str), key=np.array(self.key),
+                     **extra)
 
     def best_per_entry(self, vec: np.ndarray, hist=None, colour_weight: float = 0.0) -> list:
         """[(entry_id, best cosine similarity)], most similar first. The embedder's vectors share a large

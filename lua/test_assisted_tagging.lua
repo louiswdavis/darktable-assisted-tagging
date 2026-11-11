@@ -14,6 +14,42 @@ local function check(name, got, want)
     end
 end
 
+-- plugin_common.lua ---------------------------------------------------------------
+-- The same file in all three plugin repos; COMMON_HASH pins it. After changing it, copy it to the
+-- other two repos and put the hash this prints into their tests too.
+local COMMON_HASH = "de05b21b"
+local script_dir = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
+local PC = dofile(script_dir .. "/plugin_common.lua")
+local function fnv1a(text)
+    local h = 2166136261
+    for i = 1, #text do h = ((h ~ text:byte(i)) * 16777619) & 0xffffffff end
+    return string.format("%08x", h)
+end
+local cf = assert(io.open(script_dir .. "/plugin_common.lua", "rb"))
+local common_text = cf:read("a"):gsub("\r\n", "\n")
+cf:close()
+check("plugin_common.lua matches COMMON_HASH (copy it to the other repos after a change)", fnv1a(common_text), COMMON_HASH)
+check("shell_quote: Windows escapes quotes and doubles %", PC.shell_quote('C:\\x %y% "z"', true), '"C:\\x %%y%% \\"z\\""')
+check("shell_quote: POSIX escapes single quotes", PC.shell_quote("a'b", false), "'a'\\''b'")
+check("parse_csv_line: quoted comma and doubled quote", PC.parse_csv_line('1,"a ""x"", b.jpg",3\r', 3)[2], 'a "x", b.jpg')
+check("parse_csv_line: wrong field count is nil", PC.parse_csv_line("a,b", 3), nil)
+check("lead_rank: full-size JPEG beats RAW", PC.lead_rank("x.JPG") > PC.lead_rank("x.nef"), true)
+do -- temp_base / sweep_temp: leftovers older than max_age go, newer ones and other prefixes stay
+    local dir = os.tmpname()
+    os.remove(dir)
+    os.execute(PC.IS_WINDOWS and ('mkdir "' .. dir .. '"') or ("mkdir -p '" .. dir .. "'"))
+    local function touch(name) local f = assert(io.open(dir .. "/" .. name, "w")); f:write("x"); f:close() end
+    touch("dt_assisted_x_1000_1_old.csv"); touch("dt_assisted_x_5000_1_new.csv"); touch("dt_assisted_y_1000_1_other.csv")
+    local base = PC.temp_base(dir, "dt_assisted_x_")
+    check("temp_base: <dir>/<prefix><epoch>_<seq>_", base:match("^" .. dir:gsub("%p", "%%%0") .. "/dt_assisted_x_%d+_%d+_$") ~= nil, true)
+    local removed = PC.sweep_temp(dir, "dt_assisted_x_", 86400, 1000 + 86401)
+    check("sweep_temp: removes only this prefix's stale files", table.concat(removed, ","), "dt_assisted_x_1000_1_old.csv")
+    check("sweep_temp: newer file kept", PC.file_exists(dir .. "/dt_assisted_x_5000_1_new.csv"), true)
+    check("sweep_temp: other prefix kept", PC.file_exists(dir .. "/dt_assisted_y_1000_1_other.csv"), true)
+    for _, n in ipairs(PC.list_dir(dir)) do os.remove(dir .. "/" .. n) end
+    os.remove(dir)
+end
+
 local function keys(set)
     local out = {}
     for k in pairs(set) do out[#out + 1] = k end
@@ -301,10 +337,37 @@ end
 -- ledger / protected tags / shot + conflict handling ---------------------------
 local led = T.ledger_parse(T.ledger_format({ [3] = { b = true, a = true }, [1] = { z = true } }))
 check("ledger round-trips", led[3].a and led[3].b and led[1].z, true)
-check("ledger output is sorted", T.ledger_format({ [3] = { b = true, a = true }, [1] = { z = true } }),
-    "1,z\n3,a\n3,b\n")
+check("ledger output is sorted", T.ledger_format({ [3] = { b = true, a = true }, [1] = { z = true } }, "lib"),
+    "lib,1,z\nlib,3,a\nlib,3,b\n")
 check("an empty ledger formats to nothing", T.ledger_format({}), "")
-check("a missing ledger file parses to empty", next(T.ledger_parse(nil)), nil)
+check("a missing ledger file parses to empty", next(T.ledger_parse(nil).other) or next(T.ledger_parse(nil), "other"), nil)
+do -- library column: other libraries' lines pass through, 2-field lines belong to the current library
+    local l = T.ledger_parse("libA,7,F1|x\n9,F1|old\nlibB,9,F1|b\n", "libB")
+    check("ledger_parse: another library's lines aren't ours", l[7], nil)
+    check("ledger_parse: lines without a library column are ours", l[9] and l[9]["F1|old"] and l[9]["F1|b"], true)
+    check("ledger_parse: the other library's lines are kept", table.concat(l.other, ";"), "libA,7,F1|x")
+    local back = T.ledger_format(l, "libB")
+    check("ledger_format: ours first, the other library's after", back, "libB,9,F1|b\nlibB,9,F1|old\nlibA,7,F1|x\n")
+    check("ledger_format of an unchanged file is stable", T.ledger_format(T.ledger_parse(back, "libB"), "libB"), back)
+    l[10] = { ["F1|gone"] = true }
+    local pruned, skipped = T.ledger_prune(l, function(id) return id == 9 end)
+    check("ledger_prune drops an image that's gone", pruned .. "," .. tostring(skipped) .. "," .. tostring(l[10]), "1,false,nil")
+    pruned, skipped = T.ledger_prune(l, function() return false end)
+    check("ledger_prune: nothing resolving means the lookup failed", pruned .. "," .. tostring(skipped) .. "," .. tostring(l[9] ~= nil), "0,true,true")
+end
+do -- hand-applied diagnostic / unidentified / number-seen tags are protected from detach
+    local NS = T.DIAG_TAGS.number_seen
+    local have = { [T.DIAG_TAGS.none] = true, [NS .. "|42"] = true, [T.DIAG_TAGS.number] = true, ["Holiday"] = true }
+    local prot = T.hand_diag_tags(have, { [T.DIAG_TAGS.number] = true }, rules)
+    check("hand_diag: the unidentified tag applied by hand", prot[T.DIAG_TAGS.none], true)
+    check("hand_diag: a number-seen tag applied by hand", prot[NS .. "|42"], true)
+    check("hand_diag: a ledgered diagnostic is the plugin's", prot[T.DIAG_TAGS.number], nil)
+    check("hand_diag: a foreign tag is not a diagnostic", prot["Holiday"], nil)
+    check("hand_diag: an entry tag is protected_tags' job, not this one's",
+        T.hand_diag_tags({ ["F1|Ferrari"] = true }, {}, rules)["F1|Ferrari"], nil)
+    local _, detach = T.tag_changes(have, T.wanted_tags({ row("number", "VER") }, entries), owned, T.owned_prefixes(rules), prot)
+    check("hand_diag: a run detaches only the ledgered diagnostic", table.concat(detach, ","), T.DIAG_TAGS.number)
+end
 
 -- reference results.csv: id,status,colour_note; older files have no colour_note
 do

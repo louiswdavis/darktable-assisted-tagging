@@ -59,7 +59,7 @@ def run_tests():
           (True, ['    { "id": "12", "number": "12", "colour": "Red" },']))
     check("the coloured line ends with the colour", new_lines[changed[0]].rstrip(",").endswith('"colour": "Red" }'), True)
     check("the previous file is kept as entries.json.bak", read(rally + ".bak"), text)
-    check("no temp file is left", os.path.exists(rally + ".tmp"), False)
+    check("no temp file is left", [n for n in os.listdir(os.path.dirname(rally)) if n.endswith(".tmp")], [])
 
     blue = write('[\n  { "id": "A", "colour": "Blue" }\n]\n')
     before = read(blue)

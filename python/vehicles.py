@@ -19,10 +19,7 @@ except ImportError as _e:
     )
     sys.exit(3)
 
-# Same list as culling's score_images.py and RAW_EXT in assisted_tagging.lua: LibRaw's camera formats.
-RAW_EXTENSIONS = {"." + e for e in (
-    "3fr ari arw bay cr2 cr3 crw dcr dcs dng erf fff iiq k25 kdc mdc mef mos mrw nef nrw "
-    "orf ori pef raf raw rw2 rwl sr2 srf srw x3f").split()}
+from common import RAW_EXTENSIONS  # noqa: E402  (stdlib-only module beside this file)
 
 MIN_BOX_FRAC = 0.005  # boxes smaller than this share of the frame are background traffic
 MAX_BOXES = 4

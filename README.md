@@ -56,13 +56,14 @@ python3 -m venv .venv
 
 ### 2. Models
 
-Download all four into a `models` folder in the repo. The plugin looks there, `.gitignore` already skips `*.onnx`, and `git pull` leaves them alone. From the repo root (Windows 10+ ships `curl`):
+Download them into a `models` folder in the repo. The plugin looks there, `.gitignore` already skips `*.onnx` and `*.yml`, and `git pull` leaves them alone. From the repo root (Windows 10+ ships `curl`):
 
 ```
 mkdir models
 curl -L -o models/object_detection_yolox_2022nov.onnx https://github.com/opencv/opencv_zoo/raw/main/models/object_detection_yolox/object_detection_yolox_2022nov.onnx
 curl -L -o models/text_detection_en_ppocrv3_2023may.onnx https://github.com/opencv/opencv_zoo/raw/main/models/text_detection_ppocr/text_detection_en_ppocrv3_2023may.onnx
-curl -L -o models/text_recognition_CRNN_EN_2021sep.onnx https://github.com/opencv/opencv_zoo/raw/main/models/text_recognition_crnn/text_recognition_CRNN_EN_2021sep.onnx
+curl -L -o models/en_PP-OCRv5_mobile_rec.onnx https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/main/inference.onnx
+curl -L -o models/en_PP-OCRv5_mobile_rec.yml https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/main/inference.yml
 curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2-small/resolve/main/onnx/model.onnx
 ```
 
@@ -70,8 +71,10 @@ curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2
 |---|---|---|---|
 | `object_detection_yolox_2022nov.onnx` | 36 MB | finds the cars and bikes | OpenCV model zoo, Apache-2.0 |
 | `text_detection_en_ppocrv3_2023may.onnx` | 2.4 MB | finds text on each vehicle | OpenCV model zoo (PP-OCRv3), Apache-2.0 |
-| `text_recognition_CRNN_EN_2021sep.onnx` | 34 MB | reads that text | OpenCV model zoo (CRNN), Apache-2.0 |
+| `en_PP-OCRv5_mobile_rec.onnx` + `.yml` | 7.9 MB | reads that text (the yml is its dictionary; the plugin treats a recogniser as PaddleOCR when the yml sits beside it under the same name) | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
 | `dinov2_small.onnx` | 89 MB | livery matching | DINOv2 ViT-S/14 via onnx-community, Apache-2.0 |
+
+The first run after switching to a new reader re-reads every box, because the recogniser is part of the cache key. The run log's `number reader:` line names the recogniser in use.
 
 Optional models. The plugin works without them:
 
@@ -88,24 +91,23 @@ curl -L -o models/dinov2_base.onnx https://huggingface.co/onnx-community/dinov2-
 | `image_segmentation_efficientsam_ti_2025april.onnx` | | outlines an overlapped car | OpenCV model zoo (EfficientSAM), Apache-2.0 |
 | `dinov2_base.onnx` | about 350 MB | livery matching, larger than `dinov2_small.onnx` | DINOv2 ViT-B/14 via onnx-community, Apache-2.0 |
 
-**Newer number reader (PP-OCRv5).** An optional alternative to the CRNN recogniser that reads colour crops at a larger size and was trained on far more text. The text detector stays the same; only the reading step changes. Download the model and its `inference.yml`, and save the yml under the model's name with `.yml`, because the plugin treats a recogniser as PaddleOCR when that file sits beside it:
+**Older number reader (CRNN).** The plugin's first recogniser, opencv_zoo's CRNN, still works: it reads grey crops at a smaller size and misses more numbers (on 202 rally photos it read a number on 45 vehicles where PP-OCRv5 read 76). An install without the v5 files falls back to it with one `number reader:` warning in the log, so an older setup keeps running:
 
 ```
-curl -L -o models/en_PP-OCRv5_mobile_rec.onnx https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/main/inference.onnx
-curl -L -o models/en_PP-OCRv5_mobile_rec.yml https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/main/inference.yml
+curl -L -o models/text_recognition_CRNN_EN_2021sep.onnx https://github.com/opencv/opencv_zoo/raw/main/models/text_recognition_crnn/text_recognition_CRNN_EN_2021sep.onnx
 ```
 
 | File | Size | Job | Source, licence |
 |---|---|---|---|
-| `en_PP-OCRv5_mobile_rec.onnx` + `.yml` | 7.9 MB | reads the text, replacing the CRNN | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
+| `text_recognition_CRNN_EN_2021sep.onnx` | 34 MB | reads the text, older than PP-OCRv5 | OpenCV model zoo (CRNN), Apache-2.0 |
 
-Compare it with the CRNN on your own photos before switching. This prints each vehicle's reads from both, marks the ones that differ, and counts how many vehicles each got a number on:
+To compare the two on your own photos, print each vehicle's reads from both, with the ones that differ marked and a count of how many vehicles each got a number on:
 
 ```
 python python/compare_ocr.py --rec models/text_recognition_CRNN_EN_2021sep.onnx --rec models/en_PP-OCRv5_mobile_rec.onnx --out compare.csv <a folder of photos>
 ```
 
-To use it, type `en_PP-OCRv5_mobile_rec.onnx` into the collection's **number reader model file** option and **update preset**. The run log's `number reader:` line names the recogniser in use. Every photo is read again on the next run, because the model is part of the cache key. A yml whose dictionary doesn't fit the model stops the run at the start with an error.
+To go back to the CRNN for a collection, type `text_recognition_CRNN_EN_2021sep.onnx` into its **number reader model file** option and **update preset**. A yml whose dictionary doesn't fit the model stops the run at the start with an error.
 
 **Audit references** (panel button, `python/audit_refs.py`) needs nothing beyond the packages in `requirements.txt` and the models above.
 
@@ -125,7 +127,7 @@ A people entry has only `id` and `tags`; references are photos with exactly one 
 
 ### 3. darktable side
 
-darktable's config directory is `~/.config/darktable` on Linux/macOS and `%LOCALAPPDATA%\darktable` on Windows. Link the plugin into it and load it from `luarc`.
+darktable's config directory is `~/.config/darktable` on Linux/macOS and `%LOCALAPPDATA%\darktable` on Windows. Link the plugin into it and load it from `luarc`. The plugin is `lua/assisted_tagging.lua` plus `lua/plugin_common.lua`, the module the three Assisted plugins share; a link into the repo finds the module beside the plugin by itself.
 
 Linux / macOS:
 
@@ -142,6 +144,8 @@ if not exist "%LOCALAPPDATA%\darktable\lua\contrib" mkdir "%LOCALAPPDATA%\darkta
 mklink "%LOCALAPPDATA%\darktable\lua\contrib\assisted_tagging.lua" "%CD%\lua\assisted_tagging.lua"
 echo require "contrib/assisted_tagging" >> "%LOCALAPPDATA%\darktable\luarc"
 ```
+
+Windows without Administrator rights or Developer Mode: copy `assisted_tagging.lua` into `%LOCALAPPDATA%\darktable\lua\contrib` instead of linking it, and add the same `luarc` line. Re-copy it after every update. With the **plugin folder** preference (next step) set, the plugin loads `plugin_common.lua` from that folder's `lua/`; copy it into `contrib` too if you want darktable to start with the preference unset (the three plugins' copies are identical, so one copy serves all of them).
 
 ### 4. Point the plugin at the repo
 
@@ -236,7 +240,7 @@ A file that's just the `[ … ]` list of entries works too, with the default rul
 | `tags` | yes, unless `rules.tag_prefix` is set | one or more darktable tag names (`\|` makes a hierarchy); no `,` `;` or `"`. With `rules.tag_prefix` these are extras added after the built tags |
 | `name` | no | the driver's display name, e.g. `Max Verstappen`; needs `rules.tag_prefix`, which builds `prefix\|team\|name` from it |
 | `number` | no | the race number, 1–3 digits. Leave it out for a car with no number; it can then only be identified by livery. Two entries with the same number are allowed, but that number then identifies neither. |
-| numbers-only entry | | `{"id": "12", "number": "12"}`: an entry with a number and no `team`, `name` or `tags`, under `rules.tag_prefix`, gets the tag `prefix\|12`. Build a whole list from a CSV with `python python/import_numbers.py numbers.csv entries.json --tag-prefix "Rally\|2026"`; see [`rally`](examples/rally) |
+| numbers-only entry | | `{"id": "12", "number": "12"}`: an entry with a number and no `team`, `name` or `tags`, under `rules.tag_prefix`, gets the tag `prefix\|12`. Build a whole list from a CSV with `python python/import_numbers.py numbers.csv entries.json --tag-prefix "Rally\|2026"`, or add a full start list (names, teams, classes) with the panel's **Import start list** (see [1 collection](#1-collection)); see [`rally`](examples/rally) |
 | `team` | no | entries with the same team can fall back to their shared tags when their liveries are too close to call |
 | `colour` | no | the car's paintwork colour: a name in the active palette, or `Multi` (needs [`rules.colour_tags`](#rules)). Breaks ties between number candidates and flags a number read that disagrees; never a hard filter. The reference actions fill it in when it is missing |
 
@@ -320,7 +324,7 @@ Re-running is safe: each image's entry and diagnostic tags are synced to the new
 
 #### Tags you apply by hand
 
-The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config directory) of the tags it attached to each image. An entry tag on an image that isn't in its ledger is yours, at any depth (team or driver), and a run never removes it. So a photo you tagged to a team stays that way even when the run can't tell the driver.
+The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config directory, lines `<library>,id,tag`) of the tags it attached to each image. `<library>` is a hash of the library file's path, so two libraries that reuse the same image ids keep separate ledger lines (lines from before this column belong to the library in use when they're first read; a library opened with `--library` on the command line isn't visible to the plugin and counts as the configured one). Lines for images removed from the library are dropped whenever the ledger is saved, and a failed save is tried once more before an on-screen error. An entry tag on an image that isn't in its ledger is yours, at any depth (team or driver), and a run never removes it. So a photo you tagged to a team stays that way even when the run can't tell the driver.
 
 - A **solo shot** whose result disagrees with the tags you applied is left as you had it: nothing is added, it doesn't get the *Unidentified* tags, and the done message counts it. Packs aren't checked, since you may have tagged just one of the cars.
 - A **team tag** you applied (a tag that is a prefix of an entry's tags, such as `Motorsport|F1|Red Bull`) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car. Untick **Use team tags as hints** in the panel to ignore team tags instead: matching isn't narrowed, and a differing result is not held back as a conflict, so the run can override your team tag. The tag itself stays on the image beside whatever the run adds (tick **Replace manual tags** too to have the run overwrite it). Driver-level tags still protect their images either way.
@@ -329,7 +333,7 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 - If you remove a tag the plugin attached and later apply it again by hand, it counts as yours.
 - After you rename or remove an entry, the next run over those images takes off the old tags the plugin attached. This covers tags under the collection's own top-level tags (e.g. `Motorsport|…`), so tags another collection attached stay.
 - Images tagged by an older version have no ledger, so all their entry tags count as yours.
-- A colour tag you apply by hand is never removed by a run; only the colour tag the plugin attached is replaced.
+- A colour tag you apply by hand is never removed by a run; only the colour tag the plugin attached is replaced. The same goes for a diagnostic, *Unidentified* or *Number seen* tag you applied by hand: it stays (the identifier is not told about it, so it never reads as an entry tag).
 
 ## Presets
 
@@ -357,6 +361,7 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 
 - **Show tag plan.** Writes `tag-plan.txt` (see [Checking what it will tag](#checking-what-it-will-tag)).
 - **Edit entries.json.** Opens the file in an editor inside the panel, with **Save entries.json** and **Cancel edit**.
+- **start list** → **Import start list.** Adds a start list to the collection's `entries.json` without typing the entries. Either choose a CSV with a header row (number, driver, co-driver, team, class; any other columns are ignored), or paste the text copied from a PDF entry list into the box, one entry per line with the number first (`12 Smith / Jones`); pasted text is used when both are given. The **columns** field maps a header to a role when its name isn't one of the usual ones, as `role=header` pairs: `number=Start No.; driver=Pilot`; only `number` is required. Each entry becomes `{"id": "<number>", "number": "<number>", "name": "<driver> / <co-driver>", "team": "<team>", "tags": ["<prefix>|Class|<class>"]}` under the collection's `rules.tag_prefix`, with the empty fields left out. Numbers already in the file are kept and listed in the message, the previous file is saved as `entries.json.bak`, and the lists reload. A file not in the one-entry-per-line layout is never reflowed: the new entries go to `start-list.new.json` beside it for you to paste in. Same thing from a shell: `python python/import_start_list.py <collection folder> --csv start.csv [--columns "number=No."]` or `--text pasted.txt` (`--tag-prefix` only when the file has no prefix yet).
 
 ### 2 bursts
 
@@ -367,7 +372,7 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 
 - **Use team tags as hints** (on by default). A team tag you applied narrows matching on a solo shot.
 - **embedder model file (blank = bundled)** (text field). File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference on the next run.
-- **number reader model file** (text field, blank = bundled CRNN). File name in `models/` of the text recogniser, e.g. `en_PP-OCRv5_mobile_rec.onnx` with its `.yml` beside it (see [Models](#2-models)). Changing it re-reads every photo on the next run.
+- **number reader model file** (text field, blank = PP-OCRv5, or the CRNN when the v5 files are missing). File name in `models/` of the text recogniser, e.g. `text_recognition_CRNN_EN_2021sep.onnx` for the older reader (see [Models](#2-models)). Changing it re-reads every photo on the next run.
 - **order weight** (text field, blank = `entries.json`). Overrides the collection's `rules.order_weight` without editing the file: a number from 0 to 1, where 0 turns the neighbour aid off. Anything else refuses the run.
 - **neighbour tolerance** (text field, default 5). The most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places). A whole number, 0 or more (anything else refuses the run). Only used when the collection's `order_weight` is above 0.
 
@@ -458,7 +463,7 @@ Each outcome above is one of these methods, named consistently from `identify.py
 | `team` | two teammates too close to call by livery (shared tags only) | `…\|Team only` |
 | `none` | nothing matched | `…\|Unidentified` |
 
-Frames are decoded at native resolution (a raw file's embedded preview) and each vehicle is cropped from that before reading its number, since a number only a few pixels tall in a downscaled frame is readable in the crop. Detection, OCR text and embeddings are cached per frame in `assisted_tagging/cache.sqlite` in darktable's config directory. Matching isn't, so adding references or editing `entries.json` takes effect on the next run without decoding anything again. The cache key includes the file (path, modified time, size), every model file and the constants that change the cached data; unused entries are dropped after 90 days. Delete the file to start over.
+Frames are decoded at native resolution (a raw file's embedded preview) and each vehicle is cropped from that before reading its number, since a number only a few pixels tall in a downscaled frame is readable in the crop. Detection, OCR text and embeddings are cached per frame in `assisted_tagging/cache.sqlite` in darktable's config directory. Matching isn't, so adding references or editing `entries.json` takes effect on the next run without decoding anything again. The cache key includes the file (path, modified time, size), every model file and a fingerprint of the constants and package versions that change the cached data, so the first run after an update or a constants edit re-reads everything once; unused entries are dropped after 90 days. Delete the file to start over.
 
 **Colour tags.** With `colour_tags` on, each car's paintwork is measured on the middle of its crop (margin, roofline and the lower tyre band are left out) and becomes a colour from the palette, `Multi` for a clear two-tone car, or nothing when it can't tell. The decided colour is written as `…|Colour|<name>`. An entry's `colour` is a tie-breaker only, never a filter. A weak number read for an entry whose colour differs from the car's doesn't count towards a group's agreement; the neighbour aid drops candidates whose colour differs and a look-alike car only lends its entry when the colours don't differ; a confident number read is never blocked, but when its entry's colour differs from the car's the image gets *Check colour*. An entry with no `colour`, or a car whose colour can't be told, is neutral. `Multi` agrees only with `Multi`. Turning `colour_tags` on re-reads every photo once.
 
@@ -504,11 +509,11 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 
 The run log has one line per vehicle with the numbers read and the top two livery matches with their similarity, e.g. `box 0: livery VER (OCR -; livery VER 0.712, TSU 0.694)`. Read a few from a shoot to see where the right and wrong answers fall before changing `MATCH_MIN_SIM` or `MATCH_MIN_MARGIN`.
 
-After changing `OCR_MIN_SCORE`, `NUMBER_MIN_HEIGHT`, `MIN_BOX_FRAC`, `CROP_DIM` or the detection, OCR or embedding code, bump `IDENTIFY_CACHE_VERSION` in `identify.py` (`CROP_DIM`, `MIN_BOX_FRAC`, `BOX_MARGIN_TRIM`, `OCR_MIN_SCORE`, `NUMBER_MIN_HEIGHT` and `DETECTOR_MIN_SCORE` are already in the cache key; code changes aren't). Changes to `match.py` never need it.
+Editing a constant of a per-frame module (`vehicles.py`, `ocr.py`, `embed.py`, `segment.py`, `overlap.py`, `pod.py`, `colour.py`, `car_colour.py`, `people.py`) or upgrading OpenCV, Pillow, rawpy or numpy changes the fingerprint `fingerprint.py` puts in every cache key, so the next run re-reads every frame by itself. `fingerprint.py` lists each constant as a cache input or as neutral (only used at matching time); `test_identify.py` fails until a new constant is filed. A code-only change to a cached stage needs its token in `frame_key` bumped (`ocr-trace-2`, `pod-2`, `mask-1`, ...) or `cache.sqlite` deleted. Changes to `match.py`, `rescue.py` and `neighbour.py` never need either.
 
-**Higher-detail re-read.** Frames are first analysed from the RAW's embedded preview (fast). After the first match, each box left unidentified (`none`, or `team` with the driver not separated; overlapped boxes excluded) is re-read from a half-size decode of the RAW itself, which gives OCR and the embedding several times the pixels on a small car. Boxes stay in preview coordinates; only their crops come from the sharper decode. Non-RAW files and previews already near full width are left alone. A re-read replaces that box's OCR, embedding and colour only, and the box record carries `"hires": true`. The re-read of a frame is cached separately (`hires-1`), so a rerun doesn't decode again. Reference crops are still taken from previews.
+**Higher-detail re-read.** Frames are first analysed from the RAW's embedded preview (fast). After the first match, each box left unidentified (`none`, or `team` with the driver not separated; overlapped boxes excluded) is re-read from a half-size decode of the RAW itself, which gives OCR and the embedding several times the pixels on a small car. Boxes stay in preview coordinates; only their crops come from the sharper decode. Non-RAW files and previews already near full width are left alone. A re-read replaces that box's OCR, embedding and colour only, and the box record carries `"hires": true`. The re-read of a frame is cached separately (`hires-2`, keyed on the frame's box list), so a rerun doesn't decode again, while a box rescued from a burst gets a fresh re-read. Reference crops are still taken from previews.
 
-**Car-shaped masks.** When the segmentation model is present, each box that overlaps another (`overlap.py` geometry, hidden boxes excluded) is outlined by EfficientSAM, prompted with three points on the car body. The crop used for OCR, the embedding and colour has everything outside the outline painted grey. The mask must not contain the centre of an overlapping box and must cover at least 15% of the visible box, otherwise the plain crop is used. The box record carries `"masked": true`. Pod readings and reference crops are unmasked. Having the model adds `mask-1` to the cache key, so the first run with it re-reads every frame.
+**Car-shaped masks.** When the segmentation model is present, each box that overlaps another (`overlap.py` geometry, hidden boxes excluded) is outlined by EfficientSAM, prompted with three points on the car body. The crop used for OCR, the embedding and colour has everything outside the outline painted grey. The mask must not contain the centre of an overlapping box and must cover at least 15% of the visible box, otherwise the plain crop is used. The box record carries `"masked": true`. Pod readings and reference crops are unmasked. Having the model adds `mask-1` and the model file to the cache key, so the first run with it, or with a replaced model file, re-reads every frame.
 
 ## Troubleshooting
 
@@ -542,7 +547,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 
 **Setup**
 
-1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers` and `test_identify`.
+1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers`, `test_import_start_list` and `test_identify`.
 2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, sections *1 collection* to *5 run* and *references*, each under its own heading. No `LUA ERROR` in the darktable log.
 3. **A collection.** Set the plugin folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **preset** dropdown.
 
@@ -563,6 +568,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 10. **Cancel.** Start **Identify selection** on a large selection and click it again. *Expect:* "Assisted Tagging: cancelled, no tags were changed."
 11. **No selection.** Clear the selection and click **Identify selection**. *Expect:* "Assisted Tagging: select some images first".
 12. **Diagnostic switches.** Identify a batch with every switch on. Under **tags written** in the panel, turn off *Shot* and *By livery*, choose **actions** → **update preset**, then identify the same batch again. *Expect:* the same entry tags as before; no image in the batch has `…|Identification|Shot|…` or `…|By livery`; the other diagnostics are still there. No `LUA ERROR`.
+13. **Start list import.** Save a 100-row CSV (`No.;Driver;Co-Driver;Entrant;Class`), choose it under **start list** and click **Import start list**. *Expect:* "added 100 entries to …entries.json"; the entries have `name`, `team` and a `…|Class|…` tag; `entries.json.bak` is the previous file. Click **Import start list** again. *Expect:* "added 0 entries … skipped 100 already listed: 1, 2, …". Paste `7 Smith / Jones` and a line without a number into the box and import. *Expect:* "added 1 entries … 1 line(s) without a leading number ignored" when 7 is new, and the box is cleared.
 
 ### Report what breaks
 
@@ -599,10 +605,10 @@ The pure-logic half of the plugin runs under any Lua 5.4 (`cd lua && lua test_as
 ```
 python python/identify.py manifest.csv results.csv --collections-root collections --collection "F1 2026" \
     --detector models/object_detection_yolox_2022nov.onnx --ocr-det models/text_detection_en_ppocrv3_2023may.onnx \
-    --ocr-rec models/text_recognition_CRNN_EN_2021sep.onnx --embedder models/dinov2_small.onnx
+    --ocr-rec models/en_PP-OCRv5_mobile_rec.onnx --embedder models/dinov2_small.onnx
 ```
 
-`--ocr-rec` takes the PP-OCRv5 model too (its `.yml` beside it). `--order-weight 0.5` overrides the collection's `rules.order_weight` for the run, and `--neighbour-tolerance N` sets the tolerance, as the panel's fields do.
+`--ocr-rec` takes the CRNN model too. `--order-weight 0.5` overrides the collection's `rules.order_weight` for the run, and `--neighbour-tolerance N` sets the tolerance, as the panel's fields do.
 
 `results.csv` gets `id,box,method,entry_id,alt_entry_id,confidence,unmatched_number,shot,order_flag,colour,colour_flag` per vehicle (box −1 for a frame with no vehicle; method `skipped` or `conflict` as above). Exit codes: 0 ok, 2 bad input (the message is on stderr), 3 missing package, 130 cancelled.
 
