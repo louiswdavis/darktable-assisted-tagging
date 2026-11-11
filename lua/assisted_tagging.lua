@@ -930,24 +930,24 @@ end
 -- Off = runs stop writing it and detach it from the images they process. Entry and
 -- unidentified tags (entries.json) and identification itself are unchanged.
 local TAG_TOGGLES = {
-    { key = "number", label = "By number", when = "its race number was read." },
-    { key = "livery", label = "By livery", when = "it matched the entry's reference samples." },
-    { key = "burst", label = "By burst", when = "the rest of its burst agreed on one entry." },
-    { key = "pooled", label = "By pooled burst",
+    { key = "number", kind = "diag", label = "By number", when = "its race number was read." },
+    { key = "livery", kind = "diag", label = "By livery", when = "it matched the entry's reference samples." },
+    { key = "burst", kind = "diag", label = "By burst", when = "the rest of its burst agreed on one entry." },
+    { key = "pooled", kind = "diag", label = "By pooled burst",
       when = "the experimental burst_livery_pooling rule resolved it from its burst's pooled livery similarity." },
-    { key = "neighbour", label = "By neighbour",
+    { key = "neighbour", kind = "diag", label = "By neighbour",
       when = "a doubtful number read was settled by the groups shot just before and after. Needs the collection's order_weight above 0." },
-    { key = "check_order", label = "Check order",
+    { key = "check_order", kind = "check", label = "Check order",
       when = "a low-confidence number read that no neighbouring group supports. The entry tag stays; delete this tag once checked." },
-    { key = "team", label = "Team only", when = "two teammates were too close to call; only their shared tags are added." },
-    { key = "none", label = "Unidentified", when = "no vehicle was found, or no confident match." },
-    { key = "number_seen", label = "Number seen",
+    { key = "team", kind = "diag", label = "Team only", when = "two teammates were too close to call; only their shared tags are added." },
+    { key = "none", kind = "check", label = "Unidentified", when = "no vehicle was found, or no confident match." },
+    { key = "number_seen", kind = "diag", label = "Number seen",
       when = "OCR read digits that didn't resolve to one entry. Added alongside the outcome tag." },
-    { key = "colour", label = "Colour",
+    { key = "colour", kind = "output", label = "Colour",
       when = "a colour was decided for the vehicle. Added alongside the outcome tag." },
-    { key = "check_colour", label = "Check colour",
+    { key = "check_colour", kind = "check", label = "Check colour",
       when = "the number read is confident but the car's colour differs from its entry's. Delete this tag once checked." },
-    { key = "shot", label = "Shot",
+    { key = "shot", kind = "check", label = "Shot",
       when = "Solo: one vehicle found. Pack: two or three. Crowded: the detector's limit was reached, so there may be more cars than were identified." },
 }
 M.TAG_TOGGLES = TAG_TOGGLES
@@ -975,6 +975,43 @@ function M.tag_row_label(t, settings)
     end
     return t.label, false
 end
+
+-- Headings of the tags-written page, in order; each TAG_TOGGLES row's `kind` is one of these.
+M.TAG_KINDS = {
+    { kind = "output", label = "outputs" },
+    { kind = "check", label = "checks" },
+    { kind = "diag", label = "how it decided" },
+}
+
+-- TAG_TOGGLES rows grouped by TAG_KINDS order, file order within a kind.
+function M.tag_rows_in_order()
+    local rows = {}
+    for _i, k in ipairs(M.TAG_KINDS) do
+        for _j, t in ipairs(TAG_TOGGLES) do
+            if t.kind == k.kind then rows[#rows + 1] = t end
+        end
+    end
+    return rows
+end
+
+-- The panel's pages and the preset keys each page's widgets edit (C.page_coverage checks them).
+local tag_page_keys = {}
+for _i, t in ipairs(TAG_TOGGLES) do
+    tag_page_keys[#tag_page_keys + 1] = "tag_" .. t.key
+    tag_page_keys[#tag_page_keys + 1] = "tag_" .. t.key .. "_name"
+end
+M.PANEL_PAGES = {
+    { number = 1, title = "collection", keys = {} },
+    { number = 2, title = "bursts", keys = { "group_support", "group_node" } },
+    { number = 3, title = "matching", keys = { "colour_tags", "use_hints", "embedder_file", "ocr_rec_file",
+        "neighbour_tolerance", "order_weight", "min_read", "colour_weight", "partial_references" } },
+    { number = 4, title = "tags written", keys = tag_page_keys },
+}
+M.PANEL_OTHER_KEYS = {
+    "run_tag", "suggest_crops", "quarantine",
+    -- settings.json only, no panel widget
+    "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references",
+}
 
 local ok, dt = pcall(require, "darktable")
 if not ok then return M end
@@ -2576,18 +2613,15 @@ local function install_panel()
     local entries_editor = dt.new_widget("text_view") {
         editable = true,
         text = "",
-        visible = false,
     }
-    local save_entries_button, cancel_entries_button
+    local save_entries_button, cancel_entries_button, editor_box, edit_button
     local function close_entries_editor()
-        entries_editor.visible = false
-        save_entries_button.visible = false
-        cancel_entries_button.visible = false
+        editor_box.visible = false
+        edit_button.label = _("Edit entries.json ▸")
     end
     save_entries_button = dt.new_widget("button") {
         label = _("Save entries.json"),
         tooltip = _("Write the edited text back to entries.json and reload"),
-        visible = false,
         clicked_callback = function()
             local path = entries_json_path()
             local before = C.read_file_or_tmp(path)
@@ -2609,13 +2643,21 @@ local function install_panel()
     cancel_entries_button = dt.new_widget("button") {
         label = _("Cancel edit"),
         tooltip = _("Discard changes and close the editor"),
-        visible = false,
         clicked_callback = close_entries_editor,
     }
-    local edit_button = dt.new_widget("button") {
-        label = _("Edit entries.json"),
+    editor_box = dt.new_widget("box") {
+        orientation = "vertical",
+        visible = false,
+        entries_editor, save_entries_button, cancel_entries_button,
+    }
+    edit_button = dt.new_widget("button") {
+        label = _("Edit entries.json ▸"),
         tooltip = _("Edit the selected collection's entries.json in place below, then click Save entries.json"),
         clicked_callback = function()
+            if editor_box.visible then
+                close_entries_editor()
+                return
+            end
             local path = entries_json_path()
             local text = C.read_file_or_tmp(path)
             if not text then
@@ -2623,9 +2665,8 @@ local function install_panel()
                 return
             end
             entries_editor.text = text
-            entries_editor.visible = true
-            save_entries_button.visible = true
-            cancel_entries_button.visible = true
+            editor_box.visible = true
+            edit_button.label = _("Edit entries.json ▾")
         end,
     }
     local start_list_file = dt.new_widget("file_chooser_button") {
@@ -2775,9 +2816,15 @@ local function install_panel()
     local partial_references_check = check("partial_references", _("partial references"),
         _("Add tagged images also accepts a solo shot tagged only to team level and saves it as a team reference; a clear team lead with no clear driver then gives a team result.\nDefault: off."))
     -- Per tag switch: its check button and the tag name it writes (tag_<key>_name). The row's
-    -- box is greyed while a gate in M.TAG_GATES is off (refresh_gates).
+    -- box is greyed while a gate in M.TAG_GATES is off (refresh_gates). A heading opens each kind.
     local tag_rows, name_entries, tag_row_boxes = {}, {}, {}
-    for _i, t in ipairs(TAG_TOGGLES) do
+    local kind_labels, last_kind = {}, nil
+    for _i, k in ipairs(M.TAG_KINDS) do kind_labels[k.kind] = k.label end
+    for _i, t in ipairs(M.tag_rows_in_order()) do
+        if t.kind ~= last_kind then
+            tag_rows[#tag_rows + 1] = dt.new_widget("section_label") { label = _(kind_labels[t.kind]) }
+            last_kind = t.kind
+        end
         local c = check("tag_" .. t.key, t.label, tag_tooltip(t, M.named_rules(rules, settings)))
         tag_checks[t.key] = c
         local name_key = "tag_" .. t.key .. "_name"
@@ -2791,7 +2838,7 @@ local function install_panel()
             text = "",
         }
         name_entries[#name_entries + 1] = { key = name_key, entry = e }
-        local row = dt.new_widget("box") { orientation = "vertical", c, e }
+        local row = dt.new_widget("box") { orientation = "horizontal", c, e }
         tag_rows[#tag_rows + 1] = row
         tag_row_boxes[t.key] = row
     end
@@ -2926,18 +2973,16 @@ local function install_panel()
         example_view_button,
         example_create_button,
     }
-    local collection_box = dt.new_widget("box") {
-        orientation = "vertical",
-        make_section(1, _("collection"),
-            { plan_button, edit_button, entries_editor, save_entries_button, cancel_entries_button,
-              dt.new_widget("label") { label = _("start list"), halign = "start" },
-              start_list_file, start_list_columns, start_list_text, import_start_list_button }),
-        make_section(2, _("bursts"), {
+    local page_widgets = {
+        { plan_button,
+          dt.new_widget("label") { label = _("start list"), halign = "start" },
+          start_list_file, start_list_columns, start_list_text, import_start_list_button },
+        {
             group_support_combo,
             dt.new_widget("label") { label = _("grouping tag node"), halign = "start" },
             group_node_entry,
-        }),
-        make_section(3, _("matching"), {
+        },
+        {
             colour_tags_check,
             use_hints_check,
             dt.new_widget("label") { label = _("embedder model file"), halign = "start" },
@@ -2953,8 +2998,19 @@ local function install_panel()
             dt.new_widget("label") { label = _("colour weight"), halign = "start" },
             colour_weight_entry,
             partial_references_check,
-        }),
-        make_section(4, _("tags written"), tag_rows),
+        },
+        tag_rows,
+    }
+    local pages = {}
+    for i, page in ipairs(M.PANEL_PAGES) do
+        pages[i] = { number = page.number, title = _(page.title), widgets = page_widgets[i] }
+    end
+    -- the entries.json editor sits in the top area, above the page combobox
+    local collection_box = dt.new_widget("box") {
+        orientation = "vertical",
+        edit_button,
+        editor_box,
+        C.paged_sections("assisted_tagging", pages),
         step_label(5, _("run")),
         replace_manual_check,
         run_tag_check,

@@ -17,7 +17,7 @@ end
 -- plugin_common.lua ---------------------------------------------------------------
 -- The same file in all three plugin repos; COMMON_HASH pins it. After changing it, copy it to the
 -- other two repos and put the hash this prints into their tests too.
-local COMMON_HASH = "5b5b2bf3"
+local COMMON_HASH = "ee1de49c"
 local script_dir = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
 local PC = dofile(script_dir .. "/plugin_common.lua")
 local function fnv1a(text)
@@ -34,6 +34,16 @@ check("shell_quote: POSIX escapes single quotes", PC.shell_quote("a'b", false), 
 check("parse_csv_line: quoted comma and doubled quote", PC.parse_csv_line('1,"a ""x"", b.jpg",3\r', 3)[2], 'a "x", b.jpg')
 check("parse_csv_line: wrong field count is nil", PC.parse_csv_line("a,b", 3), nil)
 check("lead_rank: full-size JPEG beats RAW", PC.lead_rank("x.JPG") > PC.lead_rank("x.nef"), true)
+check("page_index: out of range falls back to 1",
+    table.concat({ PC.page_index(7, 3), PC.page_index(0, 3), PC.page_index(nil, 3), PC.page_index(2, 3) }, " "), "1 1 1 2")
+do
+    local schema = { { key = "x" }, { key = "y" }, { key = "z" }, { key = "w" } }
+    local missing, duplicate = PC.page_coverage({ { title = "a", keys = { "x", "y" } }, { title = "b", keys = { "y" } } }, { "z" }, schema)
+    check("page_coverage: missing and duplicate keys are named", table.concat(missing, " ") .. "|" .. table.concat(duplicate, " "), "w|y")
+    missing, duplicate = PC.page_coverage({ { title = "a", keys = { "x", "y" } }, { title = "b", keys = {} } }, { "z" },
+        { { key = "x" }, { key = "y" }, { key = "z" } })
+    check("page_coverage: complete panel is clean", #missing + #duplicate, 0)
+end
 do -- temp_base / sweep_temp: leftovers older than max_age go, newer ones and other prefixes stay
     local dir = os.tmpname()
     os.remove(dir)
@@ -301,6 +311,24 @@ for _, g in ipairs(T.TAG_GATES) do
     if not toggles_by_key[g.key] or not schema_keys[g.by] then bad_gates[#bad_gates + 1] = g.key .. "/" .. g.by end
 end
 check("TAG_GATES: every gate names a TAG_TOGGLES key and a PRESET_SCHEMA key", table.concat(bad_gates, " "), "")
+
+local kinds, bad_kinds = {}, {}
+for _, k in ipairs(T.TAG_KINDS) do kinds[k.kind] = true end
+for _, t in ipairs(T.TAG_TOGGLES) do
+    if not kinds[t.kind] then bad_kinds[#bad_kinds + 1] = t.key end
+end
+check("TAG_TOGGLES: every row has a kind in TAG_KINDS", table.concat(bad_kinds, " "), "")
+local ordered = {}
+for _, t in ipairs(T.tag_rows_in_order()) do ordered[#ordered + 1] = t.key end
+check("tag_rows_in_order: outputs, checks, then diagnostics", table.concat(ordered, ","),
+    "colour,check_order,none,check_colour,shot,number,livery,burst,pooled,neighbour,team,number_seen")
+local page_missing, page_duplicate = PC.page_coverage(T.PANEL_PAGES, T.PANEL_OTHER_KEYS, T.PRESET_SCHEMA)
+check("PANEL_PAGES: every preset key is on one page or listed off-stack",
+    table.concat(page_missing, " ") .. table.concat(page_duplicate, " "), "")
+local page_titles = {}
+for _, p in ipairs(T.PANEL_PAGES) do page_titles[#page_titles + 1] = p.title end
+check("PANEL_PAGES: titles match the README sections", table.concat(page_titles, ","),
+    "collection,bursts,matching,tags written")
 
 -- checked_settings: hand-edited settings.json values show_panel would display
 local cs = T.preset_defaults(T.PRESET_SCHEMA)
