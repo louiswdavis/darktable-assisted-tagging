@@ -414,19 +414,37 @@ end
 
 M.ledger_prune = C.ledger_prune
 
--- A reference job's results.csv (`id,status,colour_note`; files from before colour notes have
--- no third column) → its rows { id, status, note } and the count of each colour note.
+-- A reference job's results.csv (`id,status,colour_note,entry_id`; files from before colour
+-- notes have two columns, before entry ids three) → its rows { id, status, note, entry_id }
+-- (missing columns "") and the count of each colour note.
 function M.parse_reference_results(text)
-    local rows, notes = {}, { set = 0, differs = 0 }
+    local rows, notes = {}, { set = 0, differs = 0, already = 0 }
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 3) or M.parse_csv_line(line, 2)
+        local p = M.parse_csv_line(line, 4) or M.parse_csv_line(line, 3) or M.parse_csv_line(line, 2)
         if p then
             p[3] = p[3] or ""
+            p[4] = p[4] or ""
             rows[#rows + 1] = p
             if notes[p[3]] then notes[p[3]] = notes[p[3]] + 1 end
         end
     end
     return rows, notes
+end
+
+-- A colours-only job's rows → entries whose colour was set, entries that already had it, images
+-- whose colour was unread, and images the job failed on (the first two count distinct entry ids).
+function M.colour_summary(rows)
+    local set, already, unread, failed = {}, {}, 0, 0
+    for _, p in ipairs(rows) do
+        if p[3] == "set" then set[p[4]] = true
+        elseif p[3] == "already" then already[p[4]] = true end
+        if p[2] == "unread" then unread = unread + 1
+        elseif p[2] == "failed" then failed = failed + 1 end
+    end
+    local n_set, n_already = 0, 0
+    for _ in pairs(set) do n_set = n_set + 1 end
+    for _ in pairs(already) do n_already = n_already + 1 end
+    return n_set, n_already, unread, failed
 end
 
 -- The done-message clauses for a reference job's colour notes; only non-zero counts.
@@ -842,14 +860,17 @@ function M.panel_value(key, text)
     return value
 end
 
--- A copy of settings `s` with each number or tag name that M.parse_setting refuses (e.g. a
--- hand-edited settings.json out of range) set to its default, and the keys replaced.
+-- A copy of settings `s` with every PRESET_SCHEMA key present: a missing key gets its
+-- default (not listed), and each number or tag name that M.parse_setting refuses (e.g. a
+-- hand-edited settings.json out of range) is set to its default and listed in `replaced`.
 function M.checked_settings(s)
     local out, replaced = {}, {}
     for k, v in pairs(s) do out[k] = v end
     for _, item in ipairs(M.PRESET_SCHEMA) do
         local key = item.key
-        if item.kind == "number" or key:match("^tag_.+_name$") then
+        if s[key] == nil then
+            out[key] = item.default
+        elseif item.kind == "number" or key:match("^tag_.+_name$") then
             if M.parse_setting(key, tostring(s[key] or "")) == nil then
                 out[key] = item.default
                 replaced[#replaced + 1] = key
@@ -902,6 +923,57 @@ end
 -- other temp files (`base` is their shared name prefix).
 function M.run_settings_path(base)
     return base .. "settings.run.json"
+end
+
+-- One "tag_<outcome>" setting per diagnostic under Assisted Tagging|Identification
+-- (keys match M.DIAG_TAGS / the rules' diag_<outcome>; "shot" covers all three Shot tags).
+-- Off = runs stop writing it and detach it from the images they process. Entry and
+-- unidentified tags (entries.json) and identification itself are unchanged.
+local TAG_TOGGLES = {
+    { key = "number", label = "By number", when = "its race number was read." },
+    { key = "livery", label = "By livery", when = "it matched the entry's reference samples." },
+    { key = "burst", label = "By burst", when = "the rest of its burst agreed on one entry." },
+    { key = "pooled", label = "By pooled burst",
+      when = "the experimental burst_livery_pooling rule resolved it from its burst's pooled livery similarity." },
+    { key = "neighbour", label = "By neighbour",
+      when = "a doubtful number read was settled by the groups shot just before and after. Needs the collection's order_weight above 0." },
+    { key = "check_order", label = "Check order",
+      when = "a low-confidence number read that no neighbouring group supports. The entry tag stays; delete this tag once checked." },
+    { key = "team", label = "Team only", when = "two teammates were too close to call; only their shared tags are added." },
+    { key = "none", label = "Unidentified", when = "no vehicle was found, or no confident match." },
+    { key = "number_seen", label = "Number seen",
+      when = "OCR read digits that didn't resolve to one entry. Added alongside the outcome tag." },
+    { key = "colour", label = "Colour",
+      when = "a colour was decided for the vehicle. Added alongside the outcome tag." },
+    { key = "check_colour", label = "Check colour",
+      when = "the number read is confident but the car's colour differs from its entry's. Delete this tag once checked." },
+    { key = "shot", label = "Shot",
+      when = "Solo: one vehicle found. Pack: two or three. Crowded: the detector's limit was reached, so there may be more cars than were identified." },
+}
+M.TAG_TOGGLES = TAG_TOGGLES
+
+-- Tag switches whose tag needs another setting: `on` takes that setting's raw value (nil when
+-- missing = off) and `off` is the suffix the row's label shows while the setting is off.
+M.TAG_GATES = {
+    { key = "colour", by = "colour_tags", on = function(v) return v and true or false end,
+      off = "read car colour is off" },
+    { key = "check_colour", by = "colour_tags", on = function(v) return v and true or false end,
+      off = "read car colour is off" },
+    { key = "neighbour", by = "order_weight",
+      on = function(v) return (tonumber(v) or 0) > 0 end, off = "order weight is 0" },
+    { key = "pooled", by = "burst_livery_pooling", on = function(v) return v and true or false end,
+      off = "burst_livery_pooling is off in settings.json" },
+}
+
+-- A TAG_TOGGLES row's label under `settings`: the plain label, or "<label> (off: <why>)" and
+-- true when one of its gates is off.
+function M.tag_row_label(t, settings)
+    for _i, g in ipairs(M.TAG_GATES) do
+        if g.key == t.key and not g.on(settings[g.by]) then
+            return t.label .. " (off: " .. g.off .. ")", true
+        end
+    end
+    return t.label, false
 end
 
 local ok, dt = pcall(require, "darktable")
@@ -970,32 +1042,6 @@ if dt.gui then
         "Folder with one folder per collection (entries.json + refs). Empty = assisted_tagging/collections in darktable's config folder",
         "")
 end
-
--- One "tag_<outcome>" setting per diagnostic under Assisted Tagging|Identification
--- (keys match M.DIAG_TAGS / the rules' diag_<outcome>; "shot" covers all three Shot tags).
--- Off = runs stop writing it and detach it from the images they process. Entry and
--- unidentified tags (entries.json) and identification itself are unchanged.
-local TAG_TOGGLES = {
-    { key = "number", label = "By number", when = "its race number was read." },
-    { key = "livery", label = "By livery", when = "it matched the entry's reference samples." },
-    { key = "burst", label = "By burst", when = "the rest of its burst agreed on one entry." },
-    { key = "pooled", label = "By pooled burst",
-      when = "the experimental burst_livery_pooling rule resolved it from its burst's pooled livery similarity." },
-    { key = "neighbour", label = "By neighbour",
-      when = "a doubtful number read was settled by the groups shot just before and after. Needs the collection's order_weight above 0." },
-    { key = "check_order", label = "Check order",
-      when = "a low-confidence number read that no neighbouring group supports. The entry tag stays; delete this tag once checked." },
-    { key = "team", label = "Team only", when = "two teammates were too close to call; only their shared tags are added." },
-    { key = "none", label = "Unidentified", when = "no vehicle was found, or no confident match." },
-    { key = "number_seen", label = "Number seen",
-      when = "OCR read digits that didn't resolve to one entry. Added alongside the outcome tag." },
-    { key = "colour", label = "Colour",
-      when = "a colour was decided for the vehicle. Added alongside the outcome tag." },
-    { key = "check_colour", label = "Check colour",
-      when = "the number read is confident but the car's colour differs from its entry's. Delete this tag once checked." },
-    { key = "shot", label = "Shot",
-      when = "Solo: one vehicle found. Pack: two or three. Crowded: the detector's limit was reached, so there may be more cars than were identified." },
-}
 
 local file_exists, first_existing, read_file = C.file_exists, C.first_existing, C.read_file
 
@@ -2038,11 +2084,72 @@ function M.add_references(images, entry_id)
         if team_rule > 0 then extra[#extra + 1] = string.format("%d tagged only to team level, not saved (the team-reference rule is off or the shot isn't solo)", team_rule) end
         if n_skipped > 0 then extra[#extra + 1] = string.format("%d skipped", n_skipped) end
         if failed > 0 then extra[#extra + 1] = string.format("%d failed, see log", failed) end
-        say(string.format("Assisted Tagging: added %d references to %s%s. Each sample's crop is in %s/refs.",
+        say(string.format("Assisted Tagging: added %d references to %s%s. Each sample's crop is in %s/refs.%s",
             added, entry_id or "their entries", #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "",
-            current_collection()))
+            current_collection(), notes.set > 0 and (" Colours: " .. entries_json_path()) or ""))
     end)
     finish_reference_job(state, okr, err, "couldn't add references.")
+end
+
+-- Reads the paintwork colour of each selected image's car and writes it as that entry's colour
+-- in entries.json, saving no references. Mirrors M.add_references(images, nil): the entry comes
+-- from the image's tags, a hand-applied colour tag wins over the reading.
+function M.fill_entry_colours(images)
+    if queue_if_busy(_("Fill entry colours"), images and #images > 0, function() M.fill_entry_colours(images) end) then return end
+    if not can_start(images) then return end
+    if #entry_order == 0 then
+        dt.print(_("Assisted Tagging: the collection has no entries yet. Add them to its entries.json, then click Reload."))
+        return
+    end
+    if not take_settings() then return end
+    if not settings.colour_tags then
+        dt.print(_("Assisted Tagging: tick read car colour (section 3) first."))
+        return
+    end
+    busy = true
+    M.cancel_requested = false
+    start_log("fill entry colours", #images)
+
+    local state = {}
+    local okr, err = pcall(function()
+        local rows, n_skipped, sent = {}, 0, {}
+        local _, pick_of = with_paired_jpegs(images)
+        local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
+        local colour_base = M.named_rules(rules, settings).diag.colour
+        for _, img in ipairs(images) do
+            local src = pick_of[img.id]
+            local eid = M.entry_for_tags(tags_of(img), entries, entry_order)
+            if not eid then
+                local prefixes = sorted_names(M.hint_prefixes(tags_of(img), nil, entries))
+                if #prefixes == 1 then eid = prefixes[1] end
+            end
+            if eid then
+                if not sent[src.id] then
+                    sent[src.id] = true
+                    rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid,
+                        M.hand_colour(tags_of(img), ledger[img.id], colour_base) or "" }
+                end
+            else
+                n_skipped = n_skipped + 1
+                log(string.format("%s: skipped, its tags match no single entry", img.filename))
+            end
+        end
+        if #rows == 0 then
+            say(_("Assisted Tagging: no selected image carries all of one entry's tags, so no colour was read."))
+            return
+        end
+        local results = run_reference_job(state, rows, { "--add-reference", "--colours-only" }, "reading entry colours")
+        if not results then return end
+        local parsed, notes = M.parse_reference_results(results)
+        local n_set, n_already, n_unread, n_failed = M.colour_summary(parsed)
+        local extra = {}
+        if n_skipped > 0 then extra[#extra + 1] = string.format("%d skipped", n_skipped) end
+        if n_failed > 0 then extra[#extra + 1] = string.format("%d failed, see log", n_failed) end
+        if notes.differs > 0 then extra[#extra + 1] = string.format("%d colour readings differ from entries.json (see log)", notes.differs) end
+        say(string.format("Assisted Tagging: colours set for %d entries, %d already set, %d unread.%s File: %s",
+            n_set, n_already, n_unread, #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "", entries_json_path()))
+    end)
+    finish_reference_job(state, okr, err, "couldn't fill entry colours.")
 end
 
 -- Saves the confident vehicles (number-read, or a clear livery match) that the last
@@ -2080,8 +2187,9 @@ function M.promote_references(images)
         if counts.flagged > 0 then extra[#extra + 1] = string.format("%d not saved: the audit checks flagged them (see log)", counts.flagged) end
         if counts.stale > 0 then extra[#extra + 1] = string.format("%d changed since the run (run Identify again)", counts.stale) end
         if counts.failed > 0 then extra[#extra + 1] = string.format("%d failed, see log", counts.failed) end
-        say(string.format("Assisted Tagging: saved vehicles from %d images as references%s. Crops are in %s/refs.",
-            counts.added, #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "", current_collection()))
+        say(string.format("Assisted Tagging: saved vehicles from %d images as references%s. Crops are in %s/refs.%s",
+            counts.added, #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "", current_collection(),
+            notes.set > 0 and (" Colours: " .. entries_json_path()) or ""))
     end)
     finish_reference_job(state, okr, err, "couldn't save vehicles as references.")
 end
@@ -2406,8 +2514,10 @@ local function install_panel()
     if M.module_installed then return end
     M.module_installed = true
 
+    local refresh_gates -- re-labels and greys the gated tag rows; set once the panel's entries exist
     local function changed()
         if preset_ctl then preset_ctl.check_dirty() end
+        if refresh_gates then refresh_gates() end
     end
     local panel_ready = false -- the first collection load waits for darktable to open (see the end)
 
@@ -2607,7 +2717,7 @@ local function install_panel()
     }
     local add_button = dt.new_widget("button") {
         label = _("Add as reference"),
-        tooltip = _("Save the largest vehicle in each selected image as a reference sample of the entry above"),
+        tooltip = _("Save the largest vehicle in each selected image as a reference sample of the entry above. Also fills the entry's colour in entries.json when read car colour is on."),
         clicked_callback = function()
             local eid = selected_entry_id()
             if not eid then
@@ -2619,12 +2729,17 @@ local function install_panel()
     }
     local add_tagged_button = dt.new_widget("button") {
         label = _("Add tagged images"),
-        tooltip = _("For each selected image that already carries all of one entry's tags, save it as a reference of that entry"),
+        tooltip = _("For each selected image that already carries all of one entry's tags, save it as a reference of that entry. Also fills the entry's colour in entries.json when read car colour is on."),
         clicked_callback = function() M.add_references(dt.gui.action_images, nil) end,
+    }
+    local fill_colours_button = dt.new_widget("button") {
+        label = _("Fill entry colours"),
+        tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json. Saves no references. Needs read car colour on."),
+        clicked_callback = function() M.fill_entry_colours(dt.gui.action_images) end,
     }
     local promote_button = dt.new_widget("button") {
         label = _("Add from last run"),
-        tooltip = _("Save each vehicle the last Identify run was sure of (number read, or a clear livery match) as a reference of the entry it found. Works for pack shots too: only that car's crop is saved."),
+        tooltip = _("Save each vehicle the last Identify run was sure of (number read, or a clear livery match) as a reference of the entry it found. Works for pack shots too: only that car's crop is saved. Also fills the entry's colour in entries.json when read car colour is on."),
         clicked_callback = function() M.promote_references(dt.gui.action_images) end,
     }
     local audit_button = dt.new_widget("button") {
@@ -2655,12 +2770,13 @@ local function install_panel()
         _("Also write re-cut copies of wide references (one car found) into ref-audit-crops in the collection folder, for you to review. Nothing in refs/ is changed. The first audit with this ticked is slow (about 8 minutes for 2000 refs); later ones are fast.\nDefault: off. Turn on when the audit flags wide refs you want re-cut."))
     local quarantine_check = check("quarantine", _("Audit: quarantine poor refs"),
         _("After the report is written, move the refs flagged by 2+ checks out of refs/ into refs-quarantine in the collection folder (moved.txt lists each). Nothing is deleted: copy a file back into refs/<entry>/ to undo it.\nDefault: off. Turn on once you trust the audit's flags for this collection."))
-    local colour_tags_check = check("colour_tags", _("colour tags"),
-        _("Read each car's paintwork colour, write it as a Colour tag and use an entry's colour to break ties and flag number reads that disagree; turning it on re-reads every photo once.\nDefault: off."))
+    local colour_tags_check = check("colour_tags", _("read car colour"),
+        _("Read each car's paintwork colour. Needed by the Colour tag, Check colour and entry colours (Fill entry colours and the reference actions). Turning it on re-reads every photo once.\nDefault: off."))
     local partial_references_check = check("partial_references", _("partial references"),
         _("Add tagged images also accepts a solo shot tagged only to team level and saves it as a team reference; a clear team lead with no clear driver then gives a team result.\nDefault: off."))
-    -- Per tag switch: its check button and the tag name it writes (tag_<key>_name).
-    local tag_rows, name_entries = {}, {}
+    -- Per tag switch: its check button and the tag name it writes (tag_<key>_name). The row's
+    -- box is greyed while a gate in M.TAG_GATES is off (refresh_gates).
+    local tag_rows, name_entries, tag_row_boxes = {}, {}, {}
     for _i, t in ipairs(TAG_TOGGLES) do
         local c = check("tag_" .. t.key, t.label, tag_tooltip(t, M.named_rules(rules, settings)))
         tag_checks[t.key] = c
@@ -2670,12 +2786,14 @@ local function install_panel()
             if f.key == name_key then default = f.default end
         end
         local e = dt.new_widget("entry") {
-            placeholder = default,
+            placeholder = "blank = " .. default,
             tooltip = string.format(_("The tag %s writes. Blank = %s."), t.label, default),
             text = "",
         }
         name_entries[#name_entries + 1] = { key = name_key, entry = e }
-        tag_rows[#tag_rows + 1] = dt.new_widget("box") { orientation = "vertical", c, e }
+        local row = dt.new_widget("box") { orientation = "vertical", c, e }
+        tag_rows[#tag_rows + 1] = row
+        tag_row_boxes[t.key] = row
     end
 
     local support_keys
@@ -2711,22 +2829,23 @@ local function install_panel()
         text = "",
     }
     local tolerance_entry = dt.new_widget("entry") {
-        placeholder = _("neighbour tolerance"),
+        placeholder = _("blank = 5"),
         tooltip = _("The most places apart in the sorted number list a neighbouring car can be and still support a doubtful read. The collection's order_weight sets how much of it is used: a neighbour up to order_weight × (tolerance + 1) places away counts. A whole number, 0 or more. Only used when order_weight is above 0.\nDefault: 5. Lower it when cars pass in strict number order; raise it when the order is loose."),
         text = "",
     }
     local order_weight_entry = dt.new_widget("entry") {
-        placeholder = _("order weight"),
+        placeholder = _("blank = 0"),
         tooltip = _("How far the cars pass in number order, from 0 (random: the neighbour aid is off) to 1 (strictly in order); 0.5 is loose order.\nDefault: 0. Set 0.5 for a rally or club event shot roughly in number order."),
         text = "",
+        changed_callback = changed, -- By neighbour's gate follows it as it is typed
     }
     local min_read_entry = dt.new_widget("entry") {
-        placeholder = _("min read"),
+        placeholder = _("blank = 0.85"),
         tooltip = _("How sure a number read must be to count, from 0 to 1: raise it if plates or signs get read as numbers, lower it if clear numbers are missed.\nDefault: 0.85."),
         text = "",
     }
     local colour_weight_entry = dt.new_widget("entry") {
-        placeholder = _("colour weight"),
+        placeholder = _("blank = 0"),
         tooltip = _("How much the colour histogram counts in livery matching, from 0 (off) up; separate from colour tags.\nDefault: 0."),
         text = "",
     }
@@ -2782,6 +2901,19 @@ local function install_panel()
         for _i, n in ipairs(number_entries) do n.entry.text = tostring(s[n.key]) end
         for _i, n in ipairs(name_entries) do n.entry.text = s[n.key] end
         for _i, key in ipairs(check_order) do checks[key].value = s[key] end
+        refresh_gates()
+    end
+
+    -- Each gated tag row (M.TAG_GATES) says in its label why it is off and is greyed meanwhile,
+    -- from the panel as it stands. An entry read_panel refuses leaves the rows as they are.
+    refresh_gates = function()
+        local s = read_panel()
+        if not s then return end
+        for _i, t in ipairs(TAG_TOGGLES) do
+            local label, gated = M.tag_row_label(t, s)
+            tag_checks[t.key].label = label
+            tag_row_boxes[t.key].sensitive = not gated
+        end
     end
 
     -- template: only the new-collection controls; a collection: everything else
@@ -2806,6 +2938,7 @@ local function install_panel()
             group_node_entry,
         }),
         make_section(3, _("matching"), {
+            colour_tags_check,
             use_hints_check,
             dt.new_widget("label") { label = _("embedder model file"), halign = "start" },
             embedder_entry,
@@ -2819,7 +2952,6 @@ local function install_panel()
             min_read_entry,
             dt.new_widget("label") { label = _("colour weight"), halign = "start" },
             colour_weight_entry,
-            colour_tags_check,
             partial_references_check,
         }),
         make_section(4, _("tags written"), tag_rows),
@@ -2828,7 +2960,7 @@ local function install_panel()
         run_tag_check,
         verify_button,
         identify_button,
-        make_section(nil, _("references"), { entry_combo, add_button, add_tagged_button, promote_button,
+        make_section(nil, _("references"), { entry_combo, add_button, add_tagged_button, fill_colours_button, promote_button,
             suggest_crops_check, quarantine_check, audit_button }),
     }
 

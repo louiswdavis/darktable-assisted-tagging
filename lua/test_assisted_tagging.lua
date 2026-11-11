@@ -276,6 +276,32 @@ check("panel_value: tag name with a comma refused", pv, nil)
 check("panel_value: tag name message names the key", pv_why:sub(1, 17), "tag_colour_name: ")
 check("panel_value: valid number", T.panel_value("neighbour_tolerance", "4"), 4)
 
+-- tag_row_label: a gated tag switch says in its label why it is off
+local toggles_by_key = {}
+for _, t in ipairs(T.TAG_TOGGLES) do toggles_by_key[t.key] = t end
+local function row_label(key, s)
+    local label, gated = T.tag_row_label(toggles_by_key[key], s)
+    return label .. (gated and " [gated]" or "")
+end
+check("tag_row_label: Colour gated by colour_tags off", row_label("colour", { colour_tags = false }),
+      "Colour (off: read car colour is off) [gated]")
+check("tag_row_label: Colour with colour_tags on", row_label("colour", { colour_tags = true }), "Colour")
+check("tag_row_label: Check colour gated by colour_tags missing", row_label("check_colour", {}),
+      "Check colour (off: read car colour is off) [gated]")
+check("tag_row_label: By neighbour gated by order_weight 0", row_label("neighbour", { order_weight = 0 }),
+      "By neighbour (off: order weight is 0) [gated]")
+check("tag_row_label: By neighbour with order_weight 0.5", row_label("neighbour", { order_weight = 0.5 }), "By neighbour")
+check("tag_row_label: By pooled burst gated by burst_livery_pooling nil", row_label("pooled", {}),
+      "By pooled burst (off: burst_livery_pooling is off in settings.json) [gated]")
+check("tag_row_label: ungated row unchanged", row_label("number", {}), "By number")
+local schema_keys = {}
+for _, f in ipairs(T.PRESET_SCHEMA) do schema_keys[f.key] = true end
+local bad_gates = {}
+for _, g in ipairs(T.TAG_GATES) do
+    if not toggles_by_key[g.key] or not schema_keys[g.by] then bad_gates[#bad_gates + 1] = g.key .. "/" .. g.by end
+end
+check("TAG_GATES: every gate names a TAG_TOGGLES key and a PRESET_SCHEMA key", table.concat(bad_gates, " "), "")
+
 -- checked_settings: hand-edited settings.json values show_panel would display
 local cs = T.preset_defaults(T.PRESET_SCHEMA)
 cs.min_sim, cs.margin, cs.tag_team_name, cs.order_weight = 0, 1, "A,B", 0.3
@@ -285,6 +311,13 @@ check("checked_settings: min_sim back to default", fixed.min_sim, 0.5)
 check("checked_settings: bad tag name back to default", fixed.tag_team_name, "Assisted Tagging|Identification|Team only")
 check("checked_settings: a valid value kept", fixed.order_weight, 0.3)
 check("checked_settings: the given settings untouched", cs.min_sim, 0)
+-- A settings.json lacking a key: the panel shows that key's default, and nothing is logged.
+local sparse = { min_sim = 0 }
+local filled, sparse_replaced = T.checked_settings(sparse)
+check("checked_settings: missing name key gets the default", filled.tag_colour_name, "Assisted Tagging|Colour")
+check("checked_settings: missing number key gets the default", filled.min_read, 0.85)
+check("checked_settings: missing keys are not listed as replaced", table.concat(sparse_replaced, " "), "min_sim")
+check("checked_settings: an invalid key is still replaced and listed", filled.min_sim, 0.5)
 
 -- named_rules: switched-off diagnostics keep their names (rules.csv leaves them blank)
 local off_s = T.preset_defaults(T.PRESET_SCHEMA)
@@ -439,16 +472,28 @@ do -- hand-applied diagnostic / unidentified / number-seen tags are protected fr
     check("hand_diag: a run detaches only the ledgered diagnostic", table.concat(detach, ","), T.DIAG_TAGS.number)
 end
 
--- reference results.csv: id,status,colour_note; older files have no colour_note
+-- reference results.csv: id,status,colour_note,entry_id; older files have two or three columns
 do
-    local rows, notes = T.parse_reference_results("1,added,set\n2,added,differs\n3,added,\n4,stale\n5,added,set\n")
-    check("reference results: every row parses", #rows, 5)
-    check("reference results: a 2-column row reads an empty note", rows[4][2] .. "|" .. rows[4][3], "stale|")
-    check("reference results: colour notes are counted", notes.set .. "," .. notes.differs, "2,1")
+    local rows, notes = T.parse_reference_results("1,added,set,VER\n2,added,differs,HAM\n3,added,,\n4,stale\n5,added,set\n6,read,already,VER\n")
+    check("reference results: every row parses", #rows, 6)
+    check("reference results: four-column rows keep the entry id", rows[1][4], "VER")
+    check("reference results: a 3-column row reads an empty entry id", rows[5][3] .. "|" .. rows[5][4], "set|")
+    check("reference results: a 2-column row reads an empty note", rows[4][2] .. "|" .. rows[4][3] .. "|" .. rows[4][4], "stale||")
+    check("reference results: colour notes are counted", notes.set .. "," .. notes.differs .. "," .. notes.already, "2,1,1")
     check("reference results: the done message names each count", table.concat(T.colour_note_extras(notes), "; "),
         "2 entries got a colour; 1 colour readings differ from entries.json (see log)")
     local _, none = T.parse_reference_results("1,added\n")
     check("reference results: no colour notes, nothing to add", #T.colour_note_extras(none), 0)
+end
+
+-- colour_summary: distinct entries per note, unread rows counted
+do
+    local rows = T.parse_reference_results("1,read,set,VER\n2,read,set,VER\n3,read,already,HAM\n4,unread,,\n")
+    local n_set, n_already, n_unread = T.colour_summary(rows)
+    check("colour_summary: distinct entries per note", n_set .. "," .. n_already .. "," .. n_unread, "1,1,1")
+    check("colour_summary: nothing read, all zero", table.concat({ T.colour_summary({}) }, ","), "0,0,0,0")
+    local failed = T.parse_reference_results("1,failed,,\n2,read,set,VER\n")
+    check("colour_summary: failed rows are counted", table.concat({ T.colour_summary(failed) }, ","), "1,0,0,1")
 end
 
 local prot = T.protected_tags(

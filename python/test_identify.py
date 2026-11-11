@@ -430,14 +430,14 @@ def run_tests():
                       rules_out=args.rules_out, boxes_out="", boxes_in=promo_boxes)
     write_promo([100, 50])
     I.promote_boxes(pargs, {"embedder": "fake"})
-    check("promote adds a confident box", open(results, encoding="utf-8").read().strip(), "1,added,")
+    check("promote adds a confident box", open(results, encoding="utf-8").read().strip(), "1,added,,VER")
     refs = sorted(os.listdir(os.path.join(coll, "refs")))
     check("only the wide-margin box became a reference", refs, ["VER"])
     I.promote_boxes(pargs, {"embedder": "fake"})
     check("promoting again replaces rather than duplicates", len(os.listdir(os.path.join(coll, "refs", "VER"))), 1)
     write_promo([10, 10])
     I.promote_boxes(pargs, {"embedder": "fake"})
-    check("a file that no longer matches the run is stale", open(results, encoding="utf-8").read().strip(), "1,stale,")
+    check("a file that no longer matches the run is stale", open(results, encoding="utf-8").read().strip(), "1,stale,,")
 
     # ---- add-time screening: refs flagged by 2+ audit checks are refused (skip) or kept with a log line (warn)
     import audit_refs
@@ -446,12 +446,12 @@ def run_tests():
     audit_refs.screen_refs = lambda collection, rels: {r: ["outlier", "colour"] for r in rels}
     try:
         I.promote_boxes(pargs, {"embedder": "fake"})
-        check("a promoted box the audit checks flag is not saved", open(results, encoding="utf-8").read().strip(), "1,flagged,")
+        check("a promoted box the audit checks flag is not saved", open(results, encoding="utf-8").read().strip(), "1,flagged,,VER")
         check("a flagged box's crop is replaced by the sample it overwrote",
               os.listdir(os.path.join(coll, "refs", "VER")), ["1_b0.jpg"])
         audit_refs.screen_refs = lambda collection, rels: {r: ["outlier"] for r in rels}
         I.promote_boxes(pargs, {"embedder": "fake"})
-        check("one flag alone does not refuse a box", open(results, encoding="utf-8").read().strip(), "1,added,")
+        check("one flag alone does not refuse a box", open(results, encoding="utf-8").read().strip(), "1,added,,VER")
         kept = os.listdir(os.path.join(coll, "refs", "VER"))
         with open(os.path.join(coll, "refs", "VER", kept[0]), "rb") as f:
             before = f.read()
@@ -473,21 +473,21 @@ def run_tests():
     ccoll = collection(entries_file.dump({"rules": {"colour_tags": True, "partial_references": True}, "entries": [VER, TSU]}), root=root)
     centries = os.path.join(ccoll, "entries.json")
 
-    def ref_job(job, coll_dir, row, boxes_in=""):
+    def ref_job(job, coll_dir, row, boxes_in="", colours_only=False):
         with open(manifest, "w", encoding="utf-8") as f:
             f.write(row + "\n")
         job(Namespace(manifest=manifest, results=results, progress=os.path.join(img, "p3.txt"), cache="",
                       collections_root=root, collection=os.path.basename(coll_dir), settings="", entries_out=args.entries_out,
-                      rules_out=args.rules_out, boxes_out="", boxes_in=boxes_in), dict(vmodels))
+                      rules_out=args.rules_out, boxes_out="", boxes_in=boxes_in, colours_only=colours_only), dict(vmodels))
         return open(results, encoding="utf-8").read().strip()
 
     try:
         before = open(os.path.join(coll, "entries.json"), encoding="utf-8").read()
-        check("colour off: a hand colour gives no colour note", ref_job(I.add_references, coll, f'"1","{real_jpg}","VER","Red"'), "1,added,")
+        check("colour off: a hand colour gives no colour note", ref_job(I.add_references, coll, f'"1","{real_jpg}","VER","Red"'), "1,added,,VER")
         check("colour off: entries.json isn't written", open(os.path.join(coll, "entries.json"), encoding="utf-8").read(), before)
 
         before = open(centries, encoding="utf-8").read()
-        check("a team reference gets no colour", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","F1|Red Bull","Red"'), "1,added,")
+        check("a team reference gets no colour", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","F1|Red Bull","Red"'), "1,added,,F1|Red Bull")
         check("a team reference leaves entries.json alone", open(centries, encoding="utf-8").read(), before)
 
         old_boxes = os.path.join(img, "old.boxes.json")
@@ -497,13 +497,45 @@ def run_tests():
                     {"box": 0, "bbox": [0, 0, 50, 50], "entry": "VER", "alt_entry": "", "method": "number",
                      "confidence": 0.95, "candidates": [], "ocr": [], "decided_by": "number", "gap": 0.0, "conflict": False}]}}}, f)
         check("an old boxes.json box without colour_shares is still added, with no colour",
-              ref_job(I.promote_boxes, ccoll, f'"1","{real_jpg}",""', old_boxes), "1,added,")
+              ref_job(I.promote_boxes, ccoll, f'"1","{real_jpg}",""', old_boxes), "1,added,,VER")
         check("an old boxes.json box leaves entries.json alone", open(centries, encoding="utf-8").read(), before)
 
-        check("a hand colour on an entry without one is set", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","VER","Red"'), "1,added,set")
+        check("a hand colour on an entry without one is set", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","VER","Red"'), "1,added,set,VER")
         check("entries.json gains the colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
-        check("a different reading of a coloured entry differs", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","VER","Blue"'), "1,added,differs")
+        check("a different reading of a coloured entry differs", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","VER","Blue"'), "1,added,differs,VER")
         check("a differing reading leaves the colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
+
+        # --colours-only: the colour alone goes to entries.json, no reference is saved
+        ocoll = collection(entries_file.dump({"rules": {"colour_tags": True}, "entries": [VER, TSU]}), root=root)
+        oentries = os.path.join(ocoll, "entries.json")
+        check("colours-only: a hand colour sets the entry and saves no reference",
+              (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","VER","Red"', colours_only=True),
+               os.path.exists(os.path.join(ocoll, "refs", "VER"))), ("1,read,set,VER", False))
+        check("colours-only: entries.json gains the colour", json.load(open(oentries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
+        os.remove(oentries + ".bak")
+        before = open(oentries, "rb").read()
+        check("colours-only: an entry with that colour is already",
+              (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","VER","Red"', colours_only=True),
+               open(oentries, "rb").read() == before, os.path.exists(oentries + ".bak")), ("1,read,already,VER", True, False))
+        I.detect_vehicles = lambda rgb, detector: ([], "no vehicle")
+        check("colours-only: no vehicle is unread and saves nothing",
+              (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","TSU",""', colours_only=True),
+               os.path.exists(os.path.join(ocoll, "refs", "TSU"))), ("1,unread,,TSU", False))
+        I.detect_vehicles = lambda rgb, detector: ([(0, 0, 50, 50)], "")
+        try:
+            ref_job(I.add_references, coll, f'"1","{real_jpg}","VER","Red"', colours_only=True)
+            off = "(no error)"
+        except I.InputError as e:
+            off = str(e)
+        check("colours-only needs colour_tags", off, "Fill entry colours needs read car colour (colour_tags) on")
+        pcoll = collection({"kind": "people", "rules": {"colour_tags": True}, "entries": [LH]}, root=root)
+        try:
+            ref_job(I.add_references, pcoll, f'"1","{real_jpg}","Lando Norris",""', colours_only=True)
+            people = "(no error)"
+        except I.InputError as e:
+            people = str(e)
+        check("colours-only refuses a people collection", people, "Fill entry colours is for vehicle collections")
+        check("colours-only saves no face reference", os.path.isdir(os.path.join(pcoll, "refs", "Lando Norris")), False)
     finally:
         I.detect_vehicles = real_detect
         audit_refs.screen_refs = real_screen

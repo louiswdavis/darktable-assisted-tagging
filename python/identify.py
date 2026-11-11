@@ -1213,15 +1213,15 @@ def screen_new_refs(collection: str, index: ReferenceIndex, done: list, mode: st
     return out
 
 
-_NOTE_RANK = {"": 0, "set": 1, "differs": 2}
+_NOTE_RANK = {"": 0, "already": 1, "set": 2, "differs": 3}
 
 
 def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: list) -> list:
     """Writes the job's colour proposals (`proposed[i]`: [(entry id, colour)] for row `done[i]`) to
     entries.json in one entries_file.set_colours call. Only entries without a colour get one; the first
-    proposal per entry wins. Returns each row's colour_note: "set", "differs" or ""; a row with
-    several outcomes reports the more serious (differs, then set). A file that can't be written is
-    logged and its rows get no note."""
+    proposal per entry wins. Returns each row's colour_note: "set", "differs", "already" (the entry
+    holds that colour) or ""; a row with several outcomes reports the more serious (differs, set,
+    then already). A file that can't be written is logged and its rows get no note."""
     names = [n for n, _ in rules.colour_palette] + [car_colour.MULTI]
     notes = [""] * len(done)
     chosen, rows_of = {}, {}  # entry id → colour; entry id → rows whose proposal is the chosen one
@@ -1243,6 +1243,8 @@ def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: l
                 rows_of.setdefault(eid, []).append(i)
             elif colour == chosen.get(eid) and not entries[eid].colour:
                 rows_of[eid].append(i)
+            elif colour == entries[eid].colour:
+                mark(i, "already")
             elif colour != have:
                 where = "in entries.json" if entries[eid].colour else "from an earlier reference in this job"
                 log(f"entry {eid}: colour is {have} {where}, this reference reads {colour}; left as {have}")
@@ -1265,9 +1267,11 @@ def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: l
 
 def run_reference_job(args, models: dict, handle_row, screen: str = ""):
     """Runs `handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour) -> (status,
-    proposals)` over the manifest rows (an optional 4th column is the image's hand-applied colour),
-    writing one `id,status,colour_note` results row and a progress tick per row. `proposals` is
-    [(entry id, colour)] for fill_colours. References added before a cancel are kept, colours aren't
+    proposals[, row_entry])` over the manifest rows (an optional 4th column is the image's hand-applied
+    colour), writing one `id,status,colour_note,entry_id` results row and a progress tick per row.
+    `proposals` is [(entry id, colour)] for fill_colours; the row's entry id is `row_entry` when the
+    handler gives one, else the first proposal's, else the manifest's (`""` when it has none).
+    References added before a cancel are kept, colours aren't
     written; the reference index is saved either way. `screen` ("warn" or "skip") then checks the new
     refs with screen_new_refs; people collections are never screened."""
     collection = os.path.join(args.collections_root, args.collection)
@@ -1281,15 +1285,17 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
     rows = read_manifest(args.manifest, 3, optional=1)
     done = []  # (image id, status, refs the row saved)
     proposed = []  # per row: [(entry id, colour)]
+    row_entries = []  # per row: the entry id the results row names
     cancelled = False
     for n, (image_id, filepath, entry_id, hand_colour) in enumerate(rows, 1):
         if cancel_requested(args.progress):
             cancelled = True
             break
         index.added = []
-        status, proposals = handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour)
+        status, proposals, *row_entry = handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour)
         done.append((image_id, status, list(index.added)))
         proposed.append(proposals)
+        row_entries.append(row_entry[0] if row_entry else (proposals[0][0] if proposals else entry_id))
         write_progress(args.progress, n, len(rows))
     index.save()
     if cancelled:
@@ -1299,12 +1305,17 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
         done = screen_new_refs(collection, index, done, screen)
     notes = fill_colours(os.path.join(collection, "entries.json"), entries, rules, done, proposed)
     with atomic_write(args.results, newline="") as f:
-        f.writelines(f"{image_id},{status},{note}\n" for (image_id, status, _), note in zip(done, notes))
+        f.writelines(f"{image_id},{status},{note},{eid}\n"
+                     for (image_id, status, _), note, eid in zip(done, notes, row_entries))
     write_collection_outputs(args, collection, entries, rules, from_entries)
 
 
 def add_references(args, models: dict):
+    """Each manifest image becomes a reference for its entry (and, with rules.colour_tags, reads
+    the car's colour into entries.json). `args.colours_only` reads the colour alone: no reference
+    is saved, team rows are "unread", and a row is "read" or "unread" by whether a colour came out."""
     teams = None
+    colours_only = getattr(args, "colours_only", False)
 
     def handle_people(index, entries, rules, image_id, filepath, entry_id):
         if entry_id not in entries:
@@ -1332,12 +1343,22 @@ def add_references(args, models: dict):
         if entry_id not in entries and not is_team:
             log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")
             return "failed", []
+        if colours_only and is_team:
+            log(f"{image_id}: only tagged to {entry_id}; a team has no colour to fill")
+            return "unread", []
         if is_team and not rules.partial_references:
             log(f"{image_id}: only tagged to {entry_id}; set rules.partial_references to save team references")
             return "team_refs_off", []
         try:
             rgb = load_full(filepath)
             boxes, note = detect_vehicles(rgb, models["detector"])
+            if colours_only:
+                colour = hand_colour or (car_colour.decide_colour(car_colour.colour_shares(crop_box(rgb, boxes[0]), rules.colour_palette))
+                                         if boxes else "")
+                if not colour:
+                    log(f"{image_id}: " + (f"no vehicle found ({note})" if not boxes else "couldn't tell the car's colour") + "; colour unread")
+                    return "unread", []
+                return "read", [(entry_id, colour)]
             if is_team and len(boxes) != 1:
                 log(f"{image_id}: {len(boxes)} vehicles found; only a solo shot can be a team reference")
                 return "team_not_solo", []
@@ -1355,7 +1376,14 @@ def add_references(args, models: dict):
             log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
             return "failed", []
 
-    run_reference_job(args, models, handle, screen="warn")
+    if colours_only:
+        collection = os.path.join(args.collections_root, args.collection)
+        only_rules = load_collection(collection, args.settings)[1]
+        if only_rules.kind == "people":
+            raise InputError("Fill entry colours is for vehicle collections")
+        if not only_rules.colour_tags:
+            raise InputError("Fill entry colours needs read car colour (colour_tags) on")
+    run_reference_job(args, models, handle, screen="" if colours_only else "warn")
 
 
 def promote_boxes(args, models: dict):
@@ -1391,7 +1419,7 @@ def promote_boxes(args, models: dict):
                 colour = hand_colour if hand_colour and len(wanted) == 1 else car_colour.decide_colour(b.get("colour_shares", {}))
                 if rules.colour_tags and colour:
                     proposals.append((b["entry"], colour))
-            return "added", proposals
+            return "added", proposals, wanted[0]["entry"]
         except Exception as e:
             log(f"{image_id}: couldn't add references ({type(e).__name__}: {e})")
             return "failed", []
@@ -1486,6 +1514,8 @@ def main(argv=None):
     parser.add_argument("--promote-boxes", action="store_true",
                         help="Add each manifest image's confident vehicles from --boxes-in as references")
     parser.add_argument("--add-reference", action="store_true", help="Add each manifest image as a reference")
+    parser.add_argument("--colours-only", action="store_true",
+                        help="With --add-reference: read each car's colour into entries.json without saving a reference")
     parser.add_argument("--audit-refs", action="store_true",
                         help="Refresh the reference index, then write ref-audit.txt listing refs that look wrongly filed")
     parser.add_argument("--suggest-crops", action="store_true",
