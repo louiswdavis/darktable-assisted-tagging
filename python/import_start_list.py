@@ -10,8 +10,8 @@ has one entry per line, number first, then "driver / co-driver"; lines without a
 are skipped and counted. Each entry becomes {"id": number, "number": number, "name": "driver /
 co-driver", "team": team, "tags": ["<prefix>|Class|<class>"]}, with the empty fields left out.
 Numbers already in entries.json are skipped and listed, never overwritten. The previous file is
-kept as entries.json.bak. A file not in the one-entry-per-line layout is never reflowed: the new
-entries go to start-list.new.json beside it instead. Exit 2 with a message on bad input."""
+kept as entries.json.bak. A file not in the one-entry-per-line layout is reflowed into it. Exit 2
+with a message on bad input."""
 
 import argparse
 import csv
@@ -136,8 +136,8 @@ def entries_from(rows: list) -> tuple:
 
 
 def merge(collection_dir: str, entries: list, tag_prefix: str) -> dict:
-    """Appends the entries whose number (and id) is new. Returns {"added", "skipped", "path"} where
-    path is entries.json, or start-list.new.json when the file isn't in dump's layout."""
+    """Appends the entries whose number (and id) is new. Returns {"added", "skipped", "path"}. A file
+    in dump's layout keeps it; any other layout is reflowed into the canonical one."""
     path = os.path.join(collection_dir, "entries.json")
     if not os.path.exists(path):
         if not tag_prefix:
@@ -163,14 +163,9 @@ def merge(collection_dir: str, entries: list, tag_prefix: str) -> dict:
     skipped = [e["number"] for e in entries if e["number"] in have or e["id"] in have]
     if not new:
         return {"added": 0, "skipped": skipped, "path": path}
-    if inline is None:
-        side = os.path.join(collection_dir, "start-list.new.json")
-        with atomic_write(side) as f:
-            f.write(dump(new))
-        return {"added": len(new), "skipped": skipped, "path": side}
     existing.extend(new)
     with atomic_write(path) as f:
-        f.write(dump(data, inline))
+        f.write(dump(data, bool(inline)))
         if text is not None:
             shutil.copy2(path, path + ".bak")  # the original, before the replace on exit
     return {"added": len(new), "skipped": skipped, "path": path}
@@ -205,8 +200,6 @@ def main(argv=None):
         notes.append(f"{skipped_lines} line(s) without a leading number ignored")
     if cleaned:
         notes.append(f', ; and " removed from the names of {", ".join(cleaned)}')
-    if result["path"].endswith("start-list.new.json"):
-        notes.append("entries.json isn't one entry per line, so the new entries were written beside it; paste them in by hand")
     print(f"added {result['added']} entries to {result['path']}" + ("; " + "; ".join(notes) if notes else ""))
 
 

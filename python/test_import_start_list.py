@@ -103,10 +103,12 @@ def run_tests():
         os.makedirs(hand)
         write(os.path.join(hand, "entries.json"), '{"rules": {"tag_prefix": "R"},\n "entries": [{"id": "1", "number": "1"}]}\n')
         M.main([hand, "--text", pasted])
-        check("a hand-formatted file is left alone", open(os.path.join(hand, "entries.json"), encoding="utf-8").read(),
+        reflowed = json.load(open(os.path.join(hand, "entries.json"), encoding="utf-8"))
+        check("a hand-formatted file gets the new entries", [e["id"] for e in reflowed["entries"]], ["1", "7", "21", "105"])
+        check("a hand-formatted file is reflowed into the canonical layout",
+              open(os.path.join(hand, "entries.json"), encoding="utf-8").read(), dump(reflowed))
+        check("the hand-formatted original is kept as .bak", open(os.path.join(hand, "entries.json.bak"), encoding="utf-8").read(),
               '{"rules": {"tag_prefix": "R"},\n "entries": [{"id": "1", "number": "1"}]}\n')
-        side = json.load(open(os.path.join(hand, "start-list.new.json"), encoding="utf-8"))
-        check("its new entries go to start-list.new.json", [e["id"] for e in side], ["7", "21", "105"])
 
         bare = os.path.join(tmp, "bare")
         os.makedirs(bare)

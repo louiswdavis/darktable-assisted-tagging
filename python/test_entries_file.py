@@ -44,12 +44,15 @@ def run_tests():
     text = read(rally)
     check("rally's entries.json is in the canonical layout", F.dump(json.loads(text)).rstrip(), text.rstrip())
 
-    # f1-season spreads each entry over several lines, so the writer leaves it alone
+    # f1-season spreads each entry over several lines, so the writer reflows it into the canonical layout
     f1 = copy_example("f1-season")
     f1_text = read(f1)
     check("f1-season's entries.json isn't one entry per line", F.dump(json.loads(f1_text)).rstrip() == f1_text.rstrip(), False)
-    check("f1-season is refused for layout", F.set_colours(f1, {"LEC": "Red"}), (False, "layout"))
-    check("a refused f1-season file is unchanged", read(f1), f1_text)
+    check("f1-season is written", F.set_colours(f1, {"LEC": "Red"}), (True, "set"))
+    f1_data = json.loads(f1_text)
+    next(e for e in f1_data["entries"] if e["id"] == "LEC")["colour"] = "Red"
+    check("a reflowed f1-season file is canonical with the colour set", read(f1), F.dump(f1_data))
+    check("the reflowed file's previous bytes are kept as .bak", read(f1 + ".bak"), f1_text)
 
     check("adding a colour writes", F.set_colours(rally, {"12": "Red"}), (True, "set"))
     new = read(rally)
@@ -68,9 +71,9 @@ def run_tests():
     check("an unchanged file gets no .bak", os.path.exists(blue + ".bak"), False)
 
     split = write('{\n  "rules": {},\n  "entries": [\n    { "id": "A",\n      "number": "1" }\n  ]\n}\n')
-    before = read(split)
-    check("an entry split over two lines is refused for layout", F.set_colours(split, {"A": "Red"}), (False, "layout"))
-    check("a refused file keeps its bytes", read(split), before)
+    check("an entry split over two lines is written", F.set_colours(split, {"A": "Red"}), (True, "set"))
+    check("a split entry is reflowed onto one line", read(split),
+          '{\n  "rules": {},\n  "entries": [\n    { "id": "A", "number": "1", "colour": "Red" }\n  ]\n}\n')
 
     lua_form = write('{\n  "rules": { "tag_prefix": "F1" },\n  "entries": [\n'
                      '    { "id": "A", "number": "1", "team": "", "name": "A" }\n  ]\n}\n')

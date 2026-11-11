@@ -441,12 +441,12 @@ end
 
 -- reference results.csv: id,status,colour_note; older files have no colour_note
 do
-    local rows, notes = T.parse_reference_results("1,added,set\n2,added,differs\n3,added,\n4,stale\n5,added,set\n6,added,layout\n")
-    check("reference results: every row parses", #rows, 6)
+    local rows, notes = T.parse_reference_results("1,added,set\n2,added,differs\n3,added,\n4,stale\n5,added,set\n")
+    check("reference results: every row parses", #rows, 5)
     check("reference results: a 2-column row reads an empty note", rows[4][2] .. "|" .. rows[4][3], "stale|")
-    check("reference results: colour notes are counted", notes.set .. "," .. notes.differs .. "," .. notes.layout, "2,1,1")
+    check("reference results: colour notes are counted", notes.set .. "," .. notes.differs, "2,1")
     check("reference results: the done message names each count", table.concat(T.colour_note_extras(notes), "; "),
-        "2 entries got a colour; 1 colour readings differ from entries.json (see log); 1 colours to add by hand (see log)")
+        "2 entries got a colour; 1 colour readings differ from entries.json (see log)")
     local _, none = T.parse_reference_results("1,added\n")
     check("reference results: no colour notes, nothing to add", #T.colour_note_extras(none), 0)
 end

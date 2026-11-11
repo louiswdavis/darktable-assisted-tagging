@@ -1,6 +1,6 @@
 """entries.json round trip for the reference actions: fills an entry's `colour` without changing
-anything else. Only a file already in the canonical layout (`dump`) is rewritten; any other layout
-is left alone, so a hand-formatted file never gets reflowed."""
+anything else. A file already in the canonical layout (`dump`) keeps its layout; any other layout
+is reflowed into the canonical one, with the previous file kept as entries.json.bak."""
 
 import json
 import shutil
@@ -35,9 +35,10 @@ def dump(data, inline_rules: bool = False) -> str:
 def set_colours(path: str, colours: dict) -> tuple:
     """Gives each entry in `colours` ({entry id: colour}) that has no colour yet its colour, appended
     as its last key. Entries that already have a colour are never touched. Returns (written, reason):
-    (True, "set"), or (False, "unchanged") when no entry needed one, or (False, "layout") when the file
-    isn't in `dump`'s layout (trailing whitespace aside). Writes a temp file, keeps the previous file
-    as entries.json.bak, then replaces it; line endings and trailing whitespace are kept."""
+    (True, "set"), or (False, "unchanged") when no entry needed one. A file in `dump`'s layout
+    (trailing whitespace aside) keeps its layout, line endings and trailing whitespace; any other
+    layout is reflowed into the canonical one. Writes a temp file, keeps the previous file as
+    entries.json.bak, then replaces it."""
     with open(path, encoding="utf-8", newline="") as f:
         raw = f.read()
     eol = "\r\n" if "\r\n" in raw else "\n"
@@ -55,9 +56,7 @@ def set_colours(path: str, colours: dict) -> tuple:
         return False, "unchanged"
     original = json.loads(text)
     inline = next((i for i in (False, True) if dump(original, i).rstrip() == text.rstrip()), None)
-    if inline is None:
-        return False, "layout"
-    out = dump(data, inline).rstrip() + text[len(text.rstrip()):]
+    out = dump(data, False) if inline is None else dump(data, inline).rstrip() + text[len(text.rstrip()):]
     with atomic_write(path, newline="") as f:
         f.write(out.replace("\n", eol))
         shutil.copy2(path, path + ".bak")  # the original, before the replace on exit

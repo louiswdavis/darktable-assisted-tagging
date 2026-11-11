@@ -417,7 +417,7 @@ M.ledger_prune = C.ledger_prune
 -- A reference job's results.csv (`id,status,colour_note`; files from before colour notes have
 -- no third column) → its rows { id, status, note } and the count of each colour note.
 function M.parse_reference_results(text)
-    local rows, notes = {}, { set = 0, differs = 0, layout = 0 }
+    local rows, notes = {}, { set = 0, differs = 0 }
     for line in (text or ""):gmatch("[^\r\n]+") do
         local p = M.parse_csv_line(line, 3) or M.parse_csv_line(line, 2)
         if p then
@@ -434,7 +434,6 @@ function M.colour_note_extras(notes)
     local out = {}
     if notes.set > 0 then out[#out + 1] = string.format("%d entries got a colour", notes.set) end
     if notes.differs > 0 then out[#out + 1] = string.format("%d colour readings differ from entries.json (see log)", notes.differs) end
-    if notes.layout > 0 then out[#out + 1] = string.format("%d colours to add by hand (see log)", notes.layout) end
     return out
 end
 

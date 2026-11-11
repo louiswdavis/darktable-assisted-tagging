@@ -1213,14 +1213,15 @@ def screen_new_refs(collection: str, index: ReferenceIndex, done: list, mode: st
     return out
 
 
-_NOTE_RANK = {"": 0, "set": 1, "differs": 2, "layout": 3}
+_NOTE_RANK = {"": 0, "set": 1, "differs": 2}
 
 
 def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: list) -> list:
     """Writes the job's colour proposals (`proposed[i]`: [(entry id, colour)] for row `done[i]`) to
     entries.json in one entries_file.set_colours call. Only entries without a colour get one; the first
-    proposal per entry wins. Returns each row's colour_note: "set", "differs", "layout" or ""; a row
-    with several outcomes reports the most serious (layout, then differs, then set)."""
+    proposal per entry wins. Returns each row's colour_note: "set", "differs" or ""; a row with
+    several outcomes reports the more serious (differs, then set). A file that can't be written is
+    logged and its rows get no note."""
     names = [n for n, _ in rules.colour_palette] + [car_colour.MULTI]
     notes = [""] * len(done)
     chosen, rows_of = {}, {}  # entry id → colour; entry id → rows whose proposal is the chosen one
@@ -1252,16 +1253,13 @@ def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: l
         written, reason = entries_file.set_colours(path, chosen)
     except (OSError, ValueError) as e:
         log(f"couldn't update entries.json ({type(e).__name__}: {e})")
-        written, reason = False, "layout"
+        return notes
+    if not written:
+        return notes
     for eid, colour in chosen.items():
-        if written:
-            log(f"entry {eid}: colour set to {colour} in entries.json")
-        elif reason == "layout":
-            log(f'entries.json isn\'t one entry per line; add "colour": "{colour}" to entry {eid} by hand')
-        else:
-            continue
+        log(f"entry {eid}: colour set to {colour} in entries.json")
         for i in rows_of[eid]:
-            mark(i, "set" if written else "layout")
+            mark(i, "set")
     return notes
 
 
