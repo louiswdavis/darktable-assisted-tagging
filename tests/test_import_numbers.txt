@@ -1,16 +1,16 @@
-wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmpp2tat40k\entries.json
+wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmp1io9ndq8\entries.json
 ok   import writes numbers-only entries
 ok   import writes the rules
 ok   import refuses to overwrite
 ok   import rejects a duplicate number
 ok   import rejects an empty list
 ok   import rejects an order weight out of range
-wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmpp2tat40k\nw.json
+wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmp1io9ndq8\nw.json
 ok   no weight given leaves it out of the rules
 all tests passed
 
 --- stderr ---
-import_numbers: C:\Users\Louis\AppData\Local\Temp\tmpp2tat40k\entries.json already exists; not overwriting
+import_numbers: C:\Users\Louis\AppData\Local\Temp\tmp1io9ndq8\entries.json already exists; not overwriting
 import_numbers: number 12 is listed twice
-import_numbers: C:\Users\Louis\AppData\Local\Temp\tmpp2tat40k\empty.csv has no numbers
+import_numbers: C:\Users\Louis\AppData\Local\Temp\tmp1io9ndq8\empty.csv has no numbers
 import_numbers: --order-weight must be from 0 (random order) to 1 (strictly in order)
