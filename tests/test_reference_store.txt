@@ -7,6 +7,9 @@ ok   re-adding an image keeps one file
 ok   a reload reads the index without re-embedding
 ok   matching ranks the identical sample first
 ok   an identical sample scores 1
+ok   a replaced crop is re-embedded
+ok   the re-embedding reads the new content
+ok   the replaced crop's new stat is saved
 ok   a deleted crop drops out of the index
 ok   turning colour on reads histograms from the crops without re-embedding
 ok   a blue query ranks the blue sample first when colour counts
@@ -29,10 +32,10 @@ ok   all_sims on an empty index
 all tests passed
 
 --- stderr ---
-00:21:01 py: references: embedding 2 (new, or the embedder or blur setting changed)
-00:21:01 py: references: embedding 2 (new, or the embedder or blur setting changed)
-00:21:01 py: references: embedding 2 (new, or the embedder or blur setting changed)
-00:21:01 py: references: stopped after 1 of 2; the rest are embedded next time
-00:21:01 py: references: embedding 2 (new, or the embedder or blur setting changed)
-00:21:01 py: references: embedding 2 (new, or the embedder or blur setting changed)
-00:21:02 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
+09:38:56 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+09:38:56 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+09:38:56 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+09:38:56 py: references: stopped after 1 of 2; the rest are embedded next time
+09:38:56 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+09:38:56 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+09:38:56 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
