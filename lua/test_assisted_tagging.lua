@@ -17,7 +17,7 @@ end
 -- plugin_common.lua ---------------------------------------------------------------
 -- The same file in all three plugin repos; COMMON_HASH pins it. After changing it, copy it to the
 -- other two repos and put the hash this prints into their tests too.
-local COMMON_HASH = "ee1de49c"
+local COMMON_HASH = "66ba39a6"
 local script_dir = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
 local PC = dofile(script_dir .. "/plugin_common.lua")
 local function fnv1a(text)
@@ -328,7 +328,7 @@ check("PANEL_PAGES: every preset key is on one page or listed off-stack",
 local page_titles = {}
 for _, p in ipairs(T.PANEL_PAGES) do page_titles[#page_titles + 1] = p.title end
 check("PANEL_PAGES: titles match the README sections", table.concat(page_titles, ","),
-    "collection,bursts,matching,tags written")
+    "collection,bursts,matching,tags written,run,references")
 
 -- checked_settings: hand-edited settings.json values show_panel would display
 local cs = T.preset_defaults(T.PRESET_SCHEMA)

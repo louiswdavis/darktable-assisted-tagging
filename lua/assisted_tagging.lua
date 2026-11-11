@@ -1006,12 +1006,11 @@ M.PANEL_PAGES = {
     { number = 3, title = "matching", keys = { "colour_tags", "use_hints", "embedder_file", "ocr_rec_file",
         "neighbour_tolerance", "order_weight", "min_read", "colour_weight", "partial_references" } },
     { number = 4, title = "tags written", keys = tag_page_keys },
+    { number = 5, title = "run", keys = { "run_tag" } },
+    { number = 6, title = "references", keys = { "suggest_crops", "quarantine" } },
 }
-M.PANEL_OTHER_KEYS = {
-    "run_tag", "suggest_crops", "quarantine",
-    -- settings.json only, no panel widget
-    "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references",
-}
+-- settings.json only, no panel widget
+M.PANEL_OTHER_KEYS = { "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references" }
 
 local ok, dt = pcall(require, "darktable")
 if not ok then return M end
@@ -2456,7 +2455,6 @@ end
 
 local preset_file_store, make_preset_controls = C.preset_file_store, C.make_preset_controls
 
-local step_label, make_section = C.step_label, C.make_section
 
 -- The preset store for make_preset_controls: each collection folder (one holding an
 -- entries.json) is a preset, its settings in settings.json beside entries.json.
@@ -2999,24 +2997,20 @@ local function install_panel()
             partial_references_check,
         },
         tag_rows,
+        { replace_manual_check, run_tag_check, verify_button, identify_button },
+        { entry_combo, add_button, add_tagged_button, fill_colours_button, promote_button,
+          suggest_crops_check, quarantine_check, audit_button },
     }
     local pages = {}
     for i, page in ipairs(M.PANEL_PAGES) do
         pages[i] = { number = page.number, title = _(page.title), widgets = page_widgets[i] }
     end
-    -- the entries.json editor sits in the top area, above the page combobox
+    -- the entries.json editor sits in the top area, above the page buttons
     local collection_box = dt.new_widget("box") {
         orientation = "vertical",
         edit_button,
         editor_box,
         C.paged_sections("assisted_tagging", pages),
-        step_label(5, _("run")),
-        replace_manual_check,
-        run_tag_check,
-        verify_button,
-        identify_button,
-        make_section(nil, _("references"), { entry_combo, add_button, add_tagged_button, fill_colours_button, promote_button,
-            suggest_crops_check, quarantine_check, audit_button }),
     }
 
     preset_ctl = make_preset_controls({

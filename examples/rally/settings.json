@@ -1,7 +1,7 @@
 {
   "version": 1,
   "use_hints": true,
-  "group_support": "native",
+  "group_support": "tags",
   "group_node": "",
   "run_tag": false,
   "suggest_crops": false,

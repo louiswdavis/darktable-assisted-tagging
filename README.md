@@ -155,6 +155,8 @@ Start darktable, open **preferences → lua options**, and set **plugins folder 
 
 The **Assisted Tagging** panel is in lighttable. Start a collection, give its entries some references, then identify a selection.
 
+Running all three plugins? [WORKFLOW.md](../darktable-assisted-grouping/WORKFLOW.md) says which order to pick and what to re-run after what.
+
 ### Starting a collection
 
 A **collection** is one entry list plus its reference samples: normally one series and season (`F1 2026`), or one event (`BTCC 2026 Brands Hatch`). Collections live in the collections folder, by default `assisted_tagging/collections` in darktable's config directory (the panel creates it the first time it loads). Each one is a folder:
@@ -229,7 +231,7 @@ A file that's just the `[ … ]` list of entries works too, with the default rul
 - [`f1-season`](examples/f1-season): a season with near-identical teammates, a one-off livery and number-less cars
 - [`btcc-event`](examples/btcc-event): one race weekend, with a "check me" tag for misses and no team-only tags
 - [`minimal`](examples/minimal): a bare entry list on the default rules
-- [`rally`](examples/rally): number-only entries for cars of no known livery, with the neighbour aid on (`order_weight`) and colour tags on (`colour_tags`), both set in its `settings.json`
+- [`rally`](examples/rally): number-only entries for cars of no known livery, with the neighbour aid on (`order_weight`) and colour tags on (`colour_tags`), and grouping support set to Grouping tags, all set in its `settings.json`
 
 #### Entries
 
@@ -326,7 +328,7 @@ After editing `entries.json`, click **Reload** in the panel. A mistake in the fi
 
 ### Building references
 
-Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong. **new collection → From tagged images** already does this for the images it was given; add more at any time with the panel's **references** section (at the bottom of the panel):
+Numbers aren't readable in every shot (rear views, motion blur, a number hidden by the halo), so each entry also needs a few **reference samples**: crops of that car the plugin compares new photos against. 3–5 per car from different angles is a good start; add more for the angles it gets wrong. **new collection → From tagged images** already does this for the images it was given; add more at any time with the panel's **6 references** page:
 
 - **Add as reference**: pick the entry in the **entry** list, select photos of that car, click. The largest vehicle in each photo is cropped and saved under that entry. A photo where no vehicle is found is saved whole, and the done message says how many.
 - **Add tagged images**: select photos you've already tagged by hand. Each one carrying *all* of one entry's tags is added under that entry. A photo with only a shared team tag, or with two drivers' tags, is skipped.
@@ -388,6 +390,8 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 - Images tagged by an older version have no ledger, so all their entry tags count as yours.
 - A colour tag you apply by hand is never removed by a run; only the colour tag the plugin attached is replaced. The same goes for a diagnostic, *Unidentified* or *Number seen* tag you applied by hand: it stays (the identifier is not told about it, so it never reads as an entry tag).
 
+**After culling.** To tag only the keepers, filter the collection to `Assisted Culling|Keeper`, select them and click **Identify selection**. Consensus then runs over the keepers alone, so expect more *By livery* and *Unidentified* results; re-run on the full burst to fill them in.
+
 ## Presets
 
 In Assisted Tagging each collection is a preset: the **preset** picker at the top of the panel lists your collections, and a collection's panel settings live in its folder as `settings.json`, beside `entries.json`.
@@ -403,7 +407,7 @@ In Assisted Tagging each collection is a preset: the **preset** picker at the to
 
 ## Panel options
 
-At the top: the **preset** picker and **actions** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**. On a collection it shows **Edit entries.json ▸** (see [1 collection](#1-collection)), then the **page** combobox, which picks one of **1 collection**, **2 bursts**, **3 matching** and **4 tags written** to show at a time; the last page picked is remembered across restarts. **5 run** and **references** stay below the page, always shown. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
+At the top: the **preset** picker and **actions** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**. On a collection it shows **Edit entries.json ▸** (see [1 collection](#1-collection)), then the page buttons **1 collection ▸**, **2 bursts ▸**, **3 matching ▸**, **4 tags written ▸**, **5 run ▸** and **6 references ▸**: clicking one opens its contents below it (its label ends in **▾**) and folds the others; clicking the open one folds it. The open page is remembered across restarts. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
 
 ### new collection
 
@@ -414,7 +418,7 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 ### 1 collection
 
 - **Show tag plan.** Writes `tag-plan.txt` (see [Checking what it will tag](#checking-what-it-will-tag)).
-- **Edit entries.json ▸.** A toggle in the top area, above the **page** combobox, so it shows on every page. It opens the file in an editor below it, with **Save entries.json** and **Cancel edit**, and reads **▾** while open; clicking it again, saving, cancelling or switching collection closes it.
+- **Edit entries.json ▸.** A toggle in the top area, above the page buttons, so it shows whichever page is open. It opens the file in an editor below it, with **Save entries.json** and **Cancel edit**, and reads **▾** while open; clicking it again, saving, cancelling or switching collection closes it.
 - **start list** → **Import start list.** Adds a start list to the collection's `entries.json` without typing the entries. Either choose a CSV with a header row (number, driver, co-driver, team, class; any other columns are ignored), or paste the text copied from a PDF entry list into the box, one entry per line with the number first (`12 Smith / Jones`); pasted text is used when both are given. The **columns** field maps a header to a role when its name isn't one of the usual ones, as `role=header` pairs: `number=Start No.; driver=Pilot`; only `number` is required. Each entry becomes `{"id": "<number>", "number": "<number>", "name": "<driver> / <co-driver>", "team": "<team>", "tags": ["<prefix>|Class|<class>"]}` under the collection's `rules.tag_prefix`, with the empty fields left out. Numbers already in the file are kept and listed in the message, the previous file is saved as `entries.json.bak`, and the lists reload. A file not in the one-entry-per-line layout is rewritten that way. Same thing from a shell: `python python/import_start_list.py <collection folder> --csv start.csv [--columns "number=No."]` or `--text pasted.txt` (`--tag-prefix` only when the file has no prefix yet).
 
 ### 2 bursts
@@ -442,13 +446,13 @@ One switch per diagnostic (default on), each on one line with the tag name it wr
 - **Verify selection.** Identifies the selection, fully tagged images included, and reports where the result differs from your tags. No tags change.
 - **Identify selection.** Identifies and tags the selection (see [Identifying](#identifying)). Click again to cancel.
 
-### references
+### 6 references
 
 - **entry.** The entry **Add as reference** saves under.
 - **Add as reference**, **Add tagged images**, **Fill entry colours**, **Add from last run.** See [Building references](#building-references). The three add actions also fill the entry's colour in `entries.json` when **read car colour** is on.
 - **Audit: suggest re-crops**, **Audit: quarantine poor refs** (both off by default), **Audit references.** See **Audit references** under [Building references](#building-references).
 
-Everything in sections 2 to 5 and **references** except **Replace manual tags** is saved with the collection by **update preset**. **Replace manual tags** applies to the next run only.
+Everything in pages 2 to 6 except **Replace manual tags** is saved with the collection by **update preset**. **Replace manual tags** applies to the next run only.
 
 ## Preferences
 
@@ -603,7 +607,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 **Setup**
 
 1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers`, `test_import_start_list` and `test_identify`.
-2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, **Edit entries.json ▸**, a **page** combobox showing one of *1 collection* to *4 tags written*, then *5 run* and *references*. No `LUA ERROR` in the darktable log.
+2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, **Edit entries.json ▸**, the page buttons *1 collection ▾* (open, its settings below it) to *6 references ▸*. No `LUA ERROR` in the darktable log.
 3. **A collection.** Set the plugins folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **preset** dropdown.
 
 **Grouping support** (one run per mode, on a selection holding a burst)
