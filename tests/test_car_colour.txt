@@ -1,0 +1,24 @@
+ok   solid red is Red
+ok   red with 15% white is Red
+ok   55/45 red and white is Multi
+ok   mud grey is no colour
+ok   silver is White
+ok   dark navy is Blue or Black
+ok   half grey, half red, masked is Red
+ok   half grey, half red, unmasked is no colour
+ok   sole colour with a minor second
+ok   sole-share colour with a part second is Multi
+ok   two parts reaching the sole share
+ok   three parts
+ok   no shares
+ok   same colour agrees
+ok   different colours disagree
+ok   empty entry is neutral
+ok   empty seen is neutral
+ok   Multi entry vs a colour disagrees
+ok   Multi agrees with Multi
+ok   digest is stable
+ok   digest changes with a bound
+ok   digest changes with a name
+
+all tests passed

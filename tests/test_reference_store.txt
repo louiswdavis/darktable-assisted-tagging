@@ -29,10 +29,10 @@ ok   all_sims on an empty index
 all tests passed
 
 --- stderr ---
-22:32:21 py: references: embedding 2 (new, or the embedder or blur setting changed)
-22:32:21 py: references: embedding 2 (new, or the embedder or blur setting changed)
-22:32:21 py: references: embedding 2 (new, or the embedder or blur setting changed)
-22:32:21 py: references: stopped after 1 of 2; the rest are embedded next time
-22:32:21 py: references: embedding 2 (new, or the embedder or blur setting changed)
-22:32:21 py: references: embedding 2 (new, or the embedder or blur setting changed)
-22:32:21 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
+00:20:11 py: references: embedding 2 (new, or the embedder or blur setting changed)
+00:20:11 py: references: embedding 2 (new, or the embedder or blur setting changed)
+00:20:11 py: references: embedding 2 (new, or the embedder or blur setting changed)
+00:20:11 py: references: stopped after 1 of 2; the rest are embedded next time
+00:20:11 py: references: embedding 2 (new, or the embedder or blur setting changed)
+00:20:11 py: references: embedding 2 (new, or the embedder or blur setting changed)
+00:20:11 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it

@@ -10,6 +10,11 @@ ok   pod_stats: right, unclear and wrong against the entry's camera
 ok   pod_stats: only number-identified frames count
 ok   pod_stats: percentiles
 ok   pod_stats: no camera colours, no stats
+ok   describe: colour part with abbreviations, shares under 0.05 omitted
+ok   describe: Bk and Bl abbreviations, no decided colour
+ok   describe: no colour_shares, no colour part
+ok   summarize: cars per colour plus no colour
+ok   summarize: no colour data, no counts
 ok   lever: shared tag, no team set
 ok   lever: no shared tag, runner-up has refs
 ok   lever: top entry without references

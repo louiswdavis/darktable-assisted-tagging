@@ -1,0 +1,22 @@
+ok   rally's entries.json is in the canonical layout
+ok   f1-season's entries.json isn't one entry per line
+ok   f1-season is refused for layout
+ok   a refused f1-season file is unchanged
+ok   adding a colour writes
+ok   only the coloured entry's line changes
+ok   the coloured line ends with the colour
+ok   the previous file is kept as entries.json.bak
+ok   no temp file is left
+ok   an entry with a colour is never changed
+ok   an unchanged file keeps its bytes
+ok   an unchanged file gets no .bak
+ok   an entry split over two lines is refused for layout
+ok   a refused file keeps its bytes
+ok   the panel's one-line rules layout writes
+ok   the one-line rules layout is kept
+ok   a bare list writes
+ok   a bare list stays a bare list
+ok   an empty colour is filled and moved to the last key
+ok   CRLF line endings are kept
+
+all tests passed

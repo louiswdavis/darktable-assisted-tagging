@@ -73,6 +73,13 @@ ok   an identified rival in the group blocks it
 ok   an identified box of the same entry allows it; it is untouched
 ok   a number two entries share agrees on neither
 ok   only the box that read it changes
+ok   weak reads of a Blue entry on red boxes stay none
+ok   weak reads of a Red entry on red boxes agree
+ok   weak reads with no entry colour agree as before
+ok   a Blue entry read on a red box is flagged
+ok   no entry colour, no flag
+ok   a Multi entry on a Multi box is not flagged
+ok   only number results are flagged
 ok   shot: no boxes
 ok   shot: one box is solo
 ok   shot: two boxes is a pack

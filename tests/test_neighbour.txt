@@ -40,4 +40,10 @@ ok   no embeddings leave the box
 ok   no similar callback leaves the box
 ok   a number-order resolve comes before the look-alike
 ok   a frame with no vehicle is not looked at
+ok   an order tie on a red box goes to the Red entry
+ok   an order tie with no entry colours stays a tie
+ok   an order tie on a box with no colour stays a tie
+ok   a white look-alike can't lend to a red box
+ok   a red look-alike lends to a red box
+ok   a look-alike with no colours lends as before
 all tests passed
