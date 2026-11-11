@@ -353,12 +353,25 @@ def run_tests():
     check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
     check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
 
-    _, shot_rules, _fe = I.load_collection(collection({"rules": {"diagnostics": {"shot_pack": "Mine|Pack", "shot_solo": ""}},
-                                                  "entries": [VER]}))
-    check("shot diagnostics can be renamed or dropped like the others",
-          (dict(shot_rules.diagnostics)["shot_pack"], dict(shot_rules.diagnostics)["shot_solo"],
-           dict(shot_rules.diagnostics)["shot_crowded"]),
-          ("Mine|Pack", "", I.DIAG_DEFAULTS["shot_crowded"]))
+    _, shot_rules, _fe = I.load_collection(collection({"rules": {"diagnostics": {
+        "shot_solo": "Mine|Solo", "shot_pack": "Mine|Pack", "shot_crowded": "Mine|Crowded"}}, "entries": [VER]}))
+    check("old shot_* diagnostics sharing one base rename the shot tag",
+          tuple(dict(shot_rules.diagnostics)[k] for k in ("shot_solo", "shot_pack", "shot_crowded")),
+          ("Mine|Solo", "Mine|Pack", "Mine|Crowded"))
+    _, shot_rules, _fe = I.load_collection(collection({"rules": {"diagnostics": {
+        "shot_solo": "", "shot_pack": "", "shot_crowded": ""}}, "entries": [VER]}))
+    check("old shot_* diagnostics all blank switch the shot tag off",
+          tuple(dict(shot_rules.diagnostics)[k] for k in ("shot_solo", "shot_pack", "shot_crowded")), ("", "", ""))
+    lines = []
+    real_log, I.log = I.log, lines.append
+    try:
+        _, shot_rules, _fe = I.load_collection(collection({"rules": {"diagnostics": {
+            "shot_pack": "Mine|Pack", "shot_solo": ""}}, "entries": [VER]}))
+    finally:
+        I.log = real_log
+    check("old shot_* diagnostics with mixed bases log and keep the default shot tag",
+          (dict(shot_rules.diagnostics)["shot_pack"], any("do not share one base" in ln for ln in lines)),
+          (I.DIAG_DEFAULTS["shot_pack"], True))
 
     # ---- hand-applied tags: skipped, conflict (also after burst fill), packs; and boxes.json
     with open(manifest, "w", encoding="utf-8") as f:
@@ -526,8 +539,15 @@ def run_tests():
     check("sponsor_keywords must be lowercase", load_error(
           {"rules": {"sponsor_keywords": {"Petronas": "F1"}}, "entries": [VER]}),
           "rules.sponsor_keywords must map lowercase keywords to tag prefixes")
-    check("partial_references must be a boolean", load_error({"rules": {"partial_references": "yes"}, "entries": [VER]}),
-          "rules.partial_references must be true or false")
+    lines = []
+    real_log, I.log = I.log, lines.append
+    try:
+        _, pr_rules, _fe = I.load_collection(collection({"rules": {"partial_references": "yes"}, "entries": [VER]}))
+    finally:
+        I.log = real_log
+    check("a non-boolean partial_references in entries.json logs and keeps the default",
+          (pr_rules.partial_references, "entries.json: rules.partial_references invalid, using False" in lines),
+          (False, True))
 
     print("")
     if failures == 0:

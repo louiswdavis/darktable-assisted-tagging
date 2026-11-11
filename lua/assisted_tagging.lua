@@ -1073,7 +1073,8 @@ local function collection_settings(name)
     if not f then return M.preset_defaults(M.PRESET_SCHEMA) end
     local text = f:read("a")
     f:close()
-    return (M.preset_merge(M.PRESET_SCHEMA, M.preset_decode(text) or {}))
+    -- Hand-edited blank or invalid values fall back to the default here too (show_panel logs them).
+    return (M.checked_settings(M.preset_merge(M.PRESET_SCHEMA, M.preset_decode(text) or {})))
 end
 local settings = collection_settings(current_collection())
 
