@@ -390,7 +390,7 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 - Images tagged by an older version have no ledger, so all their entry tags count as yours.
 - A colour tag you apply by hand is never removed by a run; only the colour tag the plugin attached is replaced. The same goes for a diagnostic, *Unidentified* or *Number seen* tag you applied by hand: it stays (the identifier is not told about it, so it never reads as an entry tag).
 
-**After culling.** To tag only the keepers, filter the collection to `Assisted Culling|Keeper`, select them and click **Identify selection**. Consensus then runs over the keepers alone, so expect more *By livery* and *Unidentified* results; re-run on the full burst to fill them in.
+**After culling.** To tag only the keepers, collect by the tag `Assisted Culling|Keeper` in darktable's collections module, select them and click **Identify selection**. Consensus then runs over the keepers alone, so expect more *By livery* and *Unidentified* results; re-run on the full burst to fill them in.
 
 ## Presets
 
