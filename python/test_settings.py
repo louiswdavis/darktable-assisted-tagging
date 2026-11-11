@@ -213,9 +213,29 @@ def lua_schema_parity():
     if found is None:
         return
     block = found.group(1)
-    rows = re.findall(r'\{ key = "(\w+)", kind = "(\w+)"(?:, choices = \{[^}]*\})?, default = ([^}]+) \}', block)
+    rows = re.findall(r'\{ key = "(\w+)", kind = "(\w+)"(?:, choices = \{([^}]*)\})?, default = ([^}]+) \}', block)
     check("lua schema keys", [r[0] for r in rows], [s.key for s in S.SETTINGS_SCHEMA])
-    check("lua schema defaults", [_lua_value(r[2]) for r in rows], [s.default for s in S.SETTINGS_SCHEMA])
+    check("lua schema kinds", [r[1] for r in rows], [s.kind for s in S.SETTINGS_SCHEMA])
+    check("lua schema choices", [tuple(re.findall(r'"(\w+)"', r[2])) for r in rows],
+          [s.choices for s in S.SETTINGS_SCHEMA])
+    check("lua schema defaults", [_lua_value(r[3]) for r in rows], [s.default for s in S.SETTINGS_SCHEMA])
+
+    found = re.search(r"local SETTING_RANGES = \{(.*?)\n\}", src, re.S)
+    check("lua SETTING_RANGES block found", found is not None, True)
+    if found is None:
+        return
+    lua_ranges = {}
+    for key, body in re.findall(r"(\w+) = \{([^}]*)\}", found.group(1)):
+        fields = dict(re.findall(r"(\w+) = ([\w.]+)", body))
+        lua_ranges[key] = (_lua_value(fields["lo"]) if "lo" in fields else None,
+                           _lua_value(fields["hi"]) if "hi" in fields else None,
+                           fields.get("lo_open") == "true", fields.get("hi_open") == "true",
+                           fields.get("integer") == "true")
+    py_ranges = {s.key: (s.lo, s.hi, s.lo_open, s.hi_open, s.integer) for s in S.SETTINGS_SCHEMA
+                 if s.kind == "number"}
+    check("lua SETTING_RANGES match lo/hi/lo_open/hi_open/integer",
+          {k: lua_ranges.get(k, (None, None, False, False, False)) for k in py_ranges}, py_ranges)
+    check("lua SETTING_RANGES name only number settings", sorted(set(lua_ranges) - set(py_ranges)), [])
 
 
 for t in (defaults_match_spec, file_wins_over_rules, rules_fallback_logs,

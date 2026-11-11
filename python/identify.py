@@ -192,7 +192,7 @@ def _load_rules(raw, bad) -> dict:
                                   "diagnostics", *MOVED_RULES})
     if unknown:
         raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, sponsor_keywords, '
-                   f'tag_prefix, colour_palette)')
+                   f'tag_prefix, colour_palette; behaviour settings such as order_weight go in settings.json)')
     defaults = Rules()
     colour_palette = _load_palette(raw["colour_palette"], bad) if "colour_palette" in raw else defaults.colour_palette
     tag_prefix = raw.get("tag_prefix", defaults.tag_prefix)

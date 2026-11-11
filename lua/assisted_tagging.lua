@@ -851,7 +851,7 @@ function M.checked_settings(s)
     for _, item in ipairs(M.PRESET_SCHEMA) do
         local key = item.key
         if item.kind == "number" or key:match("^tag_.+_name$") then
-            if M.parse_setting(key, tostring(s[key])) == nil then
+            if M.parse_setting(key, tostring(s[key] or "")) == nil then
                 out[key] = item.default
                 replaced[#replaced + 1] = key
             end
@@ -1171,7 +1171,8 @@ local replace_manual_check = nil
 local read_panel = nil -- set by install_panel: the panel's values as settings
 
 -- A GUI run reads the panel as it starts; headless runs keep the collection's settings.
--- False (and says why) when the panel holds a value it can't use.
+-- False, with read_panel's "<key>: <why>" on screen, when an entry is invalid (blank entries
+-- read as their defaults), so the run doesn't start.
 local function take_settings()
     if not read_panel then return true end
     local s, why = read_panel()
@@ -2673,7 +2674,7 @@ local function install_panel()
             tooltip = string.format(_("The tag %s writes. Blank = %s."), t.label, default),
             text = "",
         }
-        name_entries[#name_entries + 1] = { key = name_key, entry = e, default = default }
+        name_entries[#name_entries + 1] = { key = name_key, entry = e }
         tag_rows[#tag_rows + 1] = dt.new_widget("box") { orientation = "vertical", c, e }
     end
 
@@ -2742,23 +2743,8 @@ local function install_panel()
     local function trim(s) return (s or ""):match("^%s*(.-)%s*$") end
 
     local shown = M.preset_defaults(M.PRESET_SCHEMA) -- the values show_panel last filled in
-    local warned = {} -- key → the entry text last logged as invalid, so a check doesn't repeat it
 
-    -- An entry's value; blank or invalid keeps the shown value (logged once per text).
-    local function entry_value(key, text, blank_default)
-        local value = M.parse_setting(key, text)
-        if value ~= nil then
-            warned[key] = nil
-            return value
-        end
-        if blank_default ~= nil and trim(text) == "" then return blank_default end
-        if warned[key] ~= text then
-            warned[key] = text
-            log(string.format("panel: %s invalid, keeping %s", key, tostring(shown[key])))
-        end
-        return shown[key]
-    end
-
+    -- The panel's values, or nil and "<key>: <why>" for the first entry M.panel_value refuses.
     read_panel = function()
         local s = {
             group_support = support_keys[group_support_combo.selected] or shown_support,
@@ -2766,17 +2752,26 @@ local function install_panel()
             embedder_file = trim(embedder_entry.text),
             ocr_rec_file = trim(ocr_rec_entry.text),
         }
-        for _i, n in ipairs(number_entries) do s[n.key] = entry_value(n.key, n.entry.text) end
-        for _i, n in ipairs(name_entries) do
-            s[n.key] = entry_value(n.key, n.entry.text, n.default)
+        for _i, list in ipairs({ number_entries, name_entries }) do
+            for _j, n in ipairs(list) do
+                local value, why = M.panel_value(n.key, n.entry.text)
+                if value == nil then return nil, why end
+                s[n.key] = value
+            end
         end
         for _i, key in ipairs(HAND_EDIT_KEYS) do s[key] = shown[key] end
         for _i, key in ipairs(check_order) do s[key] = checks[key].value and true or false end
         return s
     end
 
+    -- Fills the panel from `s`; a number or tag name M.parse_setting refuses shows its default.
     local function show_panel(s)
-        shown, warned = s, {}
+        local replaced
+        s, replaced = M.checked_settings(s)
+        for _i, key in ipairs(replaced) do
+            log(string.format("settings.json: %s invalid, using %s", key, tostring(s[key])))
+        end
+        shown = s
         shown_support = s.group_support
         for i, key in ipairs(support_keys) do
             if key == s.group_support and group_support_combo.selected ~= i then group_support_combo.selected = i end

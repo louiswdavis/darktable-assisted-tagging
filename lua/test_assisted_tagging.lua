@@ -265,6 +265,42 @@ check("parse_setting: order weight above 1 refused", parsed("order_weight", "1.1
 check("parse_setting: blank refused", parsed("min_read", ""), "nil err")
 check("parse_setting: tag name with a comma refused", parsed("tag_colour_name", "Cars,Paint"), "nil err")
 
+-- panel_value: what read_panel makes of an entry
+check("panel_value: blank number is the default", T.panel_value("min_read", "  "), 0.85)
+check("panel_value: blank tag name is the default", T.panel_value("tag_colour_name", ""), "Assisted Tagging|Colour")
+local pv, pv_why = T.panel_value("order_weight", "0,5")
+check("panel_value: 0,5 refused", pv, nil)
+check("panel_value: the message names the key", pv_why:sub(1, 14), "order_weight: ")
+pv, pv_why = T.panel_value("tag_colour_name", "Cars,Paint")
+check("panel_value: tag name with a comma refused", pv, nil)
+check("panel_value: tag name message names the key", pv_why:sub(1, 17), "tag_colour_name: ")
+check("panel_value: valid number", T.panel_value("neighbour_tolerance", "4"), 4)
+
+-- checked_settings: hand-edited settings.json values show_panel would display
+local cs = T.preset_defaults(T.PRESET_SCHEMA)
+cs.min_sim, cs.margin, cs.tag_team_name, cs.order_weight = 0, 1, "A,B", 0.3
+local fixed, replaced = T.checked_settings(cs)
+check("checked_settings: out-of-range and bad names replaced", table.concat(replaced, " "), "min_sim margin tag_team_name")
+check("checked_settings: min_sim back to default", fixed.min_sim, 0.5)
+check("checked_settings: bad tag name back to default", fixed.tag_team_name, "Assisted Tagging|Identification|Team only")
+check("checked_settings: a valid value kept", fixed.order_weight, 0.3)
+check("checked_settings: the given settings untouched", cs.min_sim, 0)
+
+-- named_rules: switched-off diagnostics keep their names (rules.csv leaves them blank)
+local off_s = T.preset_defaults(T.PRESET_SCHEMA)
+off_s.tag_colour, off_s.tag_shot = false, false
+off_s.tag_shot_name = "My|Shot"
+local blank_rules = T.parse_rules_csv("diag_colour,\ndiag_shot_solo,\n")
+local named = T.named_rules(blank_rules, off_s)
+local named_has_colour = false
+for _, p in ipairs(T.owned_prefixes(named)) do
+    if p == "Assisted Tagging|Colour|" then named_has_colour = true end
+end
+check("named_rules: colour off still owns the colour prefix", named_has_colour, true)
+check("named_rules: shot names from tag_shot_name", named.diag.shot_crowded, "My|Shot|Crowded")
+check("named_rules: off diagnostic still owned", T.owned_tags({}, named)["My|Shot|Solo"], true)
+check("named_rules: leaves the rules it was given alone", blank_rules.diag.colour, "")
+
 -- owned_tags / tag_changes (Review Focus 5) ---------------------------------
 local owned = T.owned_tags(entries, rules)
 check("owned: entry tags", owned["F1|Ferrari|Hamilton"], true)

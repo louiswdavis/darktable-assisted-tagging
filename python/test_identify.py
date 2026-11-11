@@ -88,7 +88,8 @@ def run_tests():
         missing = str(e)
     check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
-          'unknown rule "team_onyl" (rules are team_only, unidentified, sponsor_keywords, tag_prefix, colour_palette)')
+          'unknown rule "team_onyl" (rules are team_only, unidentified, sponsor_keywords, tag_prefix, colour_palette; '
+          'behaviour settings such as order_weight go in settings.json)')
     lines = []
     real_log, I.log = I.log, lines.append
     try:
