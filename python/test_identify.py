@@ -87,7 +87,7 @@ def run_tests():
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
           'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight, min_read, colour_tags, colour_palette)')
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
-          'entry "VER": unknown field "tagz" (fields are id, number, team, tags, camera)')
+          'entry "VER": unknown field "tagz" (fields are id, number, team, name, tags, camera, colour)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
           'unknown key "entrys" (the file holds "kind", "rules" and "entries")')
     LH = {"id": "Lando Norris", "tags": ["People|Professions|F1 Drivers|Lando Norris"]}
@@ -210,7 +210,7 @@ def run_tests():
     colour_key = I.frame_key(frame, models)
     check("colour tags add the palette to the cache key", colour_key[-2:], ["car-colour-1", C.palette_digest(C.PALETTE)])
     models["car_colour"] = (("Crimson", C.PALETTE[0][1]),) + tuple(C.PALETTE[1:])
-    check("renaming a palette colour keeps the cache key", I.frame_key(frame, models), colour_key)
+    check("renaming a palette colour changes the cache key", I.frame_key(frame, models) != colour_key, True)
     models["car_colour"] = None
 
     # ---- results rows
@@ -389,7 +389,8 @@ def run_tests():
     try:
         I.promote_boxes(pargs, {"embedder": "fake"})
         check("a promoted box the audit checks flag is not saved", open(results, encoding="utf-8").read().strip(), "1,flagged,")
-        check("a flagged box's crop is deleted", os.listdir(os.path.join(coll, "refs", "VER")), [])
+        check("a flagged box's crop is replaced by the sample it overwrote",
+              os.listdir(os.path.join(coll, "refs", "VER")), ["1_b0.jpg"])
         audit_refs.screen_refs = lambda collection, rels: {r: ["outlier"] for r in rels}
         I.promote_boxes(pargs, {"embedder": "fake"})
         check("one flag alone does not refuse a box", open(results, encoding="utf-8").read().strip(), "1,added,")
