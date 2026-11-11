@@ -1,0 +1,327 @@
+Tag plan for Rallye
+
+Identified (by number, livery or burst): the vehicle's entry tags.
+  1 (#1; 0 references)
+      Sports|Hill Climb|Rallye Prescott|1
+  2 (#2; 0 references)
+      Sports|Hill Climb|Rallye Prescott|2
+  3 (#3; 55 references)
+      Sports|Hill Climb|Rallye Prescott|3
+  4 (#4; 0 references)
+      Sports|Hill Climb|Rallye Prescott|4
+  5 (#5; 16 references)
+      Sports|Hill Climb|Rallye Prescott|5
+  6 (#6; 0 references)
+      Sports|Hill Climb|Rallye Prescott|6
+  7 (#7; 0 references)
+      Sports|Hill Climb|Rallye Prescott|7
+  8 (#8; 2 references)
+      Sports|Hill Climb|Rallye Prescott|8
+  9 (#9; 0 references)
+      Sports|Hill Climb|Rallye Prescott|9
+  10 (#10; 0 references)
+      Sports|Hill Climb|Rallye Prescott|10
+  11 (#11; 12 references)
+      Sports|Hill Climb|Rallye Prescott|11
+  12 (#12; 0 references)
+      Sports|Hill Climb|Rallye Prescott|12
+  13 (#13; 0 references)
+      Sports|Hill Climb|Rallye Prescott|13
+  14 (#14; 0 references)
+      Sports|Hill Climb|Rallye Prescott|14
+  15 (#15; 0 references)
+      Sports|Hill Climb|Rallye Prescott|15
+  16 (#16; 0 references)
+      Sports|Hill Climb|Rallye Prescott|16
+  17 (#17; 0 references)
+      Sports|Hill Climb|Rallye Prescott|17
+  18 (#18; 0 references)
+      Sports|Hill Climb|Rallye Prescott|18
+  19 (#19; 0 references)
+      Sports|Hill Climb|Rallye Prescott|19
+  20 (#20; 0 references)
+      Sports|Hill Climb|Rallye Prescott|20
+  21 (#21; 10 references)
+      Sports|Hill Climb|Rallye Prescott|21
+  22 (#22; 34 references)
+      Sports|Hill Climb|Rallye Prescott|22
+  23 (#23; 0 references)
+      Sports|Hill Climb|Rallye Prescott|23
+  24 (#24; 4 references)
+      Sports|Hill Climb|Rallye Prescott|24
+  25 (#25; 6 references)
+      Sports|Hill Climb|Rallye Prescott|25
+  26 (#26; 36 references)
+      Sports|Hill Climb|Rallye Prescott|26
+  27 (#27; 10 references)
+      Sports|Hill Climb|Rallye Prescott|27
+  28 (#28; 2 references)
+      Sports|Hill Climb|Rallye Prescott|28
+  29 (#29; 0 references)
+      Sports|Hill Climb|Rallye Prescott|29
+  30 (#30; 13 references)
+      Sports|Hill Climb|Rallye Prescott|30
+  31 (#31; 18 references)
+      Sports|Hill Climb|Rallye Prescott|31
+  32 (#32; 0 references)
+      Sports|Hill Climb|Rallye Prescott|32
+  33 (#33; 0 references)
+      Sports|Hill Climb|Rallye Prescott|33
+  34 (#34; 1 reference)
+      Sports|Hill Climb|Rallye Prescott|34
+  35 (#35; 21 references)
+      Sports|Hill Climb|Rallye Prescott|35
+  36 (#36; 0 references)
+      Sports|Hill Climb|Rallye Prescott|36
+  37 (#37; 0 references)
+      Sports|Hill Climb|Rallye Prescott|37
+  38 (#38; 0 references)
+      Sports|Hill Climb|Rallye Prescott|38
+  39 (#39; 19 references)
+      Sports|Hill Climb|Rallye Prescott|39
+  40 (#40; 21 references)
+      Sports|Hill Climb|Rallye Prescott|40
+  41 (#41; 8 references)
+      Sports|Hill Climb|Rallye Prescott|41
+  42 (#42; 15 references)
+      Sports|Hill Climb|Rallye Prescott|42
+  43 (#43; 21 references)
+      Sports|Hill Climb|Rallye Prescott|43
+  44 (#44; 17 references)
+      Sports|Hill Climb|Rallye Prescott|44
+  45 (#45; 7 references)
+      Sports|Hill Climb|Rallye Prescott|45
+  46 (#46; 20 references)
+      Sports|Hill Climb|Rallye Prescott|46
+  47 (#47; 18 references)
+      Sports|Hill Climb|Rallye Prescott|47
+  48 (#48; 0 references)
+      Sports|Hill Climb|Rallye Prescott|48
+  49 (#49; 7 references)
+      Sports|Hill Climb|Rallye Prescott|49
+  50 (#50; 5 references)
+      Sports|Hill Climb|Rallye Prescott|50
+  51 (#51; 8 references)
+      Sports|Hill Climb|Rallye Prescott|51
+  52 (#52; 5 references)
+      Sports|Hill Climb|Rallye Prescott|52
+  53 (#53; 0 references)
+      Sports|Hill Climb|Rallye Prescott|53
+  54 (#54; 10 references)
+      Sports|Hill Climb|Rallye Prescott|54
+  55 (#55; 12 references)
+      Sports|Hill Climb|Rallye Prescott|55
+  56 (#56; 8 references)
+      Sports|Hill Climb|Rallye Prescott|56
+  57 (#57; 0 references)
+      Sports|Hill Climb|Rallye Prescott|57
+  58 (#58; 17 references)
+      Sports|Hill Climb|Rallye Prescott|58
+  59 (#59; 0 references)
+      Sports|Hill Climb|Rallye Prescott|59
+  60 (#60; 7 references)
+      Sports|Hill Climb|Rallye Prescott|60
+  61 (#61; 0 references)
+      Sports|Hill Climb|Rallye Prescott|61
+  62 (#62; 34 references)
+      Sports|Hill Climb|Rallye Prescott|62
+  63 (#63; 13 references)
+      Sports|Hill Climb|Rallye Prescott|63
+  64 (#64; 5 references)
+      Sports|Hill Climb|Rallye Prescott|64
+  65 (#65; 8 references)
+      Sports|Hill Climb|Rallye Prescott|65
+  66 (#66; 6 references)
+      Sports|Hill Climb|Rallye Prescott|66
+  67 (#67; 7 references)
+      Sports|Hill Climb|Rallye Prescott|67
+  68 (#68; 6 references)
+      Sports|Hill Climb|Rallye Prescott|68
+  69 (#69; 4 references)
+      Sports|Hill Climb|Rallye Prescott|69
+  70 (#70; 4 references)
+      Sports|Hill Climb|Rallye Prescott|70
+  71 (#71; 0 references)
+      Sports|Hill Climb|Rallye Prescott|71
+  72 (#72; 0 references)
+      Sports|Hill Climb|Rallye Prescott|72
+  73 (#73; 0 references)
+      Sports|Hill Climb|Rallye Prescott|73
+  74 (#74; 17 references)
+      Sports|Hill Climb|Rallye Prescott|74
+  75 (#75; 29 references)
+      Sports|Hill Climb|Rallye Prescott|75
+  76 (#76; 19 references)
+      Sports|Hill Climb|Rallye Prescott|76
+  77 (#77; 0 references)
+      Sports|Hill Climb|Rallye Prescott|77
+  78 (#78; 16 references)
+      Sports|Hill Climb|Rallye Prescott|78
+  79 (#79; 19 references)
+      Sports|Hill Climb|Rallye Prescott|79
+  80 (#80; 9 references)
+      Sports|Hill Climb|Rallye Prescott|80
+  81 (#81; 2 references)
+      Sports|Hill Climb|Rallye Prescott|81
+  82 (#82; 7 references)
+      Sports|Hill Climb|Rallye Prescott|82
+  83 (#83; 18 references)
+      Sports|Hill Climb|Rallye Prescott|83
+  84 (#84; 0 references)
+      Sports|Hill Climb|Rallye Prescott|84
+  85 (#85; 16 references)
+      Sports|Hill Climb|Rallye Prescott|85
+  86 (#86; 17 references)
+      Sports|Hill Climb|Rallye Prescott|86
+  87 (#87; 6 references)
+      Sports|Hill Climb|Rallye Prescott|87
+  88 (#88; 0 references)
+      Sports|Hill Climb|Rallye Prescott|88
+  89 (#89; 0 references)
+      Sports|Hill Climb|Rallye Prescott|89
+  90 (#90; 0 references)
+      Sports|Hill Climb|Rallye Prescott|90
+  91 (#91; 0 references)
+      Sports|Hill Climb|Rallye Prescott|91
+  92 (#92; 0 references)
+      Sports|Hill Climb|Rallye Prescott|92
+  93 (#93; 0 references)
+      Sports|Hill Climb|Rallye Prescott|93
+  94 (#94; 23 references)
+      Sports|Hill Climb|Rallye Prescott|94
+  95 (#95; 8 references)
+      Sports|Hill Climb|Rallye Prescott|95
+  96 (#96; 0 references)
+      Sports|Hill Climb|Rallye Prescott|96
+  97 (#97; 17 references)
+      Sports|Hill Climb|Rallye Prescott|97
+  98 (#98; 60 references)
+      Sports|Hill Climb|Rallye Prescott|98
+  99 (#99; 3 references)
+      Sports|Hill Climb|Rallye Prescott|99
+  100 (#100; 7 references)
+      Sports|Hill Climb|Rallye Prescott|100
+  101 (#101; 23 references)
+      Sports|Hill Climb|Rallye Prescott|101
+  102 (#102; 14 references)
+      Sports|Hill Climb|Rallye Prescott|102
+  103 (#103; 23 references)
+      Sports|Hill Climb|Rallye Prescott|103
+  104 (#104; 17 references)
+      Sports|Hill Climb|Rallye Prescott|104
+  105 (#105; 4 references)
+      Sports|Hill Climb|Rallye Prescott|105
+  106 (#106; 1 reference)
+      Sports|Hill Climb|Rallye Prescott|106
+  107 (#107; 0 references)
+      Sports|Hill Climb|Rallye Prescott|107
+  108 (#108; 21 references)
+      Sports|Hill Climb|Rallye Prescott|108
+  109 (#109; 13 references)
+      Sports|Hill Climb|Rallye Prescott|109
+  110 (#110; 0 references)
+      Sports|Hill Climb|Rallye Prescott|110
+  111 (#111; 0 references)
+      Sports|Hill Climb|Rallye Prescott|111
+  112 (#112; 32 references)
+      Sports|Hill Climb|Rallye Prescott|112
+  113 (#113; 35 references)
+      Sports|Hill Climb|Rallye Prescott|113
+  114 (#114; 0 references)
+      Sports|Hill Climb|Rallye Prescott|114
+  115 (#115; 19 references)
+      Sports|Hill Climb|Rallye Prescott|115
+  116 (#116; 9 references)
+      Sports|Hill Climb|Rallye Prescott|116
+  117 (#117; 0 references)
+      Sports|Hill Climb|Rallye Prescott|117
+  118 (#118; 0 references)
+      Sports|Hill Climb|Rallye Prescott|118
+  119 (#119; 2 references)
+      Sports|Hill Climb|Rallye Prescott|119
+  120 (#120; 2 references)
+      Sports|Hill Climb|Rallye Prescott|120
+  121 (#121; 31 references)
+      Sports|Hill Climb|Rallye Prescott|121
+  122 (#122; 0 references)
+      Sports|Hill Climb|Rallye Prescott|122
+  123 (#123; 0 references)
+      Sports|Hill Climb|Rallye Prescott|123
+  124 (#124; 0 references)
+      Sports|Hill Climb|Rallye Prescott|124
+  125 (#125; 0 references)
+      Sports|Hill Climb|Rallye Prescott|125
+  126 (#126; 0 references)
+      Sports|Hill Climb|Rallye Prescott|126
+  127 (#127; 0 references)
+      Sports|Hill Climb|Rallye Prescott|127
+  128 (#128; 0 references)
+      Sports|Hill Climb|Rallye Prescott|128
+  129 (#129; 0 references)
+      Sports|Hill Climb|Rallye Prescott|129
+  130 (#130; 0 references)
+      Sports|Hill Climb|Rallye Prescott|130
+  131 (#131; 0 references)
+      Sports|Hill Climb|Rallye Prescott|131
+  132 (#132; 0 references)
+      Sports|Hill Climb|Rallye Prescott|132
+  133 (#133; 0 references)
+      Sports|Hill Climb|Rallye Prescott|133
+  134 (#134; 0 references)
+      Sports|Hill Climb|Rallye Prescott|134
+  135 (#135; 0 references)
+      Sports|Hill Climb|Rallye Prescott|135
+  136 (#136; 0 references)
+      Sports|Hill Climb|Rallye Prescott|136
+  137 (#137; 0 references)
+      Sports|Hill Climb|Rallye Prescott|137
+  138 (#138; 0 references)
+      Sports|Hill Climb|Rallye Prescott|138
+  139 (#139; 0 references)
+      Sports|Hill Climb|Rallye Prescott|139
+  140 (#140; 0 references)
+      Sports|Hill Climb|Rallye Prescott|140
+  141 (#141; 0 references)
+      Sports|Hill Climb|Rallye Prescott|141
+  142 (#142; 0 references)
+      Sports|Hill Climb|Rallye Prescott|142
+  143 (#143; 0 references)
+      Sports|Hill Climb|Rallye Prescott|143
+  144 (#144; 0 references)
+      Sports|Hill Climb|Rallye Prescott|144
+  145 (#145; 0 references)
+      Sports|Hill Climb|Rallye Prescott|145
+  146 (#146; 0 references)
+      Sports|Hill Climb|Rallye Prescott|146
+  147 (#147; 0 references)
+      Sports|Hill Climb|Rallye Prescott|147
+  148 (#148; 0 references)
+      Sports|Hill Climb|Rallye Prescott|148
+  149 (#149; 0 references)
+      Sports|Hill Climb|Rallye Prescott|149
+  150 (#150; 0 references)
+      Sports|Hill Climb|Rallye Prescott|150
+
+Team only (teammates too close to call): rules.team_only = "shared tags".
+  no two entries share a team, so this never happens.
+
+Unidentified (no vehicle, or no confident match): rules.unidentified.
+      (nothing)
+
+Diagnostics (only with the diagnostic tags preference on): rules.diagnostics.
+  number       (off)
+  livery       (off)
+  burst        (off)
+  neighbour    (off)
+  check_order  Assisted Tagging|Identification|Check order
+  team         (off)
+  none         Assisted Tagging|Identification|Unidentified
+  number_seen  (off)
+  colour       Car|Colour
+  check_colour Assisted Tagging|Identification|Check colour
+  pooled       (off)
+  shot_solo    (off)
+  shot_pack    (off)
+  shot_crowded (off)
+
+No references yet, so identified by number only: 1, 2, 4, 6, 7, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 23, 29, 32, 33, 36, 37, 38, 48, 53, 57, 59, 61, 71, 72, 73, 77, 84, 88, 89, 90, 91, 92, 93, 96, 107, 110, 111, 114, 117, 118, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150
