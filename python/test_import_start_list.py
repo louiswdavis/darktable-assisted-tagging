@@ -73,6 +73,9 @@ def run_tests():
         rows, skipped = M.rows_from_text("Entry list\n3 A / B\nx\n")
         check("rows_from_text counts lines without a number", (rows, skipped),
               ([{"number": "3", "driver": "A", "co-driver": "B"}], 2))
+        check("rows_from_csv takes the header's delimiter, CRLF included",
+              [r["number"] for r in M.rows_from_csv("No.;Driver\r\n1;Smith, J\r\n2;Lee\r\n", {})], ["1", "2"])
+        check("rows_from_csv falls back to a comma", M.rows_from_csv("No.,Driver\n4,Kim\n", {})[0]["driver"], "Kim")
 
         cols = M.parse_columns("number=Nr; driver=Pilot")
         check("parse_columns reads role=header pairs", cols, {"number": "Nr", "driver": "Pilot"})

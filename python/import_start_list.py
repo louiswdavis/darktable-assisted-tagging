@@ -74,12 +74,10 @@ def map_header(header: list, columns: dict) -> dict:
 
 
 def rows_from_csv(text: str, columns: dict) -> list:
-    """One {role: value} per data row of a CSV with a header; the delimiter is sniffed."""
-    try:
-        dialect = csv.Sniffer().sniff(text[:4096], delimiters=",;\t")
-    except csv.Error:
-        dialect = csv.excel
-    reader = csv.reader(io.StringIO(text), dialect)
+    """One {role: value} per data row of a CSV with a header; the delimiter is the one of
+    , ; and tab the header row uses most (csv.Sniffer differs between Python builds)."""
+    header_line = next((line for line in text.splitlines() if line.strip()), "")
+    reader = csv.reader(io.StringIO(text), delimiter=max(",;\t", key=header_line.count))
     header = next(reader, None)
     if not header:
         raise BadInput("the CSV is empty")

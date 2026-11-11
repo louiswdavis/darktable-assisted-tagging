@@ -1028,7 +1028,7 @@ def write_run_outputs(args, data: dict):
 
     def report():
         md_path, json_path = write_report(data, args.report_out, args.report_top)
-        written += [md_path, json_path]
+        written.extend([md_path, json_path])
         log(f"report: {md_path}")
 
     if args.boxes_out:

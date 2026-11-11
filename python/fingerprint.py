@@ -39,7 +39,7 @@ CACHE_INPUTS = {
 # module -> constants that only use cached data, are derived from an input, are already in
 # the key another way (the palette digest, the model files) or are runtime state, not a value
 CACHE_NEUTRAL = {
-    vehicles: ("RAW_EXTENSIONS", "COCO_NAMES", "_RAW_FLIP_TURNS", "_DETECTORS"),
+    vehicles: ("COCO_NAMES", "_RAW_FLIP_TURNS", "_DETECTORS"),  # RAW_EXTENSIONS is common.py's, not filed here
     ocr: ("REC_TARGET",),
     embed: ("DEGRADE_FACTOR",),
     segment: ("SEGMENTER_FILE", "SEGMENT_CACHE_TOKEN"),
