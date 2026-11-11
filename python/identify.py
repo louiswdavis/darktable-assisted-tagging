@@ -105,7 +105,7 @@ class Rules:
     # (neighbour.neighbour_aid): 0 ignores them (random order), 1 expects the numbers strictly in order.
     order_weight: float = 0.0
     # Motorsport: how many entries apart (in the sorted number list, wrapping round) a nearby group can be
-    # and still support a doubtful read; used when order_weight is above 0.
+    # and still support a doubtful read; used when the order weight is above 0.
     neighbour_tolerance: int = 5
     # Motorsport: the least confidence (lower of text detection and the reader's own) a number read needs
     # to count. Weaker reads stay in the box's OCR trace but name nothing.
@@ -1404,7 +1404,7 @@ def audit_references(args, models: dict):
     writes ref-audit.txt beside it. results is one `name,count` line per audit total plus `report,<path>`."""
     from audit_refs import AuditCancelled, write_audit
     collection = os.path.join(args.collections_root, args.collection)
-    entries, rules, from_entries = load_collection(collection, args.settings)
+    entries, rules, _ = load_collection(collection, args.settings)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and rules.colour_tags else None
