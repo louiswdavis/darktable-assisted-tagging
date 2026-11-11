@@ -17,7 +17,7 @@ end
 -- plugin_common.lua ---------------------------------------------------------------
 -- The same file in all three plugin repos; COMMON_HASH pins it. After changing it, copy it to the
 -- other two repos and put the hash this prints into their tests too.
-local COMMON_HASH = "de05b21b"
+local COMMON_HASH = "5b5b2bf3"
 local script_dir = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
 local PC = dofile(script_dir .. "/plugin_common.lua")
 local function fnv1a(text)
@@ -48,6 +48,38 @@ do -- temp_base / sweep_temp: leftovers older than max_age go, newer ones and ot
     check("sweep_temp: other prefix kept", PC.file_exists(dir .. "/dt_assisted_y_1000_1_other.csv"), true)
     for _, n in ipairs(PC.list_dir(dir)) do os.remove(dir .. "/" .. n) end
     os.remove(dir)
+end
+do -- shared preferences: assisted_plugins keys first, old per-plugin keys logged once
+    local prefs, logged = {}, {}
+    local fake_dt = { preferences = { read = function(group, name) return prefs[group .. "/" .. name] or "" end } }
+    local function log(msg) logged[#logged + 1] = msg end
+    prefs["assisted_plugins/python_bin"] = "/venv/bin/python"
+    prefs["assisted_tagging/python_bin"] = "/old/python"
+    check("python_bin: shared key wins", PC.python_bin(fake_dt, "assisted_tagging", log), "/venv/bin/python")
+    prefs["assisted_plugins/plugins_root"] = "/plugins/"
+    check("plugin_folder: plugins_root/<folder>", PC.plugin_folder(fake_dt, "assisted_tagging", "darktable-assisted-tagging", log, "/fb"),
+        "/plugins/darktable-assisted-tagging")
+    check("shared keys set: nothing logged", #logged, 0)
+    prefs["assisted_plugins/python_bin"], prefs["assisted_plugins/plugins_root"] = "", ""
+    prefs["assisted_tagging/plugin_folder"] = "/old/folder"
+    check("python_bin: old key when shared blank", PC.python_bin(fake_dt, "assisted_tagging", log), "/old/python")
+    check("python_bin: old key again", PC.python_bin(fake_dt, "assisted_tagging", log), "/old/python")
+    check("plugin_folder: old key when shared blank", PC.plugin_folder(fake_dt, "assisted_tagging", "darktable-assisted-tagging", log, "/fb"), "/old/folder")
+    PC.plugin_folder(fake_dt, "assisted_tagging", "darktable-assisted-tagging", log, "/fb")
+    check("deprecations: one line per old key", #logged, 2)
+    check("deprecation line: python_bin", logged[1], "preferences: assisted_tagging/python_bin is deprecated; set assisted_plugins/python_bin")
+    check("deprecation line: plugin_folder", logged[2], "preferences: assisted_tagging/plugin_folder is deprecated; set assisted_plugins/plugins_root")
+    prefs["assisted_tagging/python_bin"], prefs["assisted_tagging/plugin_folder"] = "", ""
+    check("python_bin: both blank -> empty (auto-detect)", PC.python_bin(fake_dt, "assisted_tagging", log), "")
+    check("plugin_folder: both blank -> fallback", PC.plugin_folder(fake_dt, "assisted_tagging", "darktable-assisted-tagging", log, "/fb"), "/fb")
+    check("plugin_folder: no fallback -> empty", PC.plugin_folder(fake_dt, "assisted_tagging", "darktable-assisted-tagging", log), "")
+    local registered = {}
+    fake_dt.preferences.register = function(group, name) registered[#registered + 1] = group .. "/" .. name end
+    package.loaded["assisted_plugins.shared_prefs_registered"] = nil
+    PC.register_shared_prefs(fake_dt)
+    dofile(script_dir .. "/plugin_common.lua").register_shared_prefs(fake_dt)
+    check("register_shared_prefs: once across plugin copies", table.concat(registered, ","), "assisted_plugins/python_bin,assisted_plugins/plugins_root")
+    package.loaded["assisted_plugins.shared_prefs_registered"] = nil
 end
 
 local function keys(set)
@@ -222,14 +254,16 @@ local seen = row("none")
 seen.unmatched_number = "115"
 w, d = T.wanted_tags({ seen }, entries, T.mask_diag(T.default_rules(), { number_seen = true }))
 check("mask_diag: number_seen off drops the Number seen tags", keys(d), "Assisted Tagging|Identification|Unidentified")
-check("neighbour tolerance parses a whole number", T.parse_neighbour_tolerance(" 8 "), 8)
-check("neighbour tolerance falls back to 5", T.parse_neighbour_tolerance("abc"), 5)
-check("neighbour tolerance defaults when unset", T.parse_neighbour_tolerance(nil), 5)
-check("order weight blank means the collection's", T.parse_order_weight("  "), "")
-check("order weight unset means the collection's", T.parse_order_weight(nil), "")
-check("order weight in range is kept as text", T.parse_order_weight(" 0.5 "), "0.5")
-check("order weight above 1 is refused", T.parse_order_weight("1.5"), nil)
-check("order weight text is refused", T.parse_order_weight("x"), nil)
+local function parsed(key, text)
+    local v, err = T.parse_setting(key, text)
+    return tostring(v) .. (err and " err" or "")
+end
+check("parse_setting: whole tolerance", parsed("neighbour_tolerance", "5"), "5")
+check("parse_setting: fractional tolerance refused", parsed("neighbour_tolerance", "3.5"), "nil err")
+check("parse_setting: order weight 1", parsed("order_weight", "1"), "1")
+check("parse_setting: order weight above 1 refused", parsed("order_weight", "1.1"), "nil err")
+check("parse_setting: blank refused", parsed("min_read", ""), "nil err")
+check("parse_setting: tag name with a comma refused", parsed("tag_colour_name", "Cars,Paint"), "nil err")
 
 -- owned_tags / tag_changes (Review Focus 5) ---------------------------------
 local owned = T.owned_tags(entries, rules)
@@ -524,20 +558,81 @@ require("test_preset_block")(T, check)
 
 do
     local d = T.preset_defaults(T.PRESET_SCHEMA)
-    check("tagging schema has 22 keys", #T.PRESET_SCHEMA, 22)
+    check("tagging schema has 43 keys", #T.PRESET_SCHEMA, 43)
     check("colour keys default on", tostring(d.tag_colour) .. tostring(d.tag_check_colour), "truetrue")
     check("tagging defaults", table.concat({ tostring(d.use_hints), d.group_support, d.group_node,
         tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine), d.embedder_file,
         d.ocr_rec_file, tostring(d.neighbour_tolerance) }, " "), "true native  false false false   5")
     local all_on = true
     for _, item in ipairs(T.PRESET_SCHEMA) do
-        if item.key:match("^tag_") and d[item.key] ~= true then all_on = false end
+        if item.key:match("^tag_") and item.kind == "bool" and d[item.key] ~= true then all_on = false end
     end
     check("every tag switch defaults on", all_on, true)
     check("tolerance 3 kept", (T.preset_merge(T.PRESET_SCHEMA, { neighbour_tolerance = 3 })).neighbour_tolerance, 3)
-    check("tolerance from settings number", T.parse_neighbour_tolerance(tostring(3)), 3)
-    check("negative tolerance falls back", T.parse_neighbour_tolerance(tostring(-3)), 5)
-    check("float tolerance falls back", T.parse_neighbour_tolerance(tostring(3.5)), 5)
+    local merged, problems = T.preset_merge(T.PRESET_SCHEMA, { order_weight = "" })
+    check("stored blank order_weight is the default", merged.order_weight, 0)
+    check("stored blank order_weight is no problem", #problems, 0)
+    local r = T.parse_rules_csv("order_weight,0.5\nneighbour_tolerance,5\ncolour_tags,true\nfrom_entries_json,order_weight;colour_tags")
+    check("rules.csv: order_weight number", r.settings.order_weight, 0.5)
+    check("rules.csv: neighbour_tolerance number", r.settings.neighbour_tolerance, 5)
+    check("rules.csv: colour_tags boolean", r.settings.colour_tags, true)
+    check("rules.csv: from_entries_json keys", table.concat(r.from_entries_json, ";"), "order_weight;colour_tags")
+    check("rules.csv: empty from_entries_json", #T.parse_rules_csv("from_entries_json,").from_entries_json, 0)
+end
+
+do -- run_settings_text_round_trips: every key non-default survives encode → decode → merge
+    local values = {}
+    for _, item in ipairs(T.PRESET_SCHEMA) do
+        local v = item.default
+        if item.kind == "bool" then v = not v
+        elseif item.kind == "number" then v = item.key == "min_face_px" and 64
+            or item.key == "neighbour_tolerance" and 3 or v == 0 and 0.25 or v / 2
+        elseif item.kind == "choice" then v = item.choices[2]
+        else v = item.key:match("_name$") and "Custom|" .. item.key or "x " .. item.key end
+        values[item.key] = v
+    end
+    local back, problems = T.preset_merge(T.PRESET_SCHEMA,
+        T.preset_decode(T.preset_encode(T.PRESET_SCHEMA, values)))
+    local differing = {}
+    for _, item in ipairs(T.PRESET_SCHEMA) do
+        if back[item.key] ~= values[item.key] or values[item.key] == item.default then
+            differing[#differing + 1] = item.key
+        end
+    end
+    check("run_settings_text_round_trips", table.concat(differing, ",") .. "/" .. #problems, "/0")
+end
+
+do -- backfill_settings: entries.json rules fill only missing, blank or invalid stored values
+    local r = T.default_rules()
+    r.settings = { order_weight = 0.5, min_read = 0.9 }
+    r.from_entries_json = { "order_weight", "min_read" }
+    local text, copied = T.backfill_settings('{ "order_weight": 0.3 }', r)
+    local back = T.preset_decode(text or "{}")
+    check("backfill_adds_only_missing", tostring(back.min_read) .. "/" .. tostring(back.order_weight)
+        .. "/" .. table.concat(copied or {}, ","), "0.9/0.3/min_read")
+    check("backfill_adds_only_missing: text", (text or ""):find('"min_read": 0.9', 1, true) ~= nil
+        and text:find('"order_weight": 0.3', 1, true) ~= nil, true)
+
+    check("backfill_noop_returns_nil", T.backfill_settings('{ "order_weight": 0.3, "min_read": 0.8 }', r), nil)
+    local none = T.default_rules()
+    check("backfill_noop_returns_nil: nothing from entries.json", T.backfill_settings("{}", none), nil)
+    check("backfill: unreadable settings.json left alone", T.backfill_settings("{ not json", r), nil)
+
+    local blank = T.preset_decode(T.backfill_settings('{ "order_weight": "", "min_read": 0.8 }', r) or "{}")
+    check("backfill_overwrites_blank", blank.order_weight, 0.5)
+    local out_of_range = T.preset_decode(T.backfill_settings('{ "order_weight": 3, "min_read": 0.8 }', r) or "{}")
+    check("backfill: out-of-range stored value replaced", out_of_range.order_weight, 0.5)
+
+    local d = T.default_rules()
+    d.diag.burst = ""
+    d.diag.livery = "Old|By livery"
+    d.diag.shot_solo, d.diag.shot_pack, d.diag.shot_crowded = "Old|Shot|Solo", "Old|Shot|Pack", "Old|Shot|Crowded"
+    d.from_entries_json = { "tag_burst", "tag_livery_name", "tag_shot_name" }
+    local tags = T.preset_decode(T.backfill_settings("{}", d) or "{}")
+    check("backfill: tag keys from the diagnostic names", tostring(tags.tag_burst) .. "/" .. tostring(tags.tag_livery_name)
+        .. "/" .. tostring(tags.tag_shot_name), "false/Old|By livery/Old|Shot")
+
+    check("run_settings_path", T.run_settings_path("/tmp/dt_assisted_tagging_1_2_"), "/tmp/dt_assisted_tagging_1_2_settings.run.json")
 end
 
 print("")

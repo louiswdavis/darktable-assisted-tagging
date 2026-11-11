@@ -73,7 +73,8 @@ TEAM_ONLY_CHOICES = ("shared tags", "none")
 
 @dataclass(frozen=True)
 class Rules:
-    """What each outcome tags, from entries.json's "rules" block. An empty diagnostic name writes no tag."""
+    """What each outcome tags: the resolved settings (settings.json, --settings, or the old entries.json rules)
+    plus entries.json's entries-only rules. An empty diagnostic name writes no tag."""
     team_only: str = "shared tags"
     unidentified: tuple = ()
     diagnostics: tuple = tuple(DIAG_DEFAULTS.items())
@@ -994,7 +995,8 @@ def open_index(collection: str, models: dict, rules: Rules, embedder, progress: 
                                rules.blur_references, colour=rules.colour_weight > 0, on_progress=on_progress)
 
 
-def identify_people(args, models: dict, entries: dict, rules: Rules, from_entries: tuple, collection: str, face_model: FaceModel):
+def identify_people(args, models: dict, entries: dict, rules: Rules, from_entries: tuple, collection: str,
+                    face_model: FaceModel):
     rows = read_manifest(args.manifest, 3, 3)
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     verify = getattr(args, "verify", False)

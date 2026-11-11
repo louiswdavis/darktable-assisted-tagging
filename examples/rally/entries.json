@@ -1,8 +1,6 @@
 {
   "rules": {
-    "tag_prefix": "Rally|2026",
-    "order_weight": 0.5,
-    "colour_tags": true
+    "tag_prefix": "Rally|2026"
   },
   "entries": [
     { "id": "3", "number": "3" },

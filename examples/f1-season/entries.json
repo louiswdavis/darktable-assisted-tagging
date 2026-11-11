@@ -11,13 +11,6 @@
       "santander": "Motorsport|F1|Ferrari",
       "shell": "Motorsport|F1|Ferrari",
       "hp": "Motorsport|F1|Ferrari"
-    },
-    "diagnostics": {
-      "number": "Assisted Tagging|Identification|By number",
-      "livery": "Assisted Tagging|Identification|By livery",
-      "burst": "Assisted Tagging|Identification|By burst",
-      "team": "Assisted Tagging|Identification|Team only",
-      "none": "Assisted Tagging|Identification|Unidentified"
     }
   },
   "entries": [

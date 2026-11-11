@@ -123,7 +123,7 @@ curl -L -o models/face_recognition_sface_2021dec.onnx https://github.com/opencv/
 | `face_detection_yunet_2023mar.onnx` | finds faces | OpenCV model zoo (YuNet), MIT |
 | `face_recognition_sface_2021dec.onnx` | turns each face into a 128-number fingerprint | OpenCV model zoo (SFace), Apache-2.0 |
 
-A people entry has only `id` and `tags`; references are photos with exactly one face, so tag those photos by hand first. Choose `rules.min_sim`, `margin` and `min_face_px` with `python python/eval_people.py <collection> --face-detector … --face-recognizer …`.
+A people entry has only `id` and `tags`; references are photos with exactly one face, so tag those photos by hand first. Choose `min_sim`, `margin` and `min_face_px` in `settings.json` with `python python/eval_people.py <collection> --face-detector … --face-recognizer …`.
 
 ### 3. darktable side
 
@@ -145,11 +145,11 @@ mklink "%LOCALAPPDATA%\darktable\lua\contrib\assisted_tagging.lua" "%CD%\lua\ass
 echo require "contrib/assisted_tagging" >> "%LOCALAPPDATA%\darktable\luarc"
 ```
 
-Windows without Administrator rights or Developer Mode: copy `assisted_tagging.lua` into `%LOCALAPPDATA%\darktable\lua\contrib` instead of linking it, and add the same `luarc` line. Re-copy it after every update. With the **plugin folder** preference (next step) set, the plugin loads `plugin_common.lua` from that folder's `lua/`; copy it into `contrib` too if you want darktable to start with the preference unset (the three plugins' copies are identical, so one copy serves all of them).
+Windows without Administrator rights or Developer Mode: copy `assisted_tagging.lua` into `%LOCALAPPDATA%\darktable\lua\contrib` instead of linking it, and add the same `luarc` line. Re-copy it after every update. With the **plugins folder** preference (next step) set, the plugin loads `plugin_common.lua` from that folder's `lua/`; copy it into `contrib` too if you want darktable to start with the preference unset (the three plugins' copies are identical, so one copy serves all of them).
 
 ### 4. Point the plugin at the repo
 
-Start darktable, open **preferences → lua options**, and set **Assisted Tagging: plugin folder** to this repo's folder. From there the plugin finds `python/identify.py`, the `models` folder and the `.venv` by itself. Set **Assisted Tagging: Python interpreter** only if yours lives somewhere else.
+Start darktable, open **preferences → lua options**, and set **plugins folder (holds the three assisted-* folders)** to the folder that holds `darktable-assisted-tagging` (and the other assisted plugins). From there the plugin finds `python/identify.py`, the `models` folder and the `.venv` by itself. Set **Python interpreter (.venv)** only if yours lives somewhere else. Both are shared by the assisted plugins; the older per-plugin **Assisted Tagging: plugin folder** and **Python interpreter** preferences still work, and the log says once to move them.
 
 ## Using it
 
@@ -210,8 +210,7 @@ Write `entries.json` yourself for more control than tags alone give you: a race 
   "rules": {
     "tag_prefix": "Motorsport|F1",
     "team_only": "shared tags",
-    "unidentified": ["Motorsport|F1|Unidentified"],
-    "diagnostics": { "burst": "" }
+    "unidentified": ["Motorsport|F1|Unidentified"]
   },
   "entries": [
     { "id": "VER", "number": "1",  "team": "Red Bull", "name": "Max Verstappen" },
@@ -225,12 +224,12 @@ Here VER gets `Motorsport|F1|Red Bull` and `Motorsport|F1|Red Bull|Max Verstappe
 
 A file that's just the `[ … ]` list of entries works too, with the default rules — this is the shape **new collection → From tagged images** writes when its tags don't share one prefix. When every car's tags are `prefix|team` and `prefix|team|name` under the same prefix, it writes the `tag_prefix` form above instead (with `name` per entry). Either way you can hand-edit the result to add numbers or rules.
 
-[`examples/`](examples) has four collections — pick one from the panel's **example** dropdown (see [above](#from-an-example)), or copy its folder into the collections folder by hand. Each has a README on what it shows and how to supply its references:
+[`examples/`](examples) has four collections — pick one from the panel's **example** dropdown (see [above](#from-an-example)), which copies its `entries.json` and `settings.json`, or copy its folder into the collections folder by hand. Each has a README on what it shows and how to supply its references:
 
 - [`f1-season`](examples/f1-season): a season with near-identical teammates, a one-off livery and number-less cars
 - [`btcc-event`](examples/btcc-event): one race weekend, with a "check me" tag for misses and no team-only tags
 - [`minimal`](examples/minimal): a bare entry list on the default rules
-- [`rally`](examples/rally): number-only entries for cars of no known livery, with the neighbour aid on (`order_weight`) and colour tags on (`colour_tags`)
+- [`rally`](examples/rally): number-only entries for cars of no known livery, with the neighbour aid on (`order_weight`) and colour tags on (`colour_tags`), both set in its `settings.json`
 
 #### Entries
 
@@ -242,7 +241,7 @@ A file that's just the `[ … ]` list of entries works too, with the default rul
 | `number` | no | the race number, 1–3 digits. Leave it out for a car with no number; it can then only be identified by livery. Two entries with the same number are allowed, but that number then identifies neither. |
 | numbers-only entry | | `{"id": "12", "number": "12"}`: an entry with a number and no `team`, `name` or `tags`, under `rules.tag_prefix`, gets the tag `prefix\|12`. Build a whole list from a CSV with `python python/import_numbers.py numbers.csv entries.json --tag-prefix "Rally\|2026"`, or add a full start list (names, teams, classes) with the panel's **Import start list** (see [1 collection](#1-collection)); see [`rally`](examples/rally) |
 | `team` | no | entries with the same team can fall back to their shared tags when their liveries are too close to call |
-| `colour` | no | the car's paintwork colour: a name in the active palette, or `Multi` (needs [`rules.colour_tags`](#rules)). Breaks ties between number candidates and flags a number read that disagrees; never a hard filter. The reference actions fill it in when it is missing |
+| `colour` | no | the car's paintwork colour: a name in the active palette, or `Multi` (needs [`colour_tags`](#collection-settings-settingsjson)). Breaks ties between number candidates and flags a number read that disagrees; never a hard filter. The reference actions fill it in when it is missing |
 
 The tags are yours to design: put the team tag on both teammates and the driver tag on one, and a team-only result carries exactly the team tag. The examples leave the year out of the tags: the collection already separates seasons for matching, and darktable's collections module filters by capture date. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags and no `number`, so the number still identifies `VER`) or a new collection.
 
@@ -254,17 +253,70 @@ Every key is optional; leave one out for its default.
 |---|---|---|
 | `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
-| `diagnostics` | the `Assisted Tagging\|Identification\|…` tags | the diagnostic tag per outcome (`number`, `livery`, `burst`, `pooled`, `neighbour`, `check_order`, `team`, `none`, `number_seen`, `check_colour`, `colour`, plus `shot_solo`, `shot_pack`, `shot_crowded`); rename one, or set it to `""` to write none. `colour` defaults to `Assisted Tagging\|Colour` (the tag is `<that>\|<name>`) and `check_colour` to `Assisted Tagging\|Identification\|Check colour`. The switches under **tags written** in the panel also turn each one off for that collection. |
-| `colour_tags` | `false` | reads each car's paintwork colour, writes it as a `Colour` tag and uses an entry's `colour` to break ties and flag number reads that disagree; see [How it works](#how-it-works). Turning it on re-reads every photo once |
 | `colour_palette` | the six built-in colours | an object mapping each tag name to a built-in colour (`"Red"`, `"Blue"`, `"Green"`, `"Yellow"`, `"White"`, `"Black"`) or to a list of bounds in OpenCV HSV, e.g. `{"Red": "Red", "Orange": [{"hue": [9, 19], "sat": [90, 255]}], "Silver": "White"}`. Each bounds object needs `hue` (0–179) and may have `sat` and `val` (0–255); a missing one is the full range. A pixel goes to the first colour that matches. A name can't be `Multi` or contain `\|`. Entry colours must be in the palette. Unlisted built-ins are dropped |
-| `colour_weight` | `0` | how much the colour histogram counts in livery matching, from `0` (off) up. Separate from `colour_tags` |
 | `sponsor_keywords` | `{}` | maps a lowercase sponsor word to the tag prefix of its team, e.g. `{"petronas": "Motorsport\|F1\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
 | `tag_prefix` | `""` | a tag path for the whole collection, e.g. `Motorsport\|F1`. Each entry's tags are then built: `prefix\|team`, then `prefix\|team\|name` (`prefix\|name` with no team), then its own `tags` as extras. A driver match writes all of them; a team-only result writes the shared `prefix\|team`. Empty keeps `tags` as the full list. |
-| `order_weight` | `0` | how far the cars pass in number order, from `0` (random: the neighbour aid is off) to `1` (strictly in order). Above 0, groups shot just before and after a doubtful read help identify it: a neighbour up to `order_weight × (neighbour tolerance + 1)` places away in the number list counts, and from `0.5` up an unsupported doubtful read is flagged *Check order*; see [How it decides](#how-it-works). Gaps and out-of-order passes are fine, and the list loops (after the highest number comes the lowest). Outside 0–1 stops the run |
-| `min_read` | `0.85` | how sure a number read must be to count, from `0` to `1`. A read's confidence is the lower of two scores: how sure the text detector is that it found text, and how sure the reader is of its least certain digit. Raise it if plates or signs get read as numbers; lower it if clear numbers are missed. Weaker reads still show in the OCR trace. Outside 0–1 stops the run |
-| `partial_references` | `false` | **Add tagged images** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only). |
+
+Behaviour settings moved to settings.json on 2026-11-11; an old entries.json still loads, each old rule is copied into settings.json once and logged.
 
 An unknown key, or a misspelt one, stops the run and names it, so a typo can't silently do nothing.
+
+#### Collection settings (settings.json)
+
+Every other setting lives in the collection's `settings.json`, beside `entries.json`. The panel's **update preset** writes it and **Reload** re-reads it; a UTF-8 BOM at the start is accepted. A key missing from the file uses its default, and a value that is out of range or the wrong type falls back to the default with one log line. Most settings have a field in the panel; the five marked `no` are set only in the file.
+
+| Key | What it does | Allowed values | Default | In panel |
+|---|---|---|---|---|
+| `use_hints` | a team tag you applied narrows matching on a solo shot | `true`, `false` | `true` | yes |
+| `group_support` | which groups the burst step borrows answers from, see [Grouping support](#grouping-support) | `"native"`, `"tags"`, `"none"` | `"native"` | yes |
+| `group_node` | the grouping tag node used when `group_support` is `"tags"`; blank is the newest Assisted Grouping run | text | `""` | yes |
+| `run_tag` | stamps every image a run writes with `Assisted Tagging\|Run\|YYYY-MM-DD HH:MM` | `true`, `false` | `false` | yes |
+| `suggest_crops` | **Audit references** suggests re-crops | `true`, `false` | `false` | yes |
+| `quarantine` | **Audit references** quarantines poor references | `true`, `false` | `false` | yes |
+| `embedder_file` | file name in `models/` used to compare liveries; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference | text | `""` | yes |
+| `ocr_rec_file` | file name in `models/` of the number reader; blank is PP-OCRv5, or the CRNN when the v5 files are missing. Changing it re-reads every photo | text | `""` | yes |
+| `order_weight` | how far the cars pass in number order: `0` is random (the neighbour aid is off), `1` is strictly in order. Above 0, groups shot just before and after a doubtful read help identify it; from `0.5` up an unsupported doubtful read is flagged *Check order*; see [How it works](#how-it-works) | number, 0 to 1 | `0` | yes |
+| `neighbour_tolerance` | the most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places) | whole number, 0 or more | `5` | yes |
+| `min_read` | how sure a number read must be to count. A read's confidence is the lower of two scores: how sure the text detector is that it found text, and how sure the reader is of its least certain digit. Raise it if plates or signs get read as numbers; lower it if clear numbers are missed | number, 0 to 1 | `0.85` | yes |
+| `colour_weight` | how much the colour histogram counts in livery matching, from `0` (off) up. Separate from `colour_tags` | number, 0 or more | `0` | yes |
+| `colour_tags` | reads each car's paintwork colour, writes it as a `Colour` tag and uses an entry's `colour` to break ties and flag number reads that disagree; see [How it works](#how-it-works). Turning it on re-reads every photo once | `true`, `false` | `false` | yes |
+| `partial_references` | **Add tagged images** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only) | `true`, `false` | `false` | yes |
+| `min_sim` | people collections: the least face similarity that counts as a match | number, above 0 up to 1 | `0.5` | no |
+| `margin` | people collections: how far the best face match must lead the runner-up | number, 0 up to but not including 1 | `0.05` | no |
+| `min_face_px` | people collections: the smallest face, in pixels, that is used | whole number, 1 or more | `48` | no |
+| `burst_livery_pooling` | experimental: resolves a burst frame that didn't clear the threshold from the burst's pooled livery similarity (*By pooled burst*) | `true`, `false` | `false` | no |
+| `blur_references` | blurs reference crops before they are compared | `true`, `false` | `false` | no |
+| `tag_number`, `tag_number_name` | write the *By number* diagnostic; the tag it writes | `true`/`false`; a tag name | `true`; `Assisted Tagging\|Identification\|By number` | yes |
+| `tag_livery`, `tag_livery_name` | *By livery* | same | `true`; `Assisted Tagging\|Identification\|By livery` | yes |
+| `tag_burst`, `tag_burst_name` | *By burst* | same | `true`; `Assisted Tagging\|Identification\|By burst` | yes |
+| `tag_pooled`, `tag_pooled_name` | *By pooled burst* | same | `true`; `Assisted Tagging\|Identification\|By pooled burst` | yes |
+| `tag_neighbour`, `tag_neighbour_name` | *By neighbour* | same | `true`; `Assisted Tagging\|Identification\|By neighbour` | yes |
+| `tag_check_order`, `tag_check_order_name` | *Check order* | same | `true`; `Assisted Tagging\|Identification\|Check order` | yes |
+| `tag_team`, `tag_team_name` | *Team only* | same | `true`; `Assisted Tagging\|Identification\|Team only` | yes |
+| `tag_none`, `tag_none_name` | *Unidentified* | same | `true`; `Assisted Tagging\|Identification\|Unidentified` | yes |
+| `tag_number_seen`, `tag_number_seen_name` | *Number seen* (the digits are added as a leaf) | same | `true`; `Assisted Tagging\|Identification\|Number seen` | yes |
+| `tag_colour`, `tag_colour_name` | the *Colour* tag (the colour is added as a leaf; needs `colour_tags`) | same | `true`; `Assisted Tagging\|Colour` | yes |
+| `tag_check_colour`, `tag_check_colour_name` | *Check colour* (needs `colour_tags`) | same | `true`; `Assisted Tagging\|Identification\|Check colour` | yes |
+| `tag_shot`, `tag_shot_name` | the *Shot* tag (`Solo`, `Pack` or `Crowded` is added as a leaf) | same | `true`; `Assisted Tagging\|Identification\|Shot` | yes |
+
+A `tag_<key>_name` can't be blank or contain `,`, `;` or `"`; to stop writing a diagnostic, set its `tag_<key>` to `false`. An old `rules.diagnostics.<key>` in `entries.json` is copied here once (`""` becomes `tag_<key>: false`) and logged as deprecated.
+
+#### Renaming tags
+
+To rename a diagnostic tag for one collection:
+
+1. In the panel, open **4 tags written**.
+2. Type the new base name in the text box under the diagnostic's switch (it shows the default name as a placeholder; blank means the default).
+3. Choose **actions** → **update preset**.
+
+The next run writes the new name. `settings.json` ends up with, for example:
+
+```json
+"tag_colour_name": "Cars|Paint",
+"tag_shot_name": "Cars|Framing"
+```
+
+Tags written under the old name stay on images the run doesn't touch; darktable keeps the old name in its tag list until you delete it.
 
 #### Checking what it will tag
 
@@ -289,7 +341,7 @@ Each sample is a JPG in `refs/<entry id>/`, named after the darktable image id. 
 
 In lighttable, select a batch and click **Identify selection** in the **Assisted Tagging** panel. Progress shows in darktable's message area; click the button again to cancel. A cancelled run changes no tags.
 
-Every vehicle that gets an entry adds that entry's tags to the image, so a photo of two cars battling gets both; the collection's [rules](#rules) decide what team-only and unidentified images get. Images also get a tag saying how they were identified. These are the default names; rules can rename or drop each one per collection, and the switches under **tags written** [turn each one off](#choosing-which-diagnostics-are-written):
+Every vehicle that gets an entry adds that entry's tags to the image, so a photo of two cars battling gets both; the collection's [rules](#rules) decide what team-only and unidentified images get. Images also get a tag saying how they were identified. These are the default names; [`settings.json`](#collection-settings-settingsjson) can rename each one per collection (see [Renaming tags](#renaming-tags)), and the switches under **tags written** [turn each one off](#choosing-which-diagnostics-are-written):
 
 | Tag | Meaning |
 |---|---|
@@ -310,9 +362,9 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 
 #### Choosing which diagnostics are written
 
-Each row above has its own switch under **tags written** in the panel, saved in the collection's `settings.json` and all on by default (`Shot` is one switch for all three). Each switch's tooltip names the tag it writes under this collection's rules. Turn off the ones you don't use to keep darktable's tag list short:
+Each row above has its own switch under **tags written** in the panel, saved in the collection's `settings.json` and all on by default (`Shot` is one switch for all three). Each switch's tooltip names the tag it writes under this collection's settings. Turn off the ones you don't use to keep darktable's tag list short:
 
-- **Off** = the next run stops writing that diagnostic and removes it from the images it processes, under whatever name the collection's rules give it. One never written never shows up in the tag list.
+- **Off** = the next run stops writing that diagnostic and removes it from the images it processes, under whatever name the collection's settings give it. One never written never shows up in the tag list.
 - **Identification doesn't change.** Entry tags, team-only and unidentified tags from `entries.json` are written as before.
 - Images outside the run keep their old diagnostics. darktable keeps tag names nobody uses any more in its tag list; delete them in the tagging module's dictionary.
 
@@ -373,8 +425,8 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 - **Use team tags as hints** (on by default). A team tag you applied narrows matching on a solo shot.
 - **embedder model file (blank = bundled)** (text field). File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference on the next run.
 - **number reader model file** (text field, blank = PP-OCRv5, or the CRNN when the v5 files are missing). File name in `models/` of the text recogniser, e.g. `text_recognition_CRNN_EN_2021sep.onnx` for the older reader (see [Models](#2-models)). Changing it re-reads every photo on the next run.
-- **order weight** (text field, blank = `entries.json`). Overrides the collection's `rules.order_weight` without editing the file: a number from 0 to 1, where 0 turns the neighbour aid off. Anything else refuses the run.
-- **neighbour tolerance** (text field, default 5). The most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places). A whole number, 0 or more (anything else refuses the run). Only used when the collection's `order_weight` is above 0.
+- **order weight** (text field, default 0). `order_weight` in `settings.json`: a number from 0 to 1, where 0 turns the neighbour aid off. Anything else is refused.
+- **neighbour tolerance** (text field, default 5). The most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places). A whole number, 0 or more (anything else refuses the run). Only used when `order_weight` is above 0.
 
 ### 4 tags written
 
@@ -401,8 +453,8 @@ All under **preferences → lua options**. Everything else is a collection setti
 
 | Preference | Default | What it does |
 |---|---|---|
-| Assisted Tagging: Python interpreter | empty (the repo's `.venv`) | Python with `requirements.txt` installed |
-| Assisted Tagging: plugin folder | empty (auto-detect) | This repo's folder; `python/`, `models/`, `examples/` and `.venv` are all found inside it. A folder without `python/identify.py` is an error |
+| Python interpreter (.venv) (`assisted_plugins/python_bin`) | empty (auto-detect the repo's `.venv`) | Python with `requirements.txt` installed; shared by the assisted plugins. The old `assisted_tagging/python_bin` is still read and logged as deprecated |
+| plugins folder (`assisted_plugins/plugins_root`) | empty (auto-detect) | The folder holding the assisted-* repos; this plugin uses `<plugins folder>/darktable-assisted-tagging`, where `python/`, `models/`, `examples/` and `.venv` are found. The old `assisted_tagging/plugin_folder` (this repo's folder) is still read and logged as deprecated |
 | Assisted Tagging: collections folder | empty (`assisted_tagging/collections` in the config directory) | Where collections live |
 
 ## How it works
@@ -465,7 +517,7 @@ Each outcome above is one of these methods, named consistently from `identify.py
 
 Frames are decoded at native resolution (a raw file's embedded preview) and each vehicle is cropped from that before reading its number, since a number only a few pixels tall in a downscaled frame is readable in the crop. Detection, OCR text and embeddings are cached per frame in `assisted_tagging/cache.sqlite` in darktable's config directory. Matching isn't, so adding references or editing `entries.json` takes effect on the next run without decoding anything again. The cache key includes the file (path, modified time, size), every model file and a fingerprint of the constants and package versions that change the cached data, so the first run after an update or a constants edit re-reads everything once; unused entries are dropped after 90 days. Delete the file to start over.
 
-**Colour tags.** With `colour_tags` on, each car's paintwork is measured on the middle of its crop (margin, roofline and the lower tyre band are left out) and becomes a colour from the palette, `Multi` for a clear two-tone car, or nothing when it can't tell. The decided colour is written as `…|Colour|<name>`. An entry's `colour` is a tie-breaker only, never a filter. A weak number read for an entry whose colour differs from the car's doesn't count towards a group's agreement; the neighbour aid drops candidates whose colour differs and a look-alike car only lends its entry when the colours don't differ; a confident number read is never blocked, but when its entry's colour differs from the car's the image gets *Check colour*. An entry with no `colour`, or a car whose colour can't be told, is neutral. `Multi` agrees only with `Multi`. Turning `colour_tags` on re-reads every photo once.
+**Colour tags.** With `colour_tags` on (a [collection setting](#collection-settings-settingsjson); rename the tag with [Renaming tags](#renaming-tags)), each car's paintwork is measured on the middle of its crop (margin, roofline and the lower tyre band are left out) and becomes a colour from the palette, `Multi` for a clear two-tone car, or nothing when it can't tell. The decided colour is written as `…|Colour|<name>`. An entry's `colour` is a tie-breaker only, never a filter. A weak number read for an entry whose colour differs from the car's doesn't count towards a group's agreement; the neighbour aid drops candidates whose colour differs and a look-alike car only lends its entry when the colours don't differ; a confident number read is never blocked, but when its entry's colour differs from the car's the image gets *Check colour*. An entry with no `colour`, or a car whose colour can't be told, is neutral. `Multi` agrees only with `Multi`. Turning `colour_tags` on re-reads every photo once.
 
 **RAW+JPEG pairs are read once, from the JPEG.** A RAW and a JPEG in the same folder with the same name before the extension (case ignored, as darktable pairs them on import) are one shot, and so are darktable duplicates of a file. The JPEG is read: it has the camera's exposure and colour at full size. Every file in the shot gets the same tags, and a hand tag on any of them is protected for the whole shot. A RAW with no JPEG is read as before. Same name in another folder is a separate shot.
 
@@ -549,7 +601,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 
 1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers`, `test_import_start_list` and `test_identify`.
 2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, sections *1 collection* to *5 run* and *references*, each under its own heading. No `LUA ERROR` in the darktable log.
-3. **A collection.** Set the plugin folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **preset** dropdown.
+3. **A collection.** Set the plugins folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **preset** dropdown.
 
 **Grouping support** (one run per mode, on a selection holding a burst)
 
@@ -592,6 +644,8 @@ From the repo root. The Python tests use synthetic images and stub models, so th
 .venv\Scripts\python python\run_tests.py
 ```
 
+On a Mac or any machine without numpy and OpenCV, the standard-library tests still run (`python python/test_settings.py`, `python python/test_import_numbers.py`), as do the Lua suites; the rest need the venv.
+
 The pure-logic half of the plugin runs under any Lua 5.4 (`cd lua && lua test_assisted_tagging.lua`). No `lua` binary? `pip install lupa` in the venv, then:
 
 ```
@@ -608,7 +662,7 @@ python python/identify.py manifest.csv results.csv --collections-root collection
     --ocr-rec models/en_PP-OCRv5_mobile_rec.onnx --embedder models/dinov2_small.onnx
 ```
 
-`--ocr-rec` takes the CRNN model too. `--order-weight 0.5` overrides the collection's `rules.order_weight` for the run, and `--neighbour-tolerance N` sets the tolerance, as the panel's fields do.
+`--ocr-rec` takes the CRNN model too. `--settings PATH` uses that settings file instead of the collection's `settings.json` (the panel passes a temporary one for its runs; `promote_boxes.py`, `audit_refs.py` and the list modes take it too). Set `order_weight` and `neighbour_tolerance` in that file.
 
 `results.csv` gets `id,box,method,entry_id,alt_entry_id,confidence,unmatched_number,shot,order_flag,colour,colour_flag` per vehicle (box −1 for a frame with no vehicle; method `skipped` or `conflict` as above). Exit codes: 0 ok, 2 bad input (the message is on stderr), 3 missing package, 130 cancelled.
 

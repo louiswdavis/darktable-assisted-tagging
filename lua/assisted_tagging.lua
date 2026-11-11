@@ -11,11 +11,14 @@ local M = {}
 local THIS_DIR = (debug.getinfo(1, "S").source:sub(2):match("^(.*)[/\\]")) or "."
 
 -- plugin_common.lua lives beside this file; when this file was copied into lua/contrib by
--- hand it is found through the plugin folder preference instead.
+-- hand it is found through the plugins folder preference (or the old plugin folder one).
+-- C.plugin_folder isn't loaded yet, so both keys are read here directly.
 local function load_common()
     local dirs, tried = { THIS_DIR }, {}
     local ok_dt, dt0 = pcall(require, "darktable")
     if ok_dt then
+        local ok_r, root = pcall(dt0.preferences.read, "assisted_plugins", "plugins_root", "directory")
+        if ok_r and root and root ~= "" then dirs[#dirs + 1] = root .. "/darktable-assisted-tagging/lua" end
         local ok_p, folder = pcall(dt0.preferences.read, "assisted_tagging", "plugin_folder", "directory")
         if ok_p and folder and folder ~= "" then dirs[#dirs + 1] = folder .. "/lua" end
     end
@@ -26,7 +29,7 @@ local function load_common()
         tried[#tried + 1] = path
     end
     error("assisted_tagging: plugin_common.lua not found (tried " .. table.concat(tried, ", ")
-        .. "). Copy it next to assisted_tagging.lua, or set the plugin folder preference.")
+        .. "). Copy it next to assisted_tagging.lua, or set the plugins folder preference.")
 end
 local C = load_common()
 
@@ -34,12 +37,13 @@ M.cancel_requested = false
 M.module_installed = false
 M.event_registered = false
 
--- Default diagnostic tag per outcome; a collection's rules can rename or drop each one.
+-- Default diagnostic tag per outcome; a collection's settings rename (tag_<key>_name) or drop
+-- (tag_<key>) each one. PRESET_SCHEMA's tag_<key>_name defaults repeat these.
 M.DIAG_TAGS = {
     number = "Assisted Tagging|Identification|By number",
     livery = "Assisted Tagging|Identification|By livery",
     burst = "Assisted Tagging|Identification|By burst",
-    -- Neighbour aid (collection rule order_weight): a doubtful number read settled by the
+    -- Neighbour aid (setting order_weight): a doubtful number read settled by the
     -- groups shot around it, and a read that doesn't fit the cars shot around it.
     neighbour = "Assisted Tagging|Identification|By neighbour",
     check_order = "Assisted Tagging|Identification|Check order",
@@ -159,10 +163,17 @@ end
 function M.default_rules()
     local diag = {}
     for k, v in pairs(M.DIAG_TAGS) do diag[k] = v end
-    return { team_only = "shared tags", unidentified = {}, diag = diag }
+    return { team_only = "shared tags", unidentified = {}, diag = diag, settings = {}, from_entries_json = {} }
 end
 
--- identify.py's rules.csv (key,value lines from entries.json's "rules") → rules.
+-- The collection settings identify.py writes into rules.csv (python/settings.py MOVED_RULES).
+local MOVED_RULES = { order_weight = true, neighbour_tolerance = true, min_read = true,
+    colour_weight = true, colour_tags = true, partial_references = true, min_sim = true,
+    margin = true, min_face_px = true, burst_livery_pooling = true, blur_references = true }
+
+-- identify.py's rules.csv (key,value lines) → rules. Besides team_only, unidentified and
+-- diag_<outcome>: each resolved setting as rules.settings[key] (numbers and booleans), and
+-- from_entries_json, the settings keys still read from entries.json's old "rules".
 function M.parse_rules_csv(text)
     local rules = M.default_rules()
     for line in (text or ""):gmatch("[^\r\n]+") do
@@ -173,6 +184,14 @@ function M.parse_rules_csv(text)
             rules.unidentified = split(value, ";")
         elseif key and key:sub(1, 5) == "diag_" and M.DIAG_TAGS[key:sub(6)] then
             rules.diag[key:sub(6)] = value
+        elseif key == "from_entries_json" then
+            rules.from_entries_json = split(value, ";")
+        elseif key and MOVED_RULES[key] then
+            if value == "true" or value == "false" then
+                rules.settings[key] = value == "true"
+            else
+                rules.settings[key] = tonumber(value)
+            end
         end
     end
     return rules
@@ -274,6 +293,21 @@ function M.ledgered_owned(mine, roots)
         if roots[name:match("^[^|]*")] then out[name] = true end
     end
     return out
+end
+
+-- rules with every diagnostic named from settings `s` (tag_<key>_name, tag_shot_name|Solo/Pack/
+-- Crowded), switch on or off: rules.csv leaves a switched-off diagnostic blank, and detach,
+-- hand-tag protection and tooltips still need its name.
+function M.named_rules(rules, s)
+    local named, diag = {}, {}
+    for k, v in pairs(rules) do named[k] = v end
+    for k in pairs(M.DIAG_TAGS) do
+        local leaf = k:match("^shot_(.+)$")
+        diag[k] = leaf and (s.tag_shot_name .. "|" .. leaf:sub(1, 1):upper() .. leaf:sub(2))
+            or s["tag_" .. k .. "_name"]
+    end
+    named.diag = diag
+    return named
 end
 
 -- rules with the diagnostics in `off` (outcome key → true) blanked, for wanted_tags.
@@ -521,23 +555,6 @@ function M.read_results(text)
     return rows_of, errored, skipped
 end
 
--- The neighbour-tolerance preference text as a whole number of entries (default 5); anything
--- else falls back to 5 so a typo can't put a bad value on the command line.
-function M.parse_neighbour_tolerance(text)
-    local n = tonumber((tostring(text or ""):match("^%s*(%d+)%s*$")))
-    return n or 5
-end
-
--- The order-weight panel text: "" (blank: the collection's rules.order_weight applies), or a
--- number from 0 to 1 as text. Returns the trimmed text, or nil when it is neither.
-function M.parse_order_weight(text)
-    local t = tostring(text or ""):match("^%s*(.-)%s*$")
-    if t == "" then return "" end
-    local n = tonumber(t)
-    if n and n >= 0 and n <= 1 then return t end
-    return nil
-end
-
 -- Tags usable to build an entry: hierarchical (A|B), not the plugin's own
 -- diagnostics, and clean enough for entries.json (no , ; ").
 local ASSISTED_PREFIX = "Assisted Tagging|"
@@ -723,6 +740,7 @@ end
 
 -- A collection's settings (settings.json beside entries.json). The built-in "template"
 -- holds these defaults. replace_manual is a one-off choice per run, not a setting.
+-- Mirrors SETTINGS_SCHEMA in python/settings.py (test_settings.py checks keys and defaults).
 M.PRESET_SCHEMA = {
     { key = "use_hints", kind = "bool", default = true },
     { key = "group_support", kind = "choice", choices = { "native", "tags", "none" }, default = "native" },
@@ -732,21 +750,160 @@ M.PRESET_SCHEMA = {
     { key = "quarantine", kind = "bool", default = false },
     { key = "embedder_file", kind = "string", default = "" },
     { key = "ocr_rec_file", kind = "string", default = "" },
+    { key = "order_weight", kind = "number", default = 0 },
     { key = "neighbour_tolerance", kind = "number", default = 5 },
-    { key = "order_weight", kind = "string", default = "" },
+    { key = "min_read", kind = "number", default = 0.85 },
+    { key = "colour_weight", kind = "number", default = 0 },
+    { key = "colour_tags", kind = "bool", default = false },
+    { key = "partial_references", kind = "bool", default = false },
+    { key = "min_sim", kind = "number", default = 0.5 },
+    { key = "margin", kind = "number", default = 0.05 },
+    { key = "min_face_px", kind = "number", default = 48 },
+    { key = "burst_livery_pooling", kind = "bool", default = false },
+    { key = "blur_references", kind = "bool", default = false },
     { key = "tag_number", kind = "bool", default = true },
+    { key = "tag_number_name", kind = "string", default = "Assisted Tagging|Identification|By number" },
     { key = "tag_livery", kind = "bool", default = true },
+    { key = "tag_livery_name", kind = "string", default = "Assisted Tagging|Identification|By livery" },
     { key = "tag_burst", kind = "bool", default = true },
+    { key = "tag_burst_name", kind = "string", default = "Assisted Tagging|Identification|By burst" },
     { key = "tag_pooled", kind = "bool", default = true },
+    { key = "tag_pooled_name", kind = "string", default = "Assisted Tagging|Identification|By pooled burst" },
     { key = "tag_neighbour", kind = "bool", default = true },
+    { key = "tag_neighbour_name", kind = "string", default = "Assisted Tagging|Identification|By neighbour" },
     { key = "tag_check_order", kind = "bool", default = true },
+    { key = "tag_check_order_name", kind = "string", default = "Assisted Tagging|Identification|Check order" },
     { key = "tag_team", kind = "bool", default = true },
+    { key = "tag_team_name", kind = "string", default = "Assisted Tagging|Identification|Team only" },
     { key = "tag_none", kind = "bool", default = true },
+    { key = "tag_none_name", kind = "string", default = "Assisted Tagging|Identification|Unidentified" },
     { key = "tag_number_seen", kind = "bool", default = true },
+    { key = "tag_number_seen_name", kind = "string", default = "Assisted Tagging|Identification|Number seen" },
     { key = "tag_colour", kind = "bool", default = true },
+    { key = "tag_colour_name", kind = "string", default = "Assisted Tagging|Colour" },
     { key = "tag_check_colour", kind = "bool", default = true },
+    { key = "tag_check_colour_name", kind = "string", default = "Assisted Tagging|Identification|Check colour" },
     { key = "tag_shot", kind = "bool", default = true },
+    { key = "tag_shot_name", kind = "string", default = "Assisted Tagging|Identification|Shot" },
 }
+
+-- Number ranges, as SETTINGS_SCHEMA's lo/hi (open = the bound itself is out) and whole numbers.
+local SETTING_RANGES = {
+    order_weight = { lo = 0, hi = 1 },
+    neighbour_tolerance = { lo = 0, integer = true },
+    min_read = { lo = 0, hi = 1 },
+    colour_weight = { lo = 0 },
+    min_sim = { lo = 0, hi = 1, lo_open = true },
+    margin = { lo = 0, hi = 1, hi_open = true },
+    min_face_px = { lo = 1, integer = true },
+}
+
+local SCHEMA_BY_KEY = {}
+for _, item in ipairs(M.PRESET_SCHEMA) do SCHEMA_BY_KEY[item.key] = item end
+
+-- Panel entry text for setting `key` → its value, or nil and why. Blank text is an error;
+-- the panel decides what blank means.
+function M.parse_setting(key, text)
+    local item = SCHEMA_BY_KEY[key]
+    if not item then return nil, "unknown setting" end
+    local t = tostring(text or ""):match("^%s*(.-)%s*$")
+    if t == "" then return nil, "blank" end
+    if item.kind == "string" then
+        if key:match("_name$") and t:find('[,;"]') then return nil, 'a tag name can\'t hold , ; or "' end
+        return t
+    end
+    if item.kind == "bool" then
+        if t == "true" then return true end
+        if t == "false" then return false end
+        return nil, "not true or false"
+    end
+    if item.kind == "choice" then
+        for _, c in ipairs(item.choices) do
+            if c == t then return t end
+        end
+        return nil, "not one of the choices"
+    end
+    local n = tonumber(t)
+    if not n or n ~= n or n == math.huge or n == -math.huge then return nil, "not a number" end
+    local r = SETTING_RANGES[key] or {}
+    if r.integer then
+        if n ~= math.floor(n) then return nil, "not a whole number" end
+        n = math.tointeger(n)
+    end
+    if r.lo and (r.lo_open and n <= r.lo or n < r.lo) then return nil, "below " .. r.lo end
+    if r.hi and (r.hi_open and n >= r.hi or n > r.hi) then return nil, "above " .. r.hi end
+    return n
+end
+
+-- A panel entry's value: blank → the schema default; invalid → nil and "<key>: <why>".
+function M.panel_value(key, text)
+    if tostring(text or ""):match("^%s*$") then return SCHEMA_BY_KEY[key].default end
+    local value, why = M.parse_setting(key, text)
+    if value == nil then return nil, key .. ": " .. why end
+    return value
+end
+
+-- A copy of settings `s` with each number or tag name that M.parse_setting refuses (e.g. a
+-- hand-edited settings.json out of range) set to its default, and the keys replaced.
+function M.checked_settings(s)
+    local out, replaced = {}, {}
+    for k, v in pairs(s) do out[k] = v end
+    for _, item in ipairs(M.PRESET_SCHEMA) do
+        local key = item.key
+        if item.kind == "number" or key:match("^tag_.+_name$") then
+            if M.parse_setting(key, tostring(s[key])) == nil then
+                out[key] = item.default
+                replaced[#replaced + 1] = key
+            end
+        end
+    end
+    return out, replaced
+end
+
+-- A settings key's value as rules.csv resolved it: rules.settings, or for the tag_* keys
+-- the diagnostic names (off = ""). Nil when rules.csv doesn't say.
+local function rules_value(rules, key)
+    if rules.settings and rules.settings[key] ~= nil then return rules.settings[key] end
+    local name_of = key:match("^tag_(.-)_name$")
+    local on_of = not name_of and key:match("^tag_(.+)$")
+    local which = name_of or on_of
+    if not which then return nil end
+    local name = rules.diag[which == "shot" and "shot_solo" or which]
+    if name == nil then return nil end
+    if on_of then return name ~= "" end
+    if name == "" then return nil end
+    if which ~= "shot" then return name end
+    return name:match("^(.*)|Solo$")
+end
+
+-- Copies the settings identify.py still read from entries.json's old "rules" into the stored
+-- settings.json text, only where the stored value is missing, blank or invalid. Returns the new
+-- text and the keys copied, or nil when nothing changed (or the stored text isn't JSON).
+function M.backfill_settings(stored_text, rules)
+    local decoded = stored_text and M.preset_decode(stored_text)
+    if not decoded then return nil end
+    local merged, problems = M.preset_merge(M.PRESET_SCHEMA, decoded)
+    local bad = {}
+    for _, key in ipairs(problems) do bad[key] = true end
+    local copied = {}
+    for _, key in ipairs(rules.from_entries_json or {}) do
+        local stored = decoded[key]
+        local usable = stored ~= nil and not bad[key] and M.parse_setting(key, tostring(stored)) ~= nil
+        local value = SCHEMA_BY_KEY[key] and rules_value(rules, key)
+        if not usable and value ~= nil then
+            merged[key] = value
+            copied[#copied + 1] = key
+        end
+    end
+    if #copied == 0 then return nil end
+    return M.preset_encode(M.PRESET_SCHEMA, merged), copied
+end
+
+-- The settings file a GUI run passes as --settings: the panel's values, beside the run's
+-- other temp files (`base` is their shared name prefix).
+function M.run_settings_path(base)
+    return base .. "settings.run.json"
+end
 
 local ok, dt = pcall(require, "darktable")
 if not ok then return M end
@@ -785,6 +942,7 @@ local COLLECTIONS_PATH = TMP_BASE .. "collections.csv"
 local PROGRESS_PATH = TMP_BASE .. "progress.txt"
 local CANCEL_PATH = PROGRESS_PATH .. ".cancel"
 local DONE_PATH = TMP_BASE .. "done.txt"
+local RUN_SETTINGS_PATH = M.run_settings_path(TMP_BASE)
 -- The run log: this plugin's lines plus identify.py's stderr. Kept in the
 -- config dir, which outlives tmp_dir; the run before it is kept as .prev.log.
 local LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.log"
@@ -807,14 +965,7 @@ local MODEL_FILES = {
 }
 
 if dt.gui then
-    dt.preferences.register("assisted_tagging", "python_bin", "file",
-        "Assisted Tagging: Python interpreter",
-        "Python executable with the packages in python/requirements.txt installed (e.g. .venv\\Scripts\\python.exe). Empty = auto-detect the repo's .venv",
-        "")
-    dt.preferences.register("assisted_tagging", "plugin_folder", "directory",
-        "Assisted Tagging: plugin folder",
-        "The darktable-assisted-tagging folder (holds python/, models/, examples/ and .venv). Empty = auto-detect",
-        "")
+    C.register_shared_prefs(dt)
     dt.preferences.register("assisted_tagging", "collections_root", "directory",
         "Assisted Tagging: collections folder",
         "Folder with one folder per collection (entries.json + refs). Empty = assisted_tagging/collections in darktable's config folder",
@@ -849,9 +1000,11 @@ local TAG_TOGGLES = {
 
 local file_exists, first_existing, read_file = C.file_exists, C.first_existing, C.read_file
 
+-- Defined with the log buffer further down; the preference readers log deprecations.
+local log
+
 local function plugin_folder_pref()
-    local folder = (dt.preferences.read("assisted_tagging", "plugin_folder", "directory") or ""):gsub("[/\\]+$", "")
-    return folder
+    return C.plugin_folder(dt, "assisted_tagging", "darktable-assisted-tagging", log)
 end
 
 -- The script is found from the plugin folder preference alone when it's set; a
@@ -861,7 +1014,7 @@ local function identify_script()
     if folder ~= "" then
         local script = folder .. "/python/identify.py"
         if not file_exists(script) then
-            error(string.format("Assisted Tagging: the plugin folder preference (%s) has no python/identify.py. Point it at the darktable-assisted-tagging folder, or clear it to auto-detect.", folder), 0)
+            error(string.format("Assisted Tagging: the plugins folder preference gives %s, which has no python/identify.py. Point it at the folder holding darktable-assisted-tagging, or clear it to auto-detect.", folder), 0)
         end
         return script
     end
@@ -882,8 +1035,8 @@ local function plugin_root(script)
 end
 
 local function python_bin(script)
-    local pref = dt.preferences.read("assisted_tagging", "python_bin", "file")
-    if pref and pref ~= "" then return pref end
+    local pref = C.python_bin(dt, "assisted_tagging", log)
+    if pref ~= "" then return pref end
 
     local root = plugin_root(script)
     local found = first_existing({
@@ -931,10 +1084,6 @@ local function model_path(name, script)
     return plugin_root(script) .. "/models/" .. file
 end
 
-local function neighbour_tolerance()
-    return M.parse_neighbour_tolerance(tostring(settings.neighbour_tolerance))
-end
-
 local function entries_json_path()
     return collections_root() .. "/" .. current_collection() .. "/entries.json"
 end
@@ -971,7 +1120,7 @@ end
 -- two processes appending at once can overwrite each other's lines on Windows.
 local log_buffer = {}
 
-local function log(msg)
+function log(msg)
     log_buffer[#log_buffer + 1] = os.date("%H:%M:%S ") .. "lua: " .. msg
 end
 
@@ -1015,6 +1164,7 @@ local queue = {}
 local STALL_SECONDS = 300
 local verify_button, identify_button, entry_combo, example_combo = nil, nil, nil, nil
 local preset_ctl = nil -- the preset controls; each preset is a collection (set by install_panel)
+local collection_store -- defined with the panel code below
 local collection_loaded = false -- the last collection switch loaded its entries
 local identify_cancellable = false -- the identify button currently reads "Cancel"
 local replace_manual_check = nil
@@ -1032,25 +1182,25 @@ end
 local entries, entry_order, rules = {}, {}, M.default_rules()
 local tag_checks = {} -- TAG_TOGGLES key → its check button (set by install_panel)
 
--- Writes/When/Off for a tag switch, naming the tag under the loaded collection's rules.
-local function tag_tooltip(t)
+-- Writes/When/Off for a tag switch, naming the tag from `named` (M.named_rules of the
+-- loaded collection's settings).
+local function tag_tooltip(t, named)
     local keys = t.key == "shot" and { "shot_solo", "shot_pack", "shot_crowded" } or { t.key }
     local names = {}
     for _i, k in ipairs(keys) do
-        local name = rules.diag[k] or ""
-        if name ~= "" then
-            names[#names + 1] = k == "number_seen" and name .. "|<digits>"
-                or k == "colour" and name .. "|<colour>" or name
-        end
+        local name = named.diag[k]
+        names[#names + 1] = k == "number_seen" and name .. "|<digits>"
+            or k == "colour" and name .. "|<colour>" or name
     end
-    local writes = #names > 0 and table.concat(names, ", ") or _("nothing: this collection's rules drop it")
+    local writes = table.concat(names, ", ")
     return string.format(_("Writes: %s\nWhen: %s\nOff: stops writing it and removes it from images on the next run. Identification is unchanged."),
         writes, _(t.when))
 end
 
 local function refresh_tag_tooltips()
+    local named = M.named_rules(rules, collection_settings(current_collection()))
     for _i, t in ipairs(TAG_TOGGLES) do
-        if tag_checks[t.key] then tag_checks[t.key].tooltip = tag_tooltip(t) end
+        if tag_checks[t.key] then tag_checks[t.key].tooltip = tag_tooltip(t, named) end
     end
 end
 local lists_loaded = false -- reload_lists has filled the collection and entry lists at least once
@@ -1145,7 +1295,7 @@ local function failure_message(code)
     elseif code == 3 then
         return _("Assisted Tagging: Python is missing a package. Install python/requirements.txt into the interpreter set in preferences → Lua options, or see assisted_tagging.log.")
     elseif code == 9009 or code == 127 then -- cmd.exe / sh: command not found
-        return _("Assisted Tagging: Python wasn't found. Set \"Assisted Tagging: Python interpreter\" in preferences → Lua options.")
+        return _("Assisted Tagging: Python wasn't found. Set \"Python interpreter (.venv)\" in preferences → Lua options.")
     end
     return string.format("Assisted Tagging: identify.py stopped with exit code %s. Details are in assisted_tagging.log in darktable's config folder.",
         tostring(code or "?"))
@@ -1180,6 +1330,15 @@ end
 
 local function collection_args()
     return { "--collections-root", collections_root(), "--collection", current_collection() }
+end
+
+-- A GUI run's settings (take_settings) as a temp file for --settings, so the run uses the panel's
+-- values without saving them to the collection's settings.json. Headless runs read that file.
+local function settings_args()
+    if not read_panel then return {} end
+    local ok_w, err = C.write_file_atomic(RUN_SETTINGS_PATH, M.preset_encode(M.PRESET_SCHEMA, settings))
+    if not ok_w then error("couldn't write " .. RUN_SETTINGS_PATH .. ": " .. tostring(err), 0) end
+    return { "--settings", RUN_SETTINGS_PATH }
 end
 
 local function read_lines(path)
@@ -1218,7 +1377,7 @@ local function cleanup_tmp()
     -- An orphaned identify.py still needs its cancel flag, so leave the files until it exits.
     if orphan then return end
     for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", DONE_PATH, DONE_PATH .. ".job",
-        PROGRESS_PATH, CANCEL_PATH }) do
+        PROGRESS_PATH, CANCEL_PATH, RUN_SETTINGS_PATH }) do
         pcall(os.remove, p)
     end
 end
@@ -1234,8 +1393,10 @@ end
 
 -- Refreshes the collection and entry lists from disk via identify.py --list,
 -- which also rewrites the collection's tag-plan.txt; show_plan points the user at it.
+-- Settings still read from entries.json's old rules are copied into settings.json.
+-- reread_settings: show settings.json in the panel again (hand edits; unsaved panel changes go).
 -- Returns true once the lists loaded.
-local function reload_lists(quiet, show_plan)
+local function reload_lists(quiet, show_plan, reread_settings)
     if busy or not orphan_gone() then
         if not quiet then dt.print(_("Assisted Tagging: busy, try again when the current run finishes.")) end
         return false
@@ -1260,6 +1421,20 @@ local function reload_lists(quiet, show_plan)
         end
         local names = read_lines(COLLECTIONS_PATH)
         load_entries_csv()
+        -- the template has no settings.json, so its panel values stay as they are
+        if current_collection() ~= "" then
+            local store = collection_store()
+            local text, copied = M.backfill_settings(store.read(current_collection()), rules)
+            if text then
+                if store.write(current_collection(), text) then
+                    log("settings.json: copied " .. table.concat(copied, ", ") .. " from entries.json")
+                    reread_settings = true
+                else
+                    log("settings.json: couldn't write " .. store.path(current_collection()))
+                end
+            end
+            if reread_settings and preset_ctl then preset_ctl.reload() end
+        end
         lists_loaded, loaded = true, true
         refresh_entry_combo()
         if #names == 0 then
@@ -1469,6 +1644,7 @@ local function prepare_run(images, replace_manual)
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
     local protected_of, hints_of, sent_protected_of = {}, {}, {}
     local use_hints = settings.use_hints
+    local named = M.named_rules(rules, settings)
     for _, copies in pairs(group_of) do
         for _, copy in ipairs(copies) do
             local have = tags_of(copy)
@@ -1488,11 +1664,11 @@ local function prepare_run(images, replace_manual)
             sent_protected_of[copy.id] = sent
             if not use_hints then hints_of[copy.id] = {} end
             -- hand colour tags only stop a detach; sent to the identifier they'd read as entry tags
-            for name in pairs(replace_manual and {} or M.hand_colour_tags(have, kept, rules.diag.colour)) do
+            for name in pairs(replace_manual and {} or M.hand_colour_tags(have, kept, named.diag.colour)) do
                 protected_of[copy.id][name] = true
             end
             -- likewise hand-applied diagnostic, unidentified and number-seen tags
-            for name in pairs(replace_manual and {} or M.hand_diag_tags(have, kept, rules)) do
+            for name in pairs(replace_manual and {} or M.hand_diag_tags(have, kept, named)) do
                 protected_of[copy.id][name] = true
             end
         end
@@ -1565,15 +1741,16 @@ local function apply_results(run, job)
         return
     end
 
-    local owned = M.owned_tags(entries, rules)
-    local owned_roots = M.owned_roots(entries, rules)
-    local owned_prefixes = M.owned_prefixes(rules)
-    -- owned (above) uses the full rules, so switched-off diagnostics are still detached
+    local named = M.named_rules(rules, settings)
+    local owned = M.owned_tags(entries, named)
+    local owned_roots = M.owned_roots(entries, named)
+    local owned_prefixes = M.owned_prefixes(named)
+    -- owned (above) names every diagnostic, so switched-off ones are still detached
     local diag_off = {}
     for _, t in ipairs(TAG_TOGGLES) do
         if not settings["tag_" .. t.key] then diag_off[t.key] = true end
     end
-    local write_rules = M.mask_diag(rules, diag_off)
+    local write_rules = M.mask_diag(named, diag_off)
     -- one stamp per run; never owned, so later runs leave earlier stamps in place
     local run_tag = settings.run_tag
         and os.date("Assisted Tagging|Run|%Y-%m-%d %H:%M") or nil
@@ -1673,15 +1850,14 @@ function M.identify_images(images, replace_manual, verify_only)
     identify_cancellable = true
     if identify_button then identify_button.label = _("Cancel") end
     start_log(verify_only and "verify started" or "identify started", #images)
-    local order_weight = M.parse_order_weight(settings.order_weight) or ""
     log(string.format("settings: replace manual %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s, order weight %s",
         tostring(replace_manual and true or false),
         tostring(settings.use_hints),
         tostring(settings.run_tag),
         settings.group_support,
         settings.group_node ~= "" and settings.group_node or "(blank)",
-        tostring(neighbour_tolerance()),
-        order_weight ~= "" and order_weight or "(collection's)"))
+        tostring(settings.neighbour_tolerance),
+        tostring(settings.order_weight)))
 
     local job, run = nil, nil
     local okr, err = pcall(function()
@@ -1699,9 +1875,7 @@ function M.identify_images(images, replace_manual, verify_only)
         job.percent = 0.0
         local script = identify_script()
         local code, why = run_python(args_of({ MANIFEST_PATH, RESULTS_PATH },
-            collection_args(), model_args(script), verify_only and { "--verify" } or {},
-            order_weight ~= "" and { "--order-weight", order_weight } or {}, {
-                "--neighbour-tolerance", tostring(neighbour_tolerance()),
+            collection_args(), settings_args(), model_args(script), verify_only and { "--verify" } or {}, {
                 "--cache", CACHE_PATH,
                 "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH,
                 "--boxes-out", boxes_path(),
@@ -1749,7 +1923,7 @@ local function run_reference_job(state, rows, mode_args, what)
     state.job = dt.gui.create_job("Assisted Tagging: " .. what, true, stop_job)
     state.job.percent = 0.0
     local code, why = run_python(args_of({ MANIFEST_PATH, RESULTS_PATH },
-        mode_args, collection_args(), model_args(identify_script()),
+        mode_args, collection_args(), settings_args(), model_args(identify_script()),
         { "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH }),
         state.job, 0, 1, what)
     flush_log()
@@ -1818,6 +1992,7 @@ function M.add_references(images, entry_id)
         local rows, n_skipped, sent = {}, 0, {}
         local _, pick_of = with_paired_jpegs(images)
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
+        local colour_base = M.named_rules(rules, settings).diag.colour
         for _, img in ipairs(images) do
             -- the entry comes from the selected image's tags; the crop from its paired JPEG
             local src = pick_of[img.id]
@@ -1832,7 +2007,7 @@ function M.add_references(images, entry_id)
                 if not sent[src.id] then
                     sent[src.id] = true
                     rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid,
-                        M.hand_colour(tags_of(img), ledger[img.id], rules.diag.colour) or "" }
+                        M.hand_colour(tags_of(img), ledger[img.id], colour_base) or "" }
                 end
             else
                 n_skipped = n_skipped + 1
@@ -1889,9 +2064,10 @@ function M.promote_references(images)
         -- Identify recorded boxes for the JPEG of a RAW+JPEG pair, so a selected RAW reads its JPEG's
         local rows = {}
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
+        local colour_base = M.named_rules(rules, settings).diag.colour
         for _, img in ipairs((with_paired_jpegs(images))) do
             rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, "",
-                M.hand_colour(tags_of(img), ledger[img.id], rules.diag.colour) or "" }
+                M.hand_colour(tags_of(img), ledger[img.id], colour_base) or "" }
         end
         local results = run_reference_job(state, rows, { "--promote-boxes", "--boxes-in", boxes }, "saving vehicles as references")
         if not results then return end
@@ -2008,9 +2184,9 @@ local function open_in_app(path)
     end
 end
 
--- Copies an example's entries.json (see examples_root()) into a new collection:
--- no images needed, since the example already defines the structure, just not
--- your actual entries.
+-- Copies an example's entries.json and, when it has one, its settings.json (see
+-- examples_root()) into a new collection: no images needed, since the example
+-- already defines the structure, just not your actual entries.
 function M.create_collection_from_example(example, raw_name)
     if not example then
         dt.print(_("Assisted Tagging: pick an example first"))
@@ -2019,7 +2195,8 @@ function M.create_collection_from_example(example, raw_name)
     local name, dir = new_collection_path(raw_name)
     if not name then return end
 
-    local text = read_file(examples_root() .. "/" .. example .. "/entries.json")
+    local example_dir = examples_root() .. "/" .. example
+    local text = read_file(example_dir .. "/entries.json")
     if not text then
         notify_error(string.format(_("Assisted Tagging: couldn't read the %s example's entries.json."), example))
         return
@@ -2033,6 +2210,14 @@ function M.create_collection_from_example(example, raw_name)
     end
     f:write(text)
     f:close()
+    local settings_text = read_file(example_dir .. "/settings.json")
+    if settings_text then
+        local ok, err = write_file_atomic(dir .. "/settings.json", settings_text)
+        if not ok then
+            notify_error(string.format(_("Assisted Tagging: couldn't create %s/settings.json: %s"), dir, tostring(err)))
+            return
+        end
+    end
 
     say(string.format(
         _("Assisted Tagging: created %s from the %s example. Edit its entries.json with your own entries, "
@@ -2129,7 +2314,7 @@ local step_label, make_section = C.step_label, C.make_section
 
 -- The preset store for make_preset_controls: each collection folder (one holding an
 -- entries.json) is a preset, its settings in settings.json beside entries.json.
-local function collection_store()
+collection_store = function()
     local store, warned = {}, {}
     local function dir(name) return collections_root() .. "/" .. name end
     function store.path(name) return dir(name) .. "/settings.json" end
@@ -2269,8 +2454,8 @@ local function install_panel()
 
     local reload_button = dt.new_widget("button") {
         label = _("Reload"),
-        tooltip = _("Reread the collections folder (the preset list) and the selected collection's entries.json"),
-        clicked_callback = function() reload_lists(false) end,
+        tooltip = _("Reread the collections folder (the preset list) and the selected collection's entries.json and settings.json. Unsaved panel changes are replaced by settings.json."),
+        clicked_callback = function() reload_lists(false, false, true) end,
     }
     local plan_button = dt.new_widget("button") {
         label = _("Show tag plan"),
@@ -2469,11 +2654,27 @@ local function install_panel()
         _("Also write re-cut copies of wide references (one car found) into ref-audit-crops in the collection folder, for you to review. Nothing in refs/ is changed. The first audit with this ticked is slow (about 8 minutes for 2000 refs); later ones are fast.\nDefault: off. Turn on when the audit flags wide refs you want re-cut."))
     local quarantine_check = check("quarantine", _("Audit: quarantine poor refs"),
         _("After the report is written, move the refs flagged by 2+ checks out of refs/ into refs-quarantine in the collection folder (moved.txt lists each). Nothing is deleted: copy a file back into refs/<entry>/ to undo it.\nDefault: off. Turn on once you trust the audit's flags for this collection."))
-    local tag_check_list = {}
+    local colour_tags_check = check("colour_tags", _("colour tags"),
+        _("Read each car's paintwork colour, write it as a Colour tag and use an entry's colour to break ties and flag number reads that disagree; turning it on re-reads every photo once.\nDefault: off."))
+    local partial_references_check = check("partial_references", _("partial references"),
+        _("Add tagged images also accepts a solo shot tagged only to team level and saves it as a team reference; a clear team lead with no clear driver then gives a team result.\nDefault: off."))
+    -- Per tag switch: its check button and the tag name it writes (tag_<key>_name).
+    local tag_rows, name_entries = {}, {}
     for _i, t in ipairs(TAG_TOGGLES) do
-        local c = check("tag_" .. t.key, t.label, tag_tooltip(t))
+        local c = check("tag_" .. t.key, t.label, tag_tooltip(t, M.named_rules(rules, settings)))
         tag_checks[t.key] = c
-        tag_check_list[#tag_check_list + 1] = c
+        local name_key = "tag_" .. t.key .. "_name"
+        local default
+        for _j, f in ipairs(M.PRESET_SCHEMA) do
+            if f.key == name_key then default = f.default end
+        end
+        local e = dt.new_widget("entry") {
+            placeholder = default,
+            tooltip = string.format(_("The tag %s writes. Blank = %s."), t.label, default),
+            text = "",
+        }
+        name_entries[#name_entries + 1] = { key = name_key, entry = e, default = default }
+        tag_rows[#tag_rows + 1] = dt.new_widget("box") { orientation = "vertical", c, e }
     end
 
     local support_keys
@@ -2514,31 +2715,68 @@ local function install_panel()
         text = "",
     }
     local order_weight_entry = dt.new_widget("entry") {
-        placeholder = _("blank = collection's"),
-        tooltip = _("How far the cars pass in number order, from 0 (random: the neighbour aid is off) to 1 (strictly in order); 0.5 is loose order. Overrides the collection's rules.order_weight in entries.json.\nDefault: blank (use entries.json; 0 when it has none). Set 0.5 for a rally or club event shot roughly in number order."),
+        placeholder = _("order weight"),
+        tooltip = _("How far the cars pass in number order, from 0 (random: the neighbour aid is off) to 1 (strictly in order); 0.5 is loose order.\nDefault: 0. Set 0.5 for a rally or club event shot roughly in number order."),
         text = "",
     }
+    local min_read_entry = dt.new_widget("entry") {
+        placeholder = _("min read"),
+        tooltip = _("How sure a number read must be to count, from 0 to 1: raise it if plates or signs get read as numbers, lower it if clear numbers are missed.\nDefault: 0.85."),
+        text = "",
+    }
+    local colour_weight_entry = dt.new_widget("entry") {
+        placeholder = _("colour weight"),
+        tooltip = _("How much the colour histogram counts in livery matching, from 0 (off) up; separate from colour tags.\nDefault: 0."),
+        text = "",
+    }
+    -- Number entries read through M.parse_setting.
+    local number_entries = {
+        { key = "order_weight", entry = order_weight_entry },
+        { key = "neighbour_tolerance", entry = tolerance_entry },
+        { key = "min_read", entry = min_read_entry },
+        { key = "colour_weight", entry = colour_weight_entry },
+    }
+    -- Set in the schema and settings.json only, never on the panel.
+    local HAND_EDIT_KEYS = { "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references" }
 
     local function trim(s) return (s or ""):match("^%s*(.-)%s*$") end
 
+    local shown = M.preset_defaults(M.PRESET_SCHEMA) -- the values show_panel last filled in
+    local warned = {} -- key → the entry text last logged as invalid, so a check doesn't repeat it
+
+    -- An entry's value; blank or invalid keeps the shown value (logged once per text).
+    local function entry_value(key, text, blank_default)
+        local value = M.parse_setting(key, text)
+        if value ~= nil then
+            warned[key] = nil
+            return value
+        end
+        if blank_default ~= nil and trim(text) == "" then return blank_default end
+        if warned[key] ~= text then
+            warned[key] = text
+            log(string.format("panel: %s invalid, keeping %s", key, tostring(shown[key])))
+        end
+        return shown[key]
+    end
+
     read_panel = function()
-        local tolerance = tonumber(trim(tolerance_entry.text):match("^%d+$"))
-        if not tolerance then return nil, _("neighbour tolerance must be a whole number, 0 or more") end
-        local weight = M.parse_order_weight(order_weight_entry.text)
-        if not weight then return nil, _("order weight must be blank or a number from 0 to 1") end
         local s = {
             group_support = support_keys[group_support_combo.selected] or shown_support,
             group_node = trim(group_node_entry.text),
             embedder_file = trim(embedder_entry.text),
             ocr_rec_file = trim(ocr_rec_entry.text),
-            neighbour_tolerance = tolerance,
-            order_weight = weight,
         }
+        for _i, n in ipairs(number_entries) do s[n.key] = entry_value(n.key, n.entry.text) end
+        for _i, n in ipairs(name_entries) do
+            s[n.key] = entry_value(n.key, n.entry.text, n.default)
+        end
+        for _i, key in ipairs(HAND_EDIT_KEYS) do s[key] = shown[key] end
         for _i, key in ipairs(check_order) do s[key] = checks[key].value and true or false end
         return s
     end
 
     local function show_panel(s)
+        shown, warned = s, {}
         shown_support = s.group_support
         for i, key in ipairs(support_keys) do
             if key == s.group_support and group_support_combo.selected ~= i then group_support_combo.selected = i end
@@ -2546,8 +2784,8 @@ local function install_panel()
         group_node_entry.text = s.group_node
         embedder_entry.text = s.embedder_file
         ocr_rec_entry.text = s.ocr_rec_file
-        tolerance_entry.text = tostring(s.neighbour_tolerance)
-        order_weight_entry.text = s.order_weight
+        for _i, n in ipairs(number_entries) do n.entry.text = tostring(s[n.key]) end
+        for _i, n in ipairs(name_entries) do n.entry.text = s[n.key] end
         for _i, key in ipairs(check_order) do checks[key].value = s[key] end
     end
 
@@ -2582,8 +2820,14 @@ local function install_panel()
             tolerance_entry,
             dt.new_widget("label") { label = _("order weight"), halign = "start" },
             order_weight_entry,
+            dt.new_widget("label") { label = _("min read"), halign = "start" },
+            min_read_entry,
+            dt.new_widget("label") { label = _("colour weight"), halign = "start" },
+            colour_weight_entry,
+            colour_tags_check,
+            partial_references_check,
         }),
-        make_section(4, _("tags written"), tag_check_list),
+        make_section(4, _("tags written"), tag_rows),
         step_label(5, _("run")),
         replace_manual_check,
         run_tag_check,

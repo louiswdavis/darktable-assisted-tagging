@@ -4,12 +4,12 @@ Cars of no known livery, passing in loops, identified by their race number alone
 
 ## Using it
 
-1. Copy this folder's `entries.json` into a new collection folder, or build one from your own list: put one number per line in a CSV, then run `python python/import_numbers.py numbers.csv entries.json --tag-prefix "Rally|2026" --order-weight 0.5`. It refuses to overwrite an existing file and stops on a duplicate or non-number. A full start list with drivers, teams and classes goes in through the panel's **Import start list** (section **1 collection**) or `python python/import_start_list.py <collection folder> --csv start.csv --tag-prefix "Rally|2026"`.
+1. Copy this folder's `entries.json` and `settings.json` into a new collection folder, or build one from your own list: put one number per line in a CSV, then run `python python/import_numbers.py numbers.csv entries.json --tag-prefix "Rally|2026"`; this folder's `settings.json` sets `order_weight` to `0.5`. It refuses to overwrite an existing file and stops on a duplicate or non-number. A full start list with drivers, teams and classes goes in through the panel's **Import start list** (section **1 collection**) or `python python/import_start_list.py <collection folder> --csv start.csv --tag-prefix "Rally|2026"`.
 2. Click **Reload**, then **Identify selection** on the batch.
 
 ## Order weight
 
-`rules.order_weight` in `entries.json` says how much the cars pass in number order. The panel's **order weight** field (section **3 matching**) overrides it for the collection without editing the file: blank uses `entries.json`, a number from 0 to 1 replaces it, and **update preset** saves it.
+`order_weight` in `settings.json` says how much the cars pass in number order. Set it in the panel's **order weight** field (section **3 matching**), a number from 0 to 1, and **update preset** saves it to `settings.json`.
 
 | Weight | Meaning | How far a neighbour can be (tolerance 5) |
 |---|---|---|

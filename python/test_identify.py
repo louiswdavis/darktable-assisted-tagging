@@ -88,7 +88,16 @@ def run_tests():
         missing = str(e)
     check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
-          'unknown rule "team_onyl" (rules are team_only, unidentified, diagnostics, burst_livery_pooling, blur_references, sponsor_keywords, partial_references, min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight, min_read, colour_tags, colour_palette)')
+          'unknown rule "team_onyl" (rules are team_only, unidentified, sponsor_keywords, tag_prefix, colour_palette)')
+    lines = []
+    real_log, I.log = I.log, lines.append
+    try:
+        moved_entries, moved_rules, _fe = I.load_collection(collection(
+            {"rules": {"order_weight": 0.5, "min_read": 0.9}, "entries": [VER]}))
+    finally:
+        I.log = real_log
+    check("moved rules in entries.json still load", (moved_rules.order_weight, moved_rules.min_read), (0.5, 0.9))
+    check("moved rules log the deprecation", "rules.order_weight in entries.json is deprecated; move it to settings.json" in lines, True)
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
           'entry "VER": unknown field "tagz" (fields are id, number, team, name, tags, camera, colour)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
@@ -107,13 +116,8 @@ def run_tests():
           'entry "Lando Norris": unknown field "number" (fields are id, tags)')
     check("an unknown kind lists the valid ones", load_error({"kind": "faces", "entries": []}),
           "unknown kind 'faces' (kinds are motorsport, people)")
-    for bad_rule in ({"min_sim": 1.5}, {"margin": -0.1}, {"min_face_px": 0}):
-        name = next(iter(bad_rule))
-        check(f"rules.{name} out of range is rejected", name in load_error({"kind": "people", "rules": bad_rule, "entries": [LH]}), True)
     check("a bad team_only value is rejected", load_error({"rules": {"team_only": "both"}, "entries": []}),
           'rules.team_only must be "shared tags" or "none"')
-    check("an unknown diagnostic is named", load_error({"rules": {"diagnostics": {"guess": "x"}}, "entries": []}),
-          'unknown diagnostic "guess" (they are number, livery, burst, neighbour, check_order, team, none, number_seen, colour, check_colour, pooled, shot_solo, shot_pack, shot_crowded)')
 
     # ---- rules.tag_prefix builds tags from team and name
     entries, rules, _fe = I.load_collection(collection({"rules": {"tag_prefix": "Motorsport|F1"}, "entries": [
@@ -136,19 +140,26 @@ def run_tests():
           load_error({"entries": [{"id": "12", "number": "12"}]}),
           'entry "12": tags must be a non-empty list of tag names')
     check("order_weight defaults to 0", I.load_collection(collection([VER]))[1].order_weight, 0.0)
-    check("order_weight is read", I.load_collection(collection({"rules": {"order_weight": 0.5}, "entries": [VER]}))[1].order_weight, 0.5)
-    for bad_weight in (1.5, -0.1, "x", True):
-        check(f"order_weight {bad_weight!r} is rejected",
-              "rules.order_weight" in load_error({"rules": {"order_weight": bad_weight}, "entries": [VER]}), True)
     check("min_read defaults to 0.85", I.load_collection(collection([VER]))[1].min_read, 0.85)
-    check("min_read is read", I.load_collection(collection({"rules": {"min_read": 0.9}, "entries": [VER]}))[1].min_read, 0.9)
-    for bad_read in (1.5, -0.1, "x", True):
-        check(f"min_read {bad_read!r} is rejected",
-              "rules.min_read" in load_error({"rules": {"min_read": bad_read}, "entries": [VER]}), True)
+    sd = collection([VER])
+    with open(os.path.join(sd, "settings.json"), "w", encoding="utf-8") as f:
+        f.write('{"order_weight": 0.2}')
+    other = os.path.join(tempfile.mkdtemp(), "other.json")
+    with open(other, "w", encoding="utf-8") as f:
+        f.write('{"order_weight": 0.7}')
+    check("settings.json sets order_weight", I.load_collection(sd)[1].order_weight, 0.2)
+    check("a settings_path file overrides the collection's", I.load_collection(sd, other)[1].order_weight, 0.7)
+    sd = collection([VER])
+    with open(os.path.join(sd, "settings.json"), "w", encoding="utf-8") as f:
+        f.write('{"tag_colour": false}')
+    d_rules = I.load_collection(sd)[1]
+    check("diag_from_settings_json: colour switch off blanks the name", dict(d_rules.diagnostics)["colour"], "")
+    d_csv = os.path.join(tempfile.mkdtemp(), "d.csv")
+    I.write_rules_csv(d_rules, (), d_csv)
+    check("diag_from_settings_json: rules.csv has diag_colour,", "diag_colour," in open(d_csv, encoding="utf-8").read().splitlines(), True)
     # ---- colour tags
     check("colour_tags defaults off", I.load_collection(collection([VER]))[1].colour_tags, False)
     check("colour_tags is read", I.load_collection(collection({"rules": {"colour_tags": True}, "entries": [VER]}))[1].colour_tags, True)
-    check("colour_tags must be a bool", "colour_tags" in load_error({"rules": {"colour_tags": "yes"}, "entries": [VER]}), True)
     blue = dict(C.PALETTE)["Blue"]
     check("default palette is the built-in one", I.load_collection(collection([VER]))[1].colour_palette, C.PALETTE)
     _, navy, _fe = I.load_collection(collection({"rules": {"colour_palette": {"Navy": "Blue"}}, "entries": [VER]}))
@@ -177,11 +188,20 @@ def run_tests():
                                                    "entries": [VER, TSU, {"id": "SC", "tags": ["F1|Safety Car"]}]}))
     out = tempfile.mkdtemp()
     I.write_entries_csv(entries, os.path.join(out, "e.csv"))
-    I.write_rules_csv(rules, os.path.join(out, "r.csv"))
+    I.write_rules_csv(rules, _fe, os.path.join(out, "r.csv"))
     check("entries.csv rows", open(os.path.join(out, "e.csv"), encoding="utf-8").read().splitlines()[1],
           "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda")
     check("rules.csv rows", open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()[:3],
           ["team_only,shared tags", "unidentified,F1|Check", "diag_number,Assisted Tagging|Identification|By number"])
+    rows = open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()
+    check("rules.csv ends with from_entries_json, empty here", rows[-1], "from_entries_json,")
+    entries, rules, fe = I.load_collection(collection({"rules": {"order_weight": 0.5}, "entries": [VER]}))
+    I.write_rules_csv(rules, fe, os.path.join(out, "r2.csv"))
+    text = open(os.path.join(out, "r2.csv"), encoding="utf-8").read()
+    check("rules_csv_has_moved_keys", all(x in text.splitlines() for x in (
+        "order_weight,0.5", "neighbour_tolerance,5", "colour_tags,false", "from_entries_json,order_weight")), True)
+    entries, rules, _fe = I.load_collection(collection({"rules": {"unidentified": ["F1|Check"]},
+                                                   "entries": [VER, TSU, {"id": "SC", "tags": ["F1|Safety Car"]}]}))
     plan = I.tag_plan("F1", entries, rules, {"VER": 3})
     check("the plan lists the teammates' shared tags", "  Red Bull (VER, TSU):\n      F1|Red Bull\n" in plan, True)
     check("the plan lists the unidentified tags", "rules.unidentified.\n      F1|Check" in plan, True)
@@ -322,7 +342,7 @@ def run_tests():
     I.refine_frames = lambda wanted, analyses, models, cache, progress="": analyses  # the re-read needs real files
     results = os.path.join(img, "results.csv")
     args = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "progress.txt"), cache="",
-                     collections_root=root, collection=os.path.basename(coll), entries_out=os.path.join(img, "e.csv"),
+                     collections_root=root, collection=os.path.basename(coll), settings="", entries_out=os.path.join(img, "e.csv"),
                      rules_out=os.path.join(img, "r.csv"), boxes_out="", boxes_in="", report_out="", report_top=20, archive_dir="")
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
@@ -392,7 +412,7 @@ def run_tests():
     with open(manifest, "w", encoding="utf-8") as f:
         f.write(f'"1","{real_jpg}",""\n')
     pargs = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "p2.txt"), cache="",
-                      collections_root=root, collection=os.path.basename(coll), entries_out=args.entries_out,
+                      collections_root=root, collection=os.path.basename(coll), settings="", entries_out=args.entries_out,
                       rules_out=args.rules_out, boxes_out="", boxes_in=promo_boxes)
     write_promo([100, 50])
     I.promote_boxes(pargs, {"embedder": "fake"})
@@ -443,7 +463,7 @@ def run_tests():
         with open(manifest, "w", encoding="utf-8") as f:
             f.write(row + "\n")
         job(Namespace(manifest=manifest, results=results, progress=os.path.join(img, "p3.txt"), cache="",
-                      collections_root=root, collection=os.path.basename(coll_dir), entries_out=args.entries_out,
+                      collections_root=root, collection=os.path.basename(coll_dir), settings="", entries_out=args.entries_out,
                       rules_out=args.rules_out, boxes_out="", boxes_in=boxes_in), dict(vmodels))
         return open(results, encoding="utf-8").read().strip()
 

@@ -2,8 +2,7 @@
   "rules": {
     "tag_prefix": "Motorsport|BTCC",
     "team_only": "none",
-    "unidentified": ["Shoot|Check me"],
-    "diagnostics": { "burst": "" }
+    "unidentified": ["Shoot|Check me"]
   },
   "entries": [
     {

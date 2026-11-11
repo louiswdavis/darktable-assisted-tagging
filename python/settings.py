@@ -188,6 +188,13 @@ def load_settings(collection_dir: str, rules_raw, log, path: str = "") -> tuple[
     file_vals = _read_file(path or os.path.join(collection_dir, "settings.json"), log)
     old = _rules_values(rules_raw)
     diag = rules_raw.get("diagnostics") if isinstance(rules_raw, dict) else None
+    if isinstance(rules_raw, dict) and "diagnostics" in rules_raw:
+        if not isinstance(diag, dict):
+            log("entries.json: rules.diagnostics must be an object, ignored")
+        else:
+            for k in diag:
+                if k not in DIAG_DEFAULTS:
+                    log(f"entries.json: rules.diagnostics.{k} unknown, ignored")
     shot = _shot_from_rules(diag, _blank(file_vals.get("tag_shot_name")), log)
     if shot is not None:
         old[shot[0]] = (shot[1], "rules.diagnostics.shot_*")

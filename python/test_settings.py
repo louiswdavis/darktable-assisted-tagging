@@ -115,6 +115,18 @@ def empty_diag_turns_switch_off():
     check("empty diag: diagnostics_of", ("burst", "") in S.diagnostics_of(v), True)
 
 
+def unknown_diagnostic_logs():
+    v, fe, lines = load(None, {"diagnostics": {"colur": "X|Y"}})
+    check("unknown diagnostic: log line", lines, ["entries.json: rules.diagnostics.colur unknown, ignored"])
+    check("unknown diagnostic: defaults", (v, fe), (S.defaults(), ()))
+
+
+def non_object_diagnostics_logs():
+    v, fe, lines = load(None, {"diagnostics": ["colour"]})
+    check("non-object diagnostics: log line", lines, ["entries.json: rules.diagnostics must be an object, ignored"])
+    check("non-object diagnostics: defaults", (v, fe), (S.defaults(), ()))
+
+
 def shot_base_from_three_paths():
     v, fe, lines = load(None, {"diagnostics": {
         "shot_solo": "A|B|Solo", "shot_pack": "A|B|Pack", "shot_crowded": "A|B|Crowded"}})
@@ -209,7 +221,7 @@ def lua_schema_parity():
 for t in (defaults_match_spec, file_wins_over_rules, rules_fallback_logs,
           invalid_file_value_logs_and_falls_through, blank_is_absent, bool_is_not_a_number,
           bom_accepted, non_object_file_counts_as_empty, diag_names_from_rules,
-          empty_diag_turns_switch_off, shot_base_from_three_paths, diagnostics_of_shot_leaves,
+          empty_diag_turns_switch_off, unknown_diagnostic_logs, non_object_diagnostics_logs, shot_base_from_three_paths, diagnostics_of_shot_leaves,
           explicit_path_overrides_collection_file, invalid_rules_value_logs,
           normalisation_and_edge_values, shot_edge_cases, lua_schema_parity):
     t()

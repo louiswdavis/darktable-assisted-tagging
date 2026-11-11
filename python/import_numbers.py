@@ -1,10 +1,11 @@
 """Build a numbers-only entries.json from a list of car numbers.
 
-  python python/import_numbers.py NUMBERS_CSV OUT_ENTRIES_JSON --tag-prefix PREFIX [--order-weight W]
+  python python/import_numbers.py NUMBERS_CSV OUT_ENTRIES_JSON --tag-prefix PREFIX
 
 NUMBERS_CSV holds one number per line (first column; a first line that isn't digits is a header and
 is skipped). Each entry gets the tag `PREFIX|<number>` (see identify.py's numbers-only entries).
-Refuses to overwrite OUT_ENTRIES_JSON. Exit 2 with a message on bad input."""
+Refuses to overwrite OUT_ENTRIES_JSON. Exit 2 with a message on bad input.
+Settings such as order_weight live in the collection's settings.json, not in entries.json."""
 
 import argparse
 import csv
@@ -42,18 +43,11 @@ def main(argv=None):
     parser.add_argument("numbers_csv")
     parser.add_argument("out_entries_json")
     parser.add_argument("--tag-prefix", required=True, help="Tag prefix; each car is tagged PREFIX|<number>")
-    parser.add_argument("--order-weight", type=float, default=None,
-                        help="0 (cars pass in random order) to 1 (strictly in number order); left out = 0")
     args = parser.parse_args(argv)
     if os.path.exists(args.out_entries_json):
         fail(f"{args.out_entries_json} already exists; not overwriting")
-    if args.order_weight is not None and not 0 <= args.order_weight <= 1:
-        fail("--order-weight must be from 0 (random order) to 1 (strictly in order)")
     numbers = read_numbers(args.numbers_csv)
-    rules = {"tag_prefix": args.tag_prefix}
-    if args.order_weight is not None:
-        rules["order_weight"] = args.order_weight
-    data = {"rules": rules, "entries": [{"id": n, "number": n} for n in numbers]}
+    data = {"rules": {"tag_prefix": args.tag_prefix}, "entries": [{"id": n, "number": n} for n in numbers]}
     with open(args.out_entries_json, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
         f.write("\n")
