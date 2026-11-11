@@ -286,7 +286,7 @@ def load_collection(collection_dir: str) -> tuple:
         return InputError(f"{path}: {why}")
 
     try:
-        with open(path, encoding="utf-8") as f:
+        with open(path, encoding="utf-8-sig") as f:  # Notepad saves a BOM
             data = json.load(f)
     except FileNotFoundError:
         raise bad("file not found")
