@@ -1,12 +1,12 @@
 ok   a new entries.json needs a prefix
-added 3 entries to C:\Users\Louis\AppData\Local\Temp\tmp8d8wysmm\rally\entries.json; , ; and " removed from the names of 12
+added 3 entries to C:\Users\Louis\AppData\Local\Temp\tmp1fb0whz2\rally\entries.json; , ; and " removed from the names of 12
 ok   a CSV creates entries.json with the prefix
 ok   header aliases map the columns; class becomes a tag; commas are cleaned
 ok   the file is in the canonical layout
-added 0 entries to C:\Users\Louis\AppData\Local\Temp\tmp8d8wysmm\rally\entries.json; skipped 3 already listed: 1, 12, 7; , ; and " removed from the names of 12
+added 0 entries to C:\Users\Louis\AppData\Local\Temp\tmp1fb0whz2\rally\entries.json; skipped 3 already listed: 1, 12, 7; , ; and " removed from the names of 12
 ok   re-importing the same CSV adds nothing
 ok   a no-op import writes no .bak
-added 2 entries to C:\Users\Louis\AppData\Local\Temp\tmp8d8wysmm\rally\entries.json; skipped 1 already listed: 7; 2 line(s) without a leading number ignored
+added 2 entries to C:\Users\Louis\AppData\Local\Temp\tmp1fb0whz2\rally\entries.json; skipped 1 already listed: 7; 2 line(s) without a leading number ignored
 ok   pasted lines add only the new numbers
 ok   a pasted line splits driver / co-driver
 ok   the previous file is kept as .bak
@@ -19,14 +19,14 @@ ok   map_header needs a number column
 ok   parse_columns rejects an unknown role
 ok   a number over 3 digits fails
 ok   a number listed twice fails
-added 3 entries to C:\Users\Louis\AppData\Local\Temp\tmp8d8wysmm\hand\start-list.new.json; 2 line(s) without a leading number ignored; entries.json isn't one entry per line, so the new entries were written beside it; paste them in by hand
+added 3 entries to C:\Users\Louis\AppData\Local\Temp\tmp1fb0whz2\hand\start-list.new.json; 2 line(s) without a leading number ignored; entries.json isn't one entry per line, so the new entries were written beside it; paste them in by hand
 ok   a hand-formatted file is left alone
 ok   its new entries go to start-list.new.json
 ok   a bare list without rules fails
 all tests passed
 
 --- stderr ---
-import_start_list: C:\Users\Louis\AppData\Local\Temp\tmp8d8wysmm\rally\entries.json doesn't exist yet; give --tag-prefix to create it
+import_start_list: C:\Users\Louis\AppData\Local\Temp\tmp1fb0whz2\rally\entries.json doesn't exist yet; give --tag-prefix to create it
 import_start_list: row 1: "1234" is not a 1�3 digit number
 import_start_list: number 9 is listed twice
-import_start_list: C:\Users\Louis\AppData\Local\Temp\tmp8d8wysmm\bare\entries.json is a bare list with no rules.tag_prefix; make it {"rules": ..., "entries": [...]} first
+import_start_list: C:\Users\Louis\AppData\Local\Temp\tmp1fb0whz2\bare\entries.json is a bare list with no rules.tag_prefix; make it {"rules": ..., "entries": [...]} first
