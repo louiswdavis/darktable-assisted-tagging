@@ -2884,7 +2884,6 @@ local function install_panel()
         placeholder = _("blank = 0"),
         tooltip = _("How far the cars pass in number order, from 0 (random: the neighbour aid is off) to 1 (strictly in order); 0.5 is loose order.\nDefault: 0. Set 0.5 for a rally or club event shot roughly in number order."),
         text = "",
-        changed_callback = changed, -- By neighbour's gate follows it as it is typed
     }
     local min_read_entry = dt.new_widget("entry") {
         placeholder = _("blank = 0.85"),
