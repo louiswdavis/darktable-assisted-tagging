@@ -1,16 +1,17 @@
-wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmp466_u_d4\entries.json
+wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmpwtqkdrmk\entries.json
 ok   import writes numbers-only entries
-ok   import writes the rules
+ok   import writes only tag_prefix to the rules
+ok   import never writes order_weight (it lives in settings.json)
 ok   import refuses to overwrite
 ok   import rejects a duplicate number
 ok   import rejects an empty list
-ok   import rejects an order weight out of range
-wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmp466_u_d4\nw.json
-ok   no weight given leaves it out of the rules
+ok   import rejects the removed --order-weight flag
 all tests passed
 
 --- stderr ---
-import_numbers: C:\Users\Louis\AppData\Local\Temp\tmp466_u_d4\entries.json already exists; not overwriting
+import_numbers: C:\Users\Louis\AppData\Local\Temp\tmpwtqkdrmk\entries.json already exists; not overwriting
 import_numbers: number 12 is listed twice
-import_numbers: C:\Users\Louis\AppData\Local\Temp\tmp466_u_d4\empty.csv has no numbers
-import_numbers: --order-weight must be from 0 (random order) to 1 (strictly in order)
+import_numbers: C:\Users\Louis\AppData\Local\Temp\tmpwtqkdrmk\empty.csv has no numbers
+usage: test_import_numbers.py [-h] --tag-prefix TAG_PREFIX
+                              numbers_csv out_entries_json
+test_import_numbers.py: error: unrecognized arguments: --order-weight 0.5

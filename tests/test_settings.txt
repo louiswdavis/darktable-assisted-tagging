@@ -1,0 +1,67 @@
+ok   default min_read
+ok   default neighbour_tolerance
+ok   default tag_shot_name
+ok   default tag_burst
+ok   schema length
+ok   file wins: value
+ok   file wins: from entries
+ok   file wins: log
+ok   rules fallback: values
+ok   rules fallback: from entries
+ok   rules fallback: log
+ok   invalid file value: falls to rules
+ok   invalid file value: one log line
+ok   invalid file value: names key and file
+ok   blank: value
+ok   blank: log
+ok   bool as number: value
+ok   bool as number: log
+ok   fraction as integer: value
+ok   fraction as integer: log
+ok   bom: value
+ok   bom: log
+ok   non-object file: defaults
+ok   non-object file: one log line
+ok   diag name: value
+ok   diag name: from entries
+ok   diag name: diagnostics_of
+ok   empty diag: switch
+ok   empty diag: name stays default
+ok   empty diag: from entries
+ok   empty diag: diagnostics_of
+ok   unknown diagnostic: log line
+ok   unknown diagnostic: defaults
+ok   non-object diagnostics: log line
+ok   non-object diagnostics: defaults
+ok   shot base: value
+ok   shot base: from entries
+ok   shot mismatch: default base
+ok   shot mismatch: one log line
+ok   shot mismatch: log names all three
+ok   shot leaves
+ok   shot off
+ok   diagnostics_of keys
+ok   explicit path
+ok   invalid rules value: default
+ok   invalid rules value: from entries
+ok   invalid rules value: one log line
+ok   invalid rules value: names key and entries.json
+ok   blank rules name: default
+ok   blank rules name: one log line
+ok   whole float for integer
+ok   non-finite rejected
+ok   file name stripped
+ok   file blank name invalid
+ok   zero from rules is not False
+ok   empty shot base rejected
+ok   file shot name silences mismatch log
+ok   lua PRESET_SCHEMA block found
+ok   lua schema keys
+ok   lua schema kinds
+ok   lua schema choices
+ok   lua schema defaults
+ok   lua SETTING_RANGES block found
+ok   lua SETTING_RANGES match lo/hi/lo_open/hi_open/integer
+ok   lua SETTING_RANGES name only number settings
+
+0 failure(s)
