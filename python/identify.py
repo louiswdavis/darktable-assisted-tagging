@@ -48,6 +48,7 @@ from rescue import RESCUE_MIN_SIM, plan_burst
 from sponsors import sponsor_prefixes
 from report import write_report
 from kinds import DEFAULT_KIND, check_entry_fields, check_kind
+from settings import DIAG_DEFAULTS, MOVED_RULES, diagnostics_of, load_settings
 from reference_store import ReferenceIndex
 from people import FACE_EMBED_DIM, FaceModel, face_model_key
 from people_run import analyse_frame_people, build_boxes_people, match_frame_people, reference_face
@@ -67,31 +68,6 @@ class InputError(Exception):
 
 # ---------------------------------------------------------------- entries and rules
 
-DIAG_DEFAULTS = {
-    "number": "Assisted Tagging|Identification|By number",
-    "livery": "Assisted Tagging|Identification|By livery",
-    "burst": "Assisted Tagging|Identification|By burst",
-    # Neighbour aid (rules.order_weight): a doubtful number read settled by the groups shot around it.
-    "neighbour": "Assisted Tagging|Identification|By neighbour",
-    # A doubtful number read that doesn't fit the groups shot around it; the entry tag stays.
-    "check_order": "Assisted Tagging|Identification|Check order",
-    "team": "Assisted Tagging|Identification|Team only",
-    "none": "Assisted Tagging|Identification|Unidentified",
-    # Suffixed with the literal digits read, e.g. "...|Number seen|115": independent of
-    # the outcome above, applied whenever OCR read a number that matched zero or 2+ entries.
-    "number_seen": "Assisted Tagging|Identification|Number seen",
-    # Suffixed with the car's body colour, e.g. "...|Colour|Red" (rules.colour_tags).
-    "colour": "Assisted Tagging|Colour",
-    # A confident number read whose entry's colour disagrees with the colour seen; the entry tag stays.
-    "check_colour": "Assisted Tagging|Identification|Check colour",
-    # Written instead of "livery"/"team" when burst_livery_pooling resolved a frame
-    # that didn't clear the threshold on its own.
-    "pooled": "Assisted Tagging|Identification|By pooled burst",
-    # One per image, from how many vehicles were boxed (see match.shot_type).
-    "shot_solo": "Assisted Tagging|Identification|Shot|Solo",
-    "shot_pack": "Assisted Tagging|Identification|Shot|Pack",
-    "shot_crowded": "Assisted Tagging|Identification|Shot|Crowded",
-}
 TEAM_ONLY_CHOICES = ("shared tags", "none")
 
 
@@ -128,6 +104,9 @@ class Rules:
     # Motorsport: how much the groups shot just before and after a photo help a doubtful number read
     # (neighbour.neighbour_aid): 0 ignores them (random order), 1 expects the numbers strictly in order.
     order_weight: float = 0.0
+    # Motorsport: how many entries apart (in the sorted number list, wrapping round) a nearby group can be
+    # and still support a doubtful read; used when order_weight is above 0.
+    neighbour_tolerance: int = 5
     # Motorsport: the least confidence (lower of text detection and the reader's own) a number read needs
     # to count. Weaker reads stay in the box's OCR trace but name nothing.
     min_read: float = 0.85
@@ -202,44 +181,18 @@ def _load_palette(raw, bad) -> tuple:
     return tuple(out)
 
 
-def _load_rules(raw, bad) -> Rules:
+def _load_rules(raw, bad) -> dict:
+    """The entries.json-only rules as Rules fields; moved options come from settings.load_settings."""
     if raw is None:
-        return Rules()
+        return {}
     if not isinstance(raw, dict):
         raise bad('"rules" must be an object')
-    unknown = sorted(set(raw) - {"team_only", "unidentified", "diagnostics", "burst_livery_pooling",
-                                  "blur_references", "sponsor_keywords", "partial_references",
-                                  "min_sim", "margin", "min_face_px", "colour_weight", "tag_prefix",
-                                  "order_weight", "min_read", "colour_tags", "colour_palette"})
+    unknown = sorted(set(raw) - {"team_only", "unidentified", "sponsor_keywords", "tag_prefix", "colour_palette",
+                                  "diagnostics", *MOVED_RULES})
     if unknown:
-        raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, diagnostics, '
-                   f'burst_livery_pooling, blur_references, sponsor_keywords, partial_references, '
-                   f'min_sim, margin, min_face_px, colour_weight, tag_prefix, order_weight, min_read, '
-                   f'colour_tags, colour_palette)')
+        raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, sponsor_keywords, '
+                   f'tag_prefix, colour_palette)')
     defaults = Rules()
-    min_sim, margin, min_px = (raw.get("min_sim", defaults.min_sim), raw.get("margin", defaults.margin),
-                               raw.get("min_face_px", defaults.min_face_px))
-    for name, v in (("min_sim", min_sim), ("margin", margin)):
-        if isinstance(v, bool) or not isinstance(v, (int, float)):
-            raise bad(f"rules.{name} must be a number")
-    if not 0 < min_sim <= 1:
-        raise bad("rules.min_sim must be above 0 and at most 1")
-    if not 0 <= margin < 1:
-        raise bad("rules.margin must be at least 0 and under 1")
-    if isinstance(min_px, bool) or not isinstance(min_px, int) or min_px < 1:
-        raise bad("rules.min_face_px must be a whole number of pixels, at least 1")
-    colour_weight = raw.get("colour_weight", defaults.colour_weight)
-    if isinstance(colour_weight, bool) or not isinstance(colour_weight, (int, float)) or colour_weight < 0:
-        raise bad("rules.colour_weight must be a number, 0 or more (0 is off)")
-    order_weight = raw.get("order_weight", defaults.order_weight)
-    if isinstance(order_weight, bool) or not isinstance(order_weight, (int, float)) or not 0 <= order_weight <= 1:
-        raise bad("rules.order_weight must be a number from 0 (random order) to 1 (strictly in order)")
-    min_read = raw.get("min_read", defaults.min_read)
-    if isinstance(min_read, bool) or not isinstance(min_read, (int, float)) or not 0 <= min_read <= 1:
-        raise bad("rules.min_read must be a number from 0 to 1")
-    colour_tags = raw.get("colour_tags", defaults.colour_tags)
-    if not isinstance(colour_tags, bool):
-        raise bad("rules.colour_tags must be true or false")
     colour_palette = _load_palette(raw["colour_palette"], bad) if "colour_palette" in raw else defaults.colour_palette
     tag_prefix = raw.get("tag_prefix", defaults.tag_prefix)
     if not isinstance(tag_prefix, str) or _BAD_TAG.search(tag_prefix) or tag_prefix != tag_prefix.strip("| "):
@@ -249,39 +202,19 @@ def _load_rules(raw, bad) -> Rules:
             isinstance(k, str) and k.strip() and k == k.lower() and isinstance(v, str) and v.strip()
             and not _BAD_TAG.search(v) for k, v in sponsors.items()):
         raise bad("rules.sponsor_keywords must map lowercase keywords to tag prefixes")
-    partial = raw.get("partial_references", False)
-    if not isinstance(partial, bool):
-        raise bad("rules.partial_references must be true or false")
     team_only = raw.get("team_only", "shared tags")
     if team_only not in TEAM_ONLY_CHOICES:
         raise bad('rules.team_only must be "shared tags" or "none"')
     unidentified = raw.get("unidentified", [])
     _check_tags(unidentified, "rules.unidentified", bad, allow_empty=True)
-    pooling = raw.get("burst_livery_pooling", False)
-    if not isinstance(pooling, bool):
-        raise bad("rules.burst_livery_pooling must be true or false")
-    blur_refs = raw.get("blur_references", False)
-    if not isinstance(blur_refs, bool):
-        raise bad("rules.blur_references must be true or false")
-    diag = dict(DIAG_DEFAULTS)
-    given = raw.get("diagnostics", {})
-    if not isinstance(given, dict):
-        raise bad("rules.diagnostics must be an object")
-    for key, name in given.items():
-        if key not in DIAG_DEFAULTS:
-            raise bad(f'unknown diagnostic "{key}" (they are {", ".join(DIAG_DEFAULTS)})')
-        if not isinstance(name, str) or _BAD_TAG.search(name):
-            raise bad(f'rules.diagnostics.{key} must be a tag name without , ; or " ("" for none)')
-        diag[key] = name.strip()
-    return Rules(team_only, tuple(unidentified), tuple(diag.items()), pooling, blur_refs,
-                 tuple(sponsors.items()), partial, min_sim=float(min_sim), margin=float(margin), min_face_px=min_px,
-                 colour_weight=float(colour_weight), tag_prefix=tag_prefix, order_weight=float(order_weight),
-                 min_read=float(min_read), colour_tags=colour_tags, colour_palette=colour_palette)
+    return dict(team_only=team_only, unidentified=tuple(unidentified), sponsor_keywords=tuple(sponsors.items()),
+                tag_prefix=tag_prefix, colour_palette=colour_palette)
 
 
-def load_collection(collection_dir: str) -> tuple:
-    """entries.json → ({id: Entry} in file order, Rules). The file is either a list
-    of entries or {"rules": {...}, "entries": [...]}. Raises InputError naming the file."""
+def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
+    """entries.json + settings.json → ({id: Entry} in file order, Rules, the settings keys that came from
+    entries.json rules). The file is either a list of entries or {"rules": {...}, "entries": [...]}.
+    Raises InputError naming the file."""
     path = os.path.join(collection_dir, "entries.json")
 
     def bad(why):
@@ -308,7 +241,9 @@ def load_collection(collection_dir: str) -> tuple:
         raise bad(str(e))
     if not isinstance(data, list):
         raise bad('"entries" must be a list of entries')
-    rules = replace(_load_rules(rules_raw, bad), kind=kind)
+    values, from_entries = load_settings(collection_dir, rules_raw, log, settings_path)
+    rules = Rules(**_load_rules(rules_raw, bad), **{k: values[k] for k in MOVED_RULES},
+                  diagnostics=diagnostics_of(values), kind=kind)
     entries = {}
     for n, item in enumerate(data, 1):
         if not isinstance(item, dict):
@@ -349,7 +284,7 @@ def load_collection(collection_dir: str) -> tuple:
     if kind == "people":
         if rules_raw is None:
             log("warning: entries.json has no rules block, so the face thresholds use defaults")
-        return entries, rules
+        return entries, rules, from_entries
     teams: dict = {}
     for e in entries.values():
         if e.team:
@@ -362,7 +297,7 @@ def load_collection(collection_dir: str) -> tuple:
     for word, prefix in rules.sponsor_keywords:
         if not entries_under(entries, [prefix]):
             raise bad(f'rules.sponsor_keywords.{word}: no entry has a tag under "{prefix}"')
-    return entries, rules
+    return entries, rules, from_entries
 
 
 def write_entries_csv(entries: dict, path: str):
@@ -371,13 +306,18 @@ def write_entries_csv(entries: dict, path: str):
             f.write(f"{e.id},{e.team},{e.number},{';'.join(e.tags)}\n")
 
 
-def write_rules_csv(rules: Rules, path: str):
-    """key,value lines for assisted_tagging.lua: team_only, unidentified (tags joined by ;) and diag_<outcome>."""
+def write_rules_csv(rules: Rules, from_entries: tuple, path: str):
+    """key,value lines for assisted_tagging.lua: team_only, unidentified (tags joined by ;), diag_<outcome>,
+    each moved setting, and from_entries_json (the settings keys still read from entries.json, joined by ;)."""
     with open(path, "w", newline="", encoding="utf-8") as f:
         f.write(f"team_only,{rules.team_only}\n")
         f.write(f"unidentified,{';'.join(rules.unidentified)}\n")
         for key, name in rules.diagnostics:
             f.write(f"diag_{key},{name}\n")
+        for key in MOVED_RULES:
+            v = getattr(rules, key)
+            f.write(f"{key},{str(v).lower() if isinstance(v, bool) else v}\n")
+        f.write(f"from_entries_json,{';'.join(from_entries)}\n")
 
 
 def count_references(collection_dir: str) -> dict:
@@ -1054,7 +994,7 @@ def open_index(collection: str, models: dict, rules: Rules, embedder, progress: 
                                rules.blur_references, colour=rules.colour_weight > 0, on_progress=on_progress)
 
 
-def identify_people(args, models: dict, entries: dict, rules: Rules, collection: str, face_model: FaceModel):
+def identify_people(args, models: dict, entries: dict, rules: Rules, from_entries: tuple, collection: str, face_model: FaceModel):
     rows = read_manifest(args.manifest, 3, 3)
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     verify = getattr(args, "verify", False)
@@ -1104,26 +1044,20 @@ def identify_people(args, models: dict, entries: dict, rules: Rules, collection:
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:
         write_run_outputs(args, build_boxes_people(args.collection, frames, shots, detail, entries, counts, rules))
-    write_collection_outputs(args, collection, entries, rules)
+    write_collection_outputs(args, collection, entries, rules, from_entries)
     log("faces by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 
 
 def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
-    entries, rules = load_collection(collection)
-    override = getattr(args, "order_weight", None)
-    if override is not None:
-        if not 0 <= override <= 1:
-            log("--order-weight must be from 0 (random order) to 1 (strictly in order)")
-            sys.exit(2)
-        rules = replace(rules, order_weight=float(override))
+    entries, rules, from_entries = load_collection(collection, args.settings)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and rules.colour_tags else None
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     embedder = check_models(models)
     if rules.kind == "people":
-        return identify_people(args, models, entries, rules, collection, embedder)
+        return identify_people(args, models, entries, rules, from_entries, collection, embedder)
     rows = read_manifest(args.manifest, 3, 3)
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
@@ -1219,7 +1153,7 @@ def identify(args, models: dict):
             a, b = box_emb(fid, box), box_emb(ofid, obox)
             return None if a is None or b is None else float((a * b).sum())
 
-        aided = neighbour_aid(frames, burst_of, times, entries, args.neighbour_tolerance, rules.order_weight, similar)
+        aided = neighbour_aid(frames, burst_of, times, entries, rules.neighbour_tolerance, rules.order_weight, similar)
         resolved = 0
         for i, rs in aided.items():
             for a, b in zip(rs, frames[i]):
@@ -1228,7 +1162,7 @@ def identify(args, models: dict):
                     how = f"read {b.unmatched_number}, fits the number order" if a.via == "order" else "looks like a nearby car"
                     log(f"{i}: box {a.box}: neighbour {a.entry_id} ({how}, {a.confidence:.3f})")
         flagged = sum(1 for rs in aided.values() for r in rs if r.order_flag)
-        log(f"neighbour: resolved {resolved}, flagged {flagged} (order weight {rules.order_weight:g}, tolerance {args.neighbour_tolerance})")
+        log(f"neighbour: resolved {resolved}, flagged {flagged} (order weight {rules.order_weight:g}, tolerance {rules.neighbour_tolerance})")
         frames = aided
     if not verify:
         frames = colour_check(frames, entries)
@@ -1249,7 +1183,7 @@ def identify(args, models: dict):
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:
         write_run_outputs(args, build_boxes(args.collection, frames, shots, detail, entries, counts, rules.sponsor_keywords))
-    write_collection_outputs(args, collection, entries, rules)
+    write_collection_outputs(args, collection, entries, rules, from_entries)
     log("vehicles by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 
 
@@ -1337,7 +1271,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
     written; the reference index is saved either way. `screen` ("warn" or "skip") then checks the new
     refs with screen_new_refs; people collections are never screened."""
     collection = os.path.join(args.collections_root, args.collection)
-    entries, rules = load_collection(collection)
+    entries, rules, from_entries = load_collection(collection, args.settings)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and rules.colour_tags else None
@@ -1366,7 +1300,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
     notes = fill_colours(os.path.join(collection, "entries.json"), entries, rules, done, proposed)
     with atomic_write(args.results, newline="") as f:
         f.writelines(f"{image_id},{status},{note}\n" for (image_id, status, _), note in zip(done, notes))
-    write_collection_outputs(args, collection, entries, rules)
+    write_collection_outputs(args, collection, entries, rules, from_entries)
 
 
 def add_references(args, models: dict):
@@ -1470,7 +1404,7 @@ def audit_references(args, models: dict):
     writes ref-audit.txt beside it. results is one `name,count` line per audit total plus `report,<path>`."""
     from audit_refs import AuditCancelled, write_audit
     collection = os.path.join(args.collections_root, args.collection)
-    entries, rules = load_collection(collection)
+    entries, rules, from_entries = load_collection(collection, args.settings)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and rules.colour_tags else None
@@ -1501,13 +1435,13 @@ def audit_references(args, models: dict):
         f.write(f"report,{report}\n")
 
 
-def write_collection_outputs(args, collection: str, entries: dict, rules: Rules):
+def write_collection_outputs(args, collection: str, entries: dict, rules: Rules, from_entries: tuple):
     """entries.csv and rules.csv for assisted_tagging.lua, and the collection's tag-plan.txt for the user.
     Best effort: the run's results are already written."""
     if args.entries_out:
         best_effort("entries.csv", lambda: write_entries_csv(entries, args.entries_out))
     if args.rules_out:
-        best_effort("rules.csv", lambda: write_rules_csv(rules, args.rules_out))
+        best_effort("rules.csv", lambda: write_rules_csv(rules, from_entries, args.rules_out))
     best_effort("tag-plan.txt", lambda: log(f"tag plan: {write_tag_plan(collection, args.collection, entries, rules)}"))
 
 
@@ -1520,7 +1454,7 @@ def list_mode(args):
             f.writelines(n + "\n" for n in names)
     if args.collection in names:
         collection = os.path.join(args.collections_root, args.collection)
-        write_collection_outputs(args, collection, *load_collection(collection))
+        write_collection_outputs(args, collection, *load_collection(collection, args.settings))
 
 
 def main(argv=None):
@@ -1531,6 +1465,7 @@ def main(argv=None):
     parser.add_argument("--cache", default="", help="SQLite cache of per-frame analysis (empty = off)")
     parser.add_argument("--collections-root", default="", help="Folder holding one folder per collection")
     parser.add_argument("--collection", default="", help="Active collection's folder name")
+    parser.add_argument("--settings", default="", help="settings file to use instead of the collection's settings.json")
     parser.add_argument("--detector", default="", help="YOLOX .onnx")
     parser.add_argument("--segmenter", default="", help="EfficientSAM .onnx (default: next to the detector, if present)")
     parser.add_argument("--ocr-det", default="", help="PP-OCRv3 text detection .onnx")
@@ -1558,10 +1493,6 @@ def main(argv=None):
     parser.add_argument("--quarantine", action="store_true",
                         help="With --audit-refs, move the strongest candidates (2+ checks) into refs-quarantine/ and list them in moved.txt")
     parser.add_argument("--list", action="store_true", help="List collections (and entries) only")
-    parser.add_argument("--neighbour-tolerance", type=int, default=5,
-                        help="Neighbour aid: how many entries apart (in the sorted number list, wrapping round) a nearby group can be and still support a doubtful read; used when the collection's order_weight is above 0")
-    parser.add_argument("--order-weight", type=float, default=None,
-                        help="Neighbour aid: overrides the collection's rules.order_weight for this run, from 0 (random order: off) to 1 (strictly in order)")
     parser.add_argument("--verify", action="store_true",
                         help="Also analyse fully tagged images and flag the ones whose result differs from their tags (the plugin then changes no tags)")
     args = parser.parse_args(argv)
