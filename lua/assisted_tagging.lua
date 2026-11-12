@@ -1552,21 +1552,16 @@ local function reload_lists(quiet, show_plan, reread_settings)
         -- the template has no settings.json, so its panel values stay as they are
         if current_collection() ~= "" then
             local store = collection_store()
-            local stored = store.read(current_collection())
-            local upgraded, upgraded_keys = M.upgrade_settings_text(stored)
-            if upgraded_keys then
-                if store.write(current_collection(), upgraded) then
-                    log("settings.json: " .. table.concat(upgraded_keys, ", ") .. " copied from the Shot switch (old settings)")
-                    stored = upgraded
-                    reread_settings = true
-                else
-                    log("settings.json: couldn't write " .. store.path(current_collection()))
-                end
-            end
-            local text, copied = M.backfill_settings(stored, rules)
-            if text then
+            local stored = store.read_raw(current_collection())
+            -- backfill first, so a tag_shot_name copied from entries.json also reaches tag_shot_crowded_name
+            local backfilled, copied = M.backfill_settings(stored, rules)
+            local text, upgraded_keys = M.upgrade_settings_text(backfilled or stored)
+            if copied or upgraded_keys then
                 if store.write(current_collection(), text) then
-                    log("settings.json: copied " .. table.concat(copied, ", ") .. " from entries.json")
+                    if copied then log("settings.json: copied " .. table.concat(copied, ", ") .. " from entries.json") end
+                    if upgraded_keys then
+                        log("settings.json: " .. table.concat(upgraded_keys, ", ") .. " copied from the Shot switch (old settings)")
+                    end
                     reread_settings = true
                 else
                     log("settings.json: couldn't write " .. store.path(current_collection()))
@@ -1841,8 +1836,9 @@ local function image_exists(id)
 end
 
 -- Writes the ledger of the tags this plugin attached, first dropping the rows of images no
--- longer in the library. A failed write is tried once more, then reported on screen.
-local function write_ledger(ledger)
+-- longer in the library. A failed write is tried once more, then reported on screen with
+-- `consequence` (default: what a failed save after a tagging run means).
+local function write_ledger(ledger, consequence)
     local pruned, skipped = M.ledger_prune(ledger, image_exists)
     if pruned > 0 then log(string.format("ledger: dropped %d images no longer in the library", pruned)) end
     if skipped then log("ledger: prune skipped, no image id resolved") end
@@ -1855,7 +1851,7 @@ local function write_ledger(ledger)
     if not ok_w then
         log("ledger: couldn't save " .. LEDGER_PATH .. " after two tries: " .. tostring(err))
         notify_error(_("Assisted Tagging: couldn't save the tag ledger ") .. LEDGER_PATH .. " (" .. tostring(err)
-            .. "). Tags this run attached will count as yours next run.")
+            .. "). " .. (consequence or _("Tags this run attached will count as yours next run.")))
     end
 end
 
@@ -1868,6 +1864,7 @@ function M.clear_marks(images)
     busy = true
     M.cancel_requested = false
     start_log("clear", #images)
+    local job
 
     local okr, err = pcall(function()
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
@@ -1884,7 +1881,14 @@ function M.clear_marks(images)
             return
         end
         local n_tags, n_images, writes = 0, 0, 0
-        for _, plan in ipairs(M.plan_clear(records, ledger)) do
+        local plans, stopped = M.plan_clear(records, ledger), false
+        job = dt.gui.create_job(_("Assisted Tagging: clear tagging marks"), true, stop_job)
+        for i, plan in ipairs(plans) do
+            if M.cancel_requested or not job.valid then
+                stopped = true
+                break
+            end
+            job.percent = (i - 1) / #plans
             -- the row is rebuilt from the failures, so ledger tags no longer on the image go too
             local left = {}
             for _, name in ipairs(plan.detach) do
@@ -1909,9 +1913,16 @@ function M.clear_marks(images)
                 n_images = n_images + 1
             end
         end
-        write_ledger(ledger)
-        say(string.format(_("Assisted Tagging: cleared %d tags from %d images."), n_tags, n_images))
+        write_ledger(ledger, _("The cleared images keep their old ledger rows, so tags you add to them by hand "
+            .. "can be removed by the next run or clear."))
+        if stopped then
+            say(string.format(_("Assisted Tagging: stopped; cleared %d tags from %d images. "
+                .. "The rest keep their marks, clear again to finish."), n_tags, n_images))
+        else
+            say(string.format(_("Assisted Tagging: cleared %d tags from %d images."), n_tags, n_images))
+        end
     end)
+    end_job(job)
     busy = false
     if not okr then notify_error(_("Assisted Tagging: couldn't clear tagging marks. ") .. tostring(err)) end
     log("clear finished")
@@ -2591,9 +2602,14 @@ collection_store = function()
         return names
     end
     -- A collection without settings.json opens with the defaults.
-    function store.read(name)
+    function store.read_raw(name)
         if not file_exists(dir(name) .. "/entries.json") then return nil end
         return C.read_file_or_tmp(store.path(name)) or "{}"
+    end
+    -- The panel's view: old settings upgraded in memory. reload_lists writes the upgrade back.
+    function store.read(name)
+        local text = store.read_raw(name)
+        return text and (M.upgrade_settings_text(text))
     end
     function store.write(name, text) return write_file_atomic(store.path(name), text) end
     -- Renames the collection folder, references and all.
