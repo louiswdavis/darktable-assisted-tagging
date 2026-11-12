@@ -351,7 +351,7 @@ def tag_plan(name: str, entries: dict, rules: Rules, refs: dict) -> str:
         shared = [t for t in es[0].tags if all(t in o.tags for o in es[1:])]
         lines.append(f"  {team} ({', '.join(e.id for e in es)}):")
         lines.extend(f"      {t}" for t in shared) if shared else lines.append("      (no shared tags: adds nothing)")
-    lines += ["", "Unidentified (no vehicle, or no confident match): rules.unidentified."]
+    lines += ["", "unidentified tags (yours), written when no vehicle was found or no match was confident: rules.unidentified."]
     lines.extend(f"      {t}" for t in rules.unidentified) if rules.unidentified else lines.append("      (nothing)")
     lines += ["", "Diagnostics (only with the diagnostic tags preference on): rules.diagnostics."]
     lines.extend(f"  {k:<12} {v or '(off)'}" for k, v in rules.diagnostics)

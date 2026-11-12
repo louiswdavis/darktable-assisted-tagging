@@ -295,15 +295,16 @@ function M.ledgered_owned(mine, roots)
     return out
 end
 
--- rules with every diagnostic named from settings `s` (tag_<key>_name, tag_shot_name|Solo/Pack/
--- Crowded), switch on or off: rules.csv leaves a switched-off diagnostic blank, and detach,
+-- rules with every diagnostic named from settings `s` (tag_<key>_name; tag_shot_name|Solo/Pack,
+-- tag_shot_crowded_name|Crowded), switch on or off: rules.csv leaves a switched-off diagnostic blank, and detach,
 -- hand-tag protection and tooltips still need its name.
 function M.named_rules(rules, s)
     local named, diag = {}, {}
     for k, v in pairs(rules) do named[k] = v end
     for k in pairs(M.DIAG_TAGS) do
         local leaf = k:match("^shot_(.+)$")
-        diag[k] = leaf and (s.tag_shot_name .. "|" .. leaf:sub(1, 1):upper() .. leaf:sub(2))
+        local base = k == "shot_crowded" and s.tag_shot_crowded_name or s.tag_shot_name
+        diag[k] = leaf and (base .. "|" .. leaf:sub(1, 1):upper() .. leaf:sub(2))
             or s["tag_" .. k .. "_name"]
     end
     named.diag = diag
@@ -312,12 +313,12 @@ end
 
 -- rules with the diagnostics in `off` (outcome key → true) blanked, for wanted_tags.
 -- owned_tags keeps the full rules, so the next run detaches what is off.
--- "shot" covers shot_solo, shot_pack and shot_crowded.
+-- "shot" covers shot_solo and shot_pack; "shot_crowded" has its own switch.
 function M.mask_diag(rules, off)
     local masked, diag = {}, {}
     for k, v in pairs(rules) do masked[k] = v end
     for k, v in pairs(rules.diag) do
-        diag[k] = (off[k] or (off.shot and k:sub(1, 5) == "shot_")) and "" or v
+        diag[k] = (off[k] or (off.shot and (k == "shot_solo" or k == "shot_pack"))) and "" or v
     end
     masked.diag = diag
     return masked
@@ -413,6 +414,25 @@ function M.ledger_parse(text, lib)
 end
 
 M.ledger_prune = C.ledger_prune
+
+-- What Clear detaches, decided by the ledger alone: for each record (`{ id, tags = set }`)
+-- with a ledger row, the row's tags still on the image, sorted. Records with no row get no
+-- plan, so hand-applied tags stay even under the plugin's roots.
+function M.plan_clear(records, ledger)
+    local plans = {}
+    for _, r in ipairs(records) do
+        local row = ledger[r.id]
+        if row then
+            local detach = {}
+            for name in pairs(row) do
+                if r.tags[name] then detach[#detach + 1] = name end
+            end
+            table.sort(detach)
+            plans[#plans + 1] = { id = r.id, detach = detach }
+        end
+    end
+    return plans
+end
 
 -- A reference job's results.csv (`id,status,colour_note,entry_id`; files from before colour
 -- notes have two columns, before entry ids three) → its rows { id, status, note, entry_id }
@@ -802,6 +822,8 @@ M.PRESET_SCHEMA = {
     { key = "tag_check_colour_name", kind = "string", default = "Assisted Tagging|Identification|Check colour" },
     { key = "tag_shot", kind = "bool", default = true },
     { key = "tag_shot_name", kind = "string", default = "Assisted Tagging|Identification|Shot" },
+    { key = "tag_shot_crowded", kind = "bool", default = true },
+    { key = "tag_shot_crowded_name", kind = "string", default = "Assisted Tagging|Identification|Shot" },
 }
 
 -- Number ranges, as SETTINGS_SCHEMA's lo/hi (open = the bound itself is out) and whole numbers.
@@ -892,6 +914,7 @@ local function rules_value(rules, key)
     if name == nil then return nil end
     if on_of then return name ~= "" end
     if name == "" then return nil end
+    if which == "shot_crowded" then return name:match("^(.*)|Crowded$") end
     if which ~= "shot" then return name end
     return name:match("^(.*)|Solo$")
 end
@@ -919,6 +942,24 @@ function M.backfill_settings(stored_text, rules)
     return M.preset_encode(M.PRESET_SCHEMA, merged), copied
 end
 
+-- Old settings.json text predates the Shot crowded switch: copies tag_shot and tag_shot_name into
+-- the missing tag_shot_crowded and tag_shot_crowded_name. Returns the new text and the keys
+-- copied, or the text unchanged and nil when nothing changed (or the text isn't JSON).
+function M.upgrade_settings_text(text)
+    local decoded = text and M.preset_decode(text)
+    if not decoded then return text, nil end
+    local copied = {}
+    for _i, pair in ipairs({ { "tag_shot_crowded", "tag_shot" }, { "tag_shot_crowded_name", "tag_shot_name" } }) do
+        if decoded[pair[1]] == nil and decoded[pair[2]] ~= nil then
+            decoded[pair[1]] = decoded[pair[2]]
+            copied[#copied + 1] = pair[1]
+        end
+    end
+    if #copied == 0 then return text, nil end
+    local merged = M.preset_merge(M.PRESET_SCHEMA, decoded)
+    return M.preset_encode(M.PRESET_SCHEMA, merged), copied
+end
+
 -- The settings file a GUI run passes as --settings: the panel's values, beside the run's
 -- other temp files (`base` is their shared name prefix).
 function M.run_settings_path(base)
@@ -926,7 +967,7 @@ function M.run_settings_path(base)
 end
 
 -- One "tag_<outcome>" setting per diagnostic under Assisted Tagging|Identification
--- (keys match M.DIAG_TAGS / the rules' diag_<outcome>; "shot" covers all three Shot tags).
+-- (keys match M.DIAG_TAGS / the rules' diag_<outcome>; "shot" covers Solo and Pack).
 -- Off = runs stop writing it and detach it from the images they process. Entry and
 -- unidentified tags (entries.json) and identification itself are unchanged.
 local TAG_TOGGLES = {
@@ -940,7 +981,7 @@ local TAG_TOGGLES = {
     { key = "check_order", kind = "check", label = "Check order",
       when = "a low-confidence number read that no neighbouring group supports. The entry tag stays; delete this tag once checked." },
     { key = "team", kind = "diag", label = "Team only", when = "two teammates were too close to call; only their shared tags are added." },
-    { key = "none", kind = "check", label = "Unidentified", when = "no vehicle was found, or no confident match." },
+    { key = "none", kind = "check", label = "Unidentified (check)", when = "no vehicle was found, or no confident match." },
     { key = "number_seen", kind = "diag", label = "Number seen",
       when = "OCR read digits that didn't resolve to one entry. Added alongside the outcome tag." },
     { key = "colour", kind = "output", label = "Colour",
@@ -948,7 +989,9 @@ local TAG_TOGGLES = {
     { key = "check_colour", kind = "check", label = "Check colour",
       when = "the number read is confident but the car's colour differs from its entry's. Delete this tag once checked." },
     { key = "shot", kind = "check", label = "Shot",
-      when = "Solo: one vehicle found. Pack: two or three. Crowded: the detector's limit was reached, so there may be more cars than were identified." },
+      when = "Solo: one vehicle found. Pack: two or three." },
+    { key = "shot_crowded", kind = "check", label = "Shot crowded",
+      when = "three or more cars were in frame, so the number read may belong to another car: check it by hand." },
 }
 M.TAG_TOGGLES = TAG_TOGGLES
 
@@ -1154,6 +1197,7 @@ local function collection_settings(name)
     if not f then return M.preset_defaults(M.PRESET_SCHEMA) end
     local text = f:read("a")
     f:close()
+    text = M.upgrade_settings_text(text)
     -- Hand-edited blank or invalid values fall back to the default here too (show_panel logs them).
     return (M.checked_settings(M.preset_merge(M.PRESET_SCHEMA, M.preset_decode(text) or {})))
 end
@@ -1268,7 +1312,7 @@ local tag_checks = {} -- TAG_TOGGLES key → its check button (set by install_pa
 -- Writes/When/Off for a tag switch, naming the tag from `named` (M.named_rules of the
 -- loaded collection's settings).
 local function tag_tooltip(t, named)
-    local keys = t.key == "shot" and { "shot_solo", "shot_pack", "shot_crowded" } or { t.key }
+    local keys = t.key == "shot" and { "shot_solo", "shot_pack" } or { t.key }
     local names = {}
     for _i, k in ipairs(keys) do
         local name = named.diag[k]
@@ -1507,7 +1551,18 @@ local function reload_lists(quiet, show_plan, reread_settings)
         -- the template has no settings.json, so its panel values stay as they are
         if current_collection() ~= "" then
             local store = collection_store()
-            local text, copied = M.backfill_settings(store.read(current_collection()), rules)
+            local stored = store.read(current_collection())
+            local upgraded, upgraded_keys = M.upgrade_settings_text(stored)
+            if upgraded_keys then
+                if store.write(current_collection(), upgraded) then
+                    log("settings.json: " .. table.concat(upgraded_keys, ", ") .. " copied from the Shot switch (old settings)")
+                    stored = upgraded
+                    reread_settings = true
+                else
+                    log("settings.json: couldn't write " .. store.path(current_collection()))
+                end
+            end
+            local text, copied = M.backfill_settings(stored, rules)
             if text then
                 if store.write(current_collection(), text) then
                     log("settings.json: copied " .. table.concat(copied, ", ") .. " from entries.json")
@@ -1801,6 +1856,66 @@ local function write_ledger(ledger)
         notify_error(_("Assisted Tagging: couldn't save the tag ledger ") .. LEDGER_PATH .. " (" .. tostring(err)
             .. "). Tags this run attached will count as yours next run.")
     end
+end
+
+-- Detaches every tag the ledger says this plugin attached to the selected images, from any
+-- collection's roots, then drops their ledger rows. Hand-applied tags and run stamps stay.
+-- A tag that fails to detach keeps its place in the row, so clearing again retries it.
+function M.clear_marks(images)
+    if queue_if_busy(_("Clear tagging marks"), images and #images > 0, function() M.clear_marks(images) end) then return end
+    if not can_start(images) then return end
+    busy = true
+    M.cancel_requested = false
+    start_log("clear", #images)
+
+    local okr, err = pcall(function()
+        local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
+        local records, img_of = {}, {}
+        for _, img in ipairs(images) do
+            local id = tonumber(img.id)
+            if ledger[id] and not img_of[id] then
+                records[#records + 1] = { id = id, tags = tags_of(img) }
+                img_of[id] = img
+            end
+        end
+        if #records == 0 then
+            say(_("Assisted Tagging: nothing to clear; the selection has no tagging marks."))
+            return
+        end
+        local n_tags, n_images, writes = 0, 0, 0
+        for _, plan in ipairs(M.plan_clear(records, ledger)) do
+            -- the row is rebuilt from the failures, so ledger tags no longer on the image go too
+            local left = {}
+            for _, name in ipairs(plan.detach) do
+                local tag = tags.find(name)
+                local okd = tag and pcall(tags.detach, tag, img_of[plan.id])
+                if okd then
+                    n_tags = n_tags + 1
+                else
+                    left[name] = true
+                end
+                writes = writes + 1
+                if writes >= WRITE_BUDGET then
+                    writes = 0
+                    dt.control.sleep(WRITE_SLEEP_MS)
+                end
+            end
+            if next(left) then
+                ledger[plan.id] = left
+                log(string.format("clear: image %d keeps ledger tags that did not detach", plan.id))
+            else
+                ledger[plan.id] = nil
+                n_images = n_images + 1
+            end
+        end
+        write_ledger(ledger)
+        say(string.format(_("Assisted Tagging: cleared %d tags from %d images."), n_tags, n_images))
+    end)
+    busy = false
+    if not okr then notify_error(_("Assisted Tagging: couldn't clear tagging marks. ") .. tostring(err)) end
+    log("clear finished")
+    flush_log()
+    run_next()
 end
 
 -- Syncs each image's tags to identify.py's results and reports the outcome. Sets run.applying
@@ -2605,7 +2720,7 @@ local function install_panel()
     }
     local plan_button = dt.new_widget("button") {
         label = _("Show tag plan"),
-        tooltip = _("Write tag-plan.txt in the collection's folder: the exact tags every entry and outcome (team only, unidentified, diagnostics) writes, from its entries.json"),
+        tooltip = _("Write tag-plan.txt in the collection's folder: the exact tags every entry and outcome (team only, unidentified tags (yours), diagnostics) writes, from its entries.json"),
         clicked_callback = function() reload_lists(false, true) end,
     }
     local entries_editor = dt.new_widget("text_view") {
@@ -2738,6 +2853,11 @@ local function install_panel()
         label = _("Identify selection"),
         tooltip = _("Identify the vehicles in the selected images and tag them with their entries' tags"),
         clicked_callback = function() start_identify(true) end,
+    }
+    local clear_marks_button = dt.new_widget("button") {
+        label = _("Clear tagging marks"),
+        tooltip = _("Removes every tag this plugin attached to the selected images (entries, colours, diagnostics, unidentified) and forgets them in the ledger. Tags you applied by hand and run stamps stay."),
+        clicked_callback = function() M.clear_marks(dt.gui.action_images) end,
     }
     replace_manual_check = dt.new_widget("check_button") {
         label = _("Replace manual tags"),
@@ -2997,7 +3117,7 @@ local function install_panel()
             partial_references_check,
         },
         tag_rows,
-        { replace_manual_check, run_tag_check, verify_button, identify_button },
+        { replace_manual_check, run_tag_check, verify_button, identify_button, clear_marks_button },
         { entry_combo, add_button, add_tagged_button, fill_colours_button, promote_button,
           suggest_crops_check, quarantine_check, audit_button },
     }

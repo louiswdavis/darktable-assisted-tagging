@@ -299,7 +299,8 @@ Every other setting lives in the collection's `settings.json`, beside `entries.j
 | `tag_number_seen`, `tag_number_seen_name` | *Number seen* (the digits are added as a leaf) | same | `true`; `Assisted Tagging\|Identification\|Number seen` | yes |
 | `tag_colour`, `tag_colour_name` | the *Colour* tag (the colour is added as a leaf; needs `colour_tags`) | same | `true`; `Assisted Tagging\|Colour` | yes |
 | `tag_check_colour`, `tag_check_colour_name` | *Check colour* (needs `colour_tags`) | same | `true`; `Assisted Tagging\|Identification\|Check colour` | yes |
-| `tag_shot`, `tag_shot_name` | the *Shot* tag (`Solo`, `Pack` or `Crowded` is added as a leaf) | same | `true`; `Assisted Tagging\|Identification\|Shot` | yes |
+| `tag_shot`, `tag_shot_name` | the *Shot* tag (`Solo` or `Pack` is added as a leaf) | same | `true`; `Assisted Tagging\|Identification\|Shot` | yes |
+| `tag_shot_crowded`, `tag_shot_crowded_name` | *Shot crowded* (leaf `Crowded`) | same | `true`; `Assisted Tagging\|Identification\|Shot`, the same base as `tag_shot_name` | yes |
 
 A `tag_<key>_name` can't be blank or contain `,`, `;` or `"`; to stop writing a diagnostic, set its `tag_<key>` to `false`. An old `rules.diagnostics.<key>` in `entries.json` is copied here once (`""` becomes `tag_<key>: false`) and logged as deprecated.
 
@@ -322,7 +323,7 @@ Tags written under the old name stay on images the run doesn't touch; darktable 
 
 #### Checking what it will tag
 
-Click **Show tag plan** in the panel. It writes `tag-plan.txt` next to the collection's `entries.json`, listing exactly what each outcome writes: every entry's tags and reference count, the team-only tags for each pair of teammates, the unidentified tags, and the diagnostic tags. It also lists entries that can only be identified by number, and entries that can't be identified at all until they have references. The file is rewritten on every run and **Reload**, so it always matches `entries.json`.
+Click **Show tag plan** in the panel. It writes `tag-plan.txt` next to the collection's `entries.json`, listing exactly what each outcome writes: every entry's tags and reference count, the team-only tags for each pair of teammates, the unidentified tags (headed `unidentified tags (yours)`), and the diagnostic tags. It also lists entries that can only be identified by number, and entries that can't be identified at all until they have references. The file is rewritten on every run and **Reload**, so it always matches `entries.json`.
 
 After editing `entries.json`, click **Reload** in the panel. A mistake in the file stops the run with the file name and what's wrong.
 
@@ -365,7 +366,7 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 
 #### Choosing which diagnostics are written
 
-Each row above has its own switch under **tags written** in the panel, saved in the collection's `settings.json` and all on by default (`Shot` is one switch for all three). Each switch's tooltip names the tag it writes under this collection's settings. Turn off the ones you don't use to keep darktable's tag list short:
+Each row above has its own switch under **tags written** in the panel, saved in the collection's `settings.json` and all on by default (`Shot` is one switch for `Solo` and `Pack`; `Shot crowded` has its own). Each switch's tooltip names the tag it writes under this collection's settings. Turn off the ones you don't use to keep darktable's tag list short:
 
 - **Off** = the next run stops writing that diagnostic and removes it from the images it processes, under whatever name the collection's settings give it. One never written never shows up in the tag list.
 - **Identification doesn't change.** Entry tags, team-only and unidentified tags from `entries.json` are written as before.
@@ -380,6 +381,8 @@ Re-running is safe: each image's entry and diagnostic tags are synced to the new
 #### Tags you apply by hand
 
 The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config directory, lines `<library>,id,tag`) of the tags it attached to each image. `<library>` is a hash of the library file's path, so two libraries that reuse the same image ids keep separate ledger lines (lines from before this column belong to the library in use when they're first read; a library opened with `--library` on the command line isn't visible to the plugin and counts as the configured one). Lines for images removed from the library are dropped whenever the ledger is saved, and a failed save is tried once more before an on-screen error. An entry tag on an image that isn't in its ledger is yours, at any depth (team or driver), and a run never removes it. So a photo you tagged to a team stays that way even when the run can't tell the driver.
+
+**Clear tagging marks** reads the same ledger, so hand-applied tags survive it even when they sit under the plugin's roots.
 
 - A **solo shot** whose result disagrees with the tags you applied is left as you had it: nothing is added, it doesn't get the *Unidentified* tags, and the done message counts it. Packs aren't checked, since you may have tagged just one of the cars.
 - A **team tag** you applied (a tag that is a prefix of an entry's tags, such as `Motorsport|F1|Red Bull`) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car. Untick **Use team tags as hints** in the panel to ignore team tags instead: matching isn't narrowed, and a differing result is not held back as a conflict, so the run can override your team tag. The tag itself stays on the image beside whatever the run adds (tick **Replace manual tags** too to have the run overwrite it). Driver-level tags still protect their images either way.
@@ -437,7 +440,7 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 
 ### 4 tags written
 
-One switch per diagnostic (default on), each on one line with the tag name it writes beside it, under three headings: **outputs** (`Colour`), **checks** (`Check order`, `Unidentified`, `Check colour`, `Shot`) and **how it decided** (`By number`, `By livery`, `By burst`, `By pooled burst`, `By neighbour`, `Team only`, `Number seen`). Off removes that diagnostic on the next run; see [Choosing which diagnostics are written](#choosing-which-diagnostics-are-written). A switch whose tag needs another setting shows why it is off in its label, e.g. `Colour (off: read car colour is off)`, and is greyed until that setting is on.
+One switch per diagnostic (default on), each on one line with the tag name it writes beside it, under three headings: **outputs** (`Colour`), **checks** (`Check order`, `Unidentified (check)`, `Check colour`, `Shot`, `Shot crowded`) and **how it decided** (`By number`, `By livery`, `By burst`, `By pooled burst`, `By neighbour`, `Team only`, `Number seen`). Off removes that diagnostic on the next run; see [Choosing which diagnostics are written](#choosing-which-diagnostics-are-written). A switch whose tag needs another setting shows why it is off in its label, e.g. `Colour (off: read car colour is off)`, and is greyed until that setting is on. A `settings.json` from before *Shot crowded* existed loads with `tag_shot_crowded` and `tag_shot_crowded_name` copied from the Shot switch, once, and the log says so.
 
 ### 5 run
 
@@ -445,6 +448,7 @@ One switch per diagnostic (default on), each on one line with the tag name it wr
 - **Tag each run.** Stamps every image a run writes with `Assisted Tagging|Run|YYYY-MM-DD HH:MM`.
 - **Verify selection.** Identifies the selection, fully tagged images included, and reports where the result differs from your tags. No tags change.
 - **Identify selection.** Identifies and tags the selection (see [Identifying](#identifying)). Click again to cancel.
+- **Clear tagging marks.** Removes every tag the ledger says the plugin attached to the selected images (entries, colours, diagnostics, unidentified), from any collection, and forgets those images in the ledger, so a later **Identify selection** treats them as fresh. The ledger alone decides: tags you applied by hand stay, even under the plugin's roots, and so do **Tag each run** stamps, which are not ledgered. Images with no ledger row are left alone.
 
 ### 6 references
 
@@ -628,6 +632,9 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 11. **No selection.** Clear the selection and click **Identify selection**. *Expect:* "Assisted Tagging: select some images first".
 12. **Diagnostic switches.** Identify a batch with every switch on. Under **tags written** in the panel, turn off *Shot* and *By livery*, choose **actions** → **update preset**, then identify the same batch again. *Expect:* the same entry tags as before; no image in the batch has `…|Identification|Shot|…` or `…|By livery`; the other diagnostics are still there. No `LUA ERROR`.
 13. **Start list import.** Save a 100-row CSV (`No.;Driver;Co-Driver;Entrant;Class`), choose it under **start list** and click **Import start list**. *Expect:* "added 100 entries to …entries.json"; the entries have `name`, `team` and a `…|Class|…` tag; `entries.json.bak` is the previous file. Click **Import start list** again. *Expect:* "added 0 entries … skipped 100 already listed: 1, 2, …". Paste `7 Smith / Jones` and a line without a number into the box and import. *Expect:* "added 1 entries … 1 line(s) without a leading number ignored" when 7 is new, and the box is cleared.
+
+14. **Old settings.** Remove `tag_shot_crowded` and `tag_shot_crowded_name` from a collection's `settings.json` (keep `tag_shot` off), then click **Reload**. *Expect:* the log shows `settings.json: tag_shot_crowded, tag_shot_crowded_name copied from the Shot switch (old settings)`, and *Shot crowded* is off in **4 tags written**.
+15. **Clear tagging marks.** Identify a burst, then add `Rally|2026|12` to one image by hand. Select the burst and click **Clear tagging marks**. *Expect:* "Assisted Tagging: cleared N tags from M images."; every tag the plugin attached is gone, the hand tag stays, and a later **Identify selection** treats the images as fresh. Click it again on the same selection. *Expect:* "Assisted Tagging: nothing to clear; the selection has no tagging marks."
 
 ### Report what breaks
 

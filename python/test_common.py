@@ -27,6 +27,11 @@ def check(name, got, want):
 with open(common.__file__, "rb") as f:
     digest = hashlib.sha256(f.read().replace(b"\r\n", b"\n")).hexdigest()
 check("common.py matches the shared copy", digest, COMMON_SHA256)
+# Shared byte for byte with the culling repo: bump VEHICLE_DETECT_SHA256 in its test_score_images.py too.
+VEHICLE_DETECT_SHA256 = "b1c2d1d6da0d9458a24108990f3a2c53c5b2ac294127adf391f4e966a0997180"
+with open(os.path.join(os.path.dirname(common.__file__), "vehicle_detect.py"), "rb") as f:
+    digest = hashlib.sha256(f.read().replace(b"\r\n", b"\n")).hexdigest()
+check("vehicle_detect.py matches the shared copy", digest, VEHICLE_DETECT_SHA256)
 check("RAW_EXTENSIONS has the dot form", ".arw" in common.RAW_EXTENSIONS and "arw" not in common.RAW_EXTENSIONS, True)
 check("RAW_EXTENSIONS count", len(common.RAW_EXTENSIONS), 32)
 

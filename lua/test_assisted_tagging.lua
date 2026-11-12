@@ -258,8 +258,13 @@ check("mask_diag: switches off a renamed diagnostic too", keys(d), "")
 check("mask_diag: keeps the other rules", masked.team_only, "none")
 check("mask_diag: leaves the rules it was given alone", rules.diag.team, "X|Team")
 masked = T.mask_diag(T.default_rules(), { shot = true })
-check("mask_diag: shot covers all three Shot tags",
-    masked.diag.shot_solo .. masked.diag.shot_pack .. masked.diag.shot_crowded, "")
+check("mask_diag: off.shot blanks Solo and Pack, leaves shot_crowded",
+    masked.diag.shot_solo .. masked.diag.shot_pack, "")
+check("mask_diag: off.shot leaves shot_crowded", masked.diag.shot_crowded, "Assisted Tagging|Identification|Shot|Crowded")
+masked = T.mask_diag(T.default_rules(), { shot_crowded = true })
+check("mask_diag: off.shot_crowded blanks only shot_crowded",
+    masked.diag.shot_crowded .. "|" .. masked.diag.shot_solo .. "|" .. masked.diag.shot_pack,
+    "|Assisted Tagging|Identification|Shot|Solo|Assisted Tagging|Identification|Shot|Pack")
 local seen = row("none")
 seen.unmatched_number = "115"
 w, d = T.wanted_tags({ seen }, entries, T.mask_diag(T.default_rules(), { number_seen = true }))
@@ -321,7 +326,10 @@ check("TAG_TOGGLES: every row has a kind in TAG_KINDS", table.concat(bad_kinds, 
 local ordered = {}
 for _, t in ipairs(T.tag_rows_in_order()) do ordered[#ordered + 1] = t.key end
 check("tag_rows_in_order: outputs, checks, then diagnostics", table.concat(ordered, ","),
-    "colour,check_order,none,check_colour,shot,number,livery,burst,pooled,neighbour,team,number_seen")
+    "colour,check_order,none,check_colour,shot,shot_crowded,number,livery,burst,pooled,neighbour,team,number_seen")
+local none_label
+for _, t in ipairs(T.TAG_TOGGLES) do if t.key == "none" then none_label = t.label end end
+check("TAG_TOGGLES: none is labelled Unidentified (check)", none_label, "Unidentified (check)")
 local page_missing, page_duplicate = PC.page_coverage(T.PANEL_PAGES, T.PANEL_OTHER_KEYS, T.PRESET_SCHEMA)
 check("PANEL_PAGES: every preset key is on one page or listed off-stack",
     table.concat(page_missing, " ") .. table.concat(page_duplicate, " "), "")
@@ -351,6 +359,7 @@ check("checked_settings: an invalid key is still replaced and listed", filled.mi
 local off_s = T.preset_defaults(T.PRESET_SCHEMA)
 off_s.tag_colour, off_s.tag_shot = false, false
 off_s.tag_shot_name = "My|Shot"
+off_s.tag_shot_crowded_name = "My|Framing"
 local blank_rules = T.parse_rules_csv("diag_colour,\ndiag_shot_solo,\n")
 local named = T.named_rules(blank_rules, off_s)
 local named_has_colour = false
@@ -358,7 +367,8 @@ for _, p in ipairs(T.owned_prefixes(named)) do
     if p == "Assisted Tagging|Colour|" then named_has_colour = true end
 end
 check("named_rules: colour off still owns the colour prefix", named_has_colour, true)
-check("named_rules: shot names from tag_shot_name", named.diag.shot_crowded, "My|Shot|Crowded")
+check("named_rules: shot_crowded from tag_shot_crowded_name", named.diag.shot_crowded, "My|Framing|Crowded")
+check("named_rules: solo and pack from tag_shot_name", named.diag.shot_solo .. " " .. named.diag.shot_pack, "My|Shot|Solo My|Shot|Pack")
 check("named_rules: off diagnostic still owned", T.owned_tags({}, named)["My|Shot|Solo"], true)
 check("named_rules: leaves the rules it was given alone", blank_rules.diag.colour, "")
 
@@ -485,6 +495,21 @@ do -- library column: other libraries' lines pass through, 2-field lines belong 
     check("ledger_prune drops an image that's gone", pruned .. "," .. tostring(skipped) .. "," .. tostring(l[10]), "1,false,nil")
     pruned, skipped = T.ledger_prune(l, function() return false end)
     check("ledger_prune: nothing resolving means the lookup failed", pruned .. "," .. tostring(skipped) .. "," .. tostring(l[9] ~= nil), "0,true,true")
+end
+do -- plan_clear: the ledger alone decides what Clear detaches
+    local ledger = { [7] = { ["F1|Ferrari"] = true, ["Assisted Tagging|Identification|By number"] = true } }
+    local plans = T.plan_clear({ { id = 7, tags = { ["F1|Ferrari"] = true, ["Rally|2026|12"] = true } } }, ledger)
+    check("plan_clear: detaches ledger tags still on the image, hand tags stay",
+        #plans .. ":" .. plans[1].id .. ":" .. table.concat(plans[1].detach, ";"), "1:7:F1|Ferrari")
+    ledger = { [7] = { ["Rally|2025|3"] = true, ["F1|Ferrari"] = true } }
+    plans = T.plan_clear({ { id = 7, tags = { ["Rally|2025|3"] = true, ["F1|Ferrari"] = true } } }, ledger)
+    check("plan_clear: another collection's ledger tags are removed too", table.concat(plans[1].detach, ";"), "F1|Ferrari;Rally|2025|3")
+    plans = T.plan_clear({ { id = 8, tags = { ["F1|Ferrari"] = true, ["Assisted Tagging|Identification|By number"] = true } } },
+        { [7] = { ["F1|Ferrari"] = true } })
+    check("plan_clear: no ledger row, no plan", #plans, 0)
+    local l = T.ledger_parse("libA,7,F1|x\n9,F1|old\n", "libB")
+    l[9] = nil
+    check("ledger_format after clear keeps other libraries' rows", T.ledger_format(l, "libB"), "libA,7,F1|x\n")
 end
 do -- hand-applied diagnostic / unidentified / number-seen tags are protected from detach
     local NS = T.DIAG_TAGS.number_seen
@@ -667,7 +692,7 @@ require("test_preset_block")(T, check)
 
 do
     local d = T.preset_defaults(T.PRESET_SCHEMA)
-    check("tagging schema has 43 keys", #T.PRESET_SCHEMA, 43)
+    check("tagging schema has 45 keys", #T.PRESET_SCHEMA, 45)
     check("colour keys default on", tostring(d.tag_colour) .. tostring(d.tag_check_colour), "truetrue")
     check("tagging defaults", table.concat({ tostring(d.use_hints), d.group_support, d.group_node,
         tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine), d.embedder_file,
@@ -742,6 +767,19 @@ do -- backfill_settings: entries.json rules fill only missing, blank or invalid 
         .. "/" .. tostring(tags.tag_shot_name), "false/Old|By livery/Old|Shot")
 
     check("run_settings_path", T.run_settings_path("/tmp/dt_assisted_tagging_1_2_"), "/tmp/dt_assisted_tagging_1_2_settings.run.json")
+end
+
+do
+    local text, copied = T.upgrade_settings_text('{"tag_shot":false,"tag_shot_name":"My|Shot"}')
+    local back = T.preset_decode(text)
+    check("upgrade_settings_text: copies tag_shot into tag_shot_crowded", back.tag_shot_crowded, false)
+    check("upgrade_settings_text: copies tag_shot_name into tag_shot_crowded_name", back.tag_shot_crowded_name, "My|Shot")
+    check("upgrade_settings_text: reports both keys", table.concat(copied, ","), "tag_shot_crowded,tag_shot_crowded_name")
+    local both = '{"tag_shot":false,"tag_shot_crowded":true,"tag_shot_crowded_name":"X"}'
+    local same, none = T.upgrade_settings_text(both)
+    check("upgrade_settings_text: no-op when both present", tostring(same == both) .. tostring(none), "truenil")
+    same, none = T.upgrade_settings_text("{ not json")
+    check("upgrade_settings_text: no-op on text that is not JSON", tostring(same == "{ not json") .. tostring(none), "truenil")
 end
 
 print("")
