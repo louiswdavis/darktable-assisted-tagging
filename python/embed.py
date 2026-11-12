@@ -6,7 +6,7 @@ import os
 import numpy as np
 import cv2
 
-from vehicles import file_key
+from vehicle_detect import file_key
 
 EMBED_INPUT = 224
 EMBED_DIM = 384

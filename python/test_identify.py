@@ -1,6 +1,6 @@
 # Run with: python python/test_identify.py
 # Exercises identify.py's entries/rules loading, cache key, output and run flow,
-# plus vehicles.py's decode and crop, on synthetic files; no models needed.
+# plus vehicle_detect.py's decode and vehicles.py's crop, on synthetic files; no models needed.
 
 import ast
 import json
@@ -17,6 +17,7 @@ import car_colour as C
 import fingerprint as FP
 import identify as I
 import ocr as O
+import vehicle_detect as VD
 import vehicles as V
 from embed import encode
 from match import BoxResult
@@ -233,7 +234,7 @@ def run_tests():
     check("the cache key is stable", I.frame_key(frame, models), key)
     models["car_colour"] = None
     check("no colour tags leaves the cache key as it was", I.frame_key(frame, models),
-          [V.file_key(frame), V.file_key(models["detector"]), I.ocr_key(models["ocr_det"], models["ocr_rec"]),
+          [VD.file_key(frame), VD.file_key(models["detector"]), I.ocr_key(models["ocr_det"], models["ocr_rec"]),
            I.embedder_key(models["embedder"]), fp, "ocr-trace-2", "read-conf-1", "pod-2", "cand-1", "overlap-2"])
     models["car_colour"] = C.PALETTE
     colour_key = I.frame_key(frame, models)
@@ -242,7 +243,7 @@ def run_tests():
     check("renaming a palette colour changes the cache key", I.frame_key(frame, models) != colour_key, True)
     models["car_colour"] = None
     models["segmenter"] = frame
-    check("the segmenter model file joins the cache key", I.frame_key(frame, models)[-2:], ["mask-1", V.file_key(frame)])
+    check("the segmenter model file joins the cache key", I.frame_key(frame, models)[-2:], ["mask-1", VD.file_key(frame)])
     del models["segmenter"]
     people = {"kind": "people", "face_det": frame, "face_rec": frame}
     check("the people key carries the fingerprint", FP.analysis_fingerprint() in I.frame_key(frame, people), True)
@@ -257,6 +258,34 @@ def run_tests():
         filed = FP.CACHE_INPUTS[mod] + FP.CACHE_NEUTRAL[mod]
         check(f"{mod.__name__}: every constant is filed once", sorted(n for n in names if filed.count(n) != 1), [])
         check(f"{mod.__name__}: nothing filed that does not exist", sorted(set(filed) - set(names)), [])
+
+    # ---- shared detections: a frame analysed twice runs the detector once, the second read is the cached entry
+    det_runs = []
+
+    def fake_run(detector, canvas, scale, w, h):
+        det_runs.append(w)
+        return np.array([[0, 0, 32, 24, 0.1, 2]], dtype=np.float64).reshape(-1, 6)
+
+    VD.FAMILIES["fake"] = {"match": lambda name: False, "load": None, "run": fake_run,
+                           "classes": frozenset({2, 3, 7}), "nms": True}
+    fake_det = VD.Detector(id="fake:x:1:abc", family="fake", net=None, classes=frozenset({2, 3, 7}))
+    saved_w = dict(I._W)
+    I._W.clear()
+    I._W.update(models={"kind": "motorsport"}, detector=fake_det,
+                detections=VD.DetectionCache(os.path.join(img, "detections.sqlite")))
+    try:
+        first = I.analyse_frame(frame)
+        second = I.analyse_frame(frame)
+    finally:
+        I._W["detections"].close()
+        I._W.clear()
+        I._W.update(saved_w)
+    check("analyse_frame runs the detector once for a frame analysed twice", len(det_runs), 1)
+    check("the first analysis detected, the second read the cache",
+          (first.pop("detection_cached", None), second.pop("detection_cached", None)), (False, True))
+    check("the cached detection gives the same candidates", second["candidates"], first["candidates"])
+    check("a box under DETECTOR_MIN_SCORE is a candidate, not a box",
+          (first["boxes"], first["candidates"]), ([], [[0.0, 0.0, 32.0, 24.0, 0.1, 2]]))
 
     # ---- results rows
     check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,,,")
@@ -276,7 +305,7 @@ def run_tests():
     exif = Image.Exif()
     exif[0x0112] = 6  # stored landscape, displayed rotated 90° clockwise
     Image.new("RGB", (300, 200), (10, 120, 200)).save(rotated, exif=exif)
-    rgb = V.load_full(rotated)
+    rgb = VD.decode_rgb(rotated)
     check("an Orientation-6 JPEG decodes upright (portrait)", rgb.shape[:2], (300, 200))
     crop = V.crop_box(rgb, (0, 0, 200, 150, 0.9, 2))
     check("a crop of an upright box keeps the upright aspect", crop.shape[:2], (120, 160))
@@ -465,8 +494,9 @@ def run_tests():
 
     # ---- reference actions fill an entry's colour (rules.colour_tags)
     import entries_file
-    real_detect = I.detect_vehicles
-    I.detect_vehicles = lambda rgb, detector: ([(0, 0, 50, 50)], "")
+    real_detect, real_entry = I.detect_vehicles, I.frame_entry
+    I.detect_vehicles = lambda rgb, entry: ([(0, 0, 50, 50)], "")
+    I.frame_entry = lambda filepath, rgb, models: ({"frame": [rgb.shape[1], rgb.shape[0]], "boxes": []}, False)
     # refs cut from one crop pile up here; screening them is the block above's subject
     audit_refs.screen_refs = lambda collection, rels: {}
     vmodels = {"embedder": "fake", "detector": ""}
@@ -517,11 +547,11 @@ def run_tests():
         check("colours-only: an entry with that colour is already",
               (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","VER","Red"', colours_only=True),
                open(oentries, "rb").read() == before, os.path.exists(oentries + ".bak")), ("1,read,already,VER", True, False))
-        I.detect_vehicles = lambda rgb, detector: ([], "no vehicle")
+        I.detect_vehicles = lambda rgb, entry: ([], "no vehicle")
         check("colours-only: no vehicle is unread and saves nothing",
               (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","TSU",""', colours_only=True),
                os.path.exists(os.path.join(ocoll, "refs", "TSU"))), ("1,unread,,TSU", False))
-        I.detect_vehicles = lambda rgb, detector: ([(0, 0, 50, 50)], "")
+        I.detect_vehicles = lambda rgb, entry: ([(0, 0, 50, 50)], "")
         try:
             ref_job(I.add_references, coll, f'"1","{real_jpg}","VER","Red"', colours_only=True)
             off = "(no error)"
@@ -537,7 +567,7 @@ def run_tests():
         check("colours-only refuses a people collection", people, "Fill entry colours is for vehicle collections")
         check("colours-only saves no face reference", os.path.isdir(os.path.join(pcoll, "refs", "Lando Norris")), False)
     finally:
-        I.detect_vehicles = real_detect
+        I.detect_vehicles, I.frame_entry = real_detect, real_entry
         audit_refs.screen_refs = real_screen
 
     # ---- Review Focus 4: cancel leaves no results

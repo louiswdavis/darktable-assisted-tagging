@@ -19,12 +19,13 @@ import overlap
 import people
 import pod
 import segment
+import vehicle_detect
 import vehicles
 
 # module -> constants whose value changes a cached box, read, embedding, histogram or mask
 CACHE_INPUTS = {
-    vehicles: ("MIN_BOX_FRAC", "MAX_BOXES", "CROP_DIM", "BOX_MARGIN_TRIM", "DETECTOR_INPUT", "DETECTOR_STRIDES",
-               "DETECTOR_MIN_SCORE", "DETECTOR_NMS", "CANDIDATE_MIN_SCORE", "MAX_CANDIDATES", "VEHICLE_CLASSES"),
+    vehicles: ("MIN_BOX_FRAC", "MAX_BOXES", "CROP_DIM", "BOX_MARGIN_TRIM", "DETECTOR_MIN_SCORE", "MAX_CANDIDATES"),
+    vehicle_detect: ("DETECTOR_INPUT", "DETECTOR_STRIDES", "DETECTOR_NMS", "CANDIDATE_MIN_SCORE", "DETECT_VERSION"),
     ocr: ("OCR_MIN_SCORE", "NUMBER_MIN_HEIGHT", "DET_INPUT", "DET_MEAN", "REC_INPUT", "REC_CHARSET",
           "PADDLE_REC_HEIGHT", "PADDLE_REC_MIN_WIDTH", "_DIGIT_LOOKALIKES"),
     embed: ("EMBED_INPUT", "EMBED_DIM", "_MEAN", "_STD"),
@@ -39,7 +40,9 @@ CACHE_INPUTS = {
 # module -> constants that only use cached data, are derived from an input, are already in
 # the key another way (the palette digest, the model files) or are runtime state, not a value
 CACHE_NEUTRAL = {
-    vehicles: ("COCO_NAMES", "_RAW_FLIP_TURNS", "_DETECTORS"),  # RAW_EXTENSIONS is common.py's, not filed here
+    vehicles: (),  # RAW_EXTENSIONS is common.py's, not filed here
+    # FAMILIES holds lambdas (unstable repr); its class sets are in vehicle_detect.detection_fingerprint()
+    vehicle_detect: ("CACHE_MAX_AGE_DAYS", "CACHE_COMMIT_EVERY", "FAST_JPEG_DIM", "COCO_NAMES", "_RAW_FLIP_TURNS", "FAMILIES"),
     ocr: ("REC_TARGET",),
     embed: ("DEGRADE_FACTOR",),
     segment: ("SEGMENTER_FILE", "SEGMENT_CACHE_TOKEN"),
@@ -76,5 +79,6 @@ def analysis_fingerprint() -> str:
         rawpy_version = "none"
     bits = {m.__name__: {n: _jsonable(getattr(m, n)) for n in names} for m, names in CACHE_INPUTS.items()}
     bits["versions"] = [cv2.__version__, PIL.__version__, rawpy_version, np.__version__]
+    bits["detection"] = vehicle_detect.detection_fingerprint()
     _FINGERPRINT = hashlib.sha1(json.dumps(bits, sort_keys=True, default=str).encode()).hexdigest()[:12]
     return _FINGERPRINT

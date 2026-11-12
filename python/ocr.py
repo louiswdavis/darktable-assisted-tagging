@@ -8,7 +8,8 @@ import os
 import numpy as np
 import cv2
 
-from vehicles import file_key, read_onnx
+from vehicles import read_onnx
+from vehicle_detect import file_key
 
 OCR_MIN_SCORE = 0.80
 # a number's text region must be at least this share of the vehicle crop's height. Number plate

@@ -8,7 +8,7 @@ from collections import namedtuple
 import cv2
 import numpy as np
 
-from vehicles import file_key, load_full
+from vehicle_detect import decode_rgb, file_key
 
 FACE_EMBED_DIM = 128
 FACE_CROP = 112  # SFace's aligned input size
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     if len(sys.argv) != 4:
         sys.exit(__doc__)
     model = FaceModel(sys.argv[1], sys.argv[2])
-    image = load_full(sys.argv[3])
+    image = decode_rgb(sys.argv[3])
     found = model.detect(image)
     for n, f in enumerate(found):
         print(f"face {n}: box ({f.x:.0f}, {f.y:.0f}) {f.w:.0f}x{f.h:.0f}, score {f.score:.2f}")

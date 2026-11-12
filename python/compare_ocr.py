@@ -15,7 +15,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ocr import NumberReader
-from vehicles import crop_box, detect_vehicles, load_full
+from vehicles import crop_box, detect_vehicles
+from vehicle_detect import decode_rgb, detect, load_detector
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 MODELS = os.path.join(HERE, "..", "models")
@@ -60,13 +61,14 @@ def main():
     print("recognisers: " + ", ".join(f"{n} ({r.rec.name})" for n, r in readers))
     rows, got = [], {n: 0 for n in names}
     vehicles = 0
+    detector = load_detector(args.detector)
     for path in photos(args.paths):
         try:
-            rgb = load_full(path)
+            rgb = decode_rgb(path)
         except Exception as e:  # one unreadable photo shouldn't end the comparison
             print(f"{os.path.basename(path)}: can't decode: {type(e).__name__}: {e}")
             continue
-        boxes, _note = detect_vehicles(rgb, args.detector)
+        boxes, _note = detect_vehicles(rgb, detect(rgb, detector))
         for i, box in enumerate(boxes):
             crop = crop_box(rgb, box)
             vehicles += 1

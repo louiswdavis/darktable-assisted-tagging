@@ -21,6 +21,7 @@ import concurrent.futures
 import csv
 import hashlib
 import json
+import multiprocessing.util
 import os
 import re
 import shutil
@@ -29,7 +30,8 @@ import sys
 import time
 from dataclasses import dataclass, replace
 
-from vehicles import MAX_BOXES, crop_box, detect, detect_vehicles, detector_model, file_key, load_full, load_hires, log
+from vehicles import MAX_BOXES, crop_box, detect, detect_vehicles, load_hires, log
+from vehicle_detect import DetectionCache, decode_rgb, detect_cached, file_key, load_detector
 from common import atomic_write
 from ocr import NumberReader, ocr_key
 import car_colour
@@ -475,6 +477,23 @@ def cancel_requested(progress_path: str) -> bool:
 _W: dict = {}
 
 
+def _detection_tools(models: dict) -> tuple:
+    """(loaded detector, shared detection cache) for this process, loaded on first use. The cache is
+    closed by multiprocessing's finalizers, which run in the pool's workers as well as the parent
+    (atexit handlers do not: workers leave through os._exit)."""
+    if "detector" not in _W:
+        _W["detector"] = load_detector(models["detector"])
+        _W["detections"] = DetectionCache(models.get("detections", ""))
+        multiprocessing.util.Finalize(None, _W["detections"].close, exitpriority=0)
+    return _W["detector"], _W["detections"]
+
+
+def frame_entry(filepath: str, rgb, models: dict) -> tuple:
+    """(the frame's shared detection entry, whether it came from the cache)."""
+    detector, cache = _detection_tools(models)
+    return detect_cached(filepath, detector, cache, rgb=rgb)
+
+
 def _init_worker(models: dict):
     try:
         import cv2
@@ -488,17 +507,20 @@ def _init_worker(models: dict):
     _W["reader"] = NumberReader(models["ocr_det"], models["ocr_rec"])
     _W["embedder"] = Embedder(models["embedder"])
     _W["segmenter"] = Segmenter(models["segmenter"]) if models.get("segmenter") else None
+    _detection_tools(models)
 
 
 def analyse_frame(filepath: str) -> dict:
-    """Boxes, OCR candidates and embeddings for one frame: the cached value."""
-    rgb = load_full(filepath)
+    """Boxes, OCR candidates and embeddings for one frame: the cached value, plus `detection_cached`
+    (whether the shared detection entry was already there), which run_frames pops off."""
+    rgb = decode_rgb(filepath)
     if _W["models"]["kind"] == "people":
         return analyse_frame_people(rgb, _W["faces"])
-    boxes, weak, note = detect(rgb, _W["models"]["detector"])
+    entry, hit = frame_entry(filepath, rgb, _W["models"])
+    boxes, weak, note = detect(rgb, entry)
     h, w = rgb.shape[:2]
     out = _read_boxes(rgb, boxes)
-    out.update(note=note, frame=[w, h], candidates=[list(b) for b in weak])
+    out.update(note=note, frame=[w, h], candidates=[list(b) for b in weak], detection_cached=hit)
     return out
 
 
@@ -541,7 +563,7 @@ def rescue_frame(job: tuple):
     candidate as its one box, or None when its crop doesn't look like the mate's (the sim is under
     RESCUE_MIN_SIM). The analysis carries `rescued` {from, sim}."""
     path, box, mate_path, mate_emb = job
-    rgb = load_full(path)
+    rgb = decode_rgb(path)
     sim = float((_W["embedder"].embed(crop_box(rgb, box)) * decode(mate_emb)).sum())
     if sim < RESCUE_MIN_SIM:
         return None
@@ -562,7 +584,7 @@ def hires_frame(job: tuple):
     hi = load_hires(path)
     if hi is None:
         return {}
-    rgb = load_full(path)
+    rgb = decode_rgb(path)
     if hi.shape[1] < HIRES_MIN_GAIN * rgb.shape[1] or \
             abs(hi.shape[1] / hi.shape[0] / (rgb.shape[1] / rgb.shape[0]) - 1) > HIRES_ASPECT_TOL:
         return {}
@@ -634,7 +656,7 @@ def check_models(models: dict):
     for label, key in labels:
         if not models[key] or not os.path.isfile(models[key]):
             raise InputError(f"{label} model not found: {models[key] or '(not set)'}")
-    loaders = (("object detector", "detector", lambda: detector_model(models["detector"])),
+    loaders = (("object detector", "detector", lambda: load_detector(models["detector"])),
                ("OCR", "ocr_det", lambda: NumberReader(models["ocr_det"], models["ocr_rec"])),
                ("embedder", "embedder", lambda: Embedder(models["embedder"])),
                *([("segmenter", "segmenter", lambda: Segmenter(models["segmenter"]))] if models.get("segmenter") else []))
@@ -669,6 +691,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
     if not todo:
         return out
     workers = worker_count(os.cpu_count() or 2)
+    hits, detected = 0, 0
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers, initializer=_init_worker,
                                                 initargs=(models,)) as executor:
         futures = {executor.submit(analyse_frame, p): p for p in todo}
@@ -681,6 +704,10 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
             p = futures[fut]
             try:
                 out[p] = fut.result()
+                if out[p].pop("detection_cached", False):
+                    hits += 1
+                else:
+                    detected += 1
                 cache.put(out[p], *frame_key(p, models))
             except concurrent.futures.process.BrokenProcessPool as e:
                 raise InputError(f"an analysis worker died (out of memory or a crashed library?); "
@@ -690,6 +717,8 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
                 out[p] = None
             done += 1
             write_progress(progress, done, total)
+    if models["kind"] != "people":
+        log(f"detections: {hits} cached, {detected} detected")
     return out
 
 
@@ -1322,7 +1351,7 @@ def add_references(args, models: dict):
             log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")
             return "failed", []
         try:
-            crop, status = reference_face(load_full(filepath), index.embedder)
+            crop, status = reference_face(decode_rgb(filepath), index.embedder)
             if crop is None:
                 log(f"{image_id}: {status.replace('_', ' ')}; a face reference needs a photo with exactly one face")
                 return status, []
@@ -1350,8 +1379,9 @@ def add_references(args, models: dict):
             log(f"{image_id}: only tagged to {entry_id}; set rules.partial_references to save team references")
             return "team_refs_off", []
         try:
-            rgb = load_full(filepath)
-            boxes, note = detect_vehicles(rgb, models["detector"])
+            rgb = decode_rgb(filepath)
+            entry, _ = frame_entry(filepath, rgb, models)
+            boxes, note = detect_vehicles(rgb, entry)
             if colours_only:
                 colour = hand_colour or (car_colour.decide_colour(car_colour.colour_shares(crop_box(rgb, boxes[0]), rules.colour_palette))
                                          if boxes else "")
@@ -1407,7 +1437,7 @@ def promote_boxes(args, models: dict):
         if not wanted:
             return "none_promotable", []
         try:
-            rgb = load_full(filepath)
+            rgb = decode_rgb(filepath)
             if [rgb.shape[1], rgb.shape[0]] != record["frame"]:
                 log(f"{image_id}: the file no longer matches the last run (frame size changed), skipped")
                 return "stale", []
@@ -1494,7 +1524,9 @@ def main(argv=None):
     parser.add_argument("--collections-root", default="", help="Folder holding one folder per collection")
     parser.add_argument("--collection", default="", help="Active collection's folder name")
     parser.add_argument("--settings", default="", help="settings file to use instead of the collection's settings.json")
-    parser.add_argument("--detector", default="", help="YOLOX .onnx")
+    parser.add_argument("--detector", default="", help="object detector .onnx (YOLOX, D-FINE or RT-DETR)")
+    parser.add_argument("--detections", default="",
+                        help="SQLite cache of per-frame detections shared with culling (empty = off)")
     parser.add_argument("--segmenter", default="", help="EfficientSAM .onnx (default: next to the detector, if present)")
     parser.add_argument("--ocr-det", default="", help="PP-OCRv3 text detection .onnx")
     parser.add_argument("--ocr-rec", default="", help="text recognition .onnx: PP-OCRv5 (its .yml beside it) or CRNN")
@@ -1528,7 +1560,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     models = {"detector": args.detector, "ocr_det": args.ocr_det, "ocr_rec": args.ocr_rec,
               "embedder": args.embedder, "face_det": args.face_detector, "face_rec": args.face_recognizer,
-              "segmenter": args.segmenter, "kind": DEFAULT_KIND}
+              "segmenter": args.segmenter, "detections": args.detections, "kind": DEFAULT_KIND}
     try:
         if args.list:
             list_mode(args)

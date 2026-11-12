@@ -250,8 +250,10 @@ def frame_audit(collection_dir, path, detector, on_progress=None, need_boxes=Fal
     [x0, y0, x1, y1] lists in its own pixels."""
     from PIL import Image
     from vehicles import DETECTOR_MIN_SCORE, detect_vehicles
+    from vehicle_detect import detect, load_detector
     cache_path = os.path.join(collection_dir, FRAME_CACHE_NAME)
-    detector_id = f"{os.path.basename(detector)}:{_file_stamp(detector)}:{DETECTOR_MIN_SCORE}"
+    detector = load_detector(detector)
+    detector_id = f"{detector.id}:{DETECTOR_MIN_SCORE}"
     cached = {}
     if os.path.exists(cache_path):
         with open(cache_path, encoding="utf-8") as f:
@@ -272,7 +274,7 @@ def frame_audit(collection_dir, path, detector, on_progress=None, need_boxes=Fal
                 continue
             with Image.open(file) as im:
                 rgb = np.array(im.convert("RGB"))
-            boxes, _ = detect_vehicles(rgb, detector)
+            boxes, _ = detect_vehicles(rgb, detect(rgb, detector))
             h, w = rgb.shape[:2]
             share = max(((b[2] - b[0]) * (b[3] - b[1]) / (w * h) for b in boxes), default=0.0)
             plain = [[float(v) for v in b[:4]] for b in boxes]
@@ -473,7 +475,7 @@ def main():
     ap.add_argument("collection_dir")
     ap.add_argument("--dup-sim", type=float, default=0.97)
     ap.add_argument("--top", type=int, default=40, help="rows per section")
-    ap.add_argument("--detector", default="", help="YOLOX .onnx; enables the whole-frame check")
+    ap.add_argument("--detector", default="", help="object detector .onnx (YOLOX, D-FINE or RT-DETR); enables the whole-frame check")
     ap.add_argument("--suggest-crops", action="store_true",
                     help=f"also write re-cropped copies of wide refs to {CROP_SUGGEST_DIR}/ (needs --detector)")
     ap.add_argument("--quarantine", action="store_true",
