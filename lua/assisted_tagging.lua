@@ -1443,6 +1443,7 @@ end
 local function model_args(script)
     local args = {
         "--detector", model_path("detector_model", script),
+        "--detections", C.detections_path(dt),
         "--ocr-det", model_path("ocr_detection_model", script),
         "--ocr-rec", ocr_rec_path(script),
         "--embedder", model_path("embedder_model", script),

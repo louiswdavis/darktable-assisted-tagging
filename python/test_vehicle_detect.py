@@ -189,6 +189,33 @@ check("detr keeps the vehicle box and drops the person", e["boxes"], [[10.0, 10.
 check("detr feeds images and orig_target_sizes", sorted(stub.feeds), ["images", "orig_target_sizes"])
 check("detr images input is 1x3x640x640", tuple(stub.feeds["images"].shape), (1, 3, 640, 640))
 
+
+class RawStubSession:
+    # transformers export (onnx-community/dfine_*-ONNX): no post-processor, 300 queries × 80 logits
+    # and normalised cx,cy,w,h boxes.
+    def get_inputs(self):
+        return [_Named("pixel_values")]
+
+    def get_outputs(self):
+        return [_Named("logits"), _Named("pred_boxes")]
+
+    def run(self, names, feeds):
+        self.feeds = feeds
+        logits = np.full((1, 2, 80), -20.0, np.float32)
+        logits[0, 0, 2] = 0.0    # query 0: car at sigmoid(0) = 0.5
+        logits[0, 0, 0] = 3.0    # ... and a stronger person score that must not win
+        logits[0, 1, 7] = -5.0   # query 1: truck below CANDIDATE_MIN_SCORE
+        boxes = np.array([[[0.25, 0.25, 0.5, 0.5], [0.5, 0.5, 0.1, 0.1]]], np.float32)
+        return [logits, boxes]
+
+
+raw = RawStubSession()
+e = V.detect(np.zeros((320, 640, 3), np.uint8), V.Detector(id="detr:dfine_s_coco.onnx:1:abc", family="detr", net=raw,
+                                                           classes=V.FAMILIES["detr"]["classes"]))
+check("detr raw export: feeds pixel_values only", sorted(raw.feeds), ["pixel_values"])
+check("detr raw export: sigmoid over vehicle classes, cxcywh × canvas / scale → source xyxy",
+      e["boxes"], [[0.0, 0.0, 320.0, 320.0, 0.5, 2]])
+
 # fingerprint -----------------------------------------------------------------
 check("detection_fingerprint is 12 hex", len(V.detection_fingerprint()), 12)
 

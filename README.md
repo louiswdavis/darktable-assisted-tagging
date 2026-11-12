@@ -73,6 +73,7 @@ curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2
 | `text_detection_en_ppocrv3_2023may.onnx` | 2.4 MB | finds text on each vehicle | OpenCV model zoo (PP-OCRv3), Apache-2.0 |
 | `en_PP-OCRv5_mobile_rec.onnx` + `.yml` | 7.9 MB | reads that text (the yml is its dictionary; the plugin treats a recogniser as PaddleOCR when the yml sits beside it under the same name) | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
 | `dinov2_small.onnx` | 89 MB | livery matching | DINOv2 ViT-S/14 via onnx-community, Apache-2.0 |
+| `dfine_s_coco.onnx` (optional) | 42 MB | a second vehicle detector, for `compare_detectors.py`; the plugin uses it only when `detector_model` in `MODEL_FILES` (`lua/assisted_tagging.lua`) names it | D-FINE-S COCO via onnx-community (`dfine_s_coco-ONNX`, `onnx/model.onnx`), Apache-2.0 |
 
 The first run after switching to a new reader re-reads every box, because the recogniser is part of the cache key. The run log's `number reader:` line names the recogniser in use.
 
@@ -106,6 +107,15 @@ To compare the two on your own photos, print each vehicle's reads from both, wit
 ```
 python python/compare_ocr.py --rec models/text_recognition_CRNN_EN_2021sep.onnx --rec models/en_PP-OCRv5_mobile_rec.onnx --out compare.csv <a folder of photos>
 ```
+
+To compare two vehicle detectors on your own photos (frames with a car, cars missed, boxes per frame, CPU ms per frame at three score thresholds, plus a CSV of the frames where they disagree on box count), download the candidate and run:
+
+```
+curl -L -o models/dfine_s_coco.onnx https://huggingface.co/onnx-community/dfine_s_coco-ONNX/resolve/main/onnx/model.onnx
+python python/compare_detectors.py --detector models/object_detection_yolox_2022nov.onnx --detector models/dfine_s_coco.onnx --truth results.csv --manifest manifest.csv --out compare_detectors.csv --disagree disagree.csv <a folder of photos>
+```
+
+`--truth` is a tagging run's `results.csv` and `--manifest` its `id,filepath` manifest (both optional, both together): a frame with a box there counts as a frame with a car, and a detector that finds no box on it at a threshold has missed it. The markdown table it prints goes into `<plugins folder>/docs/superpowers/specs/backlog/darktable-plugins-tickets/13-detector-comparison.md`.
 
 To go back to the CRNN for a collection, type `text_recognition_CRNN_EN_2021sep.onnx` into its **number reader model file** option and **update preset**. A yml whose dictionary doesn't fit the model stops the run at the start with an error.
 
@@ -526,7 +536,9 @@ Each outcome above is one of these methods, named consistently from `identify.py
 | `team` | two teammates too close to call by livery (shared tags only) | `…\|Team only` |
 | `none` | nothing matched | `…\|Unidentified` |
 
-Frames are decoded at native resolution (a raw file's embedded preview) and each vehicle is cropped from that before reading its number, since a number only a few pixels tall in a downscaled frame is readable in the crop. Detection, OCR text and embeddings are cached per frame in `assisted_tagging/cache.sqlite` in darktable's config directory. Matching isn't, so adding references or editing `entries.json` takes effect on the next run without decoding anything again. The cache key includes the file (path, modified time, size), every model file and a fingerprint of the constants and package versions that change the cached data, so the first run after an update or a constants edit re-reads everything once; unused entries are dropped after 90 days. Delete the file to start over.
+Frames are decoded at native resolution (a raw file's embedded preview) and each vehicle is cropped from that before reading its number, since a number only a few pixels tall in a downscaled frame is readable in the crop. OCR text and embeddings are cached per frame in `assisted_tagging/cache.sqlite` in darktable's config directory, and vehicle detections in the shared detection cache below. Matching isn't, so adding references or editing `entries.json` takes effect on the next run without decoding anything again. The cache key includes the file (path, modified time, size), every model file and a fingerprint of the constants and package versions that change the cached data, so the first run after an update or a constants edit re-reads everything once; unused entries are dropped after 90 days. Delete the file to start over.
+
+**Shared detection cache.** Vehicle boxes are cached in `assisted_plugins/detections.sqlite` in darktable's config directory, shared with the culling plugin so a frame both plugins see is detected once. The key is the file (path, modified time, size), the detector model file and a fingerprint of the shared detector code, so a new detector or a `vehicle_detect.py` change re-detects everything once; rows unused for 90 days are dropped. Delete the file to start over.
 
 **Colour tags.** With `colour_tags` on (a [collection setting](#collection-settings-settingsjson); rename the tag with [Renaming tags](#renaming-tags)), each car's paintwork is measured on the middle of its crop (margin, roofline and the lower tyre band are left out) and becomes a colour from the palette, `Multi` for a clear two-tone car, or nothing when it can't tell. The decided colour is written as `…|Colour|<name>`. An entry's `colour` is a tie-breaker only, never a filter. A weak number read for an entry whose colour differs from the car's doesn't count towards a group's agreement; the neighbour aid drops candidates whose colour differs and a look-alike car only lends its entry when the colours don't differ; a confident number read is never blocked, but when its entry's colour differs from the car's the image gets *Check colour*. An entry with no `colour`, or a car whose colour can't be told, is neutral. `Multi` agrees only with `Multi`. Turning `colour_tags` on re-reads every photo once.
 
