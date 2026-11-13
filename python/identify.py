@@ -42,7 +42,7 @@ from fingerprint import analysis_fingerprint
 from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged,
                    burst_consensus, colour_check, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
-from neighbour import neighbour_aid
+from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
 from segment import SEGMENT_CACHE_TOKEN, Segmenter, needs_mask, segmenter_path
 from pod import pod_colour, pod_reading
@@ -1174,6 +1174,8 @@ def identify(args, models: dict):
         emb_cache: dict = {}
 
         def box_emb(fid: str, box: int):
+            if fid not in detail:  # a library neighbour: tagged, never analysed
+                return None
             if (fid, box) not in emb_cache:
                 a = analyses.get(detail[fid]["file"])
                 embs = a.get("emb", []) if a else []
@@ -1184,7 +1186,12 @@ def identify(args, models: dict):
             a, b = box_emb(fid, box), box_emb(ofid, obox)
             return None if a is None or b is None else float((a * b).sum())
 
-        aided = neighbour_aid(frames, burst_of, times, entries, rules.neighbour_tolerance, rules.order_weight, similar)
+        lib_path = getattr(args, "neighbours", "")
+        library = read_manifest(lib_path, 3) if lib_path and os.path.exists(lib_path) else []
+        with_lib, lib_burst_of, lib_times = with_library_neighbours(frames, burst_of, times, library, entries)
+        log(f"neighbour: {len(with_lib) - len(frames)} unselected tagged photos lend support")
+        aided = neighbour_aid(with_lib, lib_burst_of, lib_times, entries, rules.neighbour_tolerance, rules.order_weight, similar)
+        aided = {i: rs for i, rs in aided.items() if i in frames}
         resolved = 0
         for i, rs in aided.items():
             for a, b in zip(rs, frames[i]):
@@ -1537,6 +1544,8 @@ def main(argv=None):
     parser.add_argument("--rules-out", default="", help="Write the collection's rules.csv here")
     parser.add_argument("--collections-out", default="", help="--list: write collection names here")
     parser.add_argument("--boxes-out", default="", help="Write the run's per-vehicle boxes.json here")
+    parser.add_argument("--neighbours", default="",
+                        help="CSV of unselected tagged photos (image id, capture epoch, entry id) that lend neighbour-aid support")
     parser.add_argument("--report-out", default="",
                         help="Write the run's debug report to <this>.md and <this>.json")
     parser.add_argument("--archive-dir", default="",

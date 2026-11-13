@@ -24,7 +24,7 @@ Cars may skip numbers (withdrawn, not yet arrived) and may pass out of order, so
 
 ## What the neighbour step does
 
-It looks at the three groups shot before and after a doubtful read, within 2 minutes (a longer pause is a stage break, and neighbours across it are ignored).
+It looks at the three groups shot before and after a doubtful read, within 20 seconds (a longer pause is a stage break, and neighbours across it are ignored).
 
 - A car whose number wasn't read, but is one confusable digit away from an entry (5/6, 1/7, 0/6, 0/8, 3/8, 3/5, 1/4) or has a digit added or dropped, takes that entry when its neighbours sit close to it in the list. Tagged `Assisted Tagging|Identification|By neighbour`.
 - A car with no number read at all takes the car of a nearby identified box whose crop looks like it (livery embedding similarity 0.85 or more, and 0.05 clear of any other nearby car). Also tagged **By neighbour**; the run log says `looks like a nearby car`. Only in this mode (order weight above 0), because in a race series teammates look alike.

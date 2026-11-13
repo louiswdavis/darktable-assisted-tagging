@@ -77,6 +77,33 @@ function M.exif_time_to_epoch(s)
     return ok and epoch or nil
 end
 
+M.NEIGHBOUR_MAX_GAP_S = 20 -- python/neighbour.py's NEIGHBOUR_MAX_GAP_S
+
+-- Candidates ({ time, ... }) shot within max_gap seconds of any selected time, in candidate order.
+-- Untimed candidates (time nil or 0) and selected times of 0 are ignored.
+function M.near_in_time(selected_times, candidates, max_gap)
+    local ts = {}
+    for _, t in ipairs(selected_times) do
+        if t > 0 then ts[#ts + 1] = t end
+    end
+    table.sort(ts)
+    local out = {}
+    if #ts == 0 then return out end
+    for _, c in ipairs(candidates) do
+        local t = c.time
+        if t and t > 0 then
+            local lo, hi = 1, #ts
+            while lo < hi do
+                local mid = math.floor((lo + hi) / 2)
+                if ts[mid] < t then lo = mid + 1 else hi = mid end
+            end
+            local near = math.abs(ts[lo] - t) <= max_gap or (lo > 1 and math.abs(ts[lo - 1] - t) <= max_gap)
+            if near then out[#out + 1] = c end
+        end
+    end
+    return out
+end
+
 -- Shared with the other two plugins (plugin_common.lua); re-exported for the tests.
 M.newest_group_node, M.tag_group_keys, M.native_group_keys, M.number_groups =
     C.newest_group_node, C.tag_group_keys, C.native_group_keys, C.number_groups
@@ -1086,6 +1113,7 @@ C.sweep_temp(TMP_DIR, "dt_assisted_tagging_", 86400)
 local TMP_BASE = C.temp_base(TMP_DIR, "dt_assisted_tagging_")
 local MANIFEST_PATH = TMP_BASE .. "manifest.csv"
 local RESULTS_PATH = TMP_BASE .. "results.csv"
+local NEIGHBOURS_PATH = TMP_BASE .. "neighbours.csv"
 local ENTRIES_PATH = TMP_BASE .. "entries.csv"
 local RULES_PATH = TMP_BASE .. "rules.csv"
 local COLLECTIONS_PATH = TMP_BASE .. "collections.csv"
@@ -1501,7 +1529,7 @@ end
 local function cleanup_tmp()
     -- An orphaned identify.py still needs its cancel flag, so leave the files until it exits.
     if orphan then return end
-    for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", DONE_PATH, DONE_PATH .. ".job",
+    for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", NEIGHBOURS_PATH, DONE_PATH, DONE_PATH .. ".job",
         PROGRESS_PATH, CANCEL_PATH, RUN_SETTINGS_PATH }) do
         pcall(os.remove, p)
     end
@@ -2039,6 +2067,36 @@ end
 
 -- replace_manual: lift the protection of tags the user applied by hand, for this run only.
 -- verify_only: analyse fully tagged images too and report disagreements, changing no tags.
+-- Unselected photos in the selection's film rolls, shot near it and already tagged with an entry:
+-- rows { id, epoch, entry id } that neighbour aid reads for support only. They are never tagged.
+local function library_neighbour_rows(images)
+    local selected, films, times = {}, {}, {}
+    for _, img in ipairs(images) do
+        selected[img.id] = true
+        times[#times + 1] = M.exif_time_to_epoch(img.exif_datetime_taken) or 0
+        local okf, film = pcall(function() return img.film end)
+        if okf and film then films[film.id] = film end
+    end
+    local pool = {}
+    for _, film in pairs(films) do
+        local okr = pcall(function()
+            for i = 1, #film do
+                local img = film[i]
+                if not selected[img.id] then
+                    pool[#pool + 1] = { img = img, time = M.exif_time_to_epoch(img.exif_datetime_taken) }
+                end
+            end
+        end)
+        if not okr then log("couldn't read film roll " .. tostring(film.path) .. "; its photos lend no neighbour support") end
+    end
+    local rows = {}
+    for _, c in ipairs(M.near_in_time(times, pool, M.NEIGHBOUR_MAX_GAP_S)) do
+        local eid = M.entry_for_tags(tags_of(c.img), entries, entry_order)
+        if eid then rows[#rows + 1] = { c.img.id, c.time, eid } end
+    end
+    return rows
+end
+
 function M.identify_images(images, replace_manual, verify_only)
     local label = verify_only and _("Verify") or _("Identify")
     -- the replace box covers one run: it clears once this run is queued or started, not when refused
@@ -2077,12 +2135,21 @@ function M.identify_images(images, replace_manual, verify_only)
         if not write_rows(MANIFEST_PATH, rows) then
             error(WRITE_ROWS_FAILED, 0)
         end
+        local neighbour_args = {}
+        if not verify_only and settings.order_weight > 0 then
+            local lib_rows = library_neighbour_rows(images)
+            log(string.format("neighbour: %d unselected tagged photos shot near the selection", #lib_rows))
+            if #lib_rows > 0 then
+                if not write_rows(NEIGHBOURS_PATH, lib_rows) then error(WRITE_ROWS_FAILED, 0) end
+                neighbour_args = { "--neighbours", NEIGHBOURS_PATH }
+            end
+        end
 
         job = dt.gui.create_job(_("Assisted Tagging"), true, stop_job)
         job.percent = 0.0
         local script = identify_script()
         local code, why = run_python(args_of({ MANIFEST_PATH, RESULTS_PATH },
-            collection_args(), settings_args(), model_args(script), verify_only and { "--verify" } or {}, {
+            collection_args(), settings_args(), model_args(script), verify_only and { "--verify" } or {}, neighbour_args, {
                 "--cache", CACHE_PATH,
                 "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH,
                 "--boxes-out", boxes_path(),

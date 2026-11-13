@@ -287,7 +287,7 @@ Every other setting lives in the collection's `settings.json`, beside `entries.j
 | `quarantine` | **Audit references** quarantines poor references | `true`, `false` | `false` | yes |
 | `embedder_file` | file name in `models/` used to compare liveries; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference | text | `""` | yes |
 | `ocr_rec_file` | file name in `models/` of the number reader; blank is PP-OCRv5, or the CRNN when the v5 files are missing. Changing it re-reads every photo | text | `""` | yes |
-| `order_weight` | how far the cars pass in number order: `0` is random (the neighbour aid is off), `1` is strictly in order. Above 0, groups shot just before and after a doubtful read help identify it; from `0.5` up an unsupported doubtful read is flagged *Check order*; see [How it works](#how-it-works) | number, 0 to 1 | `0` | yes |
+| `order_weight` | how far the cars pass in number order: `0` is random (the neighbour aid is off), `1` is strictly in order. Above 0, groups shot just before and after a doubtful read help identify it, including unselected photos in the same film rolls already tagged with an entry; from `0.5` up an unsupported doubtful read is flagged *Check order*; see [How it works](#how-it-works) | number, 0 to 1 | `0` | yes |
 | `neighbour_tolerance` | the most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places) | whole number, 0 or more | `5` | yes |
 | `min_read` | how sure a number read must be to count. A read's confidence is the lower of two scores: how sure the text detector is that it found text, and how sure the reader is of its least certain digit. Raise it if plates or signs get read as numbers; lower it if clear numbers are missed | number, 0 to 1 | `0.85` | yes |
 | `colour_weight` | how much the colour histogram counts in livery matching, from `0` (off) up. Separate from `colour_tags` | number, 0 or more | `0` | yes |
@@ -504,7 +504,9 @@ weak reads: a number read under min read (but at least 0.7) on unidentified boxe
            names another entry
         |
         v
-neighbour aid (only when order weight > 0), against the 3 groups shot before and after (within 2 minutes):
+neighbour aid (only when order weight > 0), against the 3 groups shot before and after (within 20 seconds),
+taken from the selection and from unselected photos in the same film rolls that already carry an entry's tags
+(those only lend support for number order, never a look-alike, and are never tagged):
            a misread or unmatched number near a nearby entry in the list → neighbour (order)
            a box with no number read that looks like a nearby identified car → neighbour (look-alike)
            unsupported low-confidence read → "Check order" tag
@@ -634,7 +636,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 
 **Neighbour aid and references**
 
-8. **Neighbour aid.** Make a collection from the `rally` example and run on cars shot roughly in number order. *Expect:* `neighbour: resolved N, flagged M (order weight …, tolerance 5)`; frames it settled get *By neighbour*, unsupported low-confidence reads get *Check order*. Set **neighbour tolerance** to 3 and re-run: both the `settings:` and `neighbour:` lines say 3.
+8. **Neighbour aid.** Make a collection from the `rally` example and run on cars shot roughly in number order. *Expect:* `neighbour: resolved N, flagged M (order weight …, tolerance 5)`; frames it settled get *By neighbour*, unsupported low-confidence reads get *Check order*. Set **neighbour tolerance** to 3 and re-run: both the `settings:` and `neighbour:` lines say 3. Then select only a few frames from the middle of an already-tagged run and Identify again. *Expect:* `neighbour: N unselected tagged photos shot near the selection` with N above 0, the same count in `unselected tagged photos lend support`, and no tags changed on the unselected photos.
 9. **Zero references.** Run on a collection with no references. *Expect:* `collection … has no references yet: only numbers can identify a car`; the run finishes, and cars with no readable number are *Unidentified*.
 
 **Panel**

@@ -1,4 +1,5 @@
-"""Neighbour aid: groups shot just before and after a photo help a doubtful number read.
+"""Neighbour aid: groups shot just before and after a photo help a doubtful number read. Those groups
+come from the selection and, through with_library_neighbours, from unselected photos already tagged.
 
 Cars pass in number order, or close to it, and loop. Distance is counted in positions of the
 collection's sorted distinct numbers around a circle, so gaps in the list cost nothing and the end of
@@ -10,7 +11,7 @@ from car_colour import colour_relation
 from match import IDENTIFIED, BoxResult, Entry, _one_confusion_apart
 
 NEIGHBOUR_WINDOW = 3  # groups either side of a group that can lend support
-NEIGHBOUR_MAX_GAP_S = 120  # a neighbour shot further away than this (a stage break) is ignored
+NEIGHBOUR_MAX_GAP_S = 20  # a neighbour shot further away than this (a stage break) is ignored
 DOUBT_CONF = 0.90  # a number read below this is doubtful; reads under ocr.OCR_MIN_SCORE (0.80) never get here
 FLAG_MIN_WEIGHT = 0.5  # order_weight at which a doubtful read with no support is flagged
 # Look-alike: an unread box takes the car of an identified box in a nearby group whose crop it resembles.
@@ -74,6 +75,28 @@ def lookalike(similar, fid: str, box: int, around: list):
     if top < LOOKALIKE_MIN_SIM or (len(ranked) > 1 and top - ranked[1][1] < LOOKALIKE_MARGIN):
         return None
     return top_eid, top
+
+
+LIBRARY_PREFIX = "lib:"  # frame ids of library neighbours, so they never collide with selected ids
+
+
+def with_library_neighbours(frames: dict, burst_of: dict, times: dict, rows: list, entries: dict) -> tuple:
+    """(frames, burst_of, times) plus the unselected photos in `rows` [(image id, epoch, entry id)],
+    each an identified box for support only. Rows of an unknown entry, an untimed row or a selected
+    id are dropped. Consecutive rows (by time) of the same entry form one group, so a library burst
+    takes one NEIGHBOUR_WINDOW slot. Callers drop the LIBRARY_PREFIX ids from neighbour_aid's result."""
+    frames, burst_of, times = dict(frames), dict(burst_of), dict(times)
+    usable = sorted((int(t), str(i), e) for i, t, e in rows
+                    if e in entries and str(t).isdigit() and int(t) > 0 and str(i) not in frames)
+    group, last_entry = None, None
+    for t, image_id, eid in usable:
+        fid = LIBRARY_PREFIX + image_id
+        if eid != last_entry:
+            group, last_entry = fid, eid
+        frames[fid] = [BoxResult(0, "number", eid, confidence=1.0, colour=entries[eid].colour)]
+        burst_of[fid] = group
+        times[fid] = t
+    return frames, burst_of, times
 
 
 def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,

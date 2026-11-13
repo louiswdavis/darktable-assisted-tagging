@@ -101,6 +101,19 @@ check("returns nil for garbage input", T.exif_time_to_epoch("not a date"), nil)
 check("returns nil for an all-zero date", T.exif_time_to_epoch("0000:00:00 00:00:00"), nil)
 check("returns nil for a pre-1970 date", T.exif_time_to_epoch("1965:03:01 12:00:00"), nil)
 
+-- near_in_time -----------------------------------------
+local function near_ids(sel, cands)
+    local ids = {}
+    for _, c in ipairs(T.near_in_time(sel, cands, 120)) do ids[#ids + 1] = c.id end
+    return table.concat(ids, ",")
+end
+check("near_in_time keeps candidates within the gap of any selected time",
+    near_ids({ 1000, 5000 }, { { id = 1, time = 880 }, { id = 2, time = 879 }, { id = 3, time = 5120 }, { id = 4, time = 3000 } }),
+    "1,3")
+check("near_in_time ignores untimed candidates and selected times",
+    near_ids({ 1000, 0 },{ { id = 1, time = nil }, { id = 2, time = 0 }, { id = 3, time = 1050 } }), "3")
+check("near_in_time with no timed selection is empty", near_ids({}, { { id = 1, time = 100 } }), "")
+
 -- group keys ----------------------------------------------------------------
 local G10 = "Assisted Grouping|2026-11-09 10:00:00|Group"
 local G12 = "Assisted Grouping|2026-11-09 12:30:00|Group"

@@ -182,6 +182,26 @@ def run_tests():
     out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.92, "f2": 0.60}))
     check("a look-alike with no colours lends as before", (out["f1"][0].method, out["f1"][0].entry_id), ("neighbour", "34"))
 
+    # Library neighbours: unselected tagged photos lend support, rows as read from the CSV (strings).
+    frames, burst, times = {"7": [unmatched("36")]}, {}, {"7": 200}
+    alone = N.neighbour_aid(frames, burst, times, E, 5, 1.0)
+    check("a lone doubtful read stays unread", alone["7"][0].method, "none")
+    rows = [["5", "190", "34"], ["9", "210", "37"]]
+    lf, lb, lt = N.with_library_neighbours(frames, burst, times, rows, E)
+    out = N.neighbour_aid(lf, lb, lt, E, 5, 1.0)
+    check("library neighbours resolve a doubtful read", (out["7"][0].method, out["7"][0].entry_id), ("neighbour", "35"))
+    check("the input dicts are not changed", (sorted(frames), burst, times), (["7"], {}, {"7": 200}))
+    check("library frames carry the prefix", sorted(lf), ["7", "lib:5", "lib:9"])
+
+    rows = [["5", "190", "99"], ["6", "", "34"], ["8", "0", "34"], ["7", "195", "34"], ["9", "210", "37"]]
+    lf, lb, lt = N.with_library_neighbours(frames, burst, times, rows, E)
+    check("unknown, untimed and selected rows are dropped", sorted(lf), ["7", "lib:9"])
+
+    rows = [["1", "180", "34"], ["2", "181", "34"], ["3", "182", "37"], ["4", "183", "34"]]
+    _, lb, _ = N.with_library_neighbours(frames, burst, times, rows, E)
+    check("consecutive rows of one entry form one group",
+          [lb["lib:1"], lb["lib:2"], lb["lib:3"], lb["lib:4"]], ["lib:1", "lib:1", "lib:3", "lib:4"])
+
     if failures == 0:
         print("all tests passed")
         sys.exit(0)
