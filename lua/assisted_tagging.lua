@@ -1159,9 +1159,6 @@ local function plugin_root(script)
 end
 
 local function python_bin(script)
-    local pref = C.python_bin(dt, "assisted_tagging", log)
-    if pref ~= "" then return pref end
-
     local root = plugin_root(script)
     local found = first_existing({
         root .. "/.venv/Scripts/python.exe",
@@ -1420,9 +1417,9 @@ local function failure_message(code)
         end
         if found then return found end
     elseif code == 3 then
-        return _("Assisted Tagging: Python is missing a package. Install python/requirements.txt into the interpreter set in preferences → Lua options, or see assisted_tagging.log.")
+        return _("Assisted Tagging: Python is missing a package. Install python/requirements.txt into darktable-assisted-tagging/.venv, or see assisted_tagging.log.")
     elseif code == 9009 or code == 127 then -- cmd.exe / sh: command not found
-        return _("Assisted Tagging: Python wasn't found. Set \"Python interpreter (.venv)\" in preferences → Lua options.")
+        return _("Assisted Tagging: Python wasn't found. Create darktable-assisted-tagging/.venv, or put python on PATH.")
     end
     return string.format("Assisted Tagging: identify.py stopped with exit code %s. Details are in assisted_tagging.log in darktable's config folder.",
         tostring(code or "?"))

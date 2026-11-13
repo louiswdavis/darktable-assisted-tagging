@@ -17,7 +17,7 @@ end
 -- plugin_common.lua ---------------------------------------------------------------
 -- The same file in all three plugin repos; COMMON_HASH pins it. After changing it, copy it to the
 -- other two repos and put the hash this prints into their tests too.
-local COMMON_HASH = "fccf444e"
+local COMMON_HASH = "069ea47d"
 local script_dir = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
 local PC = dofile(script_dir .. "/plugin_common.lua")
 local function fnv1a(text)
@@ -61,28 +61,21 @@ do -- temp_base / sweep_temp: leftovers older than max_age go, newer ones and ot
     for _, n in ipairs(PC.list_dir(dir)) do os.remove(dir .. "/" .. n) end
     os.remove(dir)
 end
-do -- shared preferences: assisted_plugins keys first, old per-plugin keys logged once
+do -- shared preferences: assisted_plugins key first, old per-plugin key logged once
     local prefs, logged = {}, {}
     local fake_dt = { preferences = { read = function(group, name) return prefs[group .. "/" .. name] or "" end } }
     local function log(msg) logged[#logged + 1] = msg end
-    prefs["assisted_plugins/python_bin"] = "/venv/bin/python"
-    prefs["assisted_tagging/python_bin"] = "/old/python"
-    check("python_bin: shared key wins", PC.python_bin(fake_dt, "assisted_tagging", log), "/venv/bin/python")
     prefs["assisted_plugins/plugins_root"] = "/plugins/"
     check("plugin_folder: plugins_root/<folder>", PC.plugin_folder(fake_dt, "assisted_tagging", "darktable-assisted-tagging", log, "/fb"),
         "/plugins/darktable-assisted-tagging")
-    check("shared keys set: nothing logged", #logged, 0)
-    prefs["assisted_plugins/python_bin"], prefs["assisted_plugins/plugins_root"] = "", ""
+    check("shared key set: nothing logged", #logged, 0)
+    prefs["assisted_plugins/plugins_root"] = ""
     prefs["assisted_tagging/plugin_folder"] = "/old/folder"
-    check("python_bin: old key when shared blank", PC.python_bin(fake_dt, "assisted_tagging", log), "/old/python")
-    check("python_bin: old key again", PC.python_bin(fake_dt, "assisted_tagging", log), "/old/python")
     check("plugin_folder: old key when shared blank", PC.plugin_folder(fake_dt, "assisted_tagging", "darktable-assisted-tagging", log, "/fb"), "/old/folder")
     PC.plugin_folder(fake_dt, "assisted_tagging", "darktable-assisted-tagging", log, "/fb")
-    check("deprecations: one line per old key", #logged, 2)
-    check("deprecation line: python_bin", logged[1], "preferences: assisted_tagging/python_bin is deprecated; set assisted_plugins/python_bin")
-    check("deprecation line: plugin_folder", logged[2], "preferences: assisted_tagging/plugin_folder is deprecated; set assisted_plugins/plugins_root")
-    prefs["assisted_tagging/python_bin"], prefs["assisted_tagging/plugin_folder"] = "", ""
-    check("python_bin: both blank -> empty (auto-detect)", PC.python_bin(fake_dt, "assisted_tagging", log), "")
+    check("deprecations: one line per old key", #logged, 1)
+    check("deprecation line: plugin_folder", logged[1], "preferences: assisted_tagging/plugin_folder is deprecated; set assisted_plugins/plugins_root")
+    prefs["assisted_tagging/plugin_folder"] = ""
     check("plugin_folder: both blank -> fallback", PC.plugin_folder(fake_dt, "assisted_tagging", "darktable-assisted-tagging", log, "/fb"), "/fb")
     check("plugin_folder: no fallback -> empty", PC.plugin_folder(fake_dt, "assisted_tagging", "darktable-assisted-tagging", log), "")
     local registered = {}
@@ -90,7 +83,7 @@ do -- shared preferences: assisted_plugins keys first, old per-plugin keys logge
     package.loaded["assisted_plugins.shared_prefs_registered"] = nil
     PC.register_shared_prefs(fake_dt)
     dofile(script_dir .. "/plugin_common.lua").register_shared_prefs(fake_dt)
-    check("register_shared_prefs: once across plugin copies", table.concat(registered, ","), "assisted_plugins/python_bin,assisted_plugins/plugins_root")
+    check("register_shared_prefs: once across plugin copies", table.concat(registered, ","), "assisted_plugins/plugins_root")
     package.loaded["assisted_plugins.shared_prefs_registered"] = nil
 end
 

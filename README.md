@@ -159,7 +159,7 @@ Windows without Administrator rights or Developer Mode: copy `assisted_tagging.l
 
 ### 4. Point the plugin at the repo
 
-Start darktable, open **preferences → lua options**, and set **plugins folder (holds the three assisted-* folders)** to the folder that holds `darktable-assisted-tagging` (and the other assisted plugins). From there the plugin finds `python/identify.py`, the `models` folder and the `.venv` by itself. Set **Python interpreter (.venv)** only if yours lives somewhere else. Both are shared by the assisted plugins; the older per-plugin **Assisted Tagging: plugin folder** and **Python interpreter** preferences still work, and the log says once to move them.
+Start darktable, open **preferences → lua options**, and set **plugins folder (holds the three assisted-* folders)** to the folder that holds `darktable-assisted-tagging` (and the other assisted plugins). From there the plugin finds `python/identify.py`, the `models` folder and the `.venv` by itself. The preference is shared by the assisted plugins; the older per-plugin **Assisted Tagging: plugin folder** preference still works, and the log says once to move it. There is no interpreter preference: the plugin runs its own `.venv` (else `python`/`python3` on `PATH`), because each assisted plugin has different requirements.
 
 ## Using it
 
@@ -474,7 +474,6 @@ All under **preferences → lua options**. Everything else is a collection setti
 
 | Preference | Default | What it does |
 |---|---|---|
-| Python interpreter (.venv) (`assisted_plugins/python_bin`) | empty (auto-detect the repo's `.venv`) | Python with `requirements.txt` installed; shared by the assisted plugins. The old `assisted_tagging/python_bin` is still read and logged as deprecated |
 | plugins folder (`assisted_plugins/plugins_root`) | empty (auto-detect) | The folder holding the assisted-* repos; this plugin uses `<plugins folder>/darktable-assisted-tagging`, where `python/`, `models/`, `examples/` and `.venv` are found. The old `assisted_tagging/plugin_folder` (this repo's folder) is still read and logged as deprecated |
 | Assisted Tagging: collections folder | empty (`assisted_tagging/collections` in the config directory) | Where collections live |
 
@@ -596,7 +595,7 @@ Editing a constant of a per-frame module (`vehicles.py`, `ocr.py`, `embed.py`, `
 - **Every run writes a log** to `assisted_tagging.log` in darktable's config directory (e.g. `%LOCALAPPDATA%\darktable` on Windows); the run before it is kept as `assisted_tagging.prev.log`. It has the exact command, the reference counts per entry, one line per vehicle with what was read and matched, and any per-image errors.
 - **"…/entries.json: …"** The run stopped on a mistake in that file; the message says which entry and what's wrong.
 - **"… model not found: …"** A model file is missing. Download it into `models/` (see [Install](#2-models)) or fix the collection's **embedder model file** option.
-- **"Python is missing a package."** The interpreter the plugin uses doesn't have `requirements.txt` installed; the log names the package.
+- **"Python is missing a package."** `darktable-assisted-tagging/.venv` doesn't have `requirements.txt` installed; the log names the package.
 - **"no collections yet."** Create a folder with an `entries.json` in the collections folder the message names, then click **Reload**.
 - **Everything comes back `Unidentified`.** Check the log's `references:` line: an entry with 0 references can only be found by its number.
 - **"cache … is unreadable".** Delete `assisted_tagging/cache.sqlite` in darktable's config directory; the next run rebuilds it.
