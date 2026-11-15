@@ -4,11 +4,12 @@
   python python/import_start_list.py COLLECTION_DIR --text PASTED.txt
 
 A CSV has a header row; MAP says which header holds which role, as `role=header` pairs joined
-by ";" (roles: number, driver, co-driver, team, class). A role left out of MAP is found by its
+by ";" (roles: number, driver, co-driver, team, class, make, model). A role left out of MAP is found by its
 usual names (ALIASES); only `number` is required. Pasted text (an entry list copied from a PDF)
 has one entry per line, number first, then "driver / co-driver"; lines without a leading number
 are skipped and counted. Each entry becomes {"id": number, "number": number, "name": "driver /
-co-driver", "team": team, "tags": ["Motorsport|Class|<class>"]}, with the empty fields left out.
+co-driver", "team": team, "tags": ["Motorsport|Class|<class>", "Motorsport|Vehicle|<make>|<model>"]},
+with the empty fields left out; a model needs a make.
 Numbers already in entries.json are skipped and listed, never overwritten. The previous file is
 kept as entries.json.bak. A file not in the one-entry-per-line layout is reflowed into it. Exit 2
 with a message on bad input."""
@@ -25,17 +26,21 @@ import sys
 from common import atomic_write
 from entries_file import dump
 
-ROLES = ("number", "driver", "co-driver", "team", "class")
+ROLES = ("number", "driver", "co-driver", "team", "class", "make", "model")
 ALIASES = {
     "number": ("number", "no", "no.", "#", "nr", "num", "car", "car no", "car no.", "car number", "start no", "start number"),
     "driver": ("driver", "name", "pilot", "driver name", "competitor"),
     "co-driver": ("co-driver", "codriver", "co driver", "co-pilot", "navigator"),
     "team": ("team", "entrant", "entrant / team", "entrant/team"),
     "class": ("class", "category", "cat", "cat."),
+    "make": ("make", "manufacturer"),
+    "model": ("model",),
 }
 _LINE = re.compile(r"^\s*#?(\d{1,3})(?!\d)[\s.:)\-–]*(.*?)\s*$")
 _BAD = re.compile(r'[,;"]')
+_BAD_TAG = re.compile(r'[,;"|]')
 CLASS_ROOT = "Motorsport|Class"
+VEHICLE_ROOT = "Motorsport|Vehicle"
 
 
 class BadInput(Exception):
@@ -107,8 +112,8 @@ def rows_from_text(text: str) -> tuple:
 
 
 def entries_from(rows: list) -> tuple:
-    """Rows → (entries, cleaned names): numbers are checked, names and teams lose , ; and ". A class
-    stays under "class" until merge builds its tag."""
+    """Rows → (entries, cleaned names): numbers are checked, names and teams lose , ; and ". Class,
+    make and model become tags, losing , ; " and |."""
     entries, cleaned, seen = [], [], set()
     for n, row in enumerate(rows, 1):
         number = row.get("number", "").strip().lstrip("#")
@@ -128,8 +133,12 @@ def entries_from(rows: list) -> tuple:
             entry["name"] = name
         if team:
             entry["team"] = team
-        if row.get("class"):
-            entry["class"] = _BAD.sub("", row["class"]).strip()
+        klass, make, model = (_BAD_TAG.sub("", row.get(k, "")).strip() for k in ("class", "make", "model"))
+        if model and not make:
+            raise BadInput(f"row {n}: model {model} has no make")
+        tags = [f"{CLASS_ROOT}|{klass}"] * bool(klass) + ["|".join(filter(None, (VEHICLE_ROOT, make, model)))] * bool(make)
+        if tags:
+            entry["tags"] = tags
         entries.append(entry)
     if not entries:
         raise BadInput("no entries found")
@@ -151,8 +160,7 @@ def merge(collection_dir: str, entries: list) -> dict:
         inline = next((i for i in (False, True) if dump(json.loads(text), i).rstrip() == text.rstrip()), None)
     existing = data.setdefault("entries", [])
     have = {str(e.get("number", "")) for e in existing if isinstance(e, dict)} | {e.get("id") for e in existing if isinstance(e, dict)}
-    new = [{**{k: v for k, v in e.items() if k != "class"}, **({"tags": [f"{CLASS_ROOT}|{e['class']}"]} if e.get("class") else {})}
-           for e in entries if e["number"] not in have and e["id"] not in have]
+    new = [e for e in entries if e["number"] not in have and e["id"] not in have]
     skipped = [e["number"] for e in entries if e["number"] in have or e["id"] in have]
     if not new:
         return {"added": 0, "skipped": skipped, "path": path}
@@ -170,7 +178,7 @@ def main(argv=None):
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--csv", help="a start list with a header row")
     src.add_argument("--text", help="pasted lines, number first")
-    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class)')
+    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model)')
     args = parser.parse_args(argv)
     try:
         with open(args.csv or args.text, encoding="utf-8-sig", newline="") as f:

@@ -93,6 +93,21 @@ def run_tests():
         except M.BadInput:
             check("parse_columns rejects an unknown role", "BadInput", "BadInput")
 
+        vdir = os.path.join(tmp, "vehicles")
+        os.makedirs(vdir)
+        vcsv = os.path.join(tmp, "vehicles.csv")
+        write(vcsv, "Car No,Driver,Vehicle,Make,Model,Class\n30,Ames,Ford Escort Mk1,Ford,Escort Mk1,Class 2\n"
+                    "31,Bell,Lotus,Lotus,,\n32,Cole,,,,\n33,Dent,,Mini|BMW,Cooper; S,\n")
+        M.main([vdir, "--csv", vcsv])
+        check("make and model become a vehicle tag after the class tag; a make alone is a tag; | and ; are removed",
+              [e.get("tags") for e in entries_of(vdir)],
+              [["Motorsport|Class|Class 2", "Motorsport|Vehicle|Ford|Escort Mk1"], ["Motorsport|Vehicle|Lotus"], None,
+               ["Motorsport|Vehicle|MiniBMW|Cooper S"]])
+        check("the Vehicle column isn't read as a role", "vehicle" in M.map_header(["Car No", "Vehicle"], {}), False)
+        nomake = os.path.join(tmp, "nomake.csv")
+        write(nomake, "number,model\n5,Escort\n")
+        check("a model with no make fails", exits_2([vdir, "--csv", nomake]), 2)
+
         bad = os.path.join(tmp, "bad.csv")
         write(bad, "number,driver\n1234,Too long\n")
         check("a number over 3 digits fails", exits_2([cdir, "--csv", bad]), 2)
