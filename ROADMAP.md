@@ -45,6 +45,37 @@ Scope this as its own task once the motorsport pipeline (current F1 fix, `Number
 seen` diagnostic, in-panel editor) is tested and stable — don't bolt it onto the
 in-progress work.
 
+Partly built: the top-level `"kind"` in entries.json (`motorsport`, the default, or `people`)
+is this field. Landmarks and animals are still open.
+
+## Vehicle sub-kind: cars, bikes
+
+Ticket 28. A motorsport collection says nothing about its vehicles: the detector keeps COCO
+car, motorcycle and truck (`vehicle_detect.py`, classes 2, 3, 7) for every shoot. A sub-kind
+next to `kind` (key and values decided in a brainstorm) would:
+
+- keep only the matching classes: cars → car + truck, bikes → motorcycle, cutting false boxes
+- pick a settings preset as a starting point. Rally: numbers-only, neighbour order, co-driver.
+  Circuit/F1: team, driver, livery matching, team-only for teammates. Bikes: rider for driver.
+- let bikes use better models (a motorcycle detector or number reader) through the per-job
+  model lists
+
+Open: rally versus F1 may be a preset rather than a sub-kind, since both are cars to the
+detector. Number OCR and the side-on guess (`pod.py`) assume car shapes; check what bikes break
+first. `kind: people` stays separate.
+
+## More tag families
+
+- **Co-driver** (ticket 22, rally): co-drivers get their own tag instead of sharing the
+  driver's.
+- **Sponsor** (ticket 23): a sponsor word read on a car becomes a tag, e.g.
+  `<sponsor root>|Castrol`.
+- **Learn colours from your tags** (ticket 24): colour tags you set by hand teach the plugin
+  how your camera and light render each colour. Waits until wrong colour tags show up in real
+  use.
+- **Start-list column mapping** (ticket 20, rest): map the columns in the import dialog
+  instead of typing a column spec.
+
 ## One-off special liveries
 
 A team sometimes runs a one-off livery for a single race. Its cars look nothing like that
@@ -108,9 +139,13 @@ counts (Hulkenburg has 5 refs in total). Measure with `eval_matching.py` before 
 
 In order of payoff for effort:
 
-1. Larger embedder (DINOv2 base or large) in place of `dinov2_small`. The index now takes
-   the model's own width (`ReferenceIndex._append`), so a 768-dim model works; the first
-   run after a model change re-embeds every ref. Check with `eval_matching.py` first.
+1. Larger embedder: built as the best-first model lists (`M.MODEL_LISTS`, ticket 25), which
+   pick DINOv2 large/base, D-FINE and PP-OCRv5 server rec when installed. Still to confirm on
+   Windows: (a) base models only, (b) add PP-OCRv5_server_rec → re-read, (c) add dinov2_base →
+   re-embed. Measuring which model is better waits for a hand-fixed truth set.
+1a. SigLIP 2 for colour and orientation (ticket 27): a ~2-hour throwaway test of whether it
+   names a car's colour and facing well enough to replace the HSV colour rules and the
+   aspect-ratio side-on guess.
 2. Fine-tune the embedder on the refs so teammates separate.
 3. A vision-language model as a tiebreaker on abstained or near-tie boxes. Per-image cost,
    latency, and photos leaving the machine: the user's decision.
@@ -128,7 +163,9 @@ input and per-event timing; aimed at shooters who deliver per-driver galleries.
 
 - "Open entries.json" on Windows: the `start` command now gets cmd.exe's outer quote
   pair (the old mangled-path failure); confirm on the real pass, step 5.
-- Changing `family_colour_root` strands colour tags under the old root: cleanup only looks
-  under the current one. Owning the old root's first segment would also own the run stamps
+- Changing any `family_*_root` strands tags under the old root: cleanup only looks
+  under the current one. The default roots moved to `Assisted Tagging|Motorsport|<Family>`
+  (2026-11-15), so collections tagged under the old `Motorsport|<Family>` defaults hit this
+  unless their settings.json pins the old roots. Owning the old root's first segment would also own the run stamps
   (`Assisted Tagging|Run|…`), so a fix needs the old root kept somewhere (settings or ledger).
   Workaround: select the photos, Clear tagging marks, run again.
