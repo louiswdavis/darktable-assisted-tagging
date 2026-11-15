@@ -462,14 +462,17 @@ end
 -- Find new entries: what the selected photos show that entries.json lacks. `images`: list of
 -- { id, have, ledger_set }. A `<seen_base>|<digits>` tag whose digits are no entry's number makes a
 -- `number` row (image in `read`); a hand tag `<number root>|<n>` with n unlisted makes one too
--- (image in `hand`, never also in `read`). A hand team or driver tag on an image whose number tags,
+-- (image in `hand`, never also in `read`). Unlisted means no entry has n as its number or id, and n
+-- is 1-3 digits. A hand team or driver tag on an image whose number tags,
 -- hand or plugin-written, name exactly one entry with that field empty makes a `team`/`driver` row
 -- (`entry` = its id). One row per number or per (entry, field, value); values holding `|` are
--- skipped. Rows come most photos first, then by number.
+-- skipped, and team or driver values holding , ; or " (identify.py rejects them). Rows come most photos first, then by number.
 function M.new_entry_candidates(images, entries, roots, seen_base)
-    local listed = {}
+    local listed, taken = {}, {}
     for id, e in pairs(entries) do
+        taken[id] = true
         if e.number and e.number ~= "" then
+            taken[e.number] = true
             listed[e.number] = listed[e.number] or {}
             listed[e.number][#listed[e.number] + 1] = id
         end
@@ -501,13 +504,13 @@ function M.new_entry_candidates(images, entries, roots, seen_base)
         end
         table.sort(read_numbers)
         for _, n in ipairs(read_numbers) do
-            if not listed[n] then add("number\0" .. n, { kind = "number", number = n, value = n }, "read", img.id) end
+            if not taken[n] and n:match("^%d%d?%d?$") then add("number\0" .. n, { kind = "number", number = n, value = n }, "read", img.id) end
         end
         local hands = {}
         for n in pairs(hand_numbers) do hands[#hands + 1] = n end
         table.sort(hands)
         for _, n in ipairs(hands) do
-            if not listed[n] then add("number\0" .. n, { kind = "number", number = n, value = n }, "hand", img.id) end
+            if not taken[n] and n:match("^%d%d?%d?$") then add("number\0" .. n, { kind = "number", number = n, value = n }, "hand", img.id) end
         end
         if number_root ~= "" then
             local ids, prefix = {}, number_root .. "|"
@@ -522,7 +525,7 @@ function M.new_entry_candidates(images, entries, roots, seen_base)
                     local field = CANDIDATE_FIELDS[kind]
                     if (e[field] or "") == "" then
                         for _, value in ipairs(hand_values(img.have, img.ledger_set, roots[kind])) do
-                            if not value:find("|", 1, true) then
+                            if not value:find('[|,;"]') then
                                 add(kind .. "\0" .. eid .. "\0" .. value,
                                     { kind = kind, entry = eid, number = e.number, value = value }, "hand", img.id)
                             end

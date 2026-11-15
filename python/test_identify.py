@@ -518,13 +518,15 @@ def run_tests():
           ["9,0,number,VER,,0.950,,pack,,,", "9,1,none,,,0.000,,pack,,,", "9,-1,hand,TSU,,1.000,,pack,,,"])
     with open(manifest, "w", encoding="utf-8") as f:
         f.write('"4","/x/4.jpg","9","Motorsport|Number|5","","","GONE"\n')
+    lines = []
+    real_log, I.log = I.log, lines.append
     try:
         I.identify(args, {"embedder": "fake"})
-        bad = "(no error)"
-    except I.InputError as e:
-        bad = str(e)
-    check("a hand entry that isn't in entries.json is an input error", bad,
-          "manifest: image 4 is hand-tagged as entry GONE, which is not in entries.json")
+    finally:
+        I.log = real_log
+    check("a hand entry that isn't in entries.json is logged and its image identified without it",
+          (open(results, encoding="utf-8").read().splitlines(), any("hand-tagged as entry GONE" in ln for ln in lines)),
+          (["4,-1,none,,,0.000,,,,,"], True))
 
     # ---- --promote-boxes: saves confident boxes from the box crop, replaces on re-run, flags a changed file
     real_jpg = os.path.join(img, "promo.jpg")

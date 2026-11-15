@@ -702,6 +702,12 @@ do
     check("new entries: a ledgered team tag makes no row", shape(T.new_entry_candidates({
         img(1, { [NR .. "|12"] = true, ["M|Team|Ferrari"] = true }, { ["M|Team|Ferrari"] = true }),
     }, ne, roots, SEEN)), "")
+    check("new entries: an entry's id or a 4-digit number makes no row", shape(T.new_entry_candidates({
+        img(1, { [SEEN .. "|5"] = true, [SEEN .. "|1234"] = true, [NR .. "|5"] = true }),
+    }, { ["5"] = { number = "55", team = "", name = "" } }, roots, SEEN)), "")
+    check("new entries: a team or driver holding , ; or \" makes no row", shape(T.new_entry_candidates({
+        img(1, { [NR .. "|12"] = true, ["M|Team|Smith, Jones"] = true, ["M|Driver|O\"Neil"] = true }),
+    }, ne, roots, SEEN)), "")
     check("candidate_label: read", T.candidate_label({ kind = "number", number = "115", value = "115", read = { 1, 2 }, hand = {} }),
         "115    read on 2 photos")
     check("candidate_label: both ways, one photo", T.candidate_label({ kind = "number", number = "88", value = "88", read = { 1 }, hand = { 2, 3 } }),

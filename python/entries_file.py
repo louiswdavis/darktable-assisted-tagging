@@ -1,13 +1,15 @@
 """entries.json round trip: fills an entry's `colour` (the reference actions) and adds confirmed
 entries and fields (the panel's Find new entries) without changing anything else. A file already in
 the canonical layout (`dump`) keeps its layout; any other layout is reflowed into the canonical one,
-with the previous file kept as entries.json.bak.
+with the previous file kept as entries.json.bak. A UTF-8 BOM at the start is accepted and not
+written back.
 
 From a shell: python entries_file.py add <entries.json> <additions.csv>, the CSV holding rows
 `number,<n>` and `field,<entry id>,<team|name>,<value>`."""
 
 import csv
 import json
+import re
 import shutil
 import sys
 
@@ -45,7 +47,7 @@ def set_colours(path: str, colours: dict) -> tuple:
     (trailing whitespace aside) keeps its layout, line endings and trailing whitespace; any other
     layout is reflowed into the canonical one. Writes a temp file, keeps the previous file as
     entries.json.bak, then replaces it."""
-    with open(path, encoding="utf-8", newline="") as f:
+    with open(path, encoding="utf-8-sig", newline="") as f:
         raw = f.read()
     eol = "\r\n" if "\r\n" in raw else "\n"
     text = raw.replace("\r\n", "\n")
@@ -76,15 +78,16 @@ def _write(path: str, text: str, data, eol: str) -> None:
 
 
 FIELD_NOUNS = {"team": "team", "name": "driver"}
+_BAD_TEXT = re.compile(r'[,;"]')  # identify.py rejects these in a team or name
 
 
 def add_entries(path: str, numbers: list, fields: list) -> int:
     """Appends an entry `{"id": n, "number": n}` for each of `numbers` and sets each of `fields`
     ((entry id, "team" | "name", value)) on its entry. Returns the number of changes written.
     Raises ValueError, writing nothing, when the file does not parse, a number is already an
-    entry's id or number, a field's entry is missing or already has a value, or two rows set the
+    entry's id or number or not 1-3 digits, a value holds , ; or ", a field's entry is missing or already has a value, or two rows set the
     same field of one entry. Layout, line endings and the .bak are as in set_colours."""
-    with open(path, encoding="utf-8", newline="") as f:
+    with open(path, encoding="utf-8-sig", newline="") as f:
         raw = f.read()
     eol = "\r\n" if "\r\n" in raw else "\n"
     text = raw.replace("\r\n", "\n")
@@ -99,6 +102,8 @@ def add_entries(path: str, numbers: list, fields: list) -> int:
     for n in numbers:
         if not n:
             raise ValueError("a new entry needs a number")
+        if not re.fullmatch(r"\d{1,3}", n):
+            raise ValueError(f"{n} is not a race number (1-3 digits)")
         if n in taken:
             raise ValueError(f"{n} is already an entry")
         taken.add(n)
@@ -109,6 +114,8 @@ def add_entries(path: str, numbers: list, fields: list) -> int:
             raise ValueError(f"{key} is not a field this adds (team or name)")
         if not value:
             raise ValueError(f"entry {entry_id}: the {FIELD_NOUNS[key]} to add is empty")
+        if _BAD_TEXT.search(value):
+            raise ValueError(f'entry {entry_id}: the {FIELD_NOUNS[key]} "{value}" can\'t contain , ; or "')
         entry = by_id.get(entry_id)
         if entry is None:
             raise ValueError(f"entry {entry_id} is not in entries.json")

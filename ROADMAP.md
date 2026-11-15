@@ -120,3 +120,13 @@ In order of payoff for effort:
 
 - "Open entries.json" on Windows: the `start` command now gets cmd.exe's outer quote
   pair (the old mangled-path failure); confirm on the real pass, step 5.
+- "Open entries.json" on Windows fails when the path holds `%`: `C.shell_quote` doubles it to
+  `%%`, which cmd.exe collapses only in batch files, not on a `/c` command line.
+- After "Add ticked to entries.json", only the selected photos are retagged; group members and
+  RAW/JPEG copies keep `Number seen|n` until the next run.
+- "Find new entries" and the retag after an add don't check `busy`, so a run in progress can
+  race their tag writes.
+- Team references saved under the old `tag_prefix|team` keys are ignored after the move to
+  family roots, with no log line.
+- Changing `family_colour_root` strands colour tags under the old root: cleanup only looks
+  under the current one.

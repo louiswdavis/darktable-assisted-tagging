@@ -72,7 +72,11 @@ def test_add_entries():
             ("a number that is an entry's id", ["12"], [], "12 is already an entry"),
             ("the same number twice", ["115", "115"], [], "115 is already an entry"),
             ("a field already set", ["115"], [("A", "team", "Sauber")], "entry A already has a team: Ferrari"),
-            ("a field of a missing entry", [], [("99", "team", "Sauber")], "entry 99 is not in entries.json")):
+            ("a field of a missing entry", [], [("99", "team", "Sauber")], "entry 99 is not in entries.json"),
+            ("a number that isn't 1-3 digits", ["1234"], [], "1234 is not a race number (1-3 digits)"),
+            ("a team holding a comma", ["115"], [("12", "team", "Smith, Jones")],
+             'entry 12: the team "Smith, Jones" can\'t contain , ; or "'),
+            ("a driver holding a quote", [], [("12", "name", 'O"Neil')], 'entry 12: the driver "O"Neil" can\'t contain , ; or "')):
         path = write(PLAIN)
         check(f"add: {name} raises", raised(lambda: F.add_entries(path, numbers, fields)), want)
         check(f"add: {name} leaves the file and writes no .bak", (read(path), os.path.exists(path + ".bak")), (PLAIN, False))
@@ -87,6 +91,12 @@ def test_add_entries():
           raised(lambda: F.add_entries(path, [], [("12", "team", "Ferrari"), ("12", "team", "AF Corse")])),
           "entry 12 is given two teams")
     check("add: two values for one field leave the file", read(path), PLAIN)
+
+    # test_add_bom
+    path = write("\ufeff" + PLAIN)
+    F.add_entries(path, ["115"], [])
+    check("add: a file saved with a BOM is read and written back without it", read(path),
+          PLAIN.replace('"name": "" }\n', '"name": "" },\n    { "id": "115", "number": "115" }\n'))
 
     # test_add_keeps_layout
     inline = write('{\n  "rules": { "team_only": "none" },\n  "entries": [\n    { "id": "A", "number": "1" }\n  ]\n}\n')
@@ -103,9 +113,9 @@ def test_add_entries():
     path = write(PLAIN)
     rows = os.path.join(os.path.dirname(path), "additions.csv")
     with open(rows, "w", encoding="utf-8", newline="") as f:
-        f.write('number,115\nfield,12,team,"Smith, Jones"\n')
+        f.write('number,115\nfield,12,team,"AF Corse"\n')
     check("add: the shell form writes and exits 0", F.main(["add", path, rows]), 0)
-    check("add: the shell form reads quoted values", json.loads(read(path))["entries"][0]["team"], "Smith, Jones")
+    check("add: the shell form reads quoted values", json.loads(read(path))["entries"][0]["team"], "AF Corse")
     check("add: the shell form exits 1 on stale rows", F.main(["add", path, rows]), 1)
 
 

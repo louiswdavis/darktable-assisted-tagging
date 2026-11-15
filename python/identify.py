@@ -1114,10 +1114,11 @@ def identify(args, models: dict):
     tag_hints_of = {r[0]: [] if verify else [t for t in r[4].split(";") if t] for r in rows}
     fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
     # 7th column: the entry the user's hand number or driver tag names. --verify checks the tags instead.
+    # An entry missing here was removed from entries.json after the panel's last Reload.
     for r in rows:
         if r[6] and r[6] not in entries:
-            raise InputError(f"manifest: image {r[0]} is hand-tagged as entry {r[6]}, which is not in entries.json")
-    hand_of = {r[0]: r[6] for r in rows if r[6] and not verify and r[0] not in fully_tagged}
+            log(f"image {r[0]}: hand-tagged as entry {r[6]}, which is not in entries.json; its hand tag is not used (Reload, then run again)")
+    hand_of = {r[0]: r[6] for r in rows if r[6] in entries and not verify and r[0] not in fully_tagged}
     index = open_index(collection, models, rules, embedder, args.progress)
     if cancel_requested(args.progress):
         log("cancelled")
