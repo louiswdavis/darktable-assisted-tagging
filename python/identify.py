@@ -120,13 +120,13 @@ class Rules:
 
 
 def _entry_tags(eid: str, item: dict, roots: dict, bad) -> tuple:
-    """An entry's tags: one per family in `roots` the entry has a value for (number, team, name),
-    then its own `tags` as extras, without repeats. The caller has checked the three values."""
+    """An entry's tags: one per family in `roots` the entry has a value for (its source fields joined
+    with |), then its own `tags` as extras, without repeats. The caller has checked the values."""
     extra = item.get("tags", [])
     _check_tags(extra, f'entry "{eid}": tags', bad, allow_empty=True)
     built = []
     for fam in FAMILIES:
-        value = str(item.get(fam.source, "")) if fam.source else ""
+        value = "|".join(v for v in (str(item.get(s, "")) for s in fam.sources) if v)
         if value and fam.key in roots:
             built.append(family_tag(roots[fam.key], value))
     if not built and not extra:
@@ -240,6 +240,14 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         return InputError(f"{path}: {why}")
 
     try:
+        upgraded = entries_file.upgrade(path)
+    except ValueError as e:
+        raise bad(str(e))
+    except (OSError, UnicodeDecodeError):
+        upgraded = 0  # the read below reports it
+    if upgraded:
+        log(f"entries.json: {upgraded} entries upgraded (class, make/model → fields)")
+    try:
         with open(path, encoding="utf-8-sig") as f:  # Notepad saves a BOM
             data = json.load(f)
     except FileNotFoundError:
@@ -284,7 +292,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
             raise bad(f'entry "{eid}" appears twice')
         unknown = check_entry_fields(kind, item)
         if unknown:
-            fields = "id, tags" if kind == "people" else "id, number, team, name, tags, camera, colour, car"
+            fields = "id, tags" if kind == "people" else "id, number, team, name, extra, make, model, tags, camera, colour, car"
             raise bad(f'entry "{eid}": unknown field "{unknown}" (fields are {fields})')
         if kind == "people":
             _check_tags(item.get("tags"), f'entry "{eid}": tags', bad)
@@ -300,6 +308,12 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         name = item.get("name", "")
         if not isinstance(name, str) or _BAD_TAG.search(name):
             raise bad(f'entry "{eid}": name must be text without , ; or "')
+        for key in ("extra", "make", "model"):
+            value = item.get(key, "")
+            if not isinstance(value, str) or _BAD_TAG.search(value) or "|" in value:
+                raise bad(f'entry "{eid}": {key} must be text without , ; " or |')
+        if item.get("model") and not item.get("make"):
+            raise bad(f'entry "{eid}": model {item["model"]} has no make')
         camera = item.get("camera", "")
         if camera not in ("", "yellow", "black"):
             raise bad(f'entry "{eid}": camera must be "yellow" or "black"')

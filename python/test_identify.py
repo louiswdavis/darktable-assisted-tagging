@@ -39,9 +39,10 @@ TSU = {"id": "TSU", "number": 22, "team": "Red Bull", "tags": ["F1|Red Bull", "F
 
 
 # Only the team family is on, rooted at F1: VER and TSU build exactly the tags they list.
-FIXTURE_SETTINGS = {"family_colour": False, "family_number": False, "family_driver": False, "family_team_root": "F1"}
+FIXTURE_SETTINGS = {"family_colour": False, "family_number": False, "family_driver": False, "family_extra": False,
+                    "family_vehicle": False, "family_team_root": "F1"}
 ALL_FAMILIES = {"colour": "Assisted Tagging|Colour", "number": "Motorsport|Number", "team": "Motorsport|Team",
-                "driver": "Motorsport|Driver"}
+                "driver": "Motorsport|Driver", "extra": "Motorsport|Class", "vehicle": "Motorsport|Vehicle"}
 
 
 def collection(data, root=None, settings=FIXTURE_SETTINGS) -> str:
@@ -198,6 +199,38 @@ def run_tests():
     check("families: a switched-off family's root isn't checked", I.load_collection(collection(
         [LEC], settings={"family_number_root": "Cars", "family_team_root": "Cars|Team", "family_team": False}))[0]["12"].tags,
         ("Cars|12", "Motorsport|Driver|Leclerc"))
+    ESC = {"id": "7", "number": "7", "extra": "A1", "make": "Ford", "model": "Escort"}
+    check("vehicle: make+model, extra: class", I.load_collection(collection([ESC], settings=None))[0]["7"].tags,
+          ("Motorsport|Number|7", "Motorsport|Class|A1", "Motorsport|Vehicle|Ford|Escort"))
+    check("vehicle: make only", I.load_collection(collection(
+        [{"id": "7", "number": "7", "make": "Ford"}], settings=None))[0]["7"].tags,
+          ("Motorsport|Number|7", "Motorsport|Vehicle|Ford"))
+    check("vehicle: model without make", load_error([{"id": "7", "number": "7", "model": "Escort"}], None),
+          'entry "7": model Escort has no make')
+    check("vehicle: make with | rejected", load_error([dict(ESC, make="Ford|Escort", model="")], None),
+          'entry "7": make must be text without , ; " or |')
+    check("extra: not text rejected", load_error([dict(ESC, extra=1)], None),
+          'entry "7": extra must be text without , ; " or |')
+    check("families: vehicle off, no vehicle tag", I.load_collection(collection(
+        [ESC], settings={"family_vehicle": False}))[0]["7"].tags, ("Motorsport|Number|7", "Motorsport|Class|A1"))
+    check("vehicle: custom root", I.load_collection(collection(
+        [ESC], settings={"family_vehicle_root": "Cars"}))[0]["7"].tags,
+          ("Motorsport|Number|7", "Motorsport|Class|A1", "Cars|Ford|Escort"))
+    old = {"id": "7", "number": "7", "tags": ["Motorsport|Vehicle|Ford|Escort"]}
+    old_dir = collection([old], settings=None)
+    check("load: old vehicle tag upgraded", I.load_collection(old_dir)[0]["7"].tags,
+          ("Motorsport|Number|7", "Motorsport|Vehicle|Ford|Escort"))
+    with open(os.path.join(old_dir, "entries.json"), encoding="utf-8") as f:
+        check("load: the upgraded file holds make and model", json.load(f),
+              [{"id": "7", "number": "7", "make": "Ford", "model": "Escort"}])
+    check("load: an upgraded vehicle follows the configured root", I.load_collection(collection(
+        [old], settings={"family_vehicle_root": "Cars"}))[0]["7"].tags, ("Motorsport|Number|7", "Cars|Ford|Escort"))
+    check("load: an upgrade conflict names the entry", load_error([dict(old, make="Opel")], None),
+          'entry "7": make "Opel" disagrees with tag "Motorsport|Vehicle|Ford|Escort"')
+    only_new = {"family_colour": False, "family_number": False, "family_team": False, "family_driver": False}
+    check("families: extra only, entry without extra builds no tag",
+          load_error([{"id": "12", "number": "12"}], only_new),
+          'entry "12": builds no tag; turn on a family it has a value for, or give it tags')
     check("rules.tag_prefix is removed and names the family roots",
           load_error({"rules": {"tag_prefix": "Motorsport|F1"}, "entries": [LEC]}),
           'rules.tag_prefix was removed; set family_number_root, family_team_root and family_driver_root '

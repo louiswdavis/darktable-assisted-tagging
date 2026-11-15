@@ -63,13 +63,15 @@ M.DIAG_TAGS = {
 }
 
 -- Tag families, in order: each writes <root>|<value>, with a switch (family_<key>) and a root
--- (family_<key>_root) in the collection's settings. `source` is the entry field the value comes
--- from; "" = read from the photo. Mirrors FAMILIES in python/families.py (test_families.py checks).
+-- (family_<key>_root) in the collection's settings. `sources` are the entry fields the value comes
+-- from, joined with |; {} = read from the photo. Mirrors FAMILIES in python/families.py (test_families.py checks).
 M.FAMILIES = {
-    { key = "colour", source = "", default_root = "Assisted Tagging|Colour" },
-    { key = "number", source = "number", default_root = "Motorsport|Number" },
-    { key = "team", source = "team", default_root = "Motorsport|Team" },
-    { key = "driver", source = "name", default_root = "Motorsport|Driver" },
+    { key = "colour", sources = {}, default_root = "Assisted Tagging|Colour" },
+    { key = "number", sources = { "number" }, default_root = "Motorsport|Number" },
+    { key = "team", sources = { "team" }, default_root = "Motorsport|Team" },
+    { key = "driver", sources = { "name" }, default_root = "Motorsport|Driver" },
+    { key = "extra", sources = { "extra" }, default_root = "Motorsport|Class" },
+    { key = "vehicle", sources = { "make", "model" }, default_root = "Motorsport|Vehicle" },
 }
 
 -- Family key → root for each family switched on in settings `s`.
@@ -1029,6 +1031,10 @@ M.PRESET_SCHEMA = {
     { key = "family_team_root", kind = "string", default = "Motorsport|Team" },
     { key = "family_driver", kind = "bool", default = true },
     { key = "family_driver_root", kind = "string", default = "Motorsport|Driver" },
+    { key = "family_extra", kind = "bool", default = true },
+    { key = "family_extra_root", kind = "string", default = "Motorsport|Class" },
+    { key = "family_vehicle", kind = "bool", default = true },
+    { key = "family_vehicle_root", kind = "string", default = "Motorsport|Vehicle" },
     { key = "tag_number", kind = "bool", default = true },
     { key = "tag_number_name", kind = "string", default = "Assisted Tagging|Identification|By number" },
     { key = "tag_livery", kind = "bool", default = true },
@@ -3446,6 +3452,8 @@ local function install_panel()
         number = { _("Number"), _("Write an identified entry's race number as <root>|<number>.") },
         team = { _("Team"), _("Write an identified entry's team as <root>|<team>. A team tag you applied by hand is also the hint that narrows matching.") },
         driver = { _("Driver"), _("Write an identified entry's name as <root>|<name>.") },
+        extra = { _("Class"), _("Write an identified entry's class (start-list Class column) as <root>|<class>.") },
+        vehicle = { _("Vehicle"), _("Write an identified entry's make and model as <root>|<make>|<model>.") },
     }
     tag_rows[#tag_rows + 1] = dt.new_widget("section_label") { label = _("tag families") }
     for _i, f in ipairs(M.FAMILIES) do

@@ -235,7 +235,7 @@ check("rules: an off family has no line and no root", fam_rules.families.number,
 do
     local keys_in_order = {}
     for _, f in ipairs(T.FAMILIES) do keys_in_order[#keys_in_order + 1] = f.key end
-    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver")
+    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver,extra,vehicle")
     local fs = T.preset_defaults(T.PRESET_SCHEMA)
     local roots = T.family_roots(fs)
     check("family_roots: every family on by default", roots.colour .. " " .. roots.number .. " " .. roots.team .. " " .. roots.driver,
@@ -675,6 +675,12 @@ do
     check("hand_entry: a team tag names no entry",
         tostring((T.hand_entry(team, {}, he, { number = "M|Number", driver = "M|Driver", team = "M|Team" }))), "nil")
     check("hint: the hand team tag still hints", T.hint_tags(team, {}, he, "M|Team")["M|Team|McLaren"], true)
+    -- test_hand_vehicle_protected_not_identifying
+    local ford = { ["Motorsport|Vehicle|Ford"] = true }
+    check("hand_family_tags: vehicle root",
+        T.hand_family_tags(ford, {}, { vehicle = "Motorsport|Vehicle" })["Motorsport|Vehicle|Ford"], true)
+    check("hand_entry: a vehicle tag names no entry", tostring((T.hand_entry(ford, {}, he,
+        { number = "M|Number", driver = "M|Driver", vehicle = "Motorsport|Vehicle" }))), "nil")
     -- test_wanted_tags_hand_row
     local hw, hd, hok = T.wanted_tags({ { box = -1, method = "hand", entry_id = "NOR", alt_entry_id = "" } }, he)
     check("a hand result wants the entry's tags", keys(hw), "M|Driver|Norris + M|Number|4 + M|Team|McLaren")
@@ -882,7 +888,7 @@ require("test_preset_block")(T, check)
 
 do
     local d = T.preset_defaults(T.PRESET_SCHEMA)
-    check("tagging schema has 48 keys", #T.PRESET_SCHEMA, 48)
+    check("tagging schema has 52 keys", #T.PRESET_SCHEMA, 52)
     check("colour keys default on", tostring(d.family_colour) .. tostring(d.tag_check_colour), "truetrue")
     for _, f in ipairs(T.FAMILIES) do
         check("family " .. f.key .. " defaults", tostring(d["family_" .. f.key]) .. " " .. d["family_" .. f.key .. "_root"],

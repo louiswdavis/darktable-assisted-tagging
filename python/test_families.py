@@ -37,8 +37,9 @@ def resolve_error(**over) -> str:
 
 
 def test_order():
-    check("family order", [f.key for f in F.FAMILIES], ["colour", "number", "team", "driver"])
-    check("family sources", [f.source for f in F.FAMILIES], ["", "number", "team", "name"])
+    check("family order", [f.key for f in F.FAMILIES], ["colour", "number", "team", "driver", "extra", "vehicle"])
+    check("family sources", [f.sources for f in F.FAMILIES],
+          [(), ("number",), ("team",), ("name",), ("extra",), ("make", "model")])
     check("setting keys", (F.switch_key("team"), F.root_key("team")), ("family_team", "family_team_root"))
     check("family_tag", F.family_tag("Motorsport|Team", "Ferrari"), "Motorsport|Team|Ferrari")
     check("schema defaults are the family defaults",
@@ -50,8 +51,9 @@ def test_resolve_defaults():
     roots = F.resolve(defaults())
     check("resolve: defaults", roots, {
         "colour": "Assisted Tagging|Colour", "number": "Motorsport|Number",
-        "team": "Motorsport|Team", "driver": "Motorsport|Driver"})
-    check("resolve: family order", list(roots), ["colour", "number", "team", "driver"])
+        "team": "Motorsport|Team", "driver": "Motorsport|Driver",
+        "extra": "Motorsport|Class", "vehicle": "Motorsport|Vehicle"})
+    check("resolve: family order", list(roots), ["colour", "number", "team", "driver", "extra", "vehicle"])
     check("resolve: custom root", F.resolve(defaults(family_team_root="Cars|Team"))["team"], "Cars|Team")
     check("resolve: sibling roots are fine",
           resolve_error(family_number_root="Cars|Number", family_team_root="Cars|Numbers"), "(no error)")
@@ -59,9 +61,10 @@ def test_resolve_defaults():
 
 def test_resolve_off():
     roots = F.resolve(defaults(family_colour=False, family_driver=False))
-    check("resolve: off families left out", list(roots), ["number", "team"])
+    check("resolve: off families left out", list(roots), ["number", "team", "extra", "vehicle"])
     check("resolve: all off", F.resolve(defaults(family_colour=False, family_number=False,
-                                                 family_team=False, family_driver=False)), {})
+                                                 family_team=False, family_driver=False,
+                                                 family_extra=False, family_vehicle=False)), {})
     check("resolve: a switched-off family's root is not checked",
           F.resolve(defaults(family_driver=False, family_driver_root=""))["team"], "Motorsport|Team")
     check("resolve: a switched-off family's root can overlap",
@@ -109,8 +112,9 @@ def test_lua_mirror():
         src = f.read()
     found = re.search(r"M\.FAMILIES = \{(.*?)\n\}", src, re.S)
     check("lua M.FAMILIES block found", found is not None, True)
-    rows = re.findall(r'\{ key = "(\w+)", source = "(\w*)", default_root = "([^"]+)" \}', found.group(1) if found else "")
-    check("lua M.FAMILIES rows", rows, [(f.key, f.source, f.default_root) for f in F.FAMILIES])
+    rows = re.findall(r'\{ key = "(\w+)", sources = \{([^}]*)\}, default_root = "([^"]+)" \}', found.group(1) if found else "")
+    rows = [(k, tuple(re.findall(r'"(\w+)"', s)), r) for k, s, r in rows]
+    check("lua M.FAMILIES rows", rows, [(f.key, f.sources, f.default_root) for f in F.FAMILIES])
 
 
 for t in (test_order, test_resolve_defaults, test_resolve_off, test_empty_root_names_setting,

@@ -119,6 +119,60 @@ def test_add_entries():
     check("add: the shell form exits 1 on stale rows", F.main(["add", path, rows]), 1)
 
 
+def test_upgrade():
+    path = write('{\n  "rules": {},\n  "entries": [\n'
+                 '    { "id": "1", "number": "1", "name": "Ann", "tags": ["Motorsport|Class|A1", "Rookie"] },\n'
+                 '    { "id": "2", "number": "2", "tags": ["Motorsport|Vehicle|Ford|Escort"], "colour": "Red" },\n'
+                 '    { "id": "3", "team": "Works", "tags": ["Motorsport|Vehicle|Ford"] },\n'
+                 '    { "id": "4", "number": "4" }\n  ]\n}\n')
+    before = read(path)
+    check("upgrade: three entries change", F.upgrade(path), 3)
+    check("upgrade: fields replace the old tags, other tags kept", json.loads(read(path))["entries"], [
+        {"id": "1", "number": "1", "name": "Ann", "extra": "A1", "tags": ["Rookie"]},
+        {"id": "2", "number": "2", "make": "Ford", "model": "Escort", "colour": "Red"},
+        {"id": "3", "team": "Works", "make": "Ford"},
+        {"id": "4", "number": "4"}])
+    check("upgrade: the previous file is kept as .bak", read(path + ".bak"), before)
+
+    # test_upgrade_nothing
+    plain = write('[\n  { "id": "A", "number": "1", "tags": ["Rookie"] }\n]\n')
+    before = read(plain)
+    mtime = os.path.getmtime(plain)
+    check("upgrade: nothing to move returns 0", F.upgrade(plain), 0)
+    check("upgrade: nothing to move keeps the bytes", (read(plain), os.path.getmtime(plain)), (before, mtime))
+    check("upgrade: nothing to move gets no .bak", os.path.exists(plain + ".bak"), False)
+    check("upgrade: a file that doesn't parse returns 0", F.upgrade(write("{ nope")), 0)
+
+    # test_upgrade_conflict
+    same = write('[\n  { "id": "A", "make": "Ford", "model": "Escort", "tags": ["Motorsport|Vehicle|Ford|Escort"] }\n]\n')
+    check("upgrade: a matching field just drops the tag", (F.upgrade(same), json.loads(read(same))),
+          (1, [{"id": "A", "make": "Ford", "model": "Escort"}]))
+    differ = write('[\n  { "id": "A", "make": "Ford", "tags": ["Motorsport|Vehicle|Opel|Manta"] }\n]\n')
+    before = read(differ)
+    check("upgrade: a disagreeing field names the entry", raised(lambda: F.upgrade(differ)),
+          'entry "A": make "Ford" disagrees with tag "Motorsport|Vehicle|Opel|Manta"')
+    check("upgrade: a disagreeing field leaves the file", read(differ), before)
+    cls = write('[\n  { "id": "A", "extra": "B2", "tags": ["Motorsport|Class|A1"] }\n]\n')
+    check("upgrade: a disagreeing class names the entry", raised(lambda: F.upgrade(cls)),
+          'entry "A": extra "B2" disagrees with tag "Motorsport|Class|A1"')
+
+    # test_upgrade_two_tags
+    two = write('[\n  { "id": "A", "tags": ["Motorsport|Vehicle|Ford", "Motorsport|Vehicle|Opel"] }\n]\n')
+    check("upgrade: two vehicle tags stop", "two Motorsport|Vehicle tags" in raised(lambda: F.upgrade(two)), True)
+    deep = write('[\n  { "id": "A", "tags": ["Motorsport|Vehicle|Ford|Escort|Mk2"] }\n]\n')
+    check("upgrade: a vehicle tag deeper than make|model stops", raised(lambda: F.upgrade(deep)),
+          'entry "A": tag "Motorsport|Vehicle|Ford|Escort|Mk2" is not Motorsport|Vehicle|<make>[|<model>]')
+
+    # test_upgrade_crlf
+    crlf = write('[\r\n  { "id": "A",\r\n    "tags": ["Motorsport|Class|A1"] }\r\n]\r\n')
+    check("upgrade: CRLF kept, split entry reflowed", (F.upgrade(crlf), read(crlf)),
+          (1, '[\r\n  { "id": "A", "extra": "A1" }\r\n]\r\n'))
+
+    # test_upgrade_people
+    people = write('{\n  "kind": "people",\n  "entries": [\n    { "id": "A", "tags": ["Motorsport|Class|A1"] }\n  ]\n}\n')
+    check("upgrade: a people collection is untouched", F.upgrade(people), 0)
+
+
 def run_tests():
     rally = copy_example("rally")
     text = read(rally)
@@ -176,6 +230,7 @@ def run_tests():
     check("CRLF line endings are kept", read(crlf), '[\r\n  { "id": "A", "colour": "Red" }\r\n]\r\n')
 
     test_add_entries()
+    test_upgrade()
 
     print("")
     if failures == 0:

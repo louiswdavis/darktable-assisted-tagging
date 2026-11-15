@@ -2,7 +2,8 @@
 entries and fields (the panel's Find new entries) without changing anything else. A file already in
 the canonical layout (`dump`) keeps its layout; any other layout is reflowed into the canonical one,
 with the previous file kept as entries.json.bak. A UTF-8 BOM at the start is accepted and not
-written back.
+written back. `upgrade` moves old Motorsport|Class / Motorsport|Vehicle entry tags into the `extra`,
+`make` and `model` fields (identify.load_collection runs it before every load).
 
 From a shell: python entries_file.py add <entries.json> <additions.csv>, the CSV holding rows
 `number,<n>` and `field,<entry id>,<team|name>,<value>`."""
@@ -75,6 +76,88 @@ def _write(path: str, text: str, data, eol: str) -> None:
     with atomic_write(path, newline="") as f:
         f.write(out.replace("\n", eol))
         shutil.copy2(path, path + ".bak")  # the original, before the replace on exit
+
+
+OLD_CLASS = "Motorsport|Class|"
+OLD_VEHICLE = "Motorsport|Vehicle|"
+
+
+def _upgrade_entry(e: dict) -> bool:
+    """Moves `e`'s old class/vehicle tags into fields, in place. True when `e` changed."""
+    tags = e.get("tags")
+    if not isinstance(tags, list):
+        return False
+    eid = e.get("id")
+    found, kept = {}, []
+    for tag in tags:
+        kind = "class" if isinstance(tag, str) and tag.startswith(OLD_CLASS) else \
+            "vehicle" if isinstance(tag, str) and tag.startswith(OLD_VEHICLE) else None
+        if kind is None:
+            kept.append(tag)
+            continue
+        if kind in found:
+            raise ValueError(f'entry "{eid}": two {(OLD_CLASS if kind == "class" else OLD_VEHICLE)[:-1]} tags')
+        found[kind] = tag
+    if not found:
+        return False
+    new = {}
+    if "class" in found:
+        new["extra"] = found["class"][len(OLD_CLASS):]
+    if "vehicle" in found:
+        parts = found["vehicle"][len(OLD_VEHICLE):].split("|")
+        if len(parts) > 2 or not all(parts):
+            raise ValueError(f'entry "{eid}": tag "{found["vehicle"]}" is not {OLD_VEHICLE}<make>[|<model>]')
+        new.update(zip(("make", "model"), parts))
+    tag_of = {"extra": found.get("class"), "make": found.get("vehicle"), "model": found.get("vehicle")}
+    for key, value in new.items():
+        if e.get(key) not in (None, "", value):
+            raise ValueError(f'entry "{eid}": {key} "{e[key]}" disagrees with tag "{tag_of[key]}"')
+    new = {k: v for k, v in new.items() if e.get(k) != v}
+    after = max((i for i, k in enumerate(e) if k in ("id", "number", "name", "team")), default=-1)
+    out = {}
+    for i, (k, v) in enumerate(list(e.items())):
+        if k in new:
+            continue
+        if k == "tags":
+            if kept:
+                out[k] = kept
+        else:
+            out[k] = v
+        if i == after:
+            out.update(new)
+    if after == -1:
+        out.update(new)
+    e.clear()
+    e.update(out)
+    return True
+
+
+def upgrade(path: str) -> int:
+    """Moves each motorsport entry's old `Motorsport|Class|<class>` tag into `extra` and
+    `Motorsport|Vehicle|<make>[|<model>]` into `make`/`model`, after the entry's id, number, name and
+    team; a `tags` list left empty is removed. Only those literal roots are matched. A field already
+    holding the same value just loses the tag. Returns the number of entries changed; 0 writes
+    nothing (also for a file that does not parse, has no entry list, or is kind people). Raises
+    ValueError, writing nothing, when a field disagrees with its tag, an entry has two class or two
+    vehicle tags, or a vehicle tag has more than make|model. Layout, line endings and the .bak are as
+    in set_colours."""
+    with open(path, encoding="utf-8-sig", newline="") as f:
+        raw = f.read()
+    eol = "\r\n" if "\r\n" in raw else "\n"
+    text = raw.replace("\r\n", "\n")
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return 0
+    if isinstance(data, dict) and data.get("kind", "motorsport") != "motorsport":
+        return 0
+    entries = data.get("entries") if isinstance(data, dict) else data
+    if not isinstance(entries, list):
+        return 0
+    n = sum(_upgrade_entry(e) for e in entries if isinstance(e, dict))
+    if n:
+        _write(path, text, data, eol)
+    return n
 
 
 FIELD_NOUNS = {"team": "team", "name": "driver"}

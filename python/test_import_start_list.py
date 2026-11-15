@@ -52,9 +52,9 @@ def run_tests():
         data = json.load(open(os.path.join(cdir, "entries.json"), encoding="utf-8"))
         check("a CSV creates entries.json with no rules", list(data), ["entries"])
         check("header aliases map the columns; class becomes a tag; commas are cleaned", data["entries"], [
-            {"id": "1", "number": "1", "name": "Smith / Jones", "team": "Team A", "tags": ["Motorsport|Class|RC1"]},
+            {"id": "1", "number": "1", "name": "Smith / Jones", "team": "Team A", "extra": "RC1"},
             {"id": "12", "number": "12", "name": "Doe J"},
-            {"id": "7", "number": "7", "name": "Lee / Kim", "team": "Team B", "tags": ["Motorsport|Class|RC2"]},
+            {"id": "7", "number": "7", "name": "Lee / Kim", "team": "Team B", "extra": "RC2"},
         ])
         check("the file is in the canonical layout", open(os.path.join(cdir, "entries.json"), encoding="utf-8").read(),
               dump(data))
@@ -99,10 +99,14 @@ def run_tests():
         write(vcsv, "Car No,Driver,Vehicle,Make,Model,Class\n30,Ames,Ford Escort Mk1,Ford,Escort Mk1,Class 2\n"
                     "31,Bell,Lotus,Lotus,,\n32,Cole,,,,\n33,Dent,,Mini|BMW,Cooper; S,\n")
         M.main([vdir, "--csv", vcsv])
-        check("make and model become a vehicle tag after the class tag; a make alone is a tag; | and ; are removed",
-              [e.get("tags") for e in entries_of(vdir)],
-              [["Motorsport|Class|Class 2", "Motorsport|Vehicle|Ford|Escort Mk1"], ["Motorsport|Vehicle|Lotus"], None,
-               ["Motorsport|Vehicle|MiniBMW|Cooper S"]])
+        check("class column → extra, make+model → make, model, make only → make; | and ; are removed; no tags",
+              entries_of(vdir),
+              [{"id": "30", "number": "30", "name": "Ames", "extra": "Class 2", "make": "Ford", "model": "Escort Mk1"},
+               {"id": "31", "number": "31", "name": "Bell", "make": "Lotus"},
+               {"id": "32", "number": "32", "name": "Cole"},
+               {"id": "33", "number": "33", "name": "Dent", "make": "MiniBMW", "model": "Cooper S"}])
+        check("fields follow id, number, name, team order", list(entries_of(vdir)[0]),
+              ["id", "number", "name", "extra", "make", "model"])
         check("the Vehicle column isn't read as a role", "vehicle" in M.map_header(["Car No", "Vehicle"], {}), False)
         nomake = os.path.join(tmp, "nomake.csv")
         write(nomake, "number,model\n5,Escort\n")

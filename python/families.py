@@ -1,4 +1,5 @@
-"""Tag families: each is one kind of tag the plugin writes (a car's colour, number, team, driver),
+"""Tag families: each is one kind of tag the plugin writes (a car's colour, number, team, driver,
+class and make/model),
 with a switch and a root tag in settings.json. M.FAMILIES in lua/assisted_tagging.lua mirrors the
 table. Stdlib only."""
 
@@ -11,15 +12,18 @@ _BAD_ROOT = re.compile(r'[,;"]')
 @dataclass(frozen=True)
 class Family:
     key: str
-    source: str  # the entry field its value comes from; "" when the value is read from the photo
+    # the entry fields its value comes from, joined with | (empty ones skipped); () when read from the photo
+    sources: tuple
     default_root: str
 
 
 FAMILIES = (
-    Family("colour", "", "Assisted Tagging|Colour"),
-    Family("number", "number", "Motorsport|Number"),
-    Family("team", "team", "Motorsport|Team"),
-    Family("driver", "name", "Motorsport|Driver"),
+    Family("colour", (), "Assisted Tagging|Colour"),
+    Family("number", ("number",), "Motorsport|Number"),
+    Family("team", ("team",), "Motorsport|Team"),
+    Family("driver", ("name",), "Motorsport|Driver"),
+    Family("extra", ("extra",), "Motorsport|Class"),
+    Family("vehicle", ("make", "model"), "Motorsport|Vehicle"),
 )
 
 

@@ -8,8 +8,8 @@ by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car).
 usual names (ALIASES); only `number` is required. Pasted text (an entry list copied from a PDF)
 has one entry per line, number first, then "driver / co-driver"; lines without a leading number
 are skipped and counted. Each entry becomes {"id": number, "number": number, "name": "driver /
-co-driver", "team": team, "tags": ["Motorsport|Class|<class>", "Motorsport|Vehicle|<make>|<model>"]},
-with the empty fields left out; a model needs a make. A `shares-car` column names the other entry
+co-driver", "team": team, "extra": class, "make": make, "model": model}, with the empty fields
+left out; a model needs a make. The Class and Vehicle tag families build the tags from them. A `shares-car` column names the other entry
 driving the same car; both rows must name each other, and the higher number gets `"car": "<lower id>"`.
 Numbers already in entries.json are skipped and listed, never overwritten. The previous file is
 kept as entries.json.bak. A file not in the one-entry-per-line layout is reflowed into it. Exit 2
@@ -41,8 +41,6 @@ ALIASES = {
 _LINE = re.compile(r"^\s*#?(\d{1,3})(?!\d)[\s.:)\-–]*(.*?)\s*$")
 _BAD = re.compile(r'[,;"]')
 _BAD_TAG = re.compile(r'[,;"|]')
-CLASS_ROOT = "Motorsport|Class"
-VEHICLE_ROOT = "Motorsport|Vehicle"
 
 
 class BadInput(Exception):
@@ -114,8 +112,8 @@ def rows_from_text(text: str) -> tuple:
 
 
 def entries_from(rows: list) -> tuple:
-    """Rows → (entries, cleaned names): numbers are checked, names and teams lose , ; and ". Class,
-    make and model become tags, losing , ; " and |."""
+    """Rows → (entries, cleaned names): numbers are checked, names and teams lose , ; and ". Class
+    (as `extra`), make and model lose , ; " and |."""
     entries, cleaned, seen = [], [], set()
     for n, row in enumerate(rows, 1):
         number = row.get("number", "").strip().lstrip("#")
@@ -138,9 +136,9 @@ def entries_from(rows: list) -> tuple:
         klass, make, model = (_BAD_TAG.sub("", row.get(k, "")).strip() for k in ("class", "make", "model"))
         if model and not make:
             raise BadInput(f"row {n}: model {model} has no make")
-        tags = [f"{CLASS_ROOT}|{klass}"] * bool(klass) + ["|".join(filter(None, (VEHICLE_ROOT, make, model)))] * bool(make)
-        if tags:
-            entry["tags"] = tags
+        for key, value in (("extra", klass), ("make", make), ("model", model)):
+            if value:
+                entry[key] = value
         entries.append(entry)
     if not entries:
         raise BadInput("no entries found")
