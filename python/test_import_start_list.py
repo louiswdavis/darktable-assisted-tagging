@@ -108,6 +108,22 @@ def run_tests():
         write(nomake, "number,model\n5,Escort\n")
         check("a model with no make fails", exits_2([vdir, "--csv", nomake]), 2)
 
+        sdir = os.path.join(tmp, "shared")
+        os.makedirs(sdir)
+        scsv = os.path.join(tmp, "shared.csv")
+        write(scsv, "Car No,Driver,Shares Car With\n30,Ames,730\n12,Bell,\n730,Cole,30\n")
+        M.main([sdir, "--csv", scsv])
+        check("the higher number of a shared car names the lower; the lower and unshared rows get no car",
+              [(e["id"], e.get("car")) for e in entries_of(sdir)], [("30", None), ("12", None), ("730", "30")])
+        for label, text in (("a one-way pair fails", "number,shares car\n30,730\n730,\n"),
+                            ("a partner not in the list fails", "number,shares car\n30,730\n"),
+                            ("a partner naming a third number fails", "number,shares car\n30,730\n730,31\n31,730\n"),
+                            ("a partner that isn't a number fails", "number,shares car\n30,x\n"),
+                            ("a car shared with itself fails", "number,shares car\n30,30\n")):
+            path = os.path.join(tmp, "pair.csv")
+            write(path, text)
+            check(label, exits_2([os.path.join(tmp, "unused"), "--csv", path]), 2)
+
         bad = os.path.join(tmp, "bad.csv")
         write(bad, "number,driver\n1234,Too long\n")
         check("a number over 3 digits fails", exits_2([cdir, "--csv", bad]), 2)

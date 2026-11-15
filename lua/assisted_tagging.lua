@@ -802,8 +802,20 @@ function M.hint_tags(have, ledger_set, entries, team_root)
     return out
 end
 
+local function same_tag_set(a, b)
+    local set, n, m = {}, 0, 0
+    for _, t in ipairs(a) do if not set[t] then set[t] = true; n = n + 1 end end
+    local seen = {}
+    for _, t in ipairs(b) do
+        if not set[t] then return false end
+        if not seen[t] then seen[t] = true; m = m + 1 end
+    end
+    return n == m
+end
+
 -- The entry an already-tagged image belongs to: the one whose tags it carries
--- all of (a shared team tag alone matches no one). nil when none or several do.
+-- all of (a shared team tag alone matches no one). nil when none or several do;
+-- entries with the same tag set (a double-driven car's two entries) count as one, the first.
 function M.entry_for_tags(have, entries, order)
     local found = nil
     for _, id in ipairs(order) do
@@ -812,8 +824,11 @@ function M.entry_for_tags(have, entries, order)
             if not have[t] then all = false; break end
         end
         if all then
-            if found then return nil end
-            found = id
+            if not found then
+                found = id
+            elseif not same_tag_set(entries[found].tags, entries[id].tags) then
+                return nil
+            end
         end
     end
     return found
@@ -3167,7 +3182,7 @@ local function install_panel()
     local start_list_columns = dt.new_widget("entry") {
         placeholder = _("columns: number=No.; driver=Driver (blank = usual header names)"),
         text = "",
-        tooltip = _("Which CSV header holds each role, as role=header pairs separated by ;. Roles: number, driver, co-driver, team, class. Blank finds them by their usual names; only number is required."),
+        tooltip = _("Which CSV header holds each role, as role=header pairs separated by ;. Roles: number, driver, co-driver, team, class, make, model, shares-car. Blank finds them by their usual names; only number is required."),
     }
     local start_list_text = dt.new_widget("text_view") {
         editable = true,

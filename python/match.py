@@ -38,6 +38,7 @@ class Entry:
     camera: str = ""  # onboard camera pod colour ("yellow" / "black"), a teammate tie-break; "" when unknown
     colour: str = ""  # body colour (a palette name or "Multi"), a doubtful-decision tie-break; "" when unknown
     name: str = ""  # the driver, the value of the driver tag family; "" when unknown
+    car: str = ""  # a double-driven car's id (the lower entry's id), set on both entries; "" when unshared
 
 
 @dataclass(frozen=True)
@@ -66,11 +67,25 @@ class BoxResult:
     colour_flag: bool = False
 
 
+def by_car(sims: list, entries: dict) -> list:
+    """sims with only the best of each double-driven car kept, order preserved; ids not in
+    entries pass through. Both entries of a car carry the same tags, so either one names it."""
+    seen, out = set(), []
+    for eid, s in sims:
+        car = entries[eid].car if eid in entries else ""
+        if car and car in seen:
+            continue
+        seen.add(car)
+        out.append((eid, s))
+    return out
+
+
 def match_livery(box: int, sims: list, entries: dict, unmatched: str = "") -> BoxResult:
     """sims: [(entry_id, similarity)] most similar first. Livery match, else a
     same-team tie-break, else none. Shared with pooled burst matching, so a caller
-    can run this once on sims averaged across a burst instead of one frame's own."""
-    sims = [(eid, s) for eid, s in sims if eid in entries]
+    can run this once on sims averaged across a burst instead of one frame's own.
+    A double-driven car's two entries count as one candidate (by_car)."""
+    sims = by_car([(eid, s) for eid, s in sims if eid in entries], entries)
     if not sims:
         return BoxResult(box, "none", "", "", 0.0, unmatched)
     (e1, s1), (e2, s2) = sims[0], sims[1] if len(sims) > 1 else ("", 0.0)
@@ -324,7 +339,7 @@ def decided_by(r: BoxResult, sims: list, entries: dict) -> tuple:
         return r.method, 0.0
     if r.box == -1:
         return "no_vehicle", 0.0
-    sims = [(eid, s) for eid, s in sims if eid in entries]
+    sims = by_car([(eid, s) for eid, s in sims if eid in entries], entries)
     if not sims:
         return "no_references", 0.0
     s1 = sims[0][1]
@@ -336,14 +351,16 @@ def decided_by(r: BoxResult, sims: list, entries: dict) -> tuple:
 
 def already_tagged(protected: set, entries: dict) -> str:
     """The id of the one entry whose tags are all in `protected`; "" when none or several
-    are (a shared team tag alone matches no one). Same rule as the plugin's entry_for_tags."""
-    found = ""
+    are (a shared team tag alone matches no one). Entries with the same tag set (a double-driven
+    car's two entries) count as one: the first is returned. Same rule as the plugin's entry_for_tags."""
+    found = None
     for e in entries.values():
         if e.tags and all(t in protected for t in e.tags):
-            if found:
+            if found is None:
+                found = e
+            elif set(e.tags) != set(found.tags):
                 return ""
-            found = e.id
-    return found
+    return found.id if found else ""
 
 
 def conflicts(entry_id: str, protected: set, entries: dict, solo: bool) -> bool:

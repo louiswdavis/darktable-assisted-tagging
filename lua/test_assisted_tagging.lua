@@ -460,6 +460,13 @@ check("two drivers' tags map to no one", T.entry_for_tags({
     ["F1|Red Bull"] = true, ["F1|Red Bull|Tsunoda"] = true, ["F1|Ferrari"] = true, ["F1|Ferrari|Hamilton"] = true,
 }, entries, order), nil)
 check("no matching tags map to no one", T.entry_for_tags({ ["Holiday"] = true }, entries, order), nil)
+local car_tags = { "Rally|Number|30", "Rally|Number|730" }
+local car_entries = { ["30"] = { tags = car_tags }, ["730"] = { tags = car_tags }, ["12"] = { tags = { "Rally|Number|12" } } }
+check("a double-driven car's full tags map to its first entry",
+    T.entry_for_tags({ ["Rally|Number|30"] = true, ["Rally|Number|730"] = true }, car_entries, { "30", "730", "12" }), "30")
+check("a car plus another entry's tags map to no one", T.entry_for_tags({
+    ["Rally|Number|30"] = true, ["Rally|Number|730"] = true, ["Rally|Number|12"] = true,
+}, car_entries, { "30", "730", "12" }), nil)
 
 -- read_results (review fix 4) ----------------------------------------------
 local rows_of, errored, skipped_ids = T.read_results(table.concat({

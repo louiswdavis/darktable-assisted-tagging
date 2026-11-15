@@ -300,6 +300,21 @@ def run_tests():
     check("already_tagged: two drivers are no one", Mt.already_tagged(
         {"F1|Red Bull", "F1|Red Bull|Tsunoda", "F1|Ferrari|Hamilton"}, ENTRIES), "")
 
+    car = ("Rally|Number|30", "Rally|Number|730")
+    mates = dict(ENTRIES, **{"30": Entry("30", "30", "", car, car="30"), "730": Entry("730", "730", "", car, car="30"),
+                             "12": Entry("12", "12", "", ("Rally|Number|12",))})
+    check("by_car keeps the best of a car, order kept", Mt.by_car([("30", .80), ("730", .79), ("12", .50)], mates),
+          [("30", .80), ("12", .50)])
+    check("a livery near-tie between car-mates names the car",
+          summary(Mt.match_livery(0, [("730", .80), ("30", .79), ("12", .50)], mates)), ("livery", "730", ""))
+    check("decided_by: car-mates don't eat the margin",
+          [round(x, 3) if isinstance(x, float) else x
+           for x in Mt.decided_by(Mt.BoxResult(0, "none"), [("30", .65), ("730", .64), ("12", .58)], mates)],
+          ["margin_too_small", 0.03])
+    check("already_tagged: a car's full tags name its first entry", Mt.already_tagged(set(car), mates), "30")
+    check("already_tagged: a car plus another driver is no one",
+          Mt.already_tagged(set(car) | {"F1|Ferrari|Hamilton"}, mates), "")
+
     check("conflict: a solo shot sharing no tag", Mt.conflicts("HAM", {"F1|Red Bull"}, ENTRIES, True), True)
     check("conflict: never in a pack", Mt.conflicts("HAM", {"F1|Red Bull"}, ENTRIES, False), False)
     check("conflict: nothing protected", Mt.conflicts("HAM", set(), ENTRIES, True), False)

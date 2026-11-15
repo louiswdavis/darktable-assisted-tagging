@@ -118,8 +118,8 @@ In order of payoff for effort:
 
 ## Which driver drove a double-driven car
 
-A double-driven car (30 and 730 at Rallye Prescott) is planned to get both entries' tags, since
-the car alone can't tell the drivers apart. Telling them apart takes the run order: each driver's
+A double-driven car (30 and 730 at Rallye Prescott) gets both entries' tags (entries.json `car`,
+or the importer's **Shares Car With** column), since the car alone can't tell the drivers apart. Telling them apart takes the run order: each driver's
 runs come at set points in the running order, so photo timestamps against the published order (or
 the gap between the two drivers' consecutive runs) could pick the driver. Needs a running-order
 input and per-event timing; aimed at shooters who deliver per-driver galleries.

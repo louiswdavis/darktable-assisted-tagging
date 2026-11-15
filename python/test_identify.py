@@ -154,6 +154,20 @@ def run_tests():
         [dict(LEC, tags=["Extra|Champion", "Motorsport|Team|Ferrari"])], settings=None))
     check("families: an extra that repeats a built tag is listed once", entries["12"].tags,
           ("Motorsport|Number|12", "Motorsport|Team|Ferrari", "Motorsport|Driver|Leclerc", "Extra|Champion"))
+    AMES, COLE = {"id": "30", "number": "30", "name": "Ames"}, {"id": "730", "number": "730", "name": "Cole", "car": "30"}
+    entries, _, _fe = I.load_collection(collection([AMES, COLE], settings=None))
+    union = ("Motorsport|Number|30", "Motorsport|Driver|Ames", "Motorsport|Number|730", "Motorsport|Driver|Cole")
+    check("car: both entries of a shared car get the union of tags, the named entry's first",
+          (entries["30"].tags, entries["730"].tags), (union, union))
+    check("car: both entries carry the named id", (entries["30"].car, entries["730"].car), ("30", "30"))
+    check("car: naming a missing id fails", load_error([AMES, dict(COLE, car="31")], settings=None),
+          'entry "730": car "31" is not an entry id')
+    check("car: naming itself fails", load_error([AMES, dict(COLE, car="730")], settings=None), 'entry "730": car names itself')
+    check("car: naming an entry that names a car fails",
+          load_error([dict(AMES, car="5"), {"id": "5", "number": "5"}, COLE], settings=None),
+          'entry "730": car "30" names another car itself; name the lower entry of the pair')
+    check("car: three entries in one car fail", load_error([AMES, COLE, {"id": "830", "number": "830", "car": "30"}], settings=None),
+          'entries "730" and "830" both share car "30"; a car has two entries at most')
     entries, rules, _fe = I.load_collection(collection([LEC], settings={"family_team": False}))
     check("families: team off drops the team tag", entries["12"].tags, ("Motorsport|Number|12", "Motorsport|Driver|Leclerc"))
     check("families: team off leaves it out of rules.families", "team" in rules.families, False)

@@ -207,6 +207,29 @@ def _load_rules(raw, bad) -> dict:
                 colour_palette=colour_palette)
 
 
+def _pair_cars(entries: dict, bad):
+    """Checks each `car` (an entry names the lower-numbered entry of the car it shares) and gives
+    both entries the union of their tags (the named entry's first) and `car` set to the named id."""
+    named: dict = {}
+    for e in entries.values():
+        if not e.car:
+            continue
+        if e.car == e.id:
+            raise bad(f'entry "{e.id}": car names itself')
+        if e.car not in entries:
+            raise bad(f'entry "{e.id}": car "{e.car}" is not an entry id')
+        if entries[e.car].car:
+            raise bad(f'entry "{e.id}": car "{e.car}" names another car itself; name the lower entry of the pair')
+        if e.car in named:
+            raise bad(f'entries "{named[e.car]}" and "{e.id}" both share car "{e.car}"; a car has two entries at most')
+        named[e.car] = e.id
+    for first_id, second_id in named.items():
+        first, second = entries[first_id], entries[second_id]
+        tags = first.tags + tuple(t for t in second.tags if t not in first.tags)
+        entries[first_id] = replace(first, tags=tags, car=first_id)
+        entries[second_id] = replace(second, tags=tags, car=first_id)
+
+
 def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
     """entries.json + settings.json → ({id: Entry} in file order, Rules, the settings keys that came from
     entries.json rules). The file is either a list of entries or {"rules": {...}, "entries": [...]}.
@@ -261,7 +284,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
             raise bad(f'entry "{eid}" appears twice')
         unknown = check_entry_fields(kind, item)
         if unknown:
-            fields = "id, tags" if kind == "people" else "id, number, team, name, tags, camera, colour"
+            fields = "id, tags" if kind == "people" else "id, number, team, name, tags, camera, colour, car"
             raise bad(f'entry "{eid}": unknown field "{unknown}" (fields are {fields})')
         if kind == "people":
             _check_tags(item.get("tags"), f'entry "{eid}": tags', bad)
@@ -284,11 +307,15 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         colours = [n for n, _ in rules.colour_palette] + [car_colour.MULTI]
         if colour != "" and colour not in colours:
             raise bad(f'entry "{eid}": colour "{colour}" is not one of {", ".join(colours)}')
-        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, rules.families, bad), camera, colour, name)
+        car = item.get("car", "")
+        if not isinstance(car, str):
+            raise bad(f'entry "{eid}": car must be the id of the entry sharing the car')
+        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, rules.families, bad), camera, colour, name, car)
     if kind == "people":
         if rules_raw is None:
             log("warning: entries.json has no rules block, so the face thresholds use defaults")
         return entries, rules, from_entries
+    _pair_cars(entries, bad)
     teams: dict = {}
     for e in entries.values():
         if e.team:

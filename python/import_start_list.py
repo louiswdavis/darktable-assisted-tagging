@@ -4,12 +4,13 @@
   python python/import_start_list.py COLLECTION_DIR --text PASTED.txt
 
 A CSV has a header row; MAP says which header holds which role, as `role=header` pairs joined
-by ";" (roles: number, driver, co-driver, team, class, make, model). A role left out of MAP is found by its
+by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car). A role left out of MAP is found by its
 usual names (ALIASES); only `number` is required. Pasted text (an entry list copied from a PDF)
 has one entry per line, number first, then "driver / co-driver"; lines without a leading number
 are skipped and counted. Each entry becomes {"id": number, "number": number, "name": "driver /
 co-driver", "team": team, "tags": ["Motorsport|Class|<class>", "Motorsport|Vehicle|<make>|<model>"]},
-with the empty fields left out; a model needs a make.
+with the empty fields left out; a model needs a make. A `shares-car` column names the other entry
+driving the same car; both rows must name each other, and the higher number gets `"car": "<lower id>"`.
 Numbers already in entries.json are skipped and listed, never overwritten. The previous file is
 kept as entries.json.bak. A file not in the one-entry-per-line layout is reflowed into it. Exit 2
 with a message on bad input."""
@@ -26,7 +27,7 @@ import sys
 from common import atomic_write
 from entries_file import dump
 
-ROLES = ("number", "driver", "co-driver", "team", "class", "make", "model")
+ROLES = ("number", "driver", "co-driver", "team", "class", "make", "model", "shares-car")
 ALIASES = {
     "number": ("number", "no", "no.", "#", "nr", "num", "car", "car no", "car no.", "car number", "start no", "start number"),
     "driver": ("driver", "name", "pilot", "driver name", "competitor"),
@@ -35,6 +36,7 @@ ALIASES = {
     "class": ("class", "category", "cat", "cat."),
     "make": ("make", "manufacturer"),
     "model": ("model",),
+    "shares-car": ("shares car with", "shares car", "shared car"),
 }
 _LINE = re.compile(r"^\s*#?(\d{1,3})(?!\d)[\s.:)\-–]*(.*?)\s*$")
 _BAD = re.compile(r'[,;"]')
@@ -142,7 +144,34 @@ def entries_from(rows: list) -> tuple:
         entries.append(entry)
     if not entries:
         raise BadInput("no entries found")
+    _pair_cars(entries, rows)
     return entries, cleaned
+
+
+def _pair_cars(entries: list, rows: list):
+    """Sets `car` on the higher number of each pair the shares-car column names. Both rows must
+    name each other; a partner that isn't a listed 1–3 digit number is BadInput."""
+    partner = {}
+    for entry, row in zip(entries, rows):
+        other = row.get("shares-car", "").strip().lstrip("#")
+        if not other:
+            continue
+        if not re.fullmatch(r"\d{1,3}", other):
+            raise BadInput(f'number {entry["number"]}: shares car with "{other}", which is not a 1–3 digit number')
+        if str(int(other)) == entry["number"]:
+            raise BadInput(f"number {other} shares a car with itself")
+        partner[entry["number"]] = str(int(other))
+    for number, other in partner.items():
+        if other not in partner:
+            listed = any(e["number"] == other for e in entries)
+            raise BadInput(f"number {number} shares a car with {other}, but {other} "
+                           + ("doesn't name it back" if listed else "is not in the list"))
+        if partner[other] != number:
+            raise BadInput(f"number {number} shares a car with {other}, but {other} names {partner[other]}")
+    for entry in entries:
+        other = partner.get(entry["number"])
+        if other and int(other) < int(entry["number"]):
+            entry["car"] = other
 
 
 def merge(collection_dir: str, entries: list) -> dict:
@@ -178,7 +207,7 @@ def main(argv=None):
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--csv", help="a start list with a header row")
     src.add_argument("--text", help="pasted lines, number first")
-    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model)')
+    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car)')
     args = parser.parse_args(argv)
     try:
         with open(args.csv or args.text, encoding="utf-8-sig", newline="") as f:
