@@ -59,6 +59,9 @@ MOVED_RULES = ("order_weight", "neighbour_tolerance", "min_read", "colour_weight
 
 # Settings that no longer exist -> the family setting that replaced each. A file still holding one stops the load.
 REMOVED_KEYS = {"colour_tags": "family_colour", "tag_colour": "family_colour", "tag_colour_name": "family_colour_root"}
+# Model-file settings the plugin now picks itself (README, "Models"). A blank value is ignored, so
+# files written before the change still load; a set one stops the load.
+MODEL_KEYS_GONE = ("embedder_file", "ocr_rec_file")
 
 
 class SettingsError(ValueError):
@@ -76,8 +79,6 @@ def _schema() -> tuple:
         Setting("run_tag", "bool", False),
         Setting("suggest_crops", "bool", False),
         Setting("quarantine", "bool", False),
-        Setting("embedder_file", "string", ""),
-        Setting("ocr_rec_file", "string", ""),
         Setting("order_weight", "number", 0, lo=0, hi=1),
         Setting("neighbour_tolerance", "number", 5, lo=0, integer=True),
         Setting("min_read", "number", 0.85, lo=0, hi=1),
@@ -200,12 +201,17 @@ def load_settings(collection_dir: str, rules_raw, log, path: str = "") -> tuple[
     A family root is only stripped here; families.resolve checks it.
 
     Returns (values, keys that came from rules_raw). Raises SettingsError for a key in REMOVED_KEYS,
-    in settings.json or as the old rules.colour_tags / rules.diagnostics.colour."""
+    in settings.json or as the old rules.colour_tags / rules.diagnostics.colour, and for a non-blank
+    key in MODEL_KEYS_GONE."""
     file_vals = _read_file(path or os.path.join(collection_dir, "settings.json"), log)
     for k, replacement in REMOVED_KEYS.items():
         if k in file_vals:
             raise _removed("settings.json", k, replacement)
-    diag = rules_raw.get("diagnostics") if isinstance(rules_raw, dict) else None
+    for k in MODEL_KEYS_GONE:
+        v = file_vals.get(k)
+        if not _blank(v.strip() if isinstance(v, str) else v):
+            raise SettingsError(f'settings.json: {k} was removed; the plugin picks the model now (README, "Models")')
+    diag =rules_raw.get("diagnostics") if isinstance(rules_raw, dict) else None
     if isinstance(rules_raw, dict) and "colour_tags" in rules_raw:
         raise _removed("entries.json", "rules.colour_tags", REMOVED_KEYS["colour_tags"])
     if isinstance(diag, dict) and "colour" in diag:

@@ -1011,8 +1011,6 @@ M.PRESET_SCHEMA = {
     { key = "run_tag", kind = "bool", default = false },
     { key = "suggest_crops", kind = "bool", default = false },
     { key = "quarantine", kind = "bool", default = false },
-    { key = "embedder_file", kind = "string", default = "" },
-    { key = "ocr_rec_file", kind = "string", default = "" },
     { key = "order_weight", kind = "number", default = 0 },
     { key = "neighbour_tolerance", kind = "number", default = 5 },
     { key = "min_read", kind = "number", default = 0.85 },
@@ -1078,6 +1076,9 @@ local REMOVED_SETTINGS = {
     { "tag_colour", "family_colour" },
     { "tag_colour_name", "family_colour_root" },
 }
+-- Model-file settings the plugin now picks itself (python/settings.py MODEL_KEYS_GONE).
+-- A blank value is ignored; a set one stops the run.
+local MODEL_SETTINGS_GONE = { "embedder_file", "ocr_rec_file" }
 
 -- Why decoded settings.json `s` can't be used: the first removed key it still holds, worded as
 -- identify.py words it. nil when it holds none.
@@ -1085,6 +1086,13 @@ function M.removed_settings(s)
     for _, pair in ipairs(REMOVED_SETTINGS) do
         if s[pair[1]] ~= nil then
             return string.format('settings.json: %s was removed; use %s (README, "Tag families")', pair[1], pair[2])
+        end
+    end
+    for _, key in ipairs(MODEL_SETTINGS_GONE) do
+        local v = s[key]
+        if type(v) == "string" then v = v:match("^%s*(.-)%s*$") end
+        if v ~= nil and v ~= "" then
+            return string.format('settings.json: %s was removed; the plugin picks the model now (README, "Models")', key)
         end
     end
     return nil
@@ -1299,7 +1307,7 @@ end
 M.PANEL_PAGES = {
     { number = 1, title = "collection", keys = {} },
     { number = 2, title = "bursts", keys = { "group_support", "group_node" } },
-    { number = 3, title = "matching", keys = { "use_hints", "embedder_file", "ocr_rec_file",
+    { number = 3, title = "matching", keys = { "use_hints",
         "neighbour_tolerance", "order_weight", "min_read", "colour_weight", "partial_references" } },
     { number = 4, title = "tags written", keys = tag_page_keys },
     { number = 5, title = "run", keys = { "run_tag" } },
@@ -1307,6 +1315,61 @@ M.PANEL_PAGES = {
 }
 -- settings.json only, no panel widget
 M.PANEL_OTHER_KEYS = { "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references" }
+
+-- Model files per job, best first; the last file is the base install (README, "Models").
+-- A run passes the first file present in models/ to identify.py. Listed in log order and
+-- also indexed by job name.
+M.MODEL_LISTS = {
+    { job = "vehicles", flag = "--detector", files = { "dfine_x_coco.onnx", "dfine_l_coco.onnx",
+        "rtdetr_v2_r50vd.onnx", "dfine_m_coco.onnx", "dfine_s_coco.onnx", "object_detection_yolox_2022nov.onnx" } },
+    { job = "segmenter", flag = "--segmenter", optional = true, files = {
+        "image_segmentation_efficientsam_ti_2025april.onnx" } },
+    { job = "text finder", flag = "--ocr-det", files = { "text_detection_en_ppocrv3_2023may.onnx" } },
+    { job = "number reader", flag = "--ocr-rec", files = { "PP-OCRv5_server_rec.onnx", "en_PP-OCRv5_mobile_rec.onnx",
+        "text_recognition_CRNN_EN_2021sep.onnx" } },
+    { job = "livery embedder", flag = "--embedder", files = { "dinov2_large.onnx", "dinov2_base.onnx", "dinov2_small.onnx" } },
+    { job = "face detector", flag = "--face-detector", optional = true, files = { "face_detection_yunet_2023mar.onnx" } },
+    { job = "face recognizer", flag = "--face-recognizer", optional = true, files = { "face_recognition_sface_2021dec.onnx" } },
+}
+for _, item in ipairs(M.MODEL_LISTS) do M.MODEL_LISTS[item.job] = item end
+
+-- Whether model file `path` for `job` can be used, `exists(path)` saying what is on disk.
+-- A PaddleOCR reader (any number reader but the CRNN) also needs its .yml beside it.
+function M.model_present(path, job, exists)
+    if not exists(path) then return false end
+    if job ~= "number reader" or path:match("text_recognition_CRNN[^/\\]*$") then return true end
+    return exists((path:gsub("%.onnx$", ".yml")))
+end
+
+-- The first file of `files` for which `present(file)` holds, or nil; and the files before it
+-- that are absent (all of them when none is present).
+function M.pick_model(files, present)
+    local missing = {}
+    for _, file in ipairs(files) do
+        if present(file) then return file, missing end
+        missing[#missing + 1] = file
+    end
+    return nil, missing
+end
+
+function M.pick_log_line(job, picked, missing_better)
+    local line = job .. ": " .. picked
+    if #missing_better > 0 then line = line .. " (better, not installed: " .. table.concat(missing_better, ", ") .. ")" end
+    return line
+end
+
+function M.missing_model_message(job, files)
+    return string.format('Assisted Tagging: no %s model in models/. Install %s (README, "Models").', job, files[#files])
+end
+
+-- One MODEL_LISTS item → { file = picked or nil, line = run-log line, err = message when a
+-- required job has nothing installed }.
+function M.model_choice(item, present)
+    local file, missing = M.pick_model(item.files, present)
+    if file then return { file = file, line = M.pick_log_line(item.job, file, missing) } end
+    if item.optional then return { line = item.job .. ": none installed" } end
+    return { line = item.job .. ": none installed", err = M.missing_model_message(item.job, item.files) }
+end
 
 local ok, dt = pcall(require, "darktable")
 if not ok then return M end
@@ -1357,16 +1420,6 @@ local LIB_KEY = C.library_key(dt)
 local LAST_RUN_DIR = dt.configuration.config_dir .. "/assisted_tagging/last-run"
 local RUNS_DIR = dt.configuration.config_dir .. "/assisted_tagging/runs"
 local DEFAULT_COLLECTIONS_ROOT = dt.configuration.config_dir .. "/assisted_tagging/collections"
-
-local MODEL_FILES = {
-    detector_model = "object_detection_yolox_2022nov.onnx",
-    ocr_detection_model = "text_detection_en_ppocrv3_2023may.onnx",
-    ocr_recognition_model = "en_PP-OCRv5_mobile_rec.onnx",  -- needs its .yml beside it
-    ocr_recognition_fallback = "text_recognition_CRNN_EN_2021sep.onnx",
-    embedder_model = "dinov2_small.onnx",
-    face_detector_model = "face_detection_yunet_2023mar.onnx",
-    face_recognizer_model = "face_recognition_sface_2021dec.onnx",
-}
 
 if dt.gui then
     C.register_shared_prefs(dt)
@@ -1462,13 +1515,6 @@ local function removed_setting()
     local text = f:read("a")
     f:close()
     return M.removed_settings(M.preset_decode(text) or {})
-end
-
-local function model_path(name, script)
-    local file = MODEL_FILES[name]
-    if name == "embedder_model" and settings.embedder_file ~= "" then file = settings.embedder_file end
-    if name == "ocr_recognition_model" and settings.ocr_rec_file ~= "" then file = settings.ocr_rec_file end
-    return plugin_root(script) .. "/models/" .. file
 end
 
 local function entries_json_path()
@@ -1695,30 +1741,19 @@ local function failure_message(code)
         tostring(code or "?"))
 end
 
--- The collection's reader when one is set; else PP-OCRv5, or the CRNN with one
--- warning when the v5 model or its .yml isn't in models/ (an older install).
-local function ocr_rec_path(script)
-    local path = model_path("ocr_recognition_model", script)
-    if settings.ocr_rec_file ~= "" then return path end
-    if file_exists(path) and file_exists((path:gsub("%.onnx$", ".yml"))) then return path end
-    local fallback = model_path("ocr_recognition_fallback", script)
-    log(string.format("number reader: %s or its .yml is missing from models/, using %s (see the README to download PP-OCRv5)",
-        MODEL_FILES.ocr_recognition_model, MODEL_FILES.ocr_recognition_fallback))
-    return fallback
-end
-
+-- The best installed model per job (M.MODEL_LISTS), one log line each. Raises before
+-- identify.py starts when a required job has nothing installed.
 local function model_args(script)
-    local args = {
-        "--detector", model_path("detector_model", script),
-        "--detections", C.detections_path(dt),
-        "--ocr-det", model_path("ocr_detection_model", script),
-        "--ocr-rec", ocr_rec_path(script),
-        "--embedder", model_path("embedder_model", script),
-    }
-    -- face models are optional: only people collections need them, so a missing file is left unset
-    for flag, name in pairs({ ["--face-detector"] = "face_detector_model", ["--face-recognizer"] = "face_recognizer_model" }) do
-        local path = model_path(name, script)
-        if file_exists(path) then args[#args + 1] = flag; args[#args + 1] = path end
+    local dir = plugin_root(script) .. "/models/"
+    local args = { "--detections", C.detections_path(dt) }
+    for _, item in ipairs(M.MODEL_LISTS) do
+        local choice = M.model_choice(item, function(file) return M.model_present(dir .. file, item.job, file_exists) end)
+        log(choice.line)
+        if choice.err then error(choice.err, 0) end
+        if choice.file then
+            args[#args + 1] = item.flag
+            args[#args + 1] = dir .. choice.file
+        end
     end
     return args
 end
@@ -3472,16 +3507,6 @@ local function install_panel()
         tooltip = _("Grouping tags only: the tag node whose children are the groups, e.g. Assisted Grouping|2026-01-01 12:00:00|Group. Blank uses the newest Assisted Grouping run on the selected photos.\nDefault: blank. Set it when the photos carry more than one grouping run."),
         text = "",
     }
-    local embedder_entry = dt.new_widget("entry") {
-        placeholder = _("embedder model file (blank = bundled)"),
-        tooltip = _("File name in the plugin's models/ folder used to compare liveries, e.g. dinov2_base.onnx. Changing it re-embeds every reference on the next run.\nDefault: blank (dinov2_small.onnx). Change it to try a larger model when liveries are confused."),
-        text = "",
-    }
-    local ocr_rec_entry = dt.new_widget("entry") {
-        placeholder = _("number reader model file (blank = bundled)"),
-        tooltip = _("File name in the plugin's models/ folder used to read race numbers, e.g. en_PP-OCRv5_mobile_rec.onnx. A PaddleOCR model needs its inference.yml beside it, renamed to the model's name with .yml. Changing it re-reads every photo on the next run.\nDefault: blank (en_PP-OCRv5_mobile_rec.onnx, or text_recognition_CRNN_EN_2021sep.onnx when the v5 files are missing). Type the CRNN name to go back to the older reader."),
-        text = "",
-    }
     local tolerance_entry = dt.new_widget("entry") {
         placeholder = _("blank = 5"),
         tooltip = _("The most places apart in the sorted number list a neighbouring car can be and still support a doubtful read. The collection's order_weight sets how much of it is used: a neighbour up to order_weight × (tolerance + 1) places away counts. A whole number, 0 or more. Only used when order_weight is above 0.\nDefault: 5. Lower it when cars pass in strict number order; raise it when the order is loose."),
@@ -3521,8 +3546,6 @@ local function install_panel()
         local s = {
             group_support = support_keys[group_support_combo.selected] or shown_support,
             group_node = trim(group_node_entry.text),
-            embedder_file = trim(embedder_entry.text),
-            ocr_rec_file = trim(ocr_rec_entry.text),
         }
         for _i, list in ipairs({ number_entries, name_entries }) do
             for _j, n in ipairs(list) do
@@ -3549,8 +3572,6 @@ local function install_panel()
             if key == s.group_support and group_support_combo.selected ~= i then group_support_combo.selected = i end
         end
         group_node_entry.text = s.group_node
-        embedder_entry.text = s.embedder_file
-        ocr_rec_entry.text = s.ocr_rec_file
         for _i, n in ipairs(number_entries) do n.entry.text = tostring(s[n.key]) end
         for _i, n in ipairs(name_entries) do n.entry.text = s[n.key] end
         for _i, key in ipairs(check_order) do checks[key].value = s[key] end
@@ -3591,10 +3612,6 @@ local function install_panel()
         },
         {
             use_hints_check,
-            dt.new_widget("label") { label = _("embedder model file"), halign = "start" },
-            embedder_entry,
-            dt.new_widget("label") { label = _("number reader model file"), halign = "start" },
-            ocr_rec_entry,
             dt.new_widget("label") { label = _("neighbour tolerance"), halign = "start" },
             tolerance_entry,
             dt.new_widget("label") { label = _("order weight"), halign = "start" },

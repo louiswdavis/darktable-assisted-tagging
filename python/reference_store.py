@@ -10,7 +10,7 @@ from PIL import Image
 
 from colour import COLOUR_DIM, colour_hist
 from common import atomic_write
-from embed import EMBED_DIM, degrade
+from embed import degrade
 from vehicles import log
 
 INDEX_NAME = "index.npz"
@@ -18,7 +18,7 @@ CENTRE_MIN_REFS = 20  # fewer references than this: their mean says too little, 
 
 
 class ReferenceIndex:
-    def __init__(self, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM,
+    def __init__(self, collection_dir: str, embedder, key, blur: bool = False, dim=None,
                  colour: bool = False):
         self.dir = collection_dir
         self.refs = os.path.join(collection_dir, "refs")
@@ -26,7 +26,7 @@ class ReferenceIndex:
         self.blur = blur
         self.key = json.dumps(key)
         self.colour = colour  # also keep each crop's colour histogram (see best_per_entry)
-        self.emb = np.zeros((0, dim), np.float32)
+        self.emb = np.zeros((0, embedder.dim if dim is None else dim), np.float32)
         self.hist = np.zeros((0, COLOUR_DIM), np.float32)
         self.entry: list = []
         self.path: list = []
@@ -35,9 +35,9 @@ class ReferenceIndex:
         self.replaced: dict = {}  # rel -> (crop bytes, entry, embedding, histogram) add() overwrote
 
     @classmethod
-    def load(cls, collection_dir: str, embedder, key, blur: bool = False, dim: int = EMBED_DIM,
+    def load(cls, collection_dir: str, embedder, key, blur: bool = False, dim=None,
              colour: bool = False, on_progress=None) -> "ReferenceIndex":
-        """on_progress(done, total) is called per reference embedded; returning False stops
+        """dim: embedding length; None reads embedder.dim. on_progress(done, total) is called per reference embedded; returning False stops
         embedding. The refs embedded so far are saved either way, so the next load carries on."""
         idx = cls(collection_dir, embedder, key, blur, dim, colour)
         stored = idx._read()

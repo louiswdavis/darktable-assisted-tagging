@@ -1064,7 +1064,8 @@ def open_index(collection: str, models: dict, rules: Rules, embedder, progress: 
         return ReferenceIndex.load(collection, embedder, face_model_key(models["face_det"], models["face_rec"]),
                                    dim=FACE_EMBED_DIM, on_progress=on_progress)
     return ReferenceIndex.load(collection, embedder, [embedder_key(models["embedder"]), rules.blur_references],
-                               rules.blur_references, colour=rules.colour_weight > 0, on_progress=on_progress)
+                               rules.blur_references, dim=embedder.dim, colour=rules.colour_weight > 0,
+                               on_progress=on_progress)
 
 
 def identify_people(args, models: dict, entries: dict, rules: Rules, from_entries: tuple, collection: str,

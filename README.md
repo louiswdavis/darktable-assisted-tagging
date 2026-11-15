@@ -56,7 +56,16 @@ python3 -m venv .venv
 
 ### 2. Models
 
-Download them into a `models` folder in the repo. The plugin looks there, `.gitignore` already skips `*.onnx` and `*.yml`, and `git pull` leaves them alone. From the repo root (Windows 10+ ships `curl`):
+Download them into a `models` folder in the repo. The plugin looks there, `.gitignore` already skips `*.onnx` and `*.yml`, and `git pull` leaves them alone.
+
+The plugin picks the model for each job itself. Each table below lists one job's files best first; the plugin uses the best one in `models/` and ignores the rest. The row marked `(base)` comes with the base install; a row below it is an older fallback. A job with none of its files installed stops the run with an error naming the file to get (the face models are the exception: only people collections need them).
+
+The run log names each pick, plus any better file you haven't installed, e.g. `vehicles: object_detection_yolox_2022nov.onnx (better, not installed: dfine_x_coco.onnx, …)`. Adding or removing a file changes the pick on the next run:
+
+- a new vehicle finder, text finder or number reader re-reads every photo once, because the model is part of the cache key
+- a new livery embedder re-embeds every reference before analysing (the progress bar counts the references; on a large collection this takes minutes, and a cancel keeps those already done)
+
+**Base install.** From the repo root (Windows 10+ ships `curl`):
 
 ```
 mkdir models
@@ -67,73 +76,79 @@ curl -L -o models/en_PP-OCRv5_mobile_rec.yml https://huggingface.co/PaddlePaddle
 curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2-small/resolve/main/onnx/model.onnx
 ```
 
-| File | Size | Job | Source, licence |
+The tables give the download for every other file. Save each under the name in the File column.
+
+#### Vehicles
+
+| File | Size | Download | Source, licence |
 |---|---|---|---|
-| `object_detection_yolox_2022nov.onnx` | 36 MB | finds the cars and bikes | OpenCV model zoo, Apache-2.0 |
-| `text_detection_en_ppocrv3_2023may.onnx` | 2.4 MB | finds text on each vehicle | OpenCV model zoo (PP-OCRv3), Apache-2.0 |
-| `en_PP-OCRv5_mobile_rec.onnx` + `.yml` | 7.9 MB | reads that text (the yml is its dictionary; the plugin treats a recogniser as PaddleOCR when the yml sits beside it under the same name) | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
-| `dinov2_small.onnx` | 89 MB | livery matching | DINOv2 ViT-S/14 via onnx-community, Apache-2.0 |
-| `dfine_s_coco.onnx` (optional) | 42 MB | a second vehicle detector, for `compare_detectors.py`; the plugin uses it only when `detector_model` in `MODEL_FILES` (`lua/assisted_tagging.lua`) names it | D-FINE-S COCO via onnx-community (`dfine_s_coco-ONNX`, `onnx/model.onnx`), Apache-2.0 |
+| `dfine_x_coco.onnx` | 251 MB | `https://huggingface.co/onnx-community/dfine_x_coco-ONNX/resolve/main/onnx/model.onnx` | D-FINE-X COCO via onnx-community, Apache-2.0 |
+| `dfine_l_coco.onnx` | 125 MB | `https://huggingface.co/onnx-community/dfine_l_coco-ONNX/resolve/main/onnx/model.onnx` | D-FINE-L COCO via onnx-community, Apache-2.0 |
+| `rtdetr_v2_r50vd.onnx` | 172 MB | `https://huggingface.co/onnx-community/rtdetr_v2_r50vd-ONNX/resolve/main/onnx/model.onnx` | RT-DETRv2 R50 via onnx-community, Apache-2.0 |
+| `dfine_m_coco.onnx` | 79 MB | `https://huggingface.co/onnx-community/dfine_m_coco-ONNX/resolve/main/onnx/model.onnx` | D-FINE-M COCO via onnx-community, Apache-2.0 |
+| `dfine_s_coco.onnx` | 42 MB | `https://huggingface.co/onnx-community/dfine_s_coco-ONNX/resolve/main/onnx/model.onnx` | D-FINE-S COCO via onnx-community, Apache-2.0 |
+| `object_detection_yolox_2022nov.onnx` (base) | 36 MB | base install above | OpenCV model zoo (YOLOX), Apache-2.0 |
 
-The first run after switching to a new reader re-reads every box, because the recogniser is part of the cache key. The run log's `number reader:` line names the recogniser in use.
-
-Optional models. The plugin works without them:
-
-- **Segmentation**, for pack shots with overlapping cars. With it in `models`, a box that overlaps another is read through a car-shaped mask, with the background and the neighbouring car painted grey.
-- **Larger livery embedder.** Not used unless you type `dinov2_base.onnx` into the collection's **embedder model file** option in the panel (and **update preset**); the next run then re-embeds every reference before analysing (the progress bar counts the references; on a large collection this takes minutes, and a cancel keeps those already done). Compare it first with `python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx --fresh-embed` (re-embeds the refs with that model in memory; `index.npz` is untouched).
+To compare two vehicle finders on your own photos (frames with a car, cars missed, boxes per frame, CPU ms per frame at three score thresholds, plus a CSV of the frames where they disagree on box count):
 
 ```
-curl -L -o models/image_segmentation_efficientsam_ti_2025april.onnx https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx
-curl -L -o models/dinov2_base.onnx https://huggingface.co/onnx-community/dinov2-base/resolve/main/onnx/model.onnx
-```
-
-| File | Size | Job | Source, licence |
-|---|---|---|---|
-| `image_segmentation_efficientsam_ti_2025april.onnx` | | outlines an overlapped car | OpenCV model zoo (EfficientSAM), Apache-2.0 |
-| `dinov2_base.onnx` | about 350 MB | livery matching, larger than `dinov2_small.onnx` | DINOv2 ViT-B/14 via onnx-community, Apache-2.0 |
-
-**Older number reader (CRNN).** The plugin's first recogniser, opencv_zoo's CRNN, still works: it reads grey crops at a smaller size and misses more numbers (on 202 rally photos it read a number on 45 vehicles where PP-OCRv5 read 76). An install without the v5 files falls back to it with one `number reader:` warning in the log, so an older setup keeps running:
-
-```
-curl -L -o models/text_recognition_CRNN_EN_2021sep.onnx https://github.com/opencv/opencv_zoo/raw/main/models/text_recognition_crnn/text_recognition_CRNN_EN_2021sep.onnx
-```
-
-| File | Size | Job | Source, licence |
-|---|---|---|---|
-| `text_recognition_CRNN_EN_2021sep.onnx` | 34 MB | reads the text, older than PP-OCRv5 | OpenCV model zoo (CRNN), Apache-2.0 |
-
-To compare the two on your own photos, print each vehicle's reads from both, with the ones that differ marked and a count of how many vehicles each got a number on:
-
-```
-python python/compare_ocr.py --rec models/text_recognition_CRNN_EN_2021sep.onnx --rec models/en_PP-OCRv5_mobile_rec.onnx --out compare.csv <a folder of photos>
-```
-
-To compare two vehicle detectors on your own photos (frames with a car, cars missed, boxes per frame, CPU ms per frame at three score thresholds, plus a CSV of the frames where they disagree on box count), download the candidate and run:
-
-```
-curl -L -o models/dfine_s_coco.onnx https://huggingface.co/onnx-community/dfine_s_coco-ONNX/resolve/main/onnx/model.onnx
 python python/compare_detectors.py --detector models/object_detection_yolox_2022nov.onnx --detector models/dfine_s_coco.onnx --truth results.csv --manifest manifest.csv --out compare_detectors.csv --disagree disagree.csv <a folder of photos>
 ```
 
 `--truth` is a tagging run's `results.csv` and `--manifest` its `id,filepath` manifest (both optional, both together): a frame with a box there counts as a frame with a car, and a detector that finds no box on it at a threshold has missed it. The markdown table it prints goes into `<plugins folder>/docs/superpowers/specs/backlog/darktable-plugins-tickets/13-detector-comparison.md`.
 
-To go back to the CRNN for a collection, type `text_recognition_CRNN_EN_2021sep.onnx` into its **number reader model file** option and **update preset**. A yml whose dictionary doesn't fit the model stops the run at the start with an error.
+#### Text finder
 
-**Audit references** (panel button, `python/audit_refs.py`) needs nothing beyond the packages in `requirements.txt` and the models above.
+| File | Size | Download | Source, licence |
+|---|---|---|---|
+| `text_detection_en_ppocrv3_2023may.onnx` (base) | 2.4 MB | base install above | OpenCV model zoo (PP-OCRv3), Apache-2.0 |
 
-People collections (`"kind": "people"` in entries.json) also need these two. Motorsport collections don't:
+#### Number reader
+
+A PaddleOCR reader needs its `.yml` (its dictionary) beside it under the same name; a yml whose dictionary doesn't fit the model stops the run at the start with an error.
+
+| File | Size | Download | Source, licence |
+|---|---|---|---|
+| `PP-OCRv5_server_rec.onnx` + `.yml` | 84.5 MB | `https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.onnx` and `…/inference.yml` | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
+| `en_PP-OCRv5_mobile_rec.onnx` + `.yml` (base) | 7.9 MB | base install above | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
+| `text_recognition_CRNN_EN_2021sep.onnx` | 34 MB | `https://github.com/opencv/opencv_zoo/raw/main/models/text_recognition_crnn/text_recognition_CRNN_EN_2021sep.onnx` | OpenCV model zoo (CRNN), Apache-2.0 |
+
+The CRNN is the plugin's first reader. It reads grey crops at a smaller size and misses more numbers (on 202 rally photos it read a number on 45 vehicles where PP-OCRv5 read 76), so the plugin uses it only when no v5 reader is installed. To compare readers on your own photos, print each vehicle's reads from both, with the ones that differ marked and a count of how many vehicles each got a number on:
 
 ```
-curl -L -o models/face_detection_yunet_2023mar.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
-curl -L -o models/face_recognition_sface_2021dec.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx
+python python/compare_ocr.py --rec models/text_recognition_CRNN_EN_2021sep.onnx --rec models/en_PP-OCRv5_mobile_rec.onnx --out compare.csv <a folder of photos>
 ```
 
-| File | Job | Source, licence |
-|---|---|---|
-| `face_detection_yunet_2023mar.onnx` | finds faces | OpenCV model zoo (YuNet), MIT |
-| `face_recognition_sface_2021dec.onnx` | turns each face into a 128-number fingerprint | OpenCV model zoo (SFace), Apache-2.0 |
+#### Livery embedder
+
+| File | Size | Download | Source, licence |
+|---|---|---|---|
+| `dinov2_large.onnx` | 1.22 GB | `https://huggingface.co/onnx-community/dinov2-large/resolve/main/onnx/model.onnx` | DINOv2 ViT-L/14 via onnx-community, Apache-2.0 |
+| `dinov2_base.onnx` | 347 MB | `https://huggingface.co/onnx-community/dinov2-base/resolve/main/onnx/model.onnx` | DINOv2 ViT-B/14 via onnx-community, Apache-2.0 |
+| `dinov2_small.onnx` (base) | 89 MB | base install above | DINOv2 ViT-S/14 via onnx-community, Apache-2.0 |
+
+Compare a larger embedder before installing it with `python python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx --fresh-embed` (re-embeds the refs with that model in memory; `index.npz` is untouched).
+
+#### Segmenter (optional)
+
+For pack shots with overlapping cars. With it in `models`, a box that overlaps another is read through a car-shaped mask, with the background and the neighbouring car painted grey. The plugin works without it.
+
+| File | Size | Download | Source, licence |
+|---|---|---|---|
+| `image_segmentation_efficientsam_ti_2025april.onnx` | | `https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx` | OpenCV model zoo (EfficientSAM), Apache-2.0 |
+
+#### Face detector and face recognizer (people collections only)
+
+People collections (`"kind": "people"` in entries.json) need these two. Motorsport collections don't:
+
+| File | Job | Download | Source, licence |
+|---|---|---|---|
+| `face_detection_yunet_2023mar.onnx` | finds faces | `https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx` | OpenCV model zoo (YuNet), MIT |
+| `face_recognition_sface_2021dec.onnx` | turns each face into a 128-number fingerprint | `https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx` | OpenCV model zoo (SFace), Apache-2.0 |
 
 A people entry has only `id` and `tags`; references are photos with exactly one face, so tag those photos by hand first. Choose `min_sim`, `margin` and `min_face_px` in `settings.json` with `python python/eval_people.py <collection> --face-detector … --face-recognizer …`.
+
+**Audit references** (panel button, `python/audit_refs.py`) needs nothing beyond the packages in `requirements.txt` and the models above.
 
 ### 3. darktable side
 
@@ -308,8 +323,6 @@ Every other setting lives in the collection's `settings.json`, beside `entries.j
 | `run_tag` | stamps every image a run writes with `Assisted Tagging\|Run\|YYYY-MM-DD HH:MM` | `true`, `false` | `false` | yes |
 | `suggest_crops` | **Audit references** suggests re-crops | `true`, `false` | `false` | yes |
 | `quarantine` | **Audit references** quarantines poor references | `true`, `false` | `false` | yes |
-| `embedder_file` | file name in `models/` used to compare liveries; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference | text | `""` | yes |
-| `ocr_rec_file` | file name in `models/` of the number reader; blank is PP-OCRv5, or the CRNN when the v5 files are missing. Changing it re-reads every photo | text | `""` | yes |
 | `order_weight` | how far the cars pass in number order: `0` is random (the neighbour aid is off), `1` is strictly in order. Above 0, groups shot just before and after a doubtful read help identify it, including unselected photos in the same film rolls already tagged with an entry; from `0.5` up an unsupported doubtful read is flagged *Check order*; see [How it works](#how-it-works) | number, 0 to 1 | `0` | yes |
 | `neighbour_tolerance` | the most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places) | whole number, 0 or more | `5` | yes |
 | `min_read` | how sure a number read must be to count. A read's confidence is the lower of two scores: how sure the text detector is that it found text, and how sure the reader is of its least certain digit. Raise it if plates or signs get read as numbers; lower it if clear numbers are missed | number, 0 to 1 | `0.85` | yes |
@@ -474,8 +487,6 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 ### 3 matching
 
 - **Use team tags as hints** (on by default). A team tag you applied narrows matching on a solo shot.
-- **embedder model file (blank = bundled)** (text field). File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference on the next run.
-- **number reader model file** (text field, blank = PP-OCRv5, or the CRNN when the v5 files are missing). File name in `models/` of the text recogniser, e.g. `text_recognition_CRNN_EN_2021sep.onnx` for the older reader (see [Models](#2-models)). Changing it re-reads every photo on the next run.
 - **order weight** (text field, default 0). `order_weight` in `settings.json`: a number from 0 to 1, where 0 turns the neighbour aid off. Anything else is refused.
 - **neighbour tolerance** (text field, default 5). The most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places). A whole number, 0 or more (anything else refuses the run). Only used when `order_weight` is above 0.
 
@@ -627,7 +638,7 @@ Editing a constant of a per-frame module (`vehicles.py`, `ocr.py`, `embed.py`, `
 - **The panel isn't there.** Start darktable with `-d lua` and look for `LUA ERROR` in the log. On Windows the log is `Documents\Darktable\darktable-log.txt`.
 - **Every run writes a log** to `assisted_tagging.log` in darktable's config directory (e.g. `%LOCALAPPDATA%\darktable` on Windows); the run before it is kept as `assisted_tagging.prev.log`. It has the exact command, the reference counts per entry, one line per vehicle with what was read and matched, and any per-image errors.
 - **"…/entries.json: …"** The run stopped on a mistake in that file; the message says which entry and what's wrong.
-- **"… model not found: …"** A model file is missing. Download it into `models/` (see [Install](#2-models)) or fix the collection's **embedder model file** option.
+- **"… model not found: …"** A model file is missing. Download it into `models/` (see [Install](#2-models)). A job with none of its files installed stops the run with `Assisted Tagging: no <job> model in models/. Install <file> (README, "Models").`
 - **"Python is missing a package."** `darktable-assisted-tagging/.venv` doesn't have `requirements.txt` installed; the log names the package.
 - **"no collections yet."** Create a folder with an `entries.json` in the collections folder the message names, then click **Reload**.
 - **Everything comes back `Unidentified`.** Check the log's `references:` line: an entry with 0 references can only be found by its number.

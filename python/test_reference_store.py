@@ -26,13 +26,14 @@ def check(name, got, want):
 class FakeEmbedder:
     """One-hot vector picked by the crop's mean brightness, counting its calls."""
 
-    def __init__(self):
+    def __init__(self, dim: int = 384):
         self.calls = 0
+        self.dim = dim
 
     def embed(self, crop):
         self.calls += 1
-        v = np.zeros(384, np.float32)
-        v[int(round(float(crop.mean()))) % 384] = 1.0
+        v = np.zeros(self.dim, np.float32)
+        v[int(round(float(crop.mean()))) % self.dim] = 1.0
         return v
 
 
@@ -170,6 +171,18 @@ def run_tests():
     check("all_sims gives one raw cosine per reference", sorted((e, round(s, 3)) for e, s in idx.all_sims(probe)),
           [("A", 0.0), ("A", 1.0), ("B", 1.0)])
     check("all_sims on an empty index", ReferenceIndex.load(tempfile.mkdtemp(), SmallEmbedder(), ["faces"], dim=128).all_sims(probe), [])
+
+    # the index re-embeds when the embedder size changes (small 384 -> base 768)
+    g = tempfile.mkdtemp()
+    small = ReferenceIndex.load(g, FakeEmbedder(384), ["K1", False])
+    small.add("A", "1", crop(10))
+    small.add("B", "2", crop(200))
+    small.save()
+    base = FakeEmbedder(768)
+    bigger = ReferenceIndex.load(g, base, ["K2", False], dim=base.dim)
+    check("a new embedder size re-embeds every reference", (base.calls, bigger.emb.shape), (2, (2, 768)))
+    check("an empty index takes the embedder's size", ReferenceIndex.load(tempfile.mkdtemp(), base, ["K2", False]).emb.shape,
+          (0, 768))
 
     print("")
     if failures == 0:

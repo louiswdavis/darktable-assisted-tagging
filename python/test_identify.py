@@ -436,6 +436,8 @@ def run_tests():
     }
 
     class FakeEmbedder:
+        dim = 384
+
         def __init__(self, path):
             pass
 

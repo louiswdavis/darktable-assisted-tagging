@@ -1,7 +1,8 @@
-"""DINOv2 ViT-S/14 image embeddings for livery matching."""
+"""DINOv2 image embeddings for livery matching (any size the plugin picks: small, base, large)."""
 
 import base64
 import os
+from functools import cached_property
 
 import numpy as np
 import cv2
@@ -9,7 +10,6 @@ import cv2
 from vehicle_detect import file_key
 
 EMBED_INPUT = 224
-EMBED_DIM = 384
 DEGRADE_FACTOR = 4  # how far a reference crop is downscaled-then-upscaled by degrade()
 _MEAN = np.array([0.485, 0.456, 0.406], np.float32)
 _STD = np.array([0.229, 0.224, 0.225], np.float32)
@@ -58,8 +58,18 @@ class Embedder:
         with open(model_path, "rb") as f:  # bytes, so a non-ASCII path can't trip a narrow-path API
             self.session = ort.InferenceSession(f.read(), opts, providers=["CPUExecutionProvider"])
 
+    @cached_property
+    def dim(self) -> int:
+        """Embedding length, read from the model (384 small, 768 base, 1024 large). An export that
+        leaves the hidden size symbolic is measured with one blank crop."""
+        out = next(o for o in self.session.get_outputs() if o.name == "last_hidden_state")
+        size = out.shape[-1]
+        if isinstance(size, int) and size > 0:
+            return size
+        return int(self.embed(np.zeros((EMBED_INPUT, EMBED_INPUT, 3), np.uint8)).shape[0])
+
     def embed(self, crop_rgb: np.ndarray) -> np.ndarray:
-        """Unit-length CLS feature, shape (EMBED_DIM,)."""
+        """Unit-length CLS feature, shape (dim,)."""
         hidden = self.session.run(["last_hidden_state"], {"pixel_values": preprocess(crop_rgb)})[0]
         vec = hidden[0, 0].astype(np.float32)
         return vec / max(float(np.linalg.norm(vec)), 1e-12)

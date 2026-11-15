@@ -251,6 +251,12 @@ do
         'settings.json: tag_colour was removed; use family_colour (README, "Tag families")')
     check("removed_settings: tag_colour_name", T.removed_settings({ tag_colour_name = "X" }),
         'settings.json: tag_colour_name was removed; use family_colour_root (README, "Tag families")')
+    check("removed_settings: set embedder_file stops", T.removed_settings({ embedder_file = "dinov2_base.onnx" }),
+        'settings.json: embedder_file was removed; the plugin picks the model now (README, "Models")')
+    check("removed_settings: set ocr_rec_file stops", T.removed_settings({ ocr_rec_file = "x.onnx" }),
+        'settings.json: ocr_rec_file was removed; the plugin picks the model now (README, "Models")')
+    check("removed_settings: blank model keys are ignored",
+        T.removed_settings({ embedder_file = "", ocr_rec_file = "  " }), nil)
 end
 
 -- wanted_tags ---------------------------------------------------------------
@@ -876,15 +882,15 @@ require("test_preset_block")(T, check)
 
 do
     local d = T.preset_defaults(T.PRESET_SCHEMA)
-    check("tagging schema has 50 keys", #T.PRESET_SCHEMA, 50)
+    check("tagging schema has 48 keys", #T.PRESET_SCHEMA, 48)
     check("colour keys default on", tostring(d.family_colour) .. tostring(d.tag_check_colour), "truetrue")
     for _, f in ipairs(T.FAMILIES) do
         check("family " .. f.key .. " defaults", tostring(d["family_" .. f.key]) .. " " .. d["family_" .. f.key .. "_root"],
             "true " .. f.default_root)
     end
     check("tagging defaults", table.concat({ tostring(d.use_hints), d.group_support, d.group_node,
-        tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine), d.embedder_file,
-        d.ocr_rec_file, tostring(d.neighbour_tolerance) }, " "), "true native  false false false   5")
+        tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine),
+        tostring(d.neighbour_tolerance) }, " "), "true native  false false false 5")
     local all_on = true
     for _, item in ipairs(T.PRESET_SCHEMA) do
         if item.key:match("^tag_") and item.kind == "bool" and d[item.key] ~= true then all_on = false end
@@ -968,6 +974,54 @@ do
     check("upgrade_settings_text: no-op when both present", tostring(same == both) .. tostring(none), "truenil")
     same, none = T.upgrade_settings_text("{ not json")
     check("upgrade_settings_text: no-op on text that is not JSON", tostring(same == "{ not json") .. tostring(none), "truenil")
+end
+
+do -- model auto-pick: first installed file on each job's best-first list
+    local function present_of(names)
+        local set = {}
+        for _, n in ipairs(names) do set[n] = true end
+        return function(file) return set[file] == true end
+    end
+    local picked, missing = T.pick_model({ "a", "b", "c" }, present_of({ "b", "c" }))
+    check("pick first present", picked .. " " .. table.concat(missing, ","), "b a")
+    picked, missing = T.pick_model({ "a", "b", "c" }, present_of({ "a", "b", "c" }))
+    check("pick best present", picked .. " " .. #missing, "a 0")
+    picked, missing = T.pick_model({ "a", "b", "c" }, present_of({}))
+    check("none present", tostring(picked) .. " " .. table.concat(missing, ","), "nil a,b,c")
+
+    local reader = T.MODEL_LISTS["number reader"]
+    local on_disk = present_of({ "m/en_PP-OCRv5_mobile_rec.onnx", "m/text_recognition_CRNN_EN_2021sep.onnx" })
+    picked = T.pick_model(reader.files, function(file) return T.model_present("m/" .. file, reader.job, on_disk) end)
+    check("paddle reader without yml is skipped", picked, "text_recognition_CRNN_EN_2021sep.onnx")
+    on_disk = present_of({ "m/en_PP-OCRv5_mobile_rec.onnx", "m/en_PP-OCRv5_mobile_rec.yml" })
+    picked = T.pick_model(reader.files, function(file) return T.model_present("m/" .. file, reader.job, on_disk) end)
+    check("paddle reader with yml is picked", picked, "en_PP-OCRv5_mobile_rec.onnx")
+
+    local choice = T.model_choice(T.MODEL_LISTS["segmenter"], present_of({}))
+    check("optional job with nothing installed picks nil",
+        tostring(choice.file) .. " " .. tostring(choice.err) .. " " .. choice.line, "nil nil segmenter: none installed")
+    choice = T.model_choice(T.MODEL_LISTS["face detector"], present_of({}))
+    check("face detector is optional", tostring(choice.file) .. " " .. tostring(choice.err), "nil nil")
+    choice = T.model_choice(reader, present_of({}))
+    check("required job with nothing installed is an error", choice.err, T.missing_model_message("number reader", reader.files))
+    check("missing base names the base file", T.missing_model_message("number reader", reader.files),
+        'Assisted Tagging: no number reader model in models/. Install text_recognition_CRNN_EN_2021sep.onnx (README, "Models").')
+
+    check("pick log line", T.pick_log_line("livery embedder", "dinov2_base.onnx", { "dinov2_large.onnx" }),
+        "livery embedder: dinov2_base.onnx (better, not installed: dinov2_large.onnx)")
+    check("pick log line, best installed", T.pick_log_line("livery embedder", "dinov2_large.onnx", {}),
+        "livery embedder: dinov2_large.onnx")
+
+    local jobs = {}
+    for _, item in ipairs(T.MODEL_LISTS) do jobs[#jobs + 1] = item.job end
+    check("model jobs in log order", table.concat(jobs, ","),
+        "vehicles,segmenter,text finder,number reader,livery embedder,face detector,face recognizer")
+    local bases = {}
+    for _, item in ipairs(T.MODEL_LISTS) do bases[#bases + 1] = item.files[#item.files] end
+    check("each list ends in today's file", table.concat(bases, ","),
+        "object_detection_yolox_2022nov.onnx,image_segmentation_efficientsam_ti_2025april.onnx,"
+        .. "text_detection_en_ppocrv3_2023may.onnx,text_recognition_CRNN_EN_2021sep.onnx,dinov2_small.onnx,"
+        .. "face_detection_yunet_2023mar.onnx,face_recognition_sface_2021dec.onnx")
 end
 
 print("")

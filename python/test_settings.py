@@ -46,7 +46,7 @@ def defaults_match_spec():
     check("default neighbour_tolerance", d["neighbour_tolerance"], 5)
     check("default tag_shot_name", d["tag_shot_name"], "Assisted Tagging|Identification|Shot")
     check("default tag_burst", d["tag_burst"] is True, True)
-    check("schema length", len(S.SETTINGS_SCHEMA), 8 + 11 + 21 + 8)
+    check("schema length", len(S.SETTINGS_SCHEMA), 6 + 11 + 21 + 8)
     check("family defaults", {k: v for k, v in d.items() if k.startswith("family_")}, {
         "family_colour": True, "family_colour_root": "Assisted Tagging|Colour",
         "family_number": True, "family_number_root": "Motorsport|Number",
@@ -72,6 +72,23 @@ def removed_keys_stop_the_load():
             msg = str(e)
         check(f"removed {key} in entries.json", msg,
               f'entries.json: {key} was removed; use {new} in settings.json (README, "Tag families")')
+
+
+def set_removed_model_key_stops():
+    for key in ("ocr_rec_file", "embedder_file"):
+        try:
+            load({key: "x.onnx"})
+            msg = "(no error)"
+        except S.SettingsError as e:
+            msg = str(e)
+        check(f"removed {key} set in settings.json", msg,
+              f'settings.json: {key} was removed; the plugin picks the model now (README, "Models")')
+
+
+def blank_removed_model_key_is_ignored():
+    v, fe, lines = load({"embedder_file": "", "ocr_rec_file": "  "})
+    check("blank removed model keys load", ("embedder_file" in v, "ocr_rec_file" in v), (False, False))
+    check("blank removed model keys log nothing", lines, [])
 
 
 def family_roots_are_only_stripped():
@@ -271,7 +288,8 @@ def lua_schema_parity():
     check("lua SETTING_RANGES name only number settings", sorted(set(lua_ranges) - set(py_ranges)), [])
 
 
-for t in (defaults_match_spec, removed_keys_stop_the_load, family_roots_are_only_stripped, file_wins_over_rules, rules_fallback_logs,
+for t in (defaults_match_spec, removed_keys_stop_the_load, set_removed_model_key_stops, blank_removed_model_key_is_ignored,
+          family_roots_are_only_stripped, file_wins_over_rules, rules_fallback_logs,
           invalid_file_value_logs_and_falls_through, blank_is_absent, bool_is_not_a_number,
           bom_accepted, non_object_file_counts_as_empty, diag_names_from_rules,
           empty_diag_turns_switch_off, unknown_diagnostic_logs, non_object_diagnostics_logs, shot_base_from_three_paths, diagnostics_of_shot_leaves,
