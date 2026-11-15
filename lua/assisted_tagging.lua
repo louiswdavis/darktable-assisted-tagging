@@ -3170,8 +3170,12 @@ local function install_panel()
     }
     local plan_button = dt.new_widget("button") {
         label = _("Show tag plan"),
-        tooltip = _("Write tag-plan.txt in the collection's folder: the exact tags every entry and outcome (team only, unidentified tags (yours), diagnostics) writes, from its entries.json"),
-        clicked_callback = function() reload_lists(false, true) end,
+        tooltip = _("Write tag-plan.txt in the collection's folder and open it: the exact tags every entry and outcome (team only, unidentified tags (yours), diagnostics) writes, from its entries.json"),
+        clicked_callback = function()
+            if reload_lists(false, true) and current_collection() ~= "" then
+                open_in_app(collections_root() .. "/" .. current_collection() .. "/tag-plan.txt")
+            end
+        end,
     }
     local open_entries_button = dt.new_widget("button") {
         label = _("Open entries.json"),
@@ -3196,11 +3200,31 @@ local function install_panel()
     local start_list_text = dt.new_widget("text_view") {
         editable = true,
         text = "",
-        tooltip = _("Or paste an entry list here, one entry per line, number first, e.g. 12 Smith / Jones. Pasted text is used instead of the chosen file."),
+        tooltip = _("Paste an entry list here, e.g. copied from a PDF: one entry per line, number first, e.g. 12 Smith / Jones. Lines without a leading number are skipped."),
     }
+    -- File / Paste tabs: a stack shows one source; the open tab's label starts with ●.
+    -- text_view has no placeholder, so the paste tab carries its hint as a label.
+    local start_list_stack = dt.new_widget("stack") {
+        dt.new_widget("box") { orientation = "vertical", start_list_file, start_list_columns },
+        dt.new_widget("box") {
+            orientation = "vertical",
+            dt.new_widget("label") { label = _("one entry per line, number first, e.g. 12 Smith / Jones"), halign = "start" },
+            start_list_text,
+        },
+    }
+    local start_list_tabs = {}
+    local function show_start_list_tab(index)
+        start_list_stack.active = index
+        start_list_tabs[1].label = (index == 1 and "● " or "○ ") .. _("CSV file")
+        start_list_tabs[2].label = (index == 2 and "● " or "○ ") .. _("paste text")
+    end
+    start_list_tabs[1] = dt.new_widget("button") { clicked_callback = function() show_start_list_tab(1) end }
+    start_list_tabs[2] = dt.new_widget("button") { clicked_callback = function() show_start_list_tab(2) end }
+    show_start_list_tab(1)
+    local start_list_tab_box = dt.new_widget("box") { orientation = "horizontal", start_list_tabs[1], start_list_tabs[2] }
     local import_start_list_button = dt.new_widget("button") {
         label = _("Import start list"),
-        tooltip = _("Add the CSV's or the pasted entries to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
+        tooltip = _("Add the open tab's entries (the CSV or the pasted text) to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
         clicked_callback = function()
             if busy or not orphan_gone() then
                 dt.print(_("Assisted Tagging: busy, try again when the current run finishes."))
@@ -3209,7 +3233,11 @@ local function install_panel()
             local script = identify_script()
             local argv = { plugin_root(script) .. "/python/import_start_list.py", collections_root() .. "/" .. current_collection() }
             local pasted = start_list_text.text or ""
-            if pasted:match("%S") then
+            if start_list_stack.active == 2 then
+                if not pasted:match("%S") then
+                    dt.print(_("Assisted Tagging: paste the entries first."))
+                    return
+                end
                 local path = TMP_DIR .. "/assisted_tagging_start_list.txt"
                 if not write_file_atomic(path, pasted) then
                     notify_error(_("Assisted Tagging: couldn't write the pasted list to darktable's tmp folder."))
@@ -3226,7 +3254,7 @@ local function install_panel()
                     argv[#argv + 1] = cols
                 end
             else
-                dt.print(_("Assisted Tagging: choose a start list CSV or paste the entries first."))
+                dt.print(_("Assisted Tagging: choose a start list CSV first."))
                 return
             end
             local cmd = command_line(python_bin(script), argv) .. " 2>&1"
@@ -3554,7 +3582,7 @@ local function install_panel()
     local page_widgets = {
         { plan_button,
           dt.new_widget("label") { label = _("start list"), halign = "start" },
-          start_list_file, start_list_columns, start_list_text, import_start_list_button,
+          start_list_tab_box, start_list_stack, import_start_list_button,
           find_button, found_title, found_box, add_found_button },
         {
             group_support_combo,
