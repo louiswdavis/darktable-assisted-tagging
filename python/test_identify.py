@@ -499,6 +499,33 @@ def run_tests():
           json.load(open(args.report_out + ".json", encoding="utf-8"))["summary"]["counts"]["already-tagged"]), (True, 1))
     args.report_out = ""
 
+    # ---- the 7th manifest field: the entry the user's own number or driver tag names
+    with open(manifest, "w", encoding="utf-8") as f:
+        f.write('"2","/x/2.jpg","5","F1|Red Bull","","","TSU"\n'
+                '"3","/x/3.jpg","7","","","",""\n'
+                '"8","/x/8.jpg","7","Motorsport|Number|22","","","TSU"\n'
+                '"4","/x/4.jpg","9","Motorsport|Number|22","","","TSU"\n'
+                '"9","/x/9.jpg","6","Motorsport|Number|22","","","TSU"\n')
+    args.boxes_out = ""
+    I.identify(args, {"embedder": "fake"})
+    rows = open(results, encoding="utf-8").read().splitlines()
+    check("a hand-tagged solo shot read as another car is a conflict, though the two share a team tag", rows[0],
+          "2,0,conflict,VER,,0.900,,solo,,,")
+    check("a hand-tagged frame anchors its burst alone", rows[1], "3,0,burst,TSU,,0.500,,solo,,,")
+    check("an unread box takes the hand-tagged entry", rows[2], "8,0,hand,TSU,,1.000,,solo,,,")
+    check("a frame with no vehicle takes the hand-tagged entry", rows[3], "4,-1,hand,TSU,,1.000,,,,,")
+    check("a pack keeps its boxes and gains the hand-tagged entry", rows[4:],
+          ["9,0,number,VER,,0.950,,pack,,,", "9,1,none,,,0.000,,pack,,,", "9,-1,hand,TSU,,1.000,,pack,,,"])
+    with open(manifest, "w", encoding="utf-8") as f:
+        f.write('"4","/x/4.jpg","9","Motorsport|Number|5","","","GONE"\n')
+    try:
+        I.identify(args, {"embedder": "fake"})
+        bad = "(no error)"
+    except I.InputError as e:
+        bad = str(e)
+    check("a hand entry that isn't in entries.json is an input error", bad,
+          "manifest: image 4 is hand-tagged as entry GONE, which is not in entries.json")
+
     # ---- --promote-boxes: saves confident boxes from the box crop, replaces on re-run, flags a changed file
     real_jpg = os.path.join(img, "promo.jpg")
     Image.new("RGB", (100, 50), (200, 30, 30)).save(real_jpg)

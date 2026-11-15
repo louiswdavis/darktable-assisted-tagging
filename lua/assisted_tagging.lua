@@ -262,7 +262,7 @@ function M.wanted_tags(rows, entries, rules)
         if r.shot and r.shot ~= "" then shot = r.shot end
         if r.method == "conflict" then
             held = true
-        elseif e and (r.method == "number" or r.method == "livery" or r.method == "burst" or r.method == "pooled" or r.method == "neighbour" or r.method == "face") then
+        elseif e and (r.method == "number" or r.method == "livery" or r.method == "burst" or r.method == "pooled" or r.method == "neighbour" or r.method == "face" or r.method == "hand") then
             for _, t in ipairs(e.tags) do wanted[t] = true end
             note(r.method)
             if r.order_flag then note("check_order") end
@@ -385,29 +385,62 @@ function M.owned_prefixes(rules)
     return out
 end
 
--- The colour the user set by hand: the suffix of the one tag under `base` that is in
--- `have` but not in `ledger_set` (the plugin's own). nil for none, several, or no base.
-function M.hand_colour(have, ledger_set, base)
-    if not base or base == "" then return nil end
-    local prefix, found, n = base .. "|", nil, 0
-    for name in pairs(have) do
-        if name:sub(1, #prefix) == prefix and not (ledger_set and ledger_set[name]) then
-            found, n = name:sub(#prefix + 1), n + 1
+-- The tags in `have` under any root in `roots` (family key → root) that are not in `ledger_set`
+-- (the plugin's own): family tags the user set by hand, which a run must never detach.
+function M.hand_family_tags(have, ledger_set, roots)
+    local out = {}
+    for _, root in pairs(roots or {}) do
+        if root ~= "" then
+            local prefix = root .. "|"
+            for name in pairs(have) do
+                if name:sub(1, #prefix) == prefix and not (ledger_set and ledger_set[name]) then out[name] = true end
+            end
         end
     end
-    return n == 1 and found or nil
+    return out
 end
 
--- The tags under `base` in `have` that are not in `ledger_set`: colours the user set by
--- hand, which a run must never detach. Empty for no base.
-function M.hand_colour_tags(have, ledger_set, base)
+-- The values the user set by hand under `root`, sorted. Empty for no root.
+local function hand_values(have, ledger_set, root)
     local out = {}
-    if not base or base == "" then return out end
-    local prefix = base .. "|"
-    for name in pairs(have) do
-        if name:sub(1, #prefix) == prefix and not (ledger_set and ledger_set[name]) then out[name] = true end
-    end
+    if not root or root == "" then return out end
+    for name in pairs(M.hand_family_tags(have, ledger_set, { root })) do out[#out + 1] = name:sub(#root + 2) end
+    table.sort(out)
     return out
+end
+
+-- The value the user set by hand under `root`: the suffix of the one tag there that is in
+-- `have` but not in `ledger_set`. nil for none, several, or no root.
+function M.hand_value(have, ledger_set, root)
+    local values = hand_values(have, ledger_set, root)
+    return #values == 1 and values[1] or nil
+end
+
+-- The entry the user's hand tags name: a number tag (`roots.number`|<n>) names the entry with that
+-- number, a driver tag (`roots.driver`|<name>) the entry with that name. A value two or more entries
+-- share names none of them by itself. Returns the id; or nil, "ambiguous" when the tags only
+-- narrow it to several entries; or nil, "disagree" when they name different entries. Team and
+-- colour tags never name an entry. `roots`: family key → root of the families switched on.
+function M.hand_entry(have, ledger_set, entries, roots)
+    local named, shared = {}, {}
+    for _, f in ipairs({ { root = roots.number, field = "number" }, { root = roots.driver, field = "name" } }) do
+        for _, value in ipairs(hand_values(have, ledger_set, f.root)) do
+            local ids = {}
+            for id, e in pairs(entries) do
+                if e[f.field] == value then ids[#ids + 1] = id end
+            end
+            if #ids == 1 then named[ids[1]] = true elseif #ids > 1 then shared[#shared + 1] = ids end
+        end
+    end
+    local id = next(named)
+    if not id then return nil, #shared > 0 and "ambiguous" or nil end
+    if next(named, id) then return nil, "disagree" end
+    for _, ids in ipairs(shared) do
+        local among = false
+        for _, other in ipairs(ids) do if other == id then among = true end end
+        if not among then return nil, "disagree" end
+    end
+    return id
 end
 
 -- have: an image's tag names (name → true). Returns the names to attach and to
@@ -568,8 +601,9 @@ function M.hand_diag_tags(have, ledger_set, rules)
 end
 
 -- Entry tags among `have` that the plugin didn't attach (not in `ledger_set`): the
--- user's own, which a run must never detach.
-function M.protected_tags(have, ledger_set, entries)
+-- user's own, which a run must never detach. With `roots` (family key → root), so is every
+-- hand tag under one of them, listed in an entry or not.
+function M.protected_tags(have, ledger_set, entries, roots)
     local in_entry = {}
     for _, e in pairs(entries) do
         for _, t in ipairs(e.tags) do in_entry[t] = true end
@@ -578,6 +612,7 @@ function M.protected_tags(have, ledger_set, entries)
     for name in pairs(have) do
         if in_entry[name] and not (ledger_set and ledger_set[name]) then out[name] = true end
     end
+    for name in pairs(M.hand_family_tags(have, ledger_set, roots)) do out[name] = true end
     return out
 end
 
@@ -1815,10 +1850,13 @@ local function prepare_run(images, replace_manual)
     -- Protection and hints read the entries loaded at the last Reload or run, so Reload after
     -- editing entries.json.
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
-    local protected_of, hints_of, sent_protected_of = {}, {}, {}
+    local protected_of, hints_of, sent_protected_of, hand_of = {}, {}, {}, {}
     local use_hints = settings.use_hints
     local named = M.named_rules(rules, settings)
-    local team_root = M.family_roots(settings).team
+    local on_roots = M.family_roots(settings)
+    local team_root = on_roots.team
+    -- the families whose hand tags name a car (M.hand_entry)
+    local naming_roots = { number = on_roots.number, driver = on_roots.driver }
     for _, copies in pairs(group_of) do
         for _, copy in ipairs(copies) do
             local have = tags_of(copy)
@@ -1835,10 +1873,14 @@ local function prepare_run(images, replace_manual)
             for name in pairs(protected_of[copy.id]) do
                 if use_hints or not hints_of[copy.id][name] then sent[name] = true end
             end
+            -- a hand number or driver tag is sent too, listed or not: a different reading is a conflict
+            hand_of[copy.id] = replace_manual and {} or M.hand_family_tags(have, kept, naming_roots)
+            for name in pairs(hand_of[copy.id]) do sent[name] = true end
             sent_protected_of[copy.id] = sent
             if not use_hints then hints_of[copy.id] = {} end
-            -- hand colour tags only stop a detach; sent to the identifier they'd read as entry tags
-            for name in pairs(replace_manual and {} or M.hand_colour_tags(have, kept, named.families.colour)) do
+            -- other hand family tags (colour, an unlisted team) only stop a detach; sent to the
+            -- identifier they'd read as entry tags
+            for name in pairs(replace_manual and {} or M.hand_family_tags(have, kept, named.families)) do
                 protected_of[copy.id][name] = true
             end
             -- likewise hand-applied diagnostic, unidentified and number-seen tags
@@ -1851,15 +1893,23 @@ local function prepare_run(images, replace_manual)
     local rows = {}
     for _, img in ipairs(primaries) do
         -- a hand tag on any copy (e.g. only the RAW) counts for the shot
-        local sent, hints = {}, {}
+        local sent, hints, hand = {}, {}, {}
         for _, copy in ipairs(group_of[img.id]) do
             for name in pairs(sent_protected_of[copy.id]) do sent[name] = true end
             for name in pairs(hints_of[copy.id]) do hints[name] = true end
+            for name in pairs(hand_of[copy.id]) do hand[name] = true end
+        end
+        local hand_id, why = M.hand_entry(hand, nil, entries, naming_roots)
+        if why then
+            log(string.format("%s: the tags you applied (%s) %s; no car is taken from them", img.filename,
+                table.concat(sorted_names(hand), "; "),
+                why == "ambiguous" and "fit more than one entry" or "name different entries"))
         end
         rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, burst_of[img.id],
                             table.concat(sorted_names(sent), ";"),
                             table.concat(sorted_names(hints), ";"),
-                            time_of[img.id] and tostring(time_of[img.id]) or "" }
+                            time_of[img.id] and tostring(time_of[img.id]) or "",
+                            hand_id or "" }
     end
     return { primaries = primaries, group_of = group_of, protected_of = protected_of, ledger = ledger,
              applying = false }, rows
@@ -2009,7 +2059,7 @@ local function apply_results(run, job)
     local tag_objs, writes, failed, first_error = {}, 0, 0, nil
     local n_tagged, n_unidentified, n_missing = 0, 0, 0
     local n_skipped, n_conflict = 0, 0
-    local by_method = { number = 0, livery = 0, burst = 0, team = 0, pooled = 0, face = 0, neighbour = 0 }
+    local by_method = { number = 0, livery = 0, burst = 0, team = 0, pooled = 0, face = 0, neighbour = 0, hand = 0 }
     local function tag_named(name)
         tag_objs[name] = tag_objs[name] or tags.create(name)
         return tag_objs[name]
@@ -2068,7 +2118,8 @@ local function apply_results(run, job)
 
     local parts = {}
     for _, m in ipairs({ { "number", "by number" }, { "livery", "by livery" }, { "burst", "by burst" }, { "neighbour", "by neighbour" },
-                         { "team", "team only" }, { "pooled", "by pooled burst" }, { "face", "by face" } }) do
+                         { "team", "team only" }, { "pooled", "by pooled burst" }, { "face", "by face" },
+                         { "hand", "by your tag" } }) do
         if by_method[m[1]] > 0 then parts[#parts + 1] = string.format("%d %s", by_method[m[1]], m[2]) end
     end
     local msg = string.format("Assisted Tagging: done. %d of %d images tagged", n_tagged, #primaries)
@@ -2107,8 +2158,14 @@ local function library_neighbour_rows(images)
         if not okr then log("couldn't read film roll " .. tostring(film.path) .. "; its photos lend no neighbour support") end
     end
     local rows = {}
+    local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
+    local on_roots = M.family_roots(settings)
+    local naming_roots = { number = on_roots.number, driver = on_roots.driver }
     for _, c in ipairs(M.near_in_time(times, pool, M.NEIGHBOUR_MAX_GAP_S)) do
-        local eid = M.entry_for_tags(tags_of(c.img), entries, entry_order)
+        local have = tags_of(c.img)
+        -- a photo carrying all of an entry's tags, or one the user's hand tag names
+        local eid = M.entry_for_tags(have, entries, entry_order)
+            or (M.hand_entry(have, ledger[c.img.id], entries, naming_roots))
         if eid then rows[#rows + 1] = { c.img.id, c.time, eid } end
     end
     return rows
@@ -2298,7 +2355,7 @@ function M.add_references(images, entry_id)
                 if not sent[src.id] then
                     sent[src.id] = true
                     rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid,
-                        M.hand_colour(tags_of(img), ledger[img.id], colour_base) or "" }
+                        M.hand_value(tags_of(img), ledger[img.id], colour_base) or "" }
                 end
             else
                 n_skipped = n_skipped + 1
@@ -2371,7 +2428,7 @@ function M.fill_entry_colours(images)
                 if not sent[src.id] then
                     sent[src.id] = true
                     rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid,
-                        M.hand_colour(tags_of(img), ledger[img.id], colour_base) or "" }
+                        M.hand_value(tags_of(img), ledger[img.id], colour_base) or "" }
                 end
             else
                 n_skipped = n_skipped + 1
@@ -2419,7 +2476,7 @@ function M.promote_references(images)
         local colour_base = M.family_roots(settings).colour
         for _, img in ipairs((with_paired_jpegs(images))) do
             rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, "",
-                M.hand_colour(tags_of(img), ledger[img.id], colour_base) or "" }
+                M.hand_value(tags_of(img), ledger[img.id], colour_base) or "" }
         end
         local results = run_reference_job(state, rows, { "--promote-boxes", "--boxes-in", boxes }, "saving vehicles as references")
         if not results then return end

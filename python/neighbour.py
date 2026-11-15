@@ -8,7 +8,7 @@ a loop (highest number, then lowest) is one step. Pure functions on plain data; 
 from dataclasses import replace
 
 from car_colour import colour_relation
-from match import IDENTIFIED, BoxResult, Entry, _one_confusion_apart
+from match import HAND, IDENTIFIED, BoxResult, Entry, _one_confusion_apart
 
 NEIGHBOUR_WINDOW = 3  # groups either side of a group that can lend support
 NEIGHBOUR_MAX_GAP_S = 20  # a neighbour shot further away than this (a stage break) is ignored
@@ -123,7 +123,7 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
     for fid in frames:
         members.setdefault(burst_of.get(fid, fid), []).append(fid)
     seen = {g: [(fid, r.box, r.entry_id) for fid in ids for r in frames[fid]
-                if r.method in IDENTIFIED and pos(r.entry_id) is not None]
+                if r.method in IDENTIFIED + (HAND,) and pos(r.entry_id) is not None]
             for g, ids in members.items()}
     gtimes = _group_times(frames, burst_of, times)
     ordered = sorted(gtimes, key=gtimes.get)

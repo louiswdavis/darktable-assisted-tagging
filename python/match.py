@@ -25,7 +25,8 @@ CONFUSABLE_DIGITS = {frozenset(p) for p in ("56", "17", "06", "08", "38", "35", 
 MISREAD_TOP_N = 3  # a misread number only backs an entry in the livery's own top N
 
 IDENTIFIED = ("number", "livery")
-BURST_ANCHORS = IDENTIFIED + ("neighbour",)  # results that can anchor a burst fill
+HAND = "hand"  # the entry the user's own number or driver tag names (the manifest's 7th field)
+BURST_ANCHORS = IDENTIFIED + ("neighbour", HAND)  # results that can anchor a burst fill
 
 
 @dataclass(frozen=True)
@@ -459,8 +460,8 @@ def _smooth_spikes(ids: list, frames: dict) -> dict:
 def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None, box0_sims: dict = None) -> dict:
     """frames: image id → [BoxResult]. A frame none of whose boxes was identified
     takes its burst's entry on its largest box when at least BURST_MIN_AGREE
-    frames agree on that entry (a number, livery or neighbour result), or one number read reaches
-    SOLO_ANCHOR_CONF, and no frame names another. With `entries`, a
+    frames agree on that entry (a number, livery, neighbour or hand result), or one number read reaches
+    SOLO_ANCHOR_CONF or one frame is hand-tagged, and no frame names another. With `entries`, a
     frame whose team-only result names another team is left alone: that's
     evidence of a different car. A burst that names several entries is split at the identity
     changes (see _split_burst) using `order` (image id → sort key, shooting order; default the
@@ -486,7 +487,7 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
         if len(agree) != 1:
             continue
         (eid, n), = agree.items()
-        solo = any(r.method == "number" and r.entry_id == eid and r.confidence >= SOLO_ANCHOR_CONF
+        solo = any(r.entry_id == eid and (r.method == HAND or r.method == "number" and r.confidence >= SOLO_ANCHOR_CONF)
                    for fid in ids for r in frames[fid])
         if n < BURST_MIN_AGREE and not solo:
             continue

@@ -512,17 +512,17 @@ do
     local has = false
     for _, p in ipairs(pre) do if p == CB .. "|" then has = true end end
     check("owned_prefixes includes the colour base", has, true)
-    check("hand_colour: one hand colour", T.hand_colour({ [CB .. "|Red"] = true }, {}, CB), "Red")
-    check("hand_colour: two colours", T.hand_colour({ [CB .. "|Red"] = true, [CB .. "|Blue"] = true }, {}, CB), nil)
-    check("hand_colour: ledgered tag", T.hand_colour({ [CB .. "|Red"] = true }, { [CB .. "|Red"] = true }, CB), nil)
-    check("hand_colour: empty base", T.hand_colour({ [CB .. "|Red"] = true }, {}, ""), nil)
+    check("hand_value: one hand colour", T.hand_value({ [CB .. "|Red"] = true }, {}, CB), "Red")
+    check("hand_value: two colours", T.hand_value({ [CB .. "|Red"] = true, [CB .. "|Blue"] = true }, {}, CB), nil)
+    check("hand_value: ledgered tag", T.hand_value({ [CB .. "|Red"] = true }, { [CB .. "|Red"] = true }, CB), nil)
+    check("hand_value: empty base", T.hand_value({ [CB .. "|Red"] = true }, {}, ""), nil)
     do
         local have = { [CB .. "|Red"] = true, [CB .. "|White"] = true }
         local ledger_set = { [CB .. "|White"] = true }
-        local prot = T.hand_colour_tags(have, ledger_set, CB)
+        local prot = T.hand_family_tags(have, ledger_set, { colour = CB })
         local _, detach = T.tag_changes(have, { [CB .. "|Blue"] = true }, {}, pre, prot, ledger_set)
         check("hand colour tag survives a Blue reading", table.concat(detach, ";"), CB .. "|White")
-        check("hand_colour_tags: empty base", next(T.hand_colour_tags(have, {}, "")), nil)
+        check("hand_family_tags: empty root", next(T.hand_family_tags(have, {}, { colour = "" })), nil)
     end
 end
 
@@ -606,6 +606,57 @@ local prot = T.protected_tags(
 check("protected: an entry tag not in the ledger is the user's", prot["F1|Red Bull"], true)
 check("protected: a ledgered tag is the plugin's", prot["F1|Red Bull|Verstappen"], nil)
 check("protected: a non-entry tag is ignored", prot["Holiday"], nil)
+
+-- hand tags that name an entry ---------------------------------------------------
+do
+    local he = T.parse_entries_csv(table.concat({
+        "NOR,McLaren,4,M|Number|4;M|Driver|Norris;M|Team|McLaren,Norris",
+        "PIA,McLaren,81,M|Number|81;M|Driver|Piastri;M|Team|McLaren,Piastri",
+        "SCH1,Haas,47,M|Number|47;M|Driver|Schumacher,Schumacher",
+        "SCH2,Prema,9,M|Number|9;M|Driver|Schumacher,Schumacher",
+    }, "\n"))
+    local roots = { number = "M|Number", driver = "M|Driver" }
+    local function hand(have, ledger_set)
+        local id, why = T.hand_entry(have, ledger_set or {}, he, roots)
+        return tostring(id) .. "," .. tostring(why)
+    end
+    -- test_hand_entry_number
+    check("hand_entry: a number tag names its entry", hand({ ["M|Number|4"] = true }), "NOR,nil")
+    -- test_hand_entry_driver
+    check("hand_entry: a driver tag names its entry", hand({ ["M|Driver|Piastri"] = true }), "PIA,nil")
+    check("hand_entry: number and driver of one entry agree", hand({ ["M|Number|4"] = true, ["M|Driver|Norris"] = true }), "NOR,nil")
+    -- test_hand_entry_ambiguous_driver
+    local shared = { ["M|Driver|Schumacher"] = true }
+    check("hand_entry: a shared driver name names no entry", hand(shared), "nil,ambiguous")
+    check("hand_entry: the shared name is still protected", T.protected_tags(shared, {}, he, roots)["M|Driver|Schumacher"], true)
+    check("hand_entry: a number settles a shared name", hand({ ["M|Driver|Schumacher"] = true, ["M|Number|47"] = true }), "SCH1,nil")
+    check("hand_entry: a number outside the shared name disagrees",
+        hand({ ["M|Driver|Schumacher"] = true, ["M|Number|4"] = true }), "nil,disagree")
+    -- test_hand_entry_disagreeing_tags
+    local both = { ["M|Number|4"] = true, ["M|Driver|Piastri"] = true }
+    check("hand_entry: tags naming two entries name none", hand(both), "nil,disagree")
+    local _, detach = T.tag_changes(both, {}, { ["M|Number|4"] = true, ["M|Driver|Piastri"] = true }, {},
+        T.protected_tags(both, {}, he, roots))
+    check("hand_entry: disagreeing tags are both kept", #detach, 0)
+    -- test_hand_entry_ledgered
+    check("hand_entry: a ledgered tag is the plugin's", hand({ ["M|Number|4"] = true }, { ["M|Number|4"] = true }), "nil,nil")
+    -- test_unlisted_hand_number_protected
+    local unlisted = { ["M|Number|88"] = true }
+    check("hand_entry: an unlisted number names no entry", hand(unlisted), "nil,nil")
+    check("protected: an unlisted hand number is kept", T.protected_tags(unlisted, {}, he, roots)["M|Number|88"], true)
+    check("protected: without roots only entry tags are", T.protected_tags(unlisted, {}, he)["M|Number|88"], nil)
+    check("protected: a ledgered unlisted number is the plugin's", T.protected_tags(unlisted, unlisted, he, roots)["M|Number|88"], nil)
+    -- test_hand_team_is_hint_only
+    local team = { ["M|Team|McLaren"] = true }
+    check("hand_entry: a team tag names no entry",
+        tostring((T.hand_entry(team, {}, he, { number = "M|Number", driver = "M|Driver", team = "M|Team" }))), "nil")
+    check("hint: the hand team tag still hints", T.hint_tags(team, {}, he, "M|Team")["M|Team|McLaren"], true)
+    -- test_wanted_tags_hand_row
+    local hw, hd, hok = T.wanted_tags({ { box = -1, method = "hand", entry_id = "NOR", alt_entry_id = "" } }, he)
+    check("a hand result wants the entry's tags", keys(hw), "M|Driver|Norris + M|Number|4 + M|Team|McLaren")
+    check("a hand result adds no diagnostic", keys(hd), "")
+    check("a hand result counts as identified", hok, true)
+end
 
 local hint_have = { ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true, ["F1|Ferrari"] = true, ["Holiday"] = true }
 local hint = T.hint_tags(hint_have, { ["F1|Ferrari"] = true }, entries, "F1")

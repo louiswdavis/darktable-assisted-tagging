@@ -39,7 +39,7 @@ import entries_file
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
-from match import (MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged,
+from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged,
                    burst_consensus, colour_check, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
@@ -721,7 +721,7 @@ def rescue_frames(rows: list, analyses: dict, models: dict, progress: str = "") 
     box when its crop looks like the mate's (rescue.py). Not cached: it depends on the burst."""
     bursts: dict = {}
     seen = set()
-    for _id, filepath, burst, *_rest, taken in rows:
+    for _id, filepath, burst, _protected, _hints, taken, *_rest in rows:
         if filepath in seen or filepath not in analyses:
             continue
         seen.add(filepath)
@@ -957,6 +957,29 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
     return results
 
 
+def with_hand_entries(frames: dict, hand_of: dict) -> dict:
+    """`frames` with each hand-tagged image's entry (`hand_of`: image id to entry id) as a `hand`
+    result. A frame with no vehicle takes it on its box -1 row. A solo shot takes it on its box when
+    the reader named no car, or only that car's team; a box read as another car is left for the
+    conflict check. A pack keeps its boxes and gains a box -1 row unless a box already names the entry."""
+    out = dict(frames)
+    for image_id, eid in hand_of.items():
+        results = frames[image_id]
+        if any(r.method in ("skipped", "error") for r in results):
+            continue
+        hand = BoxResult(-1, HAND, eid, confidence=1.0)
+        boxes = [r for r in results if r.box >= 0]
+        if not boxes:
+            out[image_id] = [hand]
+        elif len(boxes) == 1:
+            out[image_id] = [replace(r, method=HAND, entry_id=eid, alt_entry_id="", confidence=1.0)
+                             if r.box >= 0 and (r.method == "none" or r.method == "team" and eid in (r.entry_id, r.alt_entry_id))
+                             else r for r in results]
+        elif not any(r.entry_id == eid and r.method != "team" for r in boxes):
+            out[image_id] = results + [hand]
+    return out
+
+
 def write_results(path: str, frames: dict, shots: dict) -> dict:
     """Writes the results.csv rows atomically and logs the burst and conflict decisions; returns
     the count of vehicles per method."""
@@ -1082,7 +1105,7 @@ def identify(args, models: dict):
     embedder = check_models(models)
     if rules.kind == "people":
         return identify_people(args, models, entries, rules, from_entries, collection, embedder)
-    rows = read_manifest(args.manifest, 3, 3)
+    rows = read_manifest(args.manifest, 3, 4)
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     verify = getattr(args, "verify", False)
@@ -1090,6 +1113,11 @@ def identify(args, models: dict):
     # --verify checks the tags, so they must not steer the match.
     tag_hints_of = {r[0]: [] if verify else [t for t in r[4].split(";") if t] for r in rows}
     fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
+    # 7th column: the entry the user's hand number or driver tag names. --verify checks the tags instead.
+    for r in rows:
+        if r[6] and r[6] not in entries:
+            raise InputError(f"manifest: image {r[0]} is hand-tagged as entry {r[6]}, which is not in entries.json")
+    hand_of = {r[0]: r[6] for r in rows if r[6] and not verify and r[0] not in fully_tagged}
     index = open_index(collection, models, rules, embedder, args.progress)
     if cancel_requested(args.progress):
         log("cancelled")
@@ -1118,7 +1146,7 @@ def identify(args, models: dict):
 
     def match_all(analyses: dict, quiet: bool = False) -> tuple:
         frames, burst_of, box0_sims, detail = {}, {}, {}, {}
-        for image_id, filepath, burst, _protected, _hints, taken in rows:
+        for image_id, filepath, burst, _protected, _hints, taken, _hand in rows:
             burst_of[image_id] = burst
             detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst,
                                 "time": int(taken) if taken.isdigit() else None}
@@ -1161,6 +1189,11 @@ def identify(args, models: dict):
         frames = agreed
     if rules.burst_livery_pooling and not verify:
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
+    # before neighbour aid and burst consensus, so a hand-tagged frame supports the frames around it
+    frames = with_hand_entries(frames, hand_of)
+    for image_id, eid in hand_of.items():
+        if any(r.method == HAND for r in frames[image_id]):
+            log(f"{image_id}: {eid} by the tag you applied")
     shooting_order = {i: (d["time"] if d["time"] is not None else 0, d["file"]) for i, d in detail.items()}
     if not verify and rules.order_weight > 0:
         times = {i: d["time"] or 0 for i, d in detail.items()}
@@ -1203,13 +1236,15 @@ def identify(args, models: dict):
         frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims)
 
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
+    # A hand-tagged image's box naming another entry is one too, whatever tags the two entries share.
     shots = {}
     for image_id, results in frames.items():
         n_boxes = sum(1 for r in results if r.box >= 0)
         shots[image_id] = shot_type(n_boxes, MAX_BOXES)
         frames[image_id] = [replace(r, method="conflict") if r.entry_id and (
             disagrees(r, already_tagged(protected_of[image_id], entries), n_boxes == 1) if verify and image_id in fully_tagged
-            else conflicts(r.entry_id, protected_of[image_id], entries, n_boxes == 1)) else r for r in results]
+            else conflicts(r.entry_id, protected_of[image_id], entries, n_boxes == 1)
+            or image_id in hand_of and disagrees(r, hand_of[image_id], n_boxes == 1)) else r for r in results]
 
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:

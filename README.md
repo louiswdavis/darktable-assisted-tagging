@@ -416,6 +416,9 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 
 **Clear tagging marks** reads the same ledger, so hand-applied tags survive it even when they sit under the plugin's roots.
 
+- A **number or driver tag** you applied (such as `Motorsport|Number|4` or `Motorsport|Driver|Norris`; needs that family on) **identifies the car**: the run adds the entry's other tags and counts the image as *by your tag*. A solo shot read as a different car is held back as a conflict. A driver name two entries share, or tags naming two different entries, identify no car; the log says so and the tags stay.
+- A hand-tagged frame also supports its burst and the frames shot around it, like a confident number read.
+- Hand-applied family tags (number, driver, team, colour), listed in `entries.json` or not, are never removed unless **Replace manual tags** is ticked.
 - A **solo shot** whose result disagrees with the tags you applied is left as you had it: nothing is added, it doesn't get the *Unidentified* tags, and the done message counts it. Packs aren't checked, since you may have tagged just one of the cars.
 - A **team tag** you applied (an entry's Team family tag, such as `Motorsport|Team|Red Bull`; needs the Team family on) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car. Untick **Use team tags as hints** in the panel to ignore team tags instead: matching isn't narrowed, and a differing result is not held back as a conflict, so the run can override your team tag. The tag itself stays on the image beside whatever the run adds (tick **Replace manual tags** too to have the run overwrite it). Driver-level tags still protect their images either way.
 - An image already carrying all of one entry's tags is **skipped** without being analysed.
@@ -702,7 +705,7 @@ The pure-logic half of the plugin runs under any Lua 5.4 (`cd lua && lua test_as
 
 ### Running the identifier on its own
 
-`manifest.csv` is `id,filepath,burst_id` per line, with an optional fourth column, the `;`-joined entry tags the user applied by hand (an image carrying all of one entry's are skipped; a solo result sharing none of them is held back as `conflict`):
+`manifest.csv` is `id,filepath,burst_id` per line, with an optional fourth column, the `;`-joined entry tags the user applied by hand (an image carrying all of one entry's are skipped; a solo result sharing none of them is held back as `conflict`). Further optional columns: the fifth is the `;`-joined team tags used as hints, the sixth the capture time in seconds, the seventh the id of the entry the user's own number or driver tag names (results use the method `hand` for it):
 
 ```
 python python/identify.py manifest.csv results.csv --collections-root collections --collection "F1 2026" \

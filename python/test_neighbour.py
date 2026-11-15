@@ -202,6 +202,15 @@ def run_tests():
     check("consecutive rows of one entry form one group",
           [lb["lib:1"], lb["lib:2"], lb["lib:3"], lb["lib:4"]], ["lib:1", "lib:1", "lib:3", "lib:4"])
 
+    # A hand-tagged frame supports its neighbours like a number read, and is never re-resolved.
+    by_hand = BoxResult(0, "hand", "34", confidence=1.0)
+    frames, burst, times = shoot(by_hand, unmatched("36"), seen("37"))
+    out = N.neighbour_aid(frames, burst, times, E, 5, 1.0)
+    check("a hand result supports a doubtful read", (out["f1"][0].method, out["f1"][0].entry_id), ("neighbour", "35"))
+    check("a hand result is left as it is", out["f0"], [by_hand])
+    frames, burst, times = shoot(by_hand, unmatched("36"))
+    check("a hand result alone is support enough", N.neighbour_aid(frames, burst, times, E, 5, 1.0)["f1"][0].method, "neighbour")
+
     if failures == 0:
         print("all tests passed")
         sys.exit(0)
