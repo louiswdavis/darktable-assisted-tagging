@@ -81,6 +81,13 @@ function M.family_roots(s)
     return roots
 end
 
+-- The shell command that opens `path` in its associated app. `os_name`: darktable's running_os
+-- ("windows", "macos", anything else is treated as Linux).
+function M.open_command(path, os_name)
+    if os_name == "windows" then return 'start "" ' .. C.shell_quote((path:gsub("/", "\\")), true) end
+    return (os_name == "macos" and "open " or "xdg-open ") .. C.shell_quote(path, false)
+end
+
 function M.exif_time_to_epoch(s)
     if not s then return nil end
     local y, mo, d, h, mi, se = s:match("(%d+):(%d+):(%d+) (%d+):(%d+):(%d+)")
@@ -2791,7 +2798,7 @@ local function new_collection_path(raw_name)
     local dir = collections_root() .. "/" .. name
     if df.test_file(dir, "e") or file_exists(dir .. "/entries.json") then
         dt.print(string.format(_("Assisted Tagging: %s already exists. Pick a new name, or select it as "
-            .. "the collection and use Edit entries.json instead."), name))
+            .. "the collection and use Open entries.json instead."), name))
         return nil
     end
     return name, dir
@@ -2816,16 +2823,17 @@ end
 -- Opens a file in whatever app the OS has associated with it, so the user can
 -- read and edit entries.json without leaving darktable for a file manager.
 local function open_in_app(path)
-    if not file_exists(path) then
-        dt.print(string.format(_("Assisted Tagging: %s doesn't exist."), path))
-        return
-    end
+    local os_name = dt.configuration.running_os
+    local cmd = M.open_command(path, os_name)
+    -- cmd.exe strips the outer quotes of a quoted command line, so the whole thing gets one more pair
     if IS_WINDOWS then
-        os.execute(string.format('start "" "%s"', path:gsub("/", "\\")))
-    elseif dt.configuration.running_os == "macos" then
-        os.execute("open " .. shell_quote(path))
-    else
-        os.execute("xdg-open " .. shell_quote(path) .. " >/dev/null 2>&1 &")
+        cmd = '"' .. cmd .. '"'
+    elseif os_name ~= "macos" then
+        cmd = cmd .. " >/dev/null 2>&1 &"
+    end
+    log("open: " .. cmd)
+    if not file_exists(path) or not os.execute(cmd) then
+        notify_error(string.format(_("Assisted Tagging: Could not open %s"), path))
     end
 end
 
@@ -3113,64 +3121,10 @@ local function install_panel()
         tooltip = _("Write tag-plan.txt in the collection's folder: the exact tags every entry and outcome (team only, unidentified tags (yours), diagnostics) writes, from its entries.json"),
         clicked_callback = function() reload_lists(false, true) end,
     }
-    local entries_editor = dt.new_widget("text_view") {
-        editable = true,
-        text = "",
-    }
-    local save_entries_button, cancel_entries_button, editor_box, edit_button
-    local function close_entries_editor()
-        editor_box.visible = false
-        edit_button.label = _("Edit entries.json ▸")
-    end
-    save_entries_button = dt.new_widget("button") {
-        label = _("Save entries.json"),
-        tooltip = _("Write the edited text back to entries.json and reload"),
-        clicked_callback = function()
-            local path = entries_json_path()
-            local before = C.read_file_or_tmp(path)
-            if not write_file_atomic(path, entries_editor.text) then
-                notify_error(string.format(_("Assisted Tagging: couldn't write %s (check the collections folder preference)."), path))
-                return
-            end
-            -- --list reads the new file; if it doesn't load, the old file goes back and the
-            -- editor stays open with the text to fix
-            if reload_lists(false) then
-                close_entries_editor()
-            elseif before then
-                -- no dt.print here: it would replace reload_lists' message saying what's wrong
-                write_file_atomic(path, before)
-                log("entries.json edit didn't load; the previous file was put back and the editor left open")
-            end
-        end,
-    }
-    cancel_entries_button = dt.new_widget("button") {
-        label = _("Cancel edit"),
-        tooltip = _("Discard changes and close the editor"),
-        clicked_callback = close_entries_editor,
-    }
-    editor_box = dt.new_widget("box") {
-        orientation = "vertical",
-        visible = false,
-        entries_editor, save_entries_button, cancel_entries_button,
-    }
-    edit_button = dt.new_widget("button") {
-        label = _("Edit entries.json ▸"),
-        tooltip = _("Edit the selected collection's entries.json in place below, then click Save entries.json"),
-        clicked_callback = function()
-            if editor_box.visible then
-                close_entries_editor()
-                return
-            end
-            local path = entries_json_path()
-            local text = C.read_file_or_tmp(path)
-            if not text then
-                notify_error(string.format(_("Assisted Tagging: couldn't read %s."), path))
-                return
-            end
-            entries_editor.text = text
-            editor_box.visible = true
-            edit_button.label = _("Edit entries.json ▾")
-        end,
+    local open_entries_button = dt.new_widget("button") {
+        label = _("Open entries.json"),
+        tooltip = _("Open the selected collection's entries.json in the app your system uses for .json files. Save it there, then click Reload."),
+        clicked_callback = function() open_in_app(entries_json_path()) end,
     }
     local start_list_file = dt.new_widget("file_chooser_button") {
         title = _("Start list CSV"),
@@ -3575,11 +3529,10 @@ local function install_panel()
     for i, page in ipairs(M.PANEL_PAGES) do
         pages[i] = { number = page.number, title = _(page.title), widgets = page_widgets[i] }
     end
-    -- the entries.json editor sits in the top area, above the page buttons
+    -- Open entries.json sits in the top area, above the page buttons
     local collection_box = dt.new_widget("box") {
         orientation = "vertical",
-        edit_button,
-        editor_box,
+        open_entries_button,
         C.paged_sections("assisted_tagging", pages),
     }
 
@@ -3598,7 +3551,6 @@ local function install_panel()
         on_change = function(name, is_template)
             template_box.visible = is_template
             collection_box.visible = not is_template
-            close_entries_editor()
             clear_found()
             collection_loaded = false
             if is_template then

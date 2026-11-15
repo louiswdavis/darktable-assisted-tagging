@@ -118,6 +118,5 @@ In order of payoff for effort:
 
 ## Smaller known gaps
 
-- "Edit entries.json" button prints a mangled path instead of opening/editing the
-  file when `open_in_app` fails on Windows — consider an in-app darktable dialog
-  with a text-entry widget instead of relying on the OS file association.
+- "Open entries.json" on Windows: the `start` command now gets cmd.exe's outer quote
+  pair (the old mangled-path failure); confirm on the real pass, step 5.

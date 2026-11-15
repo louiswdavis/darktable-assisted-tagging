@@ -724,6 +724,12 @@ do
         '"number","115" / "field","12","name","Smith"')
 end
 
+-- test_open_command
+check("open_command: Windows", T.open_command("C:/My Photos/Rallye/entries.json", "windows"),
+    'start "" "C:\\My Photos\\Rallye\\entries.json"')
+check("open_command: macOS", T.open_command("/Users/me/My Photos/entries.json", "macos"), "open '/Users/me/My Photos/entries.json'")
+check("open_command: Linux", T.open_command("/home/me/My Photos/entries.json", "linux"), "xdg-open '/home/me/My Photos/entries.json'")
+
 local hint_have = { ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true, ["F1|Ferrari"] = true, ["Holiday"] = true }
 local hint = T.hint_tags(hint_have, { ["F1|Ferrari"] = true }, entries, "F1")
 check("hint: a user-applied team tag hints", hint["F1|Red Bull"], true)

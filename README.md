@@ -211,7 +211,7 @@ No tagged photos yet, or just want to see the shape of a working `entries.json`?
 2. Click **View example** to open its `entries.json` in your editor and read it, or
 3. type a name under **new collection** and click **From example** to copy it into a real collection.
 
-Either way, a created collection still needs its placeholder names replaced with your own competitors (and references added, for anything you want livery-matched) before it identifies anything correctly — click **Edit entries.json ▸** at the top of the panel at any time to open the *active* collection's file the same way.
+Either way, a created collection still needs its placeholder names replaced with your own competitors (and references added, for anything you want livery-matched) before it identifies anything correctly — click **Open entries.json** at the top of the panel at any time to open the *active* collection's file the same way.
 
 #### By hand
 
@@ -445,7 +445,7 @@ In Assisted Tagging each collection is a preset: the **preset** picker at the to
 
 ## Panel options
 
-At the top: the **preset** picker and **actions** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**. On a collection it shows **Edit entries.json ▸** (see [1 collection](#1-collection)), then the page buttons **1 collection ▸**, **2 bursts ▸**, **3 matching ▸**, **4 tags written ▸**, **5 run ▸** and **6 references ▸**: clicking one opens its contents below it (its label ends in **▾**) and folds the others; clicking the open one folds it. The open page is remembered across restarts. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
+At the top: the **preset** picker and **actions** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json`. On `template` the panel shows only **new collection**. On a collection it shows **Open entries.json** (see [1 collection](#1-collection)), then the page buttons **1 collection ▸**, **2 bursts ▸**, **3 matching ▸**, **4 tags written ▸**, **5 run ▸** and **6 references ▸**: clicking one opens its contents below it (its label ends in **▾**) and folds the others; clicking the open one folds it. The open page is remembered across restarts. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
 
 ### new collection
 
@@ -456,7 +456,7 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 ### 1 collection
 
 - **Show tag plan.** Writes `tag-plan.txt` (see [Checking what it will tag](#checking-what-it-will-tag)).
-- **Edit entries.json ▸.** A toggle in the top area, above the page buttons, so it shows whichever page is open. It opens the file in an editor below it, with **Save entries.json** and **Cancel edit**, and reads **▾** while open; clicking it again, saving, cancelling or switching collection closes it.
+- **Open entries.json.** In the top area, above the page buttons, so it shows whichever page is open. It opens the collection's `entries.json` in the app your system uses for `.json` files; save it there, then click **Reload**. If the file can't be opened, the message names its path.
 - **start list** → **Import start list.** Adds a start list to the collection's `entries.json` without typing the entries. Either choose a CSV with a header row (number, driver, co-driver, team, class; any other columns are ignored), or paste the text copied from a PDF entry list into the box, one entry per line with the number first (`12 Smith / Jones`); pasted text is used when both are given. The **columns** field maps a header to a role when its name isn't one of the usual ones, as `role=header` pairs: `number=Start No.; driver=Pilot`; only `number` is required. Each entry becomes `{"id": "<number>", "number": "<number>", "name": "<driver> / <co-driver>", "team": "<team>", "tags": ["Motorsport|Class|<class>"]}`, with the empty fields left out. Numbers already in the file are kept and listed in the message, the previous file is saved as `entries.json.bak`, and the lists reload. A file not in the one-entry-per-line layout is rewritten that way. Same thing from a shell: `python python/import_start_list.py <collection folder> --csv start.csv [--columns "number=No."]` or `--text pasted.txt`.
 - **Find new entries** → **Add ticked to entries.json.** Adds the cars and fields the photos show but `entries.json` lacks:
   1. Select photos and click **Find new entries**. It lists each number read (`Number seen`) or tagged by hand under the number root that no entry has, and each team or driver you tagged by hand on a photo whose number names an entry with that field empty, most photos first.
@@ -653,7 +653,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 **Setup**
 
 1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers`, `test_import_start_list` and `test_identify`.
-2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, **Edit entries.json ▸**, the page buttons *1 collection ▾* (open, its settings below it) to *6 references ▸*. No `LUA ERROR` in the darktable log.
+2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, **Open entries.json**, the page buttons *1 collection ▾* (open, its settings below it) to *6 references ▸*. No `LUA ERROR` in the darktable log.
 3. **A collection.** Set the plugins folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **preset** dropdown.
 
 **Grouping support** (one run per mode, on a selection holding a burst)
