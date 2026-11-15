@@ -48,12 +48,12 @@ def defaults_match_spec():
     check("default tag_burst", d["tag_burst"] is True, True)
     check("schema length", len(S.SETTINGS_SCHEMA), 6 + 11 + 21 + 12)
     check("family defaults", {k: v for k, v in d.items() if k.startswith("family_")}, {
-        "family_colour": True, "family_colour_root": "Assisted Tagging|Colour",
-        "family_number": True, "family_number_root": "Motorsport|Number",
-        "family_team": True, "family_team_root": "Motorsport|Team",
-        "family_driver": True, "family_driver_root": "Motorsport|Driver",
-        "family_extra": True, "family_extra_root": "Motorsport|Class",
-        "family_vehicle": True, "family_vehicle_root": "Motorsport|Vehicle"})
+        "family_colour": True, "family_colour_root": "Assisted Tagging|Motorsport|Colour",
+        "family_number": True, "family_number_root": "Assisted Tagging|Motorsport|Number",
+        "family_team": True, "family_team_root": "Assisted Tagging|Motorsport|Team",
+        "family_driver": True, "family_driver_root": "Assisted Tagging|Motorsport|Driver",
+        "family_extra": True, "family_extra_root": "Assisted Tagging|Motorsport|Class",
+        "family_vehicle": True, "family_vehicle_root": "Assisted Tagging|Motorsport|Vehicle"})
 
 
 def removed_keys_stop_the_load():
@@ -96,7 +96,7 @@ def blank_removed_model_key_is_ignored():
 def family_roots_are_only_stripped():
     v, fe, lines = load({"family_team_root": "  A|B  ", "family_number_root": "", "family_driver": False})
     check("family root stripped", v["family_team_root"], "A|B")
-    check("empty family root is the default", v["family_number_root"], "Motorsport|Number")
+    check("empty family root is the default", v["family_number_root"], "Assisted Tagging|Motorsport|Number")
     check("family switch read", v["family_driver"], False)
     check("family settings log nothing", lines, [])
 

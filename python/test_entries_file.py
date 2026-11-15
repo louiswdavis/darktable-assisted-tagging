@@ -163,6 +163,12 @@ def test_upgrade():
     check("upgrade: a vehicle tag deeper than make|model stops", raised(lambda: F.upgrade(deep)),
           'entry "A": tag "Motorsport|Vehicle|Ford|Escort|Mk2" is not Motorsport|Vehicle|<make>[|<model>]')
 
+    gt = write('[\n  { "id": "A", "tags": ["Motorsport|Class|GT|Pro"] }\n]\n')
+    before = read(gt)
+    check("upgrade: a class tag deeper than one level stops", raised(lambda: F.upgrade(gt)),
+          'entry "A": tag "Motorsport|Class|GT|Pro" is not Motorsport|Class|<class>')
+    check("upgrade: a deep class tag leaves the file", read(gt), before)
+
     # test_upgrade_crlf
     crlf = write('[\r\n  { "id": "A",\r\n    "tags": ["Motorsport|Class|A1"] }\r\n]\r\n')
     check("upgrade: CRLF kept, split entry reflowed", (F.upgrade(crlf), read(crlf)),

@@ -102,7 +102,10 @@ def _upgrade_entry(e: dict) -> bool:
         return False
     new = {}
     if "class" in found:
-        new["extra"] = found["class"][len(OLD_CLASS):]
+        value = found["class"][len(OLD_CLASS):]
+        if not value or "|" in value:
+            raise ValueError(f'entry "{eid}": tag "{found["class"]}" is not {OLD_CLASS}<class>')
+        new["extra"] = value
     if "vehicle" in found:
         parts = found["vehicle"][len(OLD_VEHICLE):].split("|")
         if len(parts) > 2 or not all(parts):

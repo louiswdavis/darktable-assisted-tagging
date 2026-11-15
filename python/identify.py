@@ -241,10 +241,10 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
 
     try:
         upgraded = entries_file.upgrade(path)
+    except (OSError, UnicodeDecodeError):  # before ValueError: UnicodeDecodeError is one
+        upgraded = 0  # the read below reports it
     except ValueError as e:
         raise bad(str(e))
-    except (OSError, UnicodeDecodeError):
-        upgraded = 0  # the read below reports it
     if upgraded:
         log(f"entries.json: {upgraded} entries upgraded (class, make/model → fields)")
     try:

@@ -18,12 +18,12 @@ class Family:
 
 
 FAMILIES = (
-    Family("colour", (), "Assisted Tagging|Colour"),
-    Family("number", ("number",), "Motorsport|Number"),
-    Family("team", ("team",), "Motorsport|Team"),
-    Family("driver", ("name",), "Motorsport|Driver"),
-    Family("extra", ("extra",), "Motorsport|Class"),
-    Family("vehicle", ("make", "model"), "Motorsport|Vehicle"),
+    Family("colour", (), "Assisted Tagging|Motorsport|Colour"),
+    Family("number", ("number",), "Assisted Tagging|Motorsport|Number"),
+    Family("team", ("team",), "Assisted Tagging|Motorsport|Team"),
+    Family("driver", ("name",), "Assisted Tagging|Motorsport|Driver"),
+    Family("extra", ("extra",), "Assisted Tagging|Motorsport|Class"),
+    Family("vehicle", ("make", "model"), "Assisted Tagging|Motorsport|Vehicle"),
 )
 
 

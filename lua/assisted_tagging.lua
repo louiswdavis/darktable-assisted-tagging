@@ -66,12 +66,12 @@ M.DIAG_TAGS = {
 -- (family_<key>_root) in the collection's settings. `sources` are the entry fields the value comes
 -- from, joined with |; {} = read from the photo. Mirrors FAMILIES in python/families.py (test_families.py checks).
 M.FAMILIES = {
-    { key = "colour", sources = {}, default_root = "Assisted Tagging|Colour" },
-    { key = "number", sources = { "number" }, default_root = "Motorsport|Number" },
-    { key = "team", sources = { "team" }, default_root = "Motorsport|Team" },
-    { key = "driver", sources = { "name" }, default_root = "Motorsport|Driver" },
-    { key = "extra", sources = { "extra" }, default_root = "Motorsport|Class" },
-    { key = "vehicle", sources = { "make", "model" }, default_root = "Motorsport|Vehicle" },
+    { key = "colour", sources = {}, default_root = "Assisted Tagging|Motorsport|Colour" },
+    { key = "number", sources = { "number" }, default_root = "Assisted Tagging|Motorsport|Number" },
+    { key = "team", sources = { "team" }, default_root = "Assisted Tagging|Motorsport|Team" },
+    { key = "driver", sources = { "name" }, default_root = "Assisted Tagging|Motorsport|Driver" },
+    { key = "extra", sources = { "extra" }, default_root = "Assisted Tagging|Motorsport|Class" },
+    { key = "vehicle", sources = { "make", "model" }, default_root = "Assisted Tagging|Motorsport|Vehicle" },
 }
 
 -- Family key → root for each family switched on in settings `s`.
@@ -1024,17 +1024,17 @@ M.PRESET_SCHEMA = {
     { key = "burst_livery_pooling", kind = "bool", default = false },
     { key = "blur_references", kind = "bool", default = false },
     { key = "family_colour", kind = "bool", default = true },
-    { key = "family_colour_root", kind = "string", default = "Assisted Tagging|Colour" },
+    { key = "family_colour_root", kind = "string", default = "Assisted Tagging|Motorsport|Colour" },
     { key = "family_number", kind = "bool", default = true },
-    { key = "family_number_root", kind = "string", default = "Motorsport|Number" },
+    { key = "family_number_root", kind = "string", default = "Assisted Tagging|Motorsport|Number" },
     { key = "family_team", kind = "bool", default = true },
-    { key = "family_team_root", kind = "string", default = "Motorsport|Team" },
+    { key = "family_team_root", kind = "string", default = "Assisted Tagging|Motorsport|Team" },
     { key = "family_driver", kind = "bool", default = true },
-    { key = "family_driver_root", kind = "string", default = "Motorsport|Driver" },
+    { key = "family_driver_root", kind = "string", default = "Assisted Tagging|Motorsport|Driver" },
     { key = "family_extra", kind = "bool", default = true },
-    { key = "family_extra_root", kind = "string", default = "Motorsport|Class" },
+    { key = "family_extra_root", kind = "string", default = "Assisted Tagging|Motorsport|Class" },
     { key = "family_vehicle", kind = "bool", default = true },
-    { key = "family_vehicle_root", kind = "string", default = "Motorsport|Vehicle" },
+    { key = "family_vehicle_root", kind = "string", default = "Assisted Tagging|Motorsport|Vehicle" },
     { key = "tag_number", kind = "bool", default = true },
     { key = "tag_number_name", kind = "string", default = "Assisted Tagging|Identification|By number" },
     { key = "tag_livery", kind = "bool", default = true },

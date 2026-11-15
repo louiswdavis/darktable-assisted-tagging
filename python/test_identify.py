@@ -41,8 +41,8 @@ TSU = {"id": "TSU", "number": 22, "team": "Red Bull", "tags": ["F1|Red Bull", "F
 # Only the team family is on, rooted at F1: VER and TSU build exactly the tags they list.
 FIXTURE_SETTINGS = {"family_colour": False, "family_number": False, "family_driver": False, "family_extra": False,
                     "family_vehicle": False, "family_team_root": "F1"}
-ALL_FAMILIES = {"colour": "Assisted Tagging|Colour", "number": "Motorsport|Number", "team": "Motorsport|Team",
-                "driver": "Motorsport|Driver", "extra": "Motorsport|Class", "vehicle": "Motorsport|Vehicle"}
+ALL_FAMILIES = {"colour": "Assisted Tagging|Motorsport|Colour", "number": "Assisted Tagging|Motorsport|Number", "team": "Assisted Tagging|Motorsport|Team",
+                "driver": "Assisted Tagging|Motorsport|Driver", "extra": "Assisted Tagging|Motorsport|Class", "vehicle": "Assisted Tagging|Motorsport|Vehicle"}
 
 
 def collection(data, root=None, settings=FIXTURE_SETTINGS) -> str:
@@ -148,16 +148,16 @@ def run_tests():
     entries, rules, _fe = I.load_collection(collection([LEC, dict(VER, name="Max")], settings=None))
     check("families: every family is on by default", rules.families, ALL_FAMILIES)
     check("families: number, team, then driver", entries["12"].tags,
-          ("Motorsport|Number|12", "Motorsport|Team|Ferrari", "Motorsport|Driver|Leclerc"))
+          ("Assisted Tagging|Motorsport|Number|12", "Assisted Tagging|Motorsport|Team|Ferrari", "Assisted Tagging|Motorsport|Driver|Leclerc"))
     check("families: the entry's own tags follow as extras", entries["VER"].tags,
-          ("Motorsport|Number|1", "Motorsport|Team|Red Bull", "Motorsport|Driver|Max", "F1|Red Bull", "F1|Red Bull|Verstappen"))
+          ("Assisted Tagging|Motorsport|Number|1", "Assisted Tagging|Motorsport|Team|Red Bull", "Assisted Tagging|Motorsport|Driver|Max", "F1|Red Bull", "F1|Red Bull|Verstappen"))
     entries, _, _fe = I.load_collection(collection(
-        [dict(LEC, tags=["Extra|Champion", "Motorsport|Team|Ferrari"])], settings=None))
+        [dict(LEC, tags=["Extra|Champion", "Assisted Tagging|Motorsport|Team|Ferrari"])], settings=None))
     check("families: an extra that repeats a built tag is listed once", entries["12"].tags,
-          ("Motorsport|Number|12", "Motorsport|Team|Ferrari", "Motorsport|Driver|Leclerc", "Extra|Champion"))
+          ("Assisted Tagging|Motorsport|Number|12", "Assisted Tagging|Motorsport|Team|Ferrari", "Assisted Tagging|Motorsport|Driver|Leclerc", "Extra|Champion"))
     AMES, COLE = {"id": "30", "number": "30", "name": "Ames"}, {"id": "730", "number": "730", "name": "Cole", "car": "30"}
     entries, _, _fe = I.load_collection(collection([AMES, COLE], settings=None))
-    union = ("Motorsport|Number|30", "Motorsport|Driver|Ames", "Motorsport|Number|730", "Motorsport|Driver|Cole")
+    union = ("Assisted Tagging|Motorsport|Number|30", "Assisted Tagging|Motorsport|Driver|Ames", "Assisted Tagging|Motorsport|Number|730", "Assisted Tagging|Motorsport|Driver|Cole")
     check("car: both entries of a shared car get the union of tags, the named entry's first",
           (entries["30"].tags, entries["730"].tags), (union, union))
     check("car: both entries carry the named id", (entries["30"].car, entries["730"].car), ("30", "30"))
@@ -170,7 +170,7 @@ def run_tests():
     check("car: three entries in one car fail", load_error([AMES, COLE, {"id": "830", "number": "830", "car": "30"}], settings=None),
           'entries "730" and "830" both share car "30"; a car has two entries at most')
     entries, rules, _fe = I.load_collection(collection([LEC], settings={"family_team": False}))
-    check("families: team off drops the team tag", entries["12"].tags, ("Motorsport|Number|12", "Motorsport|Driver|Leclerc"))
+    check("families: team off drops the team tag", entries["12"].tags, ("Assisted Tagging|Motorsport|Number|12", "Assisted Tagging|Motorsport|Driver|Leclerc"))
     check("families: team off leaves it out of rules.families", "team" in rules.families, False)
     entries, rules, _fe = I.load_collection(collection([LEC], settings={
         "family_number_root": "Rally|2026|Number", "family_team_root": "Rally|2026|Team", "family_driver": False,
@@ -178,7 +178,7 @@ def run_tests():
     check("families: roots come from settings.json", entries["12"].tags, ("Rally|2026|Number|12", "Rally|2026|Team|Ferrari"))
     check("families: the colour root is read", rules.families["colour"], "Rally|Colour")
     check("families: an empty root is the default",
-          I.load_collection(collection([LEC], settings={"family_team_root": ""}))[1].families["team"], "Motorsport|Team")
+          I.load_collection(collection([LEC], settings={"family_team_root": ""}))[1].families["team"], "Assisted Tagging|Motorsport|Team")
     check("families: a root of spaces names the setting", settings_error([LEC], {"family_team_root": "  "}),
           "settings.json: family_team_root is empty")
     check("families: an entry that builds no tag is rejected",
@@ -187,7 +187,7 @@ def run_tests():
     check("families: an entry with nothing at all is rejected", load_error([{"id": "X"}], None),
           'entry "X": builds no tag; turn on a family it has a value for, or give it tags')
     check("families: a numbers-only entry needs no tags", I.load_collection(
-        collection([{"id": "12", "number": "12"}], settings=None))[0]["12"].tags, ("Motorsport|Number|12",))
+        collection([{"id": "12", "number": "12"}], settings=None))[0]["12"].tags, ("Assisted Tagging|Motorsport|Number|12",))
     check("families: a root with a comma names the setting", settings_error([LEC], {"family_team_root": "A,B"}),
           'settings.json: family_team_root can\'t contain , ; or "')
     check("families: a root ending in | names the setting", settings_error([LEC], {"family_number_root": "F1|"}),
@@ -198,13 +198,13 @@ def run_tests():
           'each family needs its own root')
     check("families: a switched-off family's root isn't checked", I.load_collection(collection(
         [LEC], settings={"family_number_root": "Cars", "family_team_root": "Cars|Team", "family_team": False}))[0]["12"].tags,
-        ("Cars|12", "Motorsport|Driver|Leclerc"))
+        ("Cars|12", "Assisted Tagging|Motorsport|Driver|Leclerc"))
     ESC = {"id": "7", "number": "7", "extra": "A1", "make": "Ford", "model": "Escort"}
     check("vehicle: make+model, extra: class", I.load_collection(collection([ESC], settings=None))[0]["7"].tags,
-          ("Motorsport|Number|7", "Motorsport|Class|A1", "Motorsport|Vehicle|Ford|Escort"))
+          ("Assisted Tagging|Motorsport|Number|7", "Assisted Tagging|Motorsport|Class|A1", "Assisted Tagging|Motorsport|Vehicle|Ford|Escort"))
     check("vehicle: make only", I.load_collection(collection(
         [{"id": "7", "number": "7", "make": "Ford"}], settings=None))[0]["7"].tags,
-          ("Motorsport|Number|7", "Motorsport|Vehicle|Ford"))
+          ("Assisted Tagging|Motorsport|Number|7", "Assisted Tagging|Motorsport|Vehicle|Ford"))
     check("vehicle: model without make", load_error([{"id": "7", "number": "7", "model": "Escort"}], None),
           'entry "7": model Escort has no make')
     check("vehicle: make with | rejected", load_error([dict(ESC, make="Ford|Escort", model="")], None),
@@ -212,21 +212,30 @@ def run_tests():
     check("extra: not text rejected", load_error([dict(ESC, extra=1)], None),
           'entry "7": extra must be text without , ; " or |')
     check("families: vehicle off, no vehicle tag", I.load_collection(collection(
-        [ESC], settings={"family_vehicle": False}))[0]["7"].tags, ("Motorsport|Number|7", "Motorsport|Class|A1"))
+        [ESC], settings={"family_vehicle": False}))[0]["7"].tags, ("Assisted Tagging|Motorsport|Number|7", "Assisted Tagging|Motorsport|Class|A1"))
     check("vehicle: custom root", I.load_collection(collection(
         [ESC], settings={"family_vehicle_root": "Cars"}))[0]["7"].tags,
-          ("Motorsport|Number|7", "Motorsport|Class|A1", "Cars|Ford|Escort"))
+          ("Assisted Tagging|Motorsport|Number|7", "Assisted Tagging|Motorsport|Class|A1", "Cars|Ford|Escort"))
     old = {"id": "7", "number": "7", "tags": ["Motorsport|Vehicle|Ford|Escort"]}
     old_dir = collection([old], settings=None)
     check("load: old vehicle tag upgraded", I.load_collection(old_dir)[0]["7"].tags,
-          ("Motorsport|Number|7", "Motorsport|Vehicle|Ford|Escort"))
+          ("Assisted Tagging|Motorsport|Number|7", "Assisted Tagging|Motorsport|Vehicle|Ford|Escort"))
     with open(os.path.join(old_dir, "entries.json"), encoding="utf-8") as f:
         check("load: the upgraded file holds make and model", json.load(f),
               [{"id": "7", "number": "7", "make": "Ford", "model": "Escort"}])
     check("load: an upgraded vehicle follows the configured root", I.load_collection(collection(
-        [old], settings={"family_vehicle_root": "Cars"}))[0]["7"].tags, ("Motorsport|Number|7", "Cars|Ford|Escort"))
+        [old], settings={"family_vehicle_root": "Cars"}))[0]["7"].tags, ("Assisted Tagging|Motorsport|Number|7", "Cars|Ford|Escort"))
     check("load: an upgrade conflict names the entry", load_error([dict(old, make="Opel")], None),
           'entry "7": make "Opel" disagrees with tag "Motorsport|Vehicle|Ford|Escort"')
+    latin = collection('', settings=None)
+    with open(os.path.join(latin, "entries.json"), "wb") as f:
+        f.write('[{"id": "7", "number": "7", "name": "José"}]'.encode("latin-1"))
+    try:
+        I.load_collection(latin)
+        latin_msg = "(no error)"
+    except I.InputError as e:
+        latin_msg = str(e)
+    check("load: a non-UTF-8 file still says not valid JSON", "not valid JSON" in latin_msg, True)
     only_new = {"family_colour": False, "family_number": False, "family_team": False, "family_driver": False}
     check("families: extra only, entry without extra builds no tag",
           load_error([{"id": "12", "number": "12"}], only_new),
@@ -254,12 +263,12 @@ def run_tests():
     I.write_rules_csv(d_rules, (), d_csv)
     d_lines = open(d_csv, encoding="utf-8").read().splitlines()
     check("family_colour off: rules.csv has no family_colour line", [x for x in d_lines if x.startswith("family_colour,")], [])
-    check("family_colour off: the other families are still written", "family_team,Motorsport|Team" in d_lines, True)
+    check("family_colour off: the other families are still written", "family_team,Assisted Tagging|Motorsport|Team" in d_lines, True)
     check("no diag_colour line is written", [x for x in d_lines if x.startswith("diag_colour,")], [])
     on_rules = I.load_collection(collection([VER], settings=None))[1]
     I.write_rules_csv(on_rules, (), d_csv)
     check("the colour family is on by default: rules.csv has its root",
-          "family_colour,Assisted Tagging|Colour" in open(d_csv, encoding="utf-8").read().splitlines(), True)
+          "family_colour,Assisted Tagging|Motorsport|Colour" in open(d_csv, encoding="utf-8").read().splitlines(), True)
     for old, new in (("colour_tags", "family_colour"), ("tag_colour", "family_colour"), ("tag_colour_name", "family_colour_root")):
         check(f"settings.json: removed {old} stops the load", settings_error([VER], {old: True}),
               f'settings.json: {old} was removed; use {new} (README, "Tag families")')
@@ -552,9 +561,9 @@ def run_tests():
     with open(manifest, "w", encoding="utf-8") as f:
         f.write('"2","/x/2.jpg","5","F1|Red Bull","","","TSU"\n'
                 '"3","/x/3.jpg","7","","","",""\n'
-                '"8","/x/8.jpg","7","Motorsport|Number|22","","","TSU"\n'
-                '"4","/x/4.jpg","9","Motorsport|Number|22","","","TSU"\n'
-                '"9","/x/9.jpg","6","Motorsport|Number|22","","","TSU"\n')
+                '"8","/x/8.jpg","7","Assisted Tagging|Motorsport|Number|22","","","TSU"\n'
+                '"4","/x/4.jpg","9","Assisted Tagging|Motorsport|Number|22","","","TSU"\n'
+                '"9","/x/9.jpg","6","Assisted Tagging|Motorsport|Number|22","","","TSU"\n')
     args.boxes_out = ""
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
@@ -566,7 +575,7 @@ def run_tests():
     check("a pack keeps its boxes and gains the hand-tagged entry", rows[4:],
           ["9,0,number,VER,,0.950,,pack,,,", "9,1,none,,,0.000,,pack,,,", "9,-1,hand,TSU,,1.000,,pack,,,"])
     with open(manifest, "w", encoding="utf-8") as f:
-        f.write('"4","/x/4.jpg","9","Motorsport|Number|5","","","GONE"\n')
+        f.write('"4","/x/4.jpg","9","Assisted Tagging|Motorsport|Number|5","","","GONE"\n')
     lines = []
     real_log, I.log = I.log, lines.append
     try:

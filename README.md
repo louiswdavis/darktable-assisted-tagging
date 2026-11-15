@@ -5,7 +5,7 @@ A tagging assistant for [darktable](https://www.darktable.org/) that recognises 
 - **read its race number** and look it up in your entry list
 - if the number isn't readable, **match its livery** against reference samples you picked
 - if that's still unclear, **borrow the answer from the rest of its group** (a darktable group or an Assisted Grouping tag group, see [Grouping support](#grouping-support))
-- tag the image with that entry's tags, e.g. `Motorsport|Team|Red Bull` and `Motorsport|Driver|Max Verstappen`
+- tag the image with that entry's tags, e.g. `Assisted Tagging|Motorsport|Team|Red Bull` and `Assisted Tagging|Motorsport|Driver|Max Verstappen`
 
 Teammates in identical liveries that it can't tell apart get only their shared team tag, never a guessed driver. Everything runs locally: a Lua plugin inside darktable and a Python identifier it shells out to. No API keys, no cloud. It only adds and removes tags from your entry list and its own `Assisted Tagging|…` tags; your other tags, ratings and colour labels are never touched.
 
@@ -246,7 +246,7 @@ Write `entries.json` yourself for more control than tags alone give you: a race 
 }
 ```
 
-Here VER gets `Motorsport|Number|1`, `Motorsport|Team|Red Bull` and `Motorsport|Driver|Max Verstappen`, and SAFETY gets `Motorsport|Driver|Safety Car`: one tag per [tag family](#tag-families) the entry has a value for. Add a `tags` list to an entry for extra tags on top.
+Here VER gets `Assisted Tagging|Motorsport|Number|1`, `Assisted Tagging|Motorsport|Team|Red Bull` and `Assisted Tagging|Motorsport|Driver|Max Verstappen`, and SAFETY gets `Assisted Tagging|Motorsport|Driver|Safety Car`: one tag per [tag family](#tag-families) the entry has a value for. Add a `tags` list to an entry for extra tags on top.
 
 A file that's just the `[ … ]` list of entries works too, with the default rules — this is the shape **new collection → From tagged images** writes, each entry with its tags in full. You can hand-edit the result to add numbers or rules.
 
@@ -265,7 +265,7 @@ A file that's just the `[ … ]` list of entries works too, with the default rul
 | `tags` | only when no [tag family](#tag-families) builds a tag for the entry | one or more darktable tag names (`\|` makes a hierarchy); no `,` `;` or `"`. Extras added after the family tags |
 | `name` | no | the driver's display name, e.g. `Max Verstappen`; the Driver family writes it as `<root>\|<name>` |
 | `number` | no | the race number, 1–3 digits. Leave it out for a car with no number; it can then only be identified by livery. Two entries with the same number are allowed, but that number then identifies neither. |
-| numbers-only entry | | `{"id": "12", "number": "12"}`: an entry with a number and no `team`, `name` or `tags` gets the Number family's tag, `Motorsport\|Number\|12` by default. Build a whole list from a CSV with `python python/import_numbers.py numbers.csv entries.json`, or add a full start list (names, teams, classes) with the panel's **Import start list** (see [1 collection](#1-collection)); see [`rally`](examples/rally) |
+| numbers-only entry | | `{"id": "12", "number": "12"}`: an entry with a number and no `team`, `name` or `tags` gets the Number family's tag, `Assisted Tagging\|Motorsport\|Number\|12` by default. Build a whole list from a CSV with `python python/import_numbers.py numbers.csv entries.json`, or add a full start list (names, teams, classes) with the panel's **Import start list** (see [1 collection](#1-collection)); see [`rally`](examples/rally) |
 | `team` | no | the Team family writes it as `<root>\|<team>`; entries with the same team can fall back to their shared tags when their liveries are too close to call |
 | `extra` | no | the entry's class (the start list's Class column); the Class family writes it as `<root>\|<extra>`. No `\|` `,` `;` or `"` |
 | `make`, `model` | no | the car's make and model; the Vehicle family writes `<root>\|<make>\|<model>`, or `<root>\|<make>` without a model. A `model` needs a `make`. No `\|` `,` `;` or `"` |
@@ -280,16 +280,16 @@ A family is one kind of tag the plugin writes. Each has a switch and a root in t
 
 | Family | Value | Switch | Root setting | Default root |
 |---|---|---|---|---|
-| Colour | the paintwork colour read from the photo | `family_colour` | `family_colour_root` | `Assisted Tagging\|Colour` |
-| Number | the entry's `number` | `family_number` | `family_number_root` | `Motorsport\|Number` |
-| Team | the entry's `team` | `family_team` | `family_team_root` | `Motorsport\|Team` |
-| Driver | the entry's `name` | `family_driver` | `family_driver_root` | `Motorsport\|Driver` |
-| Class | the entry's `extra` | `family_extra` | `family_extra_root` | `Motorsport\|Class` |
-| Vehicle | the entry's `make` and `model`, as `<make>\|<model>` | `family_vehicle` | `family_vehicle_root` | `Motorsport\|Vehicle` |
+| Colour | the paintwork colour read from the photo | `family_colour` | `family_colour_root` | `Assisted Tagging\|Motorsport\|Colour` |
+| Number | the entry's `number` | `family_number` | `family_number_root` | `Assisted Tagging\|Motorsport\|Number` |
+| Team | the entry's `team` | `family_team` | `family_team_root` | `Assisted Tagging\|Motorsport\|Team` |
+| Driver | the entry's `name` | `family_driver` | `family_driver_root` | `Assisted Tagging\|Motorsport\|Driver` |
+| Class | the entry's `extra` | `family_extra` | `family_extra_root` | `Assisted Tagging\|Motorsport\|Class` |
+| Vehicle | the entry's `make` and `model`, as `<make>\|<model>` | `family_vehicle` | `family_vehicle_root` | `Assisted Tagging\|Motorsport\|Vehicle` |
 
 All six are on by default. An identified entry gets one tag per family that is on and that it has a value for, then its own `tags`. An entry that builds no tag at all stops the run.
 
-An older entries.json may hold `Motorsport|Class|…` and `Motorsport|Vehicle|…` entry tags from an earlier start-list import. The next reload moves them into the `extra`, `make` and `model` fields and keeps the previous file as `entries.json.bak`. A field that disagrees with its tag stops the load and names the entry.
+An older entries.json may hold `Motorsport|Class|…` and `Motorsport|Vehicle|…` entry tags from an earlier start-list import. The next reload moves them into the `extra`, `make` and `model` fields and keeps the previous file as `entries.json.bak`. A field that disagrees with its tag, or a tag deeper than `Motorsport|Class|<class>` or `Motorsport|Vehicle|<make>|<model>`, stops the load and names the entry; fix it by hand.
 
 A root is a tag path: no `,` `;` or `"`, and it can't start or end with `|` or a space. Each family needs its own root: no root may equal another or sit under it. Switching a family off stops runs writing its tags; the Colour family also reads the colour, so switching it on re-reads every photo once.
 
@@ -311,7 +311,7 @@ Every key is optional; leave one out for its default.
 | `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
 | `colour_palette` | the 11 built-in colours | an object mapping each tag name to a built-in colour (`"Red"`, `"Orange"`, `"Yellow"`, `"Green"`, `"Blue"`, `"Purple"`, `"Pink"`, `"Brown"`, `"White"`, `"Grey"`, `"Black"`) or to a list of bounds in OpenCV HSV, e.g. `{"Red": "Red", "Teal": [{"hue": [80, 95], "sat": [90, 255]}], "Silver": "Grey"}`. Each bounds object needs `hue` (0–179) and may have `sat` and `val` (0–255); a missing one is the full range. A pixel goes to the first colour that matches. A name can't be `Multi` or contain `\|`. Entry colours must be in the palette. Unlisted built-ins are dropped |
-| `sponsor_keywords` | `{}` | maps a lowercase sponsor word to its team's tag, e.g. `{"petronas": "Motorsport\|Team\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
+| `sponsor_keywords` | `{}` | maps a lowercase sponsor word to its team's tag, e.g. `{"petronas": "Assisted Tagging\|Motorsport\|Team\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
 
 Behaviour settings moved to settings.json on 2026-11-11; an old entries.json still loads, each old rule is copied into settings.json once and logged.
 
@@ -333,7 +333,7 @@ Every other setting lives in the collection's `settings.json`, beside `entries.j
 | `neighbour_tolerance` | the most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places) | whole number, 0 or more | `5` | yes |
 | `min_read` | how sure a number read must be to count. A read's confidence is the lower of two scores: how sure the text detector is that it found text, and how sure the reader is of its least certain digit. Raise it if plates or signs get read as numbers; lower it if clear numbers are missed | number, 0 to 1 | `0.85` | yes |
 | `colour_weight` | how much the colour histogram counts in livery matching, from `0` (off) up. Separate from the Colour family | number, 0 or more | `0` | yes |
-| `partial_references` | **Add tagged images** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|Team\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only) | `true`, `false` | `false` | yes |
+| `partial_references` | **Add tagged images** also accepts a solo shot tagged only to team level (e.g. `Assisted Tagging\|Motorsport\|Team\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only) | `true`, `false` | `false` | yes |
 | `min_sim` | people collections: the least face similarity that counts as a match | number, above 0 up to 1 | `0.5` | no |
 | `margin` | people collections: how far the best face match must lead the runner-up | number, 0 up to but not including 1 | `0.05` | no |
 | `min_face_px` | people collections: the smallest face, in pixels, that is used | whole number, 1 or more | `48` | no |
@@ -411,7 +411,7 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 | `Assisted Tagging\|Identification\|Team only` | two teammates were too close to call; only their shared tags were added |
 | `Assisted Tagging\|Identification\|Unidentified` | no vehicle, or no confident match |
 | `Assisted Tagging\|Identification\|Number seen\|<digits>` | OCR read these digits but they didn't resolve to one entry; added alongside the outcome tag |
-| `Assisted Tagging\|Colour\|<name>` | the car's paintwork colour (`Red`, `Orange`, `Yellow`, `Green`, `Blue`, `Purple`, `Pink`, `Brown`, `White`, `Grey`, `Black`, or `Multi` for a two-tone car; silver reads as `Grey`); the Colour family, under `family_colour_root`. Filter on it to hand-sort cars by colour |
+| `Assisted Tagging\|Motorsport\|Colour\|<name>` | the car's paintwork colour (`Red`, `Orange`, `Yellow`, `Green`, `Blue`, `Purple`, `Pink`, `Brown`, `White`, `Grey`, `Black`, or `Multi` for a two-tone car; silver reads as `Grey`); the Colour family, under `family_colour_root`. Filter on it to hand-sort cars by colour |
 | `Assisted Tagging\|Identification\|Shot\|Solo` | one vehicle was found in the frame |
 | `Assisted Tagging\|Identification\|Shot\|Pack` | two or three vehicles were found |
 | `Assisted Tagging\|Identification\|Shot\|Crowded` | the detector's limit (`MAX_BOXES`) was reached, so there may be more cars than were identified |
@@ -436,11 +436,11 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 
 **Clear tagging marks** reads the same ledger, so hand-applied tags survive it even when they sit under the plugin's roots.
 
-- A **number or driver tag** you applied (such as `Motorsport|Number|4` or `Motorsport|Driver|Norris`; needs that family on) **identifies the car**: the run adds the entry's other tags and counts the image as *by your tag*. A solo shot read as a different car is held back as a conflict. A driver name two entries share, or tags naming two different entries, identify no car; the log says so and the tags stay.
+- A **number or driver tag** you applied (such as `Assisted Tagging|Motorsport|Number|4` or `Assisted Tagging|Motorsport|Driver|Norris`; needs that family on) **identifies the car**: the run adds the entry's other tags and counts the image as *by your tag*. A solo shot read as a different car is held back as a conflict. A driver name two entries share, or tags naming two different entries, identify no car; the log says so and the tags stay.
 - A hand-tagged frame also supports its burst and the frames shot around it, like a confident number read.
 - Hand-applied family tags (number, driver, team, colour), listed in `entries.json` or not, are never removed unless **Replace manual tags** is ticked.
 - A **solo shot** whose result disagrees with the tags you applied is left as you had it: nothing is added, it doesn't get the *Unidentified* tags, and the done message counts it. Packs aren't checked, since you may have tagged just one of the cars.
-- A **team tag** you applied (an entry's Team family tag, such as `Motorsport|Team|Red Bull`; needs the Team family on) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car. Untick **Use team tags as hints** in the panel to ignore team tags instead: matching isn't narrowed, and a differing result is not held back as a conflict, so the run can override your team tag. The tag itself stays on the image beside whatever the run adds (tick **Replace manual tags** too to have the run overwrite it). Driver-level tags still protect their images either way.
+- A **team tag** you applied (an entry's Team family tag, such as `Assisted Tagging|Motorsport|Team|Red Bull`; needs the Team family on) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car. Untick **Use team tags as hints** in the panel to ignore team tags instead: matching isn't narrowed, and a differing result is not held back as a conflict, so the run can override your team tag. The tag itself stays on the image beside whatever the run adds (tick **Replace manual tags** too to have the run overwrite it). Driver-level tags still protect their images either way.
 - An image already carrying all of one entry's tags is **skipped** without being analysed.
 - To let a run replace your tags, tick **Replace manual tags** under **Identify selection**. It applies to the next run only and clears itself.
 - If you remove a tag the plugin attached and later apply it again by hand, it counts as yours.

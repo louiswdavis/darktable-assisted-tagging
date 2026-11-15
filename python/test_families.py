@@ -41,7 +41,7 @@ def test_order():
     check("family sources", [f.sources for f in F.FAMILIES],
           [(), ("number",), ("team",), ("name",), ("extra",), ("make", "model")])
     check("setting keys", (F.switch_key("team"), F.root_key("team")), ("family_team", "family_team_root"))
-    check("family_tag", F.family_tag("Motorsport|Team", "Ferrari"), "Motorsport|Team|Ferrari")
+    check("family_tag", F.family_tag("Assisted Tagging|Motorsport|Team", "Ferrari"), "Assisted Tagging|Motorsport|Team|Ferrari")
     check("schema defaults are the family defaults",
           [(defaults()[F.switch_key(f.key)], defaults()[F.root_key(f.key)]) for f in F.FAMILIES],
           [(True, f.default_root) for f in F.FAMILIES])
@@ -50,9 +50,9 @@ def test_order():
 def test_resolve_defaults():
     roots = F.resolve(defaults())
     check("resolve: defaults", roots, {
-        "colour": "Assisted Tagging|Colour", "number": "Motorsport|Number",
-        "team": "Motorsport|Team", "driver": "Motorsport|Driver",
-        "extra": "Motorsport|Class", "vehicle": "Motorsport|Vehicle"})
+        "colour": "Assisted Tagging|Motorsport|Colour", "number": "Assisted Tagging|Motorsport|Number",
+        "team": "Assisted Tagging|Motorsport|Team", "driver": "Assisted Tagging|Motorsport|Driver",
+        "extra": "Assisted Tagging|Motorsport|Class", "vehicle": "Assisted Tagging|Motorsport|Vehicle"})
     check("resolve: family order", list(roots), ["colour", "number", "team", "driver", "extra", "vehicle"])
     check("resolve: custom root", F.resolve(defaults(family_team_root="Cars|Team"))["team"], "Cars|Team")
     check("resolve: sibling roots are fine",
@@ -66,9 +66,9 @@ def test_resolve_off():
                                                  family_team=False, family_driver=False,
                                                  family_extra=False, family_vehicle=False)), {})
     check("resolve: a switched-off family's root is not checked",
-          F.resolve(defaults(family_driver=False, family_driver_root=""))["team"], "Motorsport|Team")
+          F.resolve(defaults(family_driver=False, family_driver_root=""))["team"], "Assisted Tagging|Motorsport|Team")
     check("resolve: a switched-off family's root can overlap",
-          resolve_error(family_driver=False, family_driver_root="Motorsport|Team|Driver"), "(no error)")
+          resolve_error(family_driver=False, family_driver_root="Assisted Tagging|Motorsport|Team|Driver"), "(no error)")
 
 
 def test_empty_root_names_setting():
@@ -93,8 +93,8 @@ def test_roots_must_not_nest():
           'family_number_root ("Cars") and family_team_root ("Cars|Team") overlap; each family needs its own root')
     check("earlier root under a later one", resolve_error(family_number_root="Cars|Number", family_driver_root="Cars"),
           'family_number_root ("Cars|Number") and family_driver_root ("Cars") overlap; each family needs its own root')
-    check("colour root counts too", resolve_error(family_colour_root="Motorsport|Team|Colour"),
-          'family_colour_root ("Motorsport|Team|Colour") and family_team_root ("Motorsport|Team") overlap; '
+    check("colour root counts too", resolve_error(family_colour_root="Assisted Tagging|Motorsport|Team|Colour"),
+          'family_colour_root ("Assisted Tagging|Motorsport|Team|Colour") and family_team_root ("Assisted Tagging|Motorsport|Team") overlap; '
           "each family needs its own root")
 
 

@@ -206,9 +206,9 @@ check("entries keep file order", table.concat(order, ","), "VER,TSU,HAM,SC")
 check("entries split their tags", entries.VER.tags[2], "F1|Red Bull|Verstappen")
 check("an entry may have no team or number", entries.SC.team .. "|" .. entries.SC.number, "|")
 check("entries: four fields leave the name empty", entries.VER.name, "")
-local named_entries = T.parse_entries_csv("NOR,McLaren,4,Motorsport|Number|4;Motorsport|Driver|Norris,Norris")
+local named_entries = T.parse_entries_csv("NOR,McLaren,4,Assisted Tagging|Motorsport|Number|4;Assisted Tagging|Motorsport|Driver|Norris,Norris")
 check("entries: a fifth field is the name", named_entries.NOR.name, "Norris")
-check("entries: five fields still split the tags", named_entries.NOR.tags[2], "Motorsport|Driver|Norris")
+check("entries: five fields still split the tags", named_entries.NOR.tags[2], "Assisted Tagging|Motorsport|Driver|Norris")
 
 local defaults = T.default_rules()
 check("default rules share team tags", defaults.team_only, "shared tags")
@@ -227,7 +227,7 @@ check("rules: an empty diagnostic is off", rules.diag.burst, "")
 check("rules: a renamed diagnostic", rules.diag.team, "X|Team")
 check("rules: unlisted diagnostics keep their default", rules.diag.none, "Assisted Tagging|Identification|Unidentified")
 check("rules: no family line, no family", next(rules.families), nil)
-local fam_rules = T.parse_rules_csv("family_colour,Assisted Tagging|Colour\nfamily_team,Rally 2026|Team")
+local fam_rules = T.parse_rules_csv("family_colour,Assisted Tagging|Motorsport|Colour\nfamily_team,Rally 2026|Team")
 check("rules: a family root keeps its space and |", fam_rules.families.team, "Rally 2026|Team")
 check("rules: an off family has no line and no root", fam_rules.families.number, nil)
 
@@ -239,7 +239,7 @@ do
     local fs = T.preset_defaults(T.PRESET_SCHEMA)
     local roots = T.family_roots(fs)
     check("family_roots: every family on by default", roots.colour .. " " .. roots.number .. " " .. roots.team .. " " .. roots.driver,
-        "Assisted Tagging|Colour Motorsport|Number Motorsport|Team Motorsport|Driver")
+        "Assisted Tagging|Motorsport|Colour Assisted Tagging|Motorsport|Number Assisted Tagging|Motorsport|Team Assisted Tagging|Motorsport|Driver")
     fs.family_team, fs.family_number_root = false, "Rally|Number"
     roots = T.family_roots(fs)
     check("family_roots: an off family has no root", roots.team, nil)
@@ -343,7 +343,7 @@ check("parse_setting: family root ending with | refused", parsed("family_number_
 check("panel_value: blank number is the default", T.panel_value("min_read", "  "), 0.85)
 check("panel_value: blank tag name is the default", T.panel_value("tag_number_seen_name", ""),
     "Assisted Tagging|Identification|Number seen")
-check("panel_value: blank family root is the default", T.panel_value("family_team_root", ""), "Motorsport|Team")
+check("panel_value: blank family root is the default", T.panel_value("family_team_root", ""), "Assisted Tagging|Motorsport|Team")
 local pv, pv_why = T.panel_value("order_weight", "0,5")
 check("panel_value: 0,5 refused", pv, nil)
 check("panel_value: the message names the key", pv_why:sub(1, 14), "order_weight: ")
@@ -406,7 +406,7 @@ cs.min_sim, cs.margin, cs.tag_team_name, cs.order_weight, cs.family_driver_root 
 local fixed, replaced = T.checked_settings(cs)
 check("checked_settings: out-of-range and bad names replaced", table.concat(replaced, " "),
     "min_sim margin family_driver_root tag_team_name")
-check("checked_settings: bad family root back to default", fixed.family_driver_root, "Motorsport|Driver")
+check("checked_settings: bad family root back to default", fixed.family_driver_root, "Assisted Tagging|Motorsport|Driver")
 check("checked_settings: min_sim back to default", fixed.min_sim, 0.5)
 check("checked_settings: bad tag name back to default", fixed.tag_team_name, "Assisted Tagging|Identification|Team only")
 check("checked_settings: a valid value kept", fixed.order_weight, 0.3)
@@ -416,7 +416,7 @@ local sparse = { min_sim = 0 }
 local filled, sparse_replaced = T.checked_settings(sparse)
 check("checked_settings: missing name key gets the default", filled.tag_number_seen_name,
     "Assisted Tagging|Identification|Number seen")
-check("checked_settings: missing family root gets the default", filled.family_colour_root, "Assisted Tagging|Colour")
+check("checked_settings: missing family root gets the default", filled.family_colour_root, "Assisted Tagging|Motorsport|Colour")
 check("checked_settings: missing number key gets the default", filled.min_read, 0.85)
 check("checked_settings: missing keys are not listed as replaced", table.concat(sparse_replaced, " "), "min_sim")
 check("checked_settings: an invalid key is still replaced and listed", filled.min_sim, 0.5)
@@ -430,13 +430,13 @@ local blank_rules = T.parse_rules_csv("diag_shot_solo,\n")
 local named = T.named_rules(blank_rules, off_s)
 local named_has_colour = false
 for _, p in ipairs(T.owned_prefixes(named)) do
-    if p == "Assisted Tagging|Colour|" then named_has_colour = true end
+    if p == "Assisted Tagging|Motorsport|Colour|" then named_has_colour = true end
 end
 check("named_rules: colour off still owns the colour prefix", named_has_colour, true)
 check("named_rules: shot_crowded from tag_shot_crowded_name", named.diag.shot_crowded, "My|Framing|Crowded")
 check("named_rules: solo and pack from tag_shot_name", named.diag.shot_solo .. " " .. named.diag.shot_pack, "My|Shot|Solo My|Shot|Pack")
 check("named_rules: off diagnostic still owned", T.owned_tags({}, named)["My|Shot|Solo"], true)
-check("named_rules: an off family keeps its root", named.families.colour, "Assisted Tagging|Colour")
+check("named_rules: an off family keeps its root", named.families.colour, "Assisted Tagging|Motorsport|Colour")
 check("named_rules: leaves the rules it was given alone", blank_rules.diag.shot_solo .. "|" .. tostring(next(blank_rules.families)), "|nil")
 
 -- owned_tags / tag_changes (Review Focus 5) ---------------------------------
@@ -508,7 +508,7 @@ do
     check("10-column row carries the colour", ro[21][1].colour, "Red")
     check("10-column row has no colour flag", ro[21][1].colour_flag, false)
     check("11-column row carries colour and flag", ro[22][1].colour .. tostring(ro[22][1].colour_flag), "Multitrue")
-    local CB = "Assisted Tagging|Colour"
+    local CB = "Assisted Tagging|Motorsport|Colour"
     local ident, unident, none_box = row("number", "VER"), row("none"), row("none")
     ident.colour, unident.colour, none_box.colour = "Red", "Blue", "Red"
     none_box.box = -1
@@ -676,11 +676,11 @@ do
         tostring((T.hand_entry(team, {}, he, { number = "M|Number", driver = "M|Driver", team = "M|Team" }))), "nil")
     check("hint: the hand team tag still hints", T.hint_tags(team, {}, he, "M|Team")["M|Team|McLaren"], true)
     -- test_hand_vehicle_protected_not_identifying
-    local ford = { ["Motorsport|Vehicle|Ford"] = true }
+    local ford = { ["Assisted Tagging|Motorsport|Vehicle|Ford"] = true }
     check("hand_family_tags: vehicle root",
-        T.hand_family_tags(ford, {}, { vehicle = "Motorsport|Vehicle" })["Motorsport|Vehicle|Ford"], true)
+        T.hand_family_tags(ford, {}, { vehicle = "Assisted Tagging|Motorsport|Vehicle" })["Assisted Tagging|Motorsport|Vehicle|Ford"], true)
     check("hand_entry: a vehicle tag names no entry", tostring((T.hand_entry(ford, {}, he,
-        { number = "M|Number", driver = "M|Driver", vehicle = "Motorsport|Vehicle" }))), "nil")
+        { number = "M|Number", driver = "M|Driver", vehicle = "Assisted Tagging|Motorsport|Vehicle" }))), "nil")
     -- test_wanted_tags_hand_row
     local hw, hd, hok = T.wanted_tags({ { box = -1, method = "hand", entry_id = "NOR", alt_entry_id = "" } }, he)
     check("a hand result wants the entry's tags", keys(hw), "M|Driver|Norris + M|Number|4 + M|Team|McLaren")
@@ -772,7 +772,7 @@ check("hint: a user-applied team tag hints", hint["F1|Red Bull"], true)
 check("hint: a tag under the team tag is not a hint", hint["F1|Red Bull|Verstappen"], nil)
 check("hint: a ledgered tag is the plugin's, not a hint", hint["F1|Ferrari"], nil)
 check("hint: a non-entry tag is ignored", hint["Holiday"], nil)
-check("hint: another root's team tag is not a hint", next(T.hint_tags(hint_have, {}, entries, "Motorsport|Team")), nil)
+check("hint: another root's team tag is not a hint", next(T.hint_tags(hint_have, {}, entries, "Assisted Tagging|Motorsport|Team")), nil)
 check("hint: team family off, no hints", next(T.hint_tags(hint_have, {}, entries, nil)), nil)
 
 attach, detach = T.tag_changes({ ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true },
