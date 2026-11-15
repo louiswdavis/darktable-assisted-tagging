@@ -116,6 +116,14 @@ In order of payoff for effort:
    latency, and photos leaving the machine: the user's decision.
 4. Stronger number reading (the `1`/`14`/`44` misreads), by a better OCR or a VLM.
 
+## Which driver drove a double-driven car
+
+A double-driven car (30 and 730 at Rallye Prescott) is planned to get both entries' tags, since
+the car alone can't tell the drivers apart. Telling them apart takes the run order: each driver's
+runs come at set points in the running order, so photo timestamps against the published order (or
+the gap between the two drivers' consecutive runs) could pick the driver. Needs a running-order
+input and per-event timing; aimed at shooters who deliver per-driver galleries.
+
 ## Smaller known gaps
 
 - "Open entries.json" on Windows: the `start` command now gets cmd.exe's outer quote
