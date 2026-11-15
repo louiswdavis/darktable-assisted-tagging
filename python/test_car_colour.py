@@ -42,22 +42,47 @@ check("red with 15% white is Red", colour_of(patched), "Red")
 
 split = fill(RED)
 split[:, 165:] = WHITE  # 55% red, 45% white
-check("55/45 red and white is Multi", colour_of(split), "Multi")
+check("55/45 red and white is Red", colour_of(split), "Red")  # white counts half
 
-check("mud grey is no colour", colour_of(fill((128, 120, 110))), "")
-check("silver is White", colour_of(fill((200, 200, 205))), "White")
-check("dark navy is Blue or Black", colour_of(fill((20, 25, 70))) in ("Blue", "Black"), True)  # Task 8 pins it
+check("mud grey is Grey", colour_of(fill((128, 120, 110))), "Grey")
+check("silver is Grey", colour_of(fill((150, 150, 155))), "Grey")
+check("bright silver is White", colour_of(fill((200, 200, 205))), "White")
+check("dark navy is Blue", colour_of(fill((20, 25, 70))), "Blue")
+check("near black is Black", colour_of(fill((30, 20, 25))), "Black")
+check("orange is Orange", colour_of(fill((255, 120, 0))), "Orange")
+check("dark orange is Brown", colour_of(fill((120, 70, 20))), "Brown")
+check("purple is Purple", colour_of(fill((130, 0, 200))), "Purple")
+check("pink is Pink", colour_of(fill((255, 0, 150))), "Pink")
 
 halved = fill(RED)
 halved[:, :150] = GREY
 check("half grey, half red, masked is Red", colour_of(halved, masked=True), "Red")
-check("half grey, half red, unmasked is no colour", colour_of(halved, masked=False), "")
+check("half grey, half red, unmasked is Red", colour_of(halved, masked=False), "Red")  # grey counts half
 
-check("sole colour with a minor second", C.decide_colour({"Red": 0.61, "White": 0.29}), "Red")
-check("sole-share colour with a part second is Multi", C.decide_colour({"Red": 0.61, "White": 0.31}), "Multi")
-check("two parts reaching the sole share", C.decide_colour({"Red": 0.35, "White": 0.30}), "Multi")
-check("three parts", C.decide_colour({"Red": 0.31, "White": 0.31, "Blue": 0.31}), "")
+check("achromatic runner-up counts half", C.decide_colour({"Black": 0.6, "Red": 0.4}), "Multi")
+check("a colour beats a smaller achromatic share", C.decide_colour({"Black": 0.3, "Red": 0.5}), "Red")
+check("a mostly black car is Black", C.decide_colour({"Black": 0.9, "Red": 0.1}), "Black")
+check("runner-up at the ratio is Multi", C.decide_colour({"Red": 0.5, "Blue": 0.3}), "Multi")
+check("runner-up under the ratio loses", C.decide_colour({"Red": 0.5, "Blue": 0.29}), "Red")
+check("a tiny single share still decides", C.decide_colour({"Red": 0.001, "Blue": 0.0}), "Red")
+check("all-zero shares", C.decide_colour({n: 0.0 for n, _ in C.PALETTE}), "")
 check("no shares", C.decide_colour({}), "")
+
+
+def test_palette_tiles_hsv():
+    grid = np.stack(np.meshgrid(np.arange(180, dtype=np.uint8), np.arange(256, dtype=np.uint8),
+                                np.arange(256, dtype=np.uint8), indexing="ij"), axis=-1)
+    masks = C.assign(grid)
+    check("one mask per palette row", len(masks), len(C.PALETTE))
+    check("every HSV triple has exactly one colour", int(np.sum(masks, axis=0, dtype=np.uint8).min()), 1)
+    check("no HSV triple has two colours", int(np.sum(masks, axis=0, dtype=np.uint8).max()), 1)
+    for (name, _), hit in zip(C.PALETTE, masks):
+        check(f"{name} takes some of the space", bool(hit.any()), True)
+
+
+test_palette_tiles_hsv()
+check("the palette has 11 names", [n for n, _ in C.PALETTE],
+      ["Black", "White", "Grey", "Brown", "Red", "Orange", "Yellow", "Green", "Blue", "Purple", "Pink"])
 
 check("same colour agrees", C.colour_relation("Red", "Red"), 1)
 check("different colours disagree", C.colour_relation("Red", "Blue"), -1)

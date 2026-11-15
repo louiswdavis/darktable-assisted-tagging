@@ -49,7 +49,8 @@ CACHE_NEUTRAL = {
     overlap: (),
     pod: (),
     colour: (),
-    car_colour: ("PALETTE", "MULTI", "COLOUR_SOLE_MIN", "COLOUR_PART_MIN"),
+    car_colour: ("PALETTE", "MULTI", "COLOUR_NAMES", "ACHROMATIC", "ACHROMATIC_WEIGHT", "MULTI_RATIO",
+                 "_SAT", "_VAL"),
     people: (),
 }
 _FINGERPRINT = ""

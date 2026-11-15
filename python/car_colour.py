@@ -1,22 +1,38 @@
 """A car's paintwork colour from its crop: HSV shares over the body region, then a pure decision.
-Only the raw shares are cached; `decide_colour` applies the thresholds at match time, so tuning them
-needs no re-read. Bounds are OpenCV HSV (hue 0-179, saturation and value 0-255); neighbouring hue
-ranges leave gaps, so a pixel in a gap or mid-grey belongs to no colour."""
+Only the raw shares are cached; `decide_colour` applies the weights at match time, so tuning them
+needs no re-read. Bounds are OpenCV HSV (hue 0-179, saturation and value 0-255). The ranges tile the
+HSV space, so every counted pixel belongs to exactly one colour."""
 
 import hashlib
 
-# (name, ((hue_lo, hue_hi, sat_lo, sat_hi, val_lo, val_hi), ...)); a pixel goes to the first colour that matches.
+_SAT = (41, 255)  # above the achromatic band
+_VAL = (51, 255)  # above Black
+
+
+def _hue(lo: int, hi: int) -> tuple:
+    return (lo, hi) + _SAT + _VAL
+
+
+# (name, ((hue_lo, hue_hi, sat_lo, sat_hi, val_lo, val_hi), ...)); a pixel goes to the first colour
+# that matches, so the achromatic rows and Brown come before the hue rows they overlap.
 PALETTE = (
-    ("Red", ((0, 8, 90, 255, 50, 255), (165, 179, 90, 255, 50, 255))),  # hue wraps at 0
-    ("Blue", ((95, 130, 90, 255, 50, 255),)),
-    ("Green", ((40, 85, 90, 255, 50, 255),)),
-    ("Yellow", ((20, 35, 90, 255, 50, 255),)),  # cf. pod.HUE
-    ("White", ((0, 179, 0, 40, 170, 255),)),
-    ("Black", ((0, 179, 0, 255, 0, 60),)),
+    ("Black", ((0, 179, 0, 255, 0, 50),)),
+    ("White", ((0, 179, 0, 40, 180, 255),)),
+    ("Grey", ((0, 179, 0, 40, 51, 179),)),  # silver reads as Grey
+    ("Brown", ((5, 25, 41, 255, 51, 140),)),
+    ("Red", (_hue(0, 8), _hue(170, 179))),  # hue wraps at 0
+    ("Orange", (_hue(9, 19),)),
+    ("Yellow", (_hue(20, 35),)),  # cf. pod.HUE
+    ("Green", (_hue(36, 85),)),
+    ("Blue", (_hue(86, 130),)),
+    ("Purple", (_hue(131, 150),)),
+    ("Pink", (_hue(151, 169),)),
 )
 MULTI = "Multi"
-COLOUR_SOLE_MIN = 0.60  # one colour at least this share → that colour
-COLOUR_PART_MIN = 0.30  # two colours each at least this and together COLOUR_SOLE_MIN → Multi
+COLOUR_NAMES = tuple(n for n, _ in PALETTE) + (MULTI,)
+ACHROMATIC = ("White", "Grey", "Black")
+ACHROMATIC_WEIGHT = 0.5  # tarmac, glass and shadow in the body band are achromatic, so these count less
+MULTI_RATIO = 0.6  # the runner-up's weighted share, as a part of the winner's, from which a car is Multi
 
 # Share of the crop. Drops the outer margin (sky, track) and the lower tyre/shadow band; the top band
 # (window and roofline, mostly dark) is dropped too so it doesn't read as Black.
@@ -25,10 +41,28 @@ BODY_Y = (0.30, 0.72)
 REGION_MAX_DIM = 320  # the region is downscaled to this long side before measuring
 
 
+def assign(hsv, palette=PALETTE):
+    """One boolean mask per palette row, in row order: the pixels of `hsv` that row takes. A pixel
+    goes to the first row that matches."""
+    import numpy as np
+    taken = np.zeros(hsv.shape[:-1], dtype=bool)
+    masks = []
+    for _, ranges in palette:
+        hit = np.zeros(hsv.shape[:-1], dtype=bool)
+        for hlo, hhi, slo, shi, vlo, vhi in ranges:
+            hit |= ((hsv[..., 0] >= hlo) & (hsv[..., 0] <= hhi) & (hsv[..., 1] >= slo)
+                    & (hsv[..., 1] <= shi) & (hsv[..., 2] >= vlo) & (hsv[..., 2] <= vhi))
+        hit &= ~taken
+        taken |= hit
+        masks.append(hit)
+    return masks
+
+
 def colour_shares(crop_rgb, palette=PALETTE, masked: bool = False) -> dict:
-    """{name: share of body-region pixels in that colour}, rounded to 3 places, 0.0 included. Gap and
-    mid-grey pixels count in the denominator only. When `masked`, pixels equal to segment.GREY on all
-    channels are left out of both. cv2 and numpy load here so report.py can use `decide_colour` without them."""
+    """{name: share of body-region pixels in that colour}, rounded to 3 places, 0.0 included. A pixel
+    no row of a custom palette matches counts in the denominator only. When `masked`, pixels equal to
+    segment.GREY on all channels are left out of both. cv2 and numpy load here so report.py can use
+    `decide_colour` without them."""
     import cv2
     import numpy as np
     from segment import GREY
@@ -47,27 +81,22 @@ def colour_shares(crop_rgb, palette=PALETTE, masked: bool = False) -> dict:
     shares = {name: 0.0 for name, _ in palette}
     if total == 0:
         return shares
-    hsv = cv2.cvtColor(region, cv2.COLOR_RGB2HSV)
-    taken = np.zeros(region.shape[:2], dtype=bool)
-    for name, ranges in palette:
-        hit = np.zeros(region.shape[:2], dtype=bool)
-        for hlo, hhi, slo, shi, vlo, vhi in ranges:
-            hit |= ((hsv[..., 0] >= hlo) & (hsv[..., 0] <= hhi) & (hsv[..., 1] >= slo)
-                    & (hsv[..., 1] <= shi) & (hsv[..., 2] >= vlo) & (hsv[..., 2] <= vhi))
-        hit &= counted & ~taken
-        taken |= hit
-        shares[name] = round(int(hit.sum()) / total, 3)
+    masks = assign(cv2.cvtColor(region, cv2.COLOR_RGB2HSV), palette)
+    for (name, _), hit in zip(palette, masks):
+        shares[name] = round(int((hit & counted).sum()) / total, 3)
     return shares
 
 
 def decide_colour(shares: dict) -> str:
-    """A palette name, MULTI or "" (can't tell), from the raw shares."""
-    parts = [(n, s) for n, s in shares.items() if s >= COLOUR_PART_MIN]
-    if len(parts) == 1 and parts[0][1] >= COLOUR_SOLE_MIN:
-        return parts[0][0]
-    if len(parts) == 2 and sum(s for _, s in parts) >= COLOUR_SOLE_MIN:
+    """The colour with the highest weighted share, MULTI when the runner-up is at least MULTI_RATIO
+    of it, or "" when every share is 0. Names in ACHROMATIC count at ACHROMATIC_WEIGHT."""
+    ranked = sorted(((s * (ACHROMATIC_WEIGHT if n in ACHROMATIC else 1.0), n) for n, s in shares.items() if s > 0),
+                    key=lambda p: -p[0])
+    if not ranked:
+        return ""
+    if len(ranked) > 1 and ranked[1][0] >= MULTI_RATIO * ranked[0][0]:
         return MULTI
-    return ""
+    return ranked[0][1]
 
 
 def colour_relation(entry_colour: str, seen: str) -> int:
