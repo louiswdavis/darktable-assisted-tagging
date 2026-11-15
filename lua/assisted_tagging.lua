@@ -1475,6 +1475,10 @@ local function entries_json_path()
     return collections_root() .. "/" .. current_collection() .. "/entries.json"
 end
 
+local function settings_json_path()
+    return collections_root() .. "/" .. current_collection() .. "/settings.json"
+end
+
 -- The repo's shipped example collections (entries.json templates, no refs), a
 -- sibling of python/. Missing if the repo was trimmed down to just the plugin.
 local function examples_root()
@@ -3174,6 +3178,11 @@ local function install_panel()
         tooltip = _("Open the selected collection's entries.json in the app your system uses for .json files. Save it there, then click Reload."),
         clicked_callback = function() open_in_app(entries_json_path()) end,
     }
+    local open_settings_button = dt.new_widget("button") {
+        label = _("Open settings.json"),
+        tooltip = _("Open the selected collection's settings.json in the app your system uses for .json files, e.g. to delete a removed setting. Save it there, then click Reload; unsaved panel changes are replaced."),
+        clicked_callback = function() open_in_app(settings_json_path()) end,
+    }
     local start_list_file = dt.new_widget("file_chooser_button") {
         title = _("Start list CSV"),
         value = "",
@@ -3577,10 +3586,10 @@ local function install_panel()
     for i, page in ipairs(M.PANEL_PAGES) do
         pages[i] = { number = page.number, title = _(page.title), widgets = page_widgets[i] }
     end
-    -- Open entries.json sits in the top area, above the page buttons
+    -- Open entries.json and Open settings.json sit in the top area, above the page buttons
     local collection_box = dt.new_widget("box") {
         orientation = "vertical",
-        open_entries_button,
+        dt.new_widget("box") { orientation = "horizontal", open_entries_button, open_settings_button },
         C.paged_sections("assisted_tagging", pages),
     }
 
