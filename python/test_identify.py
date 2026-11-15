@@ -38,22 +38,43 @@ VER = {"id": "VER", "number": "1", "team": "Red Bull", "tags": ["F1|Red Bull", "
 TSU = {"id": "TSU", "number": 22, "team": "Red Bull", "tags": ["F1|Red Bull", "F1|Red Bull|Tsunoda"]}
 
 
-def collection(data, root=None) -> str:
+# Only the team family is on, rooted at F1: VER and TSU build exactly the tags they list.
+FIXTURE_SETTINGS = {"family_colour": False, "family_number": False, "family_driver": False, "family_team_root": "F1"}
+ALL_FAMILIES = {"colour": "Assisted Tagging|Colour", "number": "Motorsport|Number", "team": "Motorsport|Team",
+                "driver": "Motorsport|Driver"}
+
+
+def collection(data, root=None, settings=FIXTURE_SETTINGS) -> str:
+    """A collection folder holding `data` as entries.json; settings=None writes no settings.json (the defaults)."""
     d = tempfile.mkdtemp(dir=root)
     with open(os.path.join(d, "entries.json"), "w", encoding="utf-8") as f:
         f.write(data if isinstance(data, str) else json.dumps(data))
+    if settings is not None:
+        with open(os.path.join(d, "settings.json"), "w", encoding="utf-8") as f:
+            json.dump(settings, f)
     return d
 
 
-def load_error(data) -> str:
-    d = collection(data)
+def load_message(data, settings=FIXTURE_SETTINGS) -> tuple:
+    d = collection(data, settings=settings)
     try:
         I.load_collection(d)
     except I.InputError as e:
-        msg = str(e)
-        return msg[len(os.path.join(d, "entries.json")) + 2:] if msg.startswith(os.path.join(d, "entries.json")) \
-            else "(message doesn't start with the file path) " + msg
-    return "(no error)"
+        return d, str(e)
+    return d, "(no error)"
+
+
+def load_error(data, settings=FIXTURE_SETTINGS) -> str:
+    d, msg = load_message(data, settings)
+    if msg == "(no error)":
+        return msg
+    return msg[len(os.path.join(d, "entries.json")) + 2:] if msg.startswith(os.path.join(d, "entries.json")) \
+        else "(message doesn't start with the file path) " + msg
+
+
+def settings_error(data, settings) -> str:
+    """The whole message of an error that names settings.json or entries.json itself, not the file path."""
+    return load_message(data, settings)[1]
 
 
 def run_tests():
@@ -61,7 +82,7 @@ def run_tests():
     entries, rules, _fe = I.load_collection(collection([VER, TSU]))
     check("a bare list loads entries in file order", list(entries), ["VER", "TSU"])
     check("an int number is read as text", entries["TSU"].number, "22")
-    check("a bare list gets the default rules", rules, I.Rules())
+    check("a bare list gets the default rules", rules, I.Rules(families={"team": "F1"}))
     entries, rules, _fe = I.load_collection(collection({"rules": {"team_only": "none", "unidentified": ["F1|Check"],
                                                              "diagnostics": {"burst": "", "team": "X|Team"}},
                                                    "entries": [VER]}))
@@ -70,7 +91,7 @@ def run_tests():
     check("rules: renamed, dropped and default diagnostics", dict(rules.diagnostics),
           dict(I.DIAG_DEFAULTS, burst="", team="X|Team"))
     check("default diagnostics sit under Assisted Tagging|Motorsport",
-          all(v.startswith("Assisted Tagging|Identification|") for k, v in I.DIAG_DEFAULTS.items() if k != "colour"), True)
+          all(v.startswith("Assisted Tagging|Identification|") for k, v in I.DIAG_DEFAULTS.items()), True)
 
     check("duplicate id is rejected", load_error([VER, VER]), 'entry "VER" appears twice')
     check("a comma in a tag is rejected", load_error([dict(VER, tags=["a,b"])]),
@@ -89,7 +110,7 @@ def run_tests():
         missing = str(e)
     check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
-          'unknown rule "team_onyl" (rules are team_only, unidentified, sponsor_keywords, tag_prefix, colour_palette; '
+          'unknown rule "team_onyl" (rules are team_only, unidentified, sponsor_keywords, colour_palette; '
           'behaviour settings such as order_weight go in settings.json)')
     lines = []
     real_log, I.log = I.log, lines.append
@@ -121,26 +142,54 @@ def run_tests():
     check("a bad team_only value is rejected", load_error({"rules": {"team_only": "both"}, "entries": []}),
           'rules.team_only must be "shared tags" or "none"')
 
-    # ---- rules.tag_prefix builds tags from team and name
-    entries, rules, _fe = I.load_collection(collection({"rules": {"tag_prefix": "Motorsport|F1"}, "entries": [
-        {"id": "VER", "team": "Red Bull", "name": "Max Verstappen", "tags": ["Extra|Champion", "Motorsport|F1|Red Bull"]},
-        {"id": "RB", "team": "Red Bull"}, {"id": "SC", "name": "Safety Car"}]}))
-    check("prefix: team, then team|name, then extras without repeats", entries["VER"].tags,
-          ("Motorsport|F1|Red Bull", "Motorsport|F1|Red Bull|Max Verstappen", "Extra|Champion"))
-    check("prefix: a team-only entry gets just the team tag", entries["RB"].tags, ("Motorsport|F1|Red Bull",))
-    check("prefix: a name with no team hangs off the prefix", entries["SC"].tags, ("Motorsport|F1|Safety Car",))
-    check("name without a prefix is rejected", load_error({"entries": [dict(VER, name="Max")]}),
-          'entry "VER": name needs rules.tag_prefix; without one, list the full tags')
-    check("prefix: an entry with nothing to build from is rejected",
-          load_error({"rules": {"tag_prefix": "F1"}, "entries": [{"id": "X"}]}),
-          'entry "X": needs a team or name to build its tags from rules.tag_prefix, or its own tags')
-    n_entries, _, _fe = I.load_collection(collection({"rules": {"tag_prefix": "Rally|2026"}, "entries": [
-        {"id": "12", "number": "12"}, {"id": "7", "number": 7, "team": "Red"}]}))
-    check("numbers-only entry tags come from prefix and number", n_entries["12"].tags, ("Rally|2026|12",))
-    check("an entry with a team keeps the team tag, not the number", n_entries["7"].tags, ("Rally|2026|Red",))
-    check("numbers-only entry without a prefix is rejected",
-          load_error({"entries": [{"id": "12", "number": "12"}]}),
-          'entry "12": tags must be a non-empty list of tag names')
+    # ---- tag families build an entry's tags from its number, team and name
+    LEC = {"id": "12", "number": "12", "team": "Ferrari", "name": "Leclerc"}
+    entries, rules, _fe = I.load_collection(collection([LEC, dict(VER, name="Max")], settings=None))
+    check("families: every family is on by default", rules.families, ALL_FAMILIES)
+    check("families: number, team, then driver", entries["12"].tags,
+          ("Motorsport|Number|12", "Motorsport|Team|Ferrari", "Motorsport|Driver|Leclerc"))
+    check("families: the entry's own tags follow as extras", entries["VER"].tags,
+          ("Motorsport|Number|1", "Motorsport|Team|Red Bull", "Motorsport|Driver|Max", "F1|Red Bull", "F1|Red Bull|Verstappen"))
+    entries, _, _fe = I.load_collection(collection(
+        [dict(LEC, tags=["Extra|Champion", "Motorsport|Team|Ferrari"])], settings=None))
+    check("families: an extra that repeats a built tag is listed once", entries["12"].tags,
+          ("Motorsport|Number|12", "Motorsport|Team|Ferrari", "Motorsport|Driver|Leclerc", "Extra|Champion"))
+    entries, rules, _fe = I.load_collection(collection([LEC], settings={"family_team": False}))
+    check("families: team off drops the team tag", entries["12"].tags, ("Motorsport|Number|12", "Motorsport|Driver|Leclerc"))
+    check("families: team off leaves it out of rules.families", "team" in rules.families, False)
+    entries, rules, _fe = I.load_collection(collection([LEC], settings={
+        "family_number_root": "Rally|2026|Number", "family_team_root": "Rally|2026|Team", "family_driver": False,
+        "family_colour_root": "Rally|Colour"}))
+    check("families: roots come from settings.json", entries["12"].tags, ("Rally|2026|Number|12", "Rally|2026|Team|Ferrari"))
+    check("families: the colour root is read", rules.families["colour"], "Rally|Colour")
+    check("families: an empty root is the default",
+          I.load_collection(collection([LEC], settings={"family_team_root": ""}))[1].families["team"], "Motorsport|Team")
+    check("families: a root of spaces names the setting", settings_error([LEC], {"family_team_root": "  "}),
+          "settings.json: family_team_root is empty")
+    check("families: an entry that builds no tag is rejected",
+          load_error([{"id": "12", "number": "12"}], {"family_number": False}),
+          'entry "12": builds no tag; turn on a family it has a value for, or give it tags')
+    check("families: an entry with nothing at all is rejected", load_error([{"id": "X"}], None),
+          'entry "X": builds no tag; turn on a family it has a value for, or give it tags')
+    check("families: a numbers-only entry needs no tags", I.load_collection(
+        collection([{"id": "12", "number": "12"}], settings=None))[0]["12"].tags, ("Motorsport|Number|12",))
+    check("families: a root with a comma names the setting", settings_error([LEC], {"family_team_root": "A,B"}),
+          'settings.json: family_team_root can\'t contain , ; or "')
+    check("families: a root ending in | names the setting", settings_error([LEC], {"family_number_root": "F1|"}),
+          "settings.json: family_number_root can't start or end with | or a space")
+    check("families: one root under another names both settings",
+          settings_error([LEC], {"family_number_root": "Cars", "family_team_root": "Cars|Team"}),
+          'settings.json: family_number_root ("Cars") and family_team_root ("Cars|Team") overlap; '
+          'each family needs its own root')
+    check("families: a switched-off family's root isn't checked", I.load_collection(collection(
+        [LEC], settings={"family_number_root": "Cars", "family_team_root": "Cars|Team", "family_team": False}))[0]["12"].tags,
+        ("Cars|12", "Motorsport|Driver|Leclerc"))
+    check("rules.tag_prefix is removed and names the family roots",
+          load_error({"rules": {"tag_prefix": "Motorsport|F1"}, "entries": [LEC]}),
+          'rules.tag_prefix was removed; set family_number_root, family_team_root and family_driver_root '
+          'in settings.json (README, "Tag families")')
+    check("people: no families, the entry's tags only",
+          I.load_collection(collection({"kind": "people", "entries": [LH]}, settings=None))[1].families, {})
     check("order_weight defaults to 0", I.load_collection(collection([VER]))[1].order_weight, 0.0)
     check("min_read defaults to 0.85", I.load_collection(collection([VER]))[1].min_read, 0.85)
     sd = collection([VER])
@@ -151,17 +200,25 @@ def run_tests():
         f.write('{"order_weight": 0.7}')
     check("settings.json sets order_weight", I.load_collection(sd)[1].order_weight, 0.2)
     check("a settings_path file overrides the collection's", I.load_collection(sd, other)[1].order_weight, 0.7)
-    sd = collection([VER])
-    with open(os.path.join(sd, "settings.json"), "w", encoding="utf-8") as f:
-        f.write('{"tag_colour": false}')
-    d_rules = I.load_collection(sd)[1]
-    check("diag_from_settings_json: colour switch off blanks the name", dict(d_rules.diagnostics)["colour"], "")
+    # ---- the colour family
+    d_rules = I.load_collection(collection([VER], settings={"family_colour": False}))[1]
+    check("family_colour off: no colour family", "colour" in d_rules.families, False)
     d_csv = os.path.join(tempfile.mkdtemp(), "d.csv")
     I.write_rules_csv(d_rules, (), d_csv)
-    check("diag_from_settings_json: rules.csv has diag_colour,", "diag_colour," in open(d_csv, encoding="utf-8").read().splitlines(), True)
-    # ---- colour tags
-    check("colour_tags defaults off", I.load_collection(collection([VER]))[1].colour_tags, False)
-    check("colour_tags is read", I.load_collection(collection({"rules": {"colour_tags": True}, "entries": [VER]}))[1].colour_tags, True)
+    d_lines = open(d_csv, encoding="utf-8").read().splitlines()
+    check("family_colour off: rules.csv has no family_colour line", [x for x in d_lines if x.startswith("family_colour,")], [])
+    check("family_colour off: the other families are still written", "family_team,Motorsport|Team" in d_lines, True)
+    check("no diag_colour line is written", [x for x in d_lines if x.startswith("diag_colour,")], [])
+    on_rules = I.load_collection(collection([VER], settings=None))[1]
+    I.write_rules_csv(on_rules, (), d_csv)
+    check("the colour family is on by default: rules.csv has its root",
+          "family_colour,Assisted Tagging|Colour" in open(d_csv, encoding="utf-8").read().splitlines(), True)
+    for old, new in (("colour_tags", "family_colour"), ("tag_colour", "family_colour"), ("tag_colour_name", "family_colour_root")):
+        check(f"settings.json: removed {old} stops the load", settings_error([VER], {old: True}),
+              f'settings.json: {old} was removed; use {new} (README, "Tag families")')
+    check("entries.json: removed rules.colour_tags stops the load",
+          settings_error({"rules": {"colour_tags": True}, "entries": [VER]}, None),
+          'entries.json: rules.colour_tags was removed; use family_colour in settings.json (README, "Tag families")')
     blue = dict(C.PALETTE)["Blue"]
     check("default palette is the built-in one", I.load_collection(collection([VER]))[1].colour_palette, C.PALETTE)
     _, navy, _fe = I.load_collection(collection({"rules": {"colour_palette": {"Navy": "Blue"}}, "entries": [VER]}))
@@ -181,9 +238,9 @@ def run_tests():
     check("unknown entry colour names the entry and colour", 'entry "VER"' in msg and "Pink" in msg, True)
     msg = load_error({"rules": {"colour_palette": {"Red": "Red"}}, "entries": [dict(VER, colour="Blue")]})
     check("entry colour outside the palette names the entry and colour", 'entry "VER"' in msg and "Blue" in msg, True)
-    _, diag, _fe = I.load_collection(collection({"rules": {"diagnostics": {"colour": "Rally|Colour"}}, "entries": [VER]}))
-    check("colour diagnostic is renamable", dict(diag.diagnostics)["colour"], "Rally|Colour")
-    check("a trailing | on the prefix is rejected", "tag_prefix" in load_error({"rules": {"tag_prefix": "F1|"}, "entries": []}), True)
+    check("entries.json: removed rules.diagnostics.colour stops the load",
+          settings_error({"rules": {"diagnostics": {"colour": "Rally|Colour"}}, "entries": [VER]}, None),
+          'entries.json: rules.diagnostics.colour was removed; use family_colour_root in settings.json (README, "Tag families")')
 
     # ---- csv outputs and the tag plan
     entries, rules, _fe = I.load_collection(collection({"rules": {"unidentified": ["F1|Check"]},
@@ -192,16 +249,21 @@ def run_tests():
     I.write_entries_csv(entries, os.path.join(out, "e.csv"))
     I.write_rules_csv(rules, _fe, os.path.join(out, "r.csv"))
     check("entries.csv rows", open(os.path.join(out, "e.csv"), encoding="utf-8").read().splitlines()[1],
-          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda")
+          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda,")
+    name_entries = I.load_collection(collection([dict(VER, name="Max Verstappen")]))[0]
+    I.write_entries_csv(name_entries, os.path.join(out, "n.csv"))
+    check("entries.csv ends with the name", open(os.path.join(out, "n.csv"), encoding="utf-8").read().splitlines()[0],
+          "VER,Red Bull,1,F1|Red Bull;F1|Red Bull|Verstappen,Max Verstappen")
     check("rules.csv rows", open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()[:3],
           ["team_only,shared tags", "unidentified,F1|Check", "diag_number,Assisted Tagging|Identification|By number"])
     rows = open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()
     check("rules.csv ends with from_entries_json, empty here", rows[-1], "from_entries_json,")
+    check("rules.csv lists each family that is on", [x for x in rows if x.startswith("family_")], ["family_team,F1"])
     entries, rules, fe = I.load_collection(collection({"rules": {"order_weight": 0.5}, "entries": [VER]}))
     I.write_rules_csv(rules, fe, os.path.join(out, "r2.csv"))
     text = open(os.path.join(out, "r2.csv"), encoding="utf-8").read()
     check("rules_csv_has_moved_keys", all(x in text.splitlines() for x in (
-        "order_weight,0.5", "neighbour_tolerance,5", "colour_tags,false", "from_entries_json,order_weight")), True)
+        "order_weight,0.5", "neighbour_tolerance,5", "from_entries_json,order_weight")), True)
     entries, rules, _fe = I.load_collection(collection({"rules": {"unidentified": ["F1|Check"]},
                                                    "entries": [VER, TSU, {"id": "SC", "tags": ["F1|Safety Car"]}]}))
     plan = I.tag_plan("F1", entries, rules, {"VER": 3})
@@ -492,7 +554,7 @@ def run_tests():
     finally:
         audit_refs.screen_refs = real_screen
 
-    # ---- reference actions fill an entry's colour (rules.colour_tags)
+    # ---- reference actions fill an entry's colour (the colour family)
     import entries_file
     real_detect, real_entry = I.detect_vehicles, I.frame_entry
     I.detect_vehicles = lambda rgb, entry: ([(0, 0, 50, 50)], "")
@@ -500,7 +562,8 @@ def run_tests():
     # refs cut from one crop pile up here; screening them is the block above's subject
     audit_refs.screen_refs = lambda collection, rels: {}
     vmodels = {"embedder": "fake", "detector": ""}
-    ccoll = collection(entries_file.dump({"rules": {"colour_tags": True, "partial_references": True}, "entries": [VER, TSU]}), root=root)
+    colour_on = dict(FIXTURE_SETTINGS, family_colour=True)
+    ccoll = collection(entries_file.dump({"rules": {"partial_references": True}, "entries": [VER, TSU]}), root=root, settings=colour_on)
     centries = os.path.join(ccoll, "entries.json")
 
     def ref_job(job, coll_dir, row, boxes_in="", colours_only=False):
@@ -536,7 +599,7 @@ def run_tests():
         check("a differing reading leaves the colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
 
         # --colours-only: the colour alone goes to entries.json, no reference is saved
-        ocoll = collection(entries_file.dump({"rules": {"colour_tags": True}, "entries": [VER, TSU]}), root=root)
+        ocoll = collection(entries_file.dump({"entries": [VER, TSU]}), root=root, settings=colour_on)
         oentries = os.path.join(ocoll, "entries.json")
         check("colours-only: a hand colour sets the entry and saves no reference",
               (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","VER","Red"', colours_only=True),
@@ -557,8 +620,8 @@ def run_tests():
             off = "(no error)"
         except I.InputError as e:
             off = str(e)
-        check("colours-only needs colour_tags", off, "Fill entry colours needs read car colour (colour_tags) on")
-        pcoll = collection({"kind": "people", "rules": {"colour_tags": True}, "entries": [LH]}, root=root)
+        check("colours-only needs the colour family", off, "Fill entry colours needs the colour family (family_colour) on")
+        pcoll = collection({"kind": "people", "entries": [LH]}, root=root)
         try:
             ref_job(I.add_references, pcoll, f'"1","{real_jpg}","Lando Norris",""', colours_only=True)
             people = "(no error)"
@@ -590,7 +653,8 @@ def run_tests():
     check("3-, 4- and 5-column manifests all parse", [r[3:] for r in I.read_manifest(mf, 3, 2)],
           [["", ""], ["F1|X", ""], ["", "F1|Red Bull"]])
     ents = {"VER": I.Entry("VER", "1", "Red Bull", ("F1|Red Bull", "F1|Red Bull|Verstappen"))}
-    check("strict prefixes of entry tags", I.strict_prefixes(ents), ["F1", "F1|Red Bull"])
+    check("team tags come from the team family root", I.team_tags(ents, {"team": "F1"}), ["F1|Red Bull"])
+    check("no team tags with the team family off", I.team_tags(ents, {}), [])
     check("tag and sponsor hints that agree merge", I.box_hint(["F1|Red Bull"], ["F1|Red Bull"]), (["F1|Red Bull"], "both"))
     check("a tag hint beats a differing sponsor hint", I.box_hint(["F1|Ferrari"], ["F1|Red Bull"]), (["F1|Ferrari"], "tag"))
     check("sponsor hint alone", I.box_hint([], ["F1|Red Bull"]), (["F1|Red Bull"], "sponsor"))

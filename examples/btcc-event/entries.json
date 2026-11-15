@@ -1,6 +1,5 @@
 {
   "rules": {
-    "tag_prefix": "Motorsport|BTCC",
     "team_only": "none",
     "unidentified": ["Shoot|Check me"]
   },

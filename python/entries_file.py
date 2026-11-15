@@ -17,7 +17,7 @@ def dump(data, inline_rules: bool = False) -> str:
     """The canonical layout, as the examples and assisted_tagging.lua's M.entries_json write it: one
     entry per line (`{ "id": ..., ... }`), indented 4 under an object's "entries" and 2 in a bare
     list; every other top-level value (the rules block) is 2-space indented JSON, or with
-    `inline_rules` one line (`{ "tag_prefix": ... }`, as M.entries_json writes it). Key order is kept."""
+    `inline_rules` one line. Key order is kept."""
     if isinstance(data, list):
         return "[\n" + ",\n".join("  " + _entry(e) for e in data) + "\n]\n"
     lines = []

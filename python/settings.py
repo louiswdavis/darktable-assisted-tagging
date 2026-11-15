@@ -7,6 +7,8 @@ import os
 import re
 from dataclasses import dataclass
 
+from families import FAMILIES, root_key, switch_key
+
 _BAD_TAG = re.compile(r'[,;"]')
 
 
@@ -36,8 +38,6 @@ DIAG_DEFAULTS = {
     # Suffixed with the literal digits read, e.g. "...|Number seen|115": independent of
     # the outcome above, applied whenever OCR read a number that matched zero or 2+ entries.
     "number_seen": "Assisted Tagging|Identification|Number seen",
-    # Suffixed with the car's body colour, e.g. "...|Colour|Red" (colour_tags).
-    "colour": "Assisted Tagging|Colour",
     # A confident number read whose entry's colour disagrees with the colour seen; the entry tag stays.
     "check_colour": "Assisted Tagging|Identification|Check colour",
     # Written instead of "livery"/"team" when burst_livery_pooling resolved a frame
@@ -52,11 +52,18 @@ DIAG_DEFAULTS = {
 SHOT_LEAVES = (("shot_solo", "Solo"), ("shot_pack", "Pack"), ("shot_crowded", "Crowded"))
 
 TOGGLE_KEYS = ("number", "livery", "burst", "pooled", "neighbour", "check_order", "team", "none",
-               "number_seen", "colour", "check_colour", "shot")
+               "number_seen", "check_colour", "shot")
 
-MOVED_RULES = ("order_weight", "neighbour_tolerance", "min_read", "colour_weight", "colour_tags",
-               "partial_references", "min_sim", "margin", "min_face_px", "burst_livery_pooling",
+MOVED_RULES = ("order_weight", "neighbour_tolerance", "min_read", "colour_weight", "partial_references", "min_sim", "margin", "min_face_px", "burst_livery_pooling",
                "blur_references")
+
+# Settings that no longer exist -> the family setting that replaced each. A file still holding one stops the load.
+REMOVED_KEYS = {"colour_tags": "family_colour", "tag_colour": "family_colour", "tag_colour_name": "family_colour_root"}
+
+
+class SettingsError(ValueError):
+    """A setting the user must change before a run (a removed key)."""
+
 
 _SHOT_BASE = "Assisted Tagging|Identification|Shot"
 
@@ -75,7 +82,6 @@ def _schema() -> tuple:
         Setting("neighbour_tolerance", "number", 5, lo=0, integer=True),
         Setting("min_read", "number", 0.85, lo=0, hi=1),
         Setting("colour_weight", "number", 0, lo=0),
-        Setting("colour_tags", "bool", False),
         Setting("partial_references", "bool", False),
         Setting("min_sim", "number", 0.5, lo=0, hi=1, lo_open=True),
         Setting("margin", "number", 0.05, lo=0, hi=1, hi_open=True),
@@ -83,6 +89,9 @@ def _schema() -> tuple:
         Setting("burst_livery_pooling", "bool", False),
         Setting("blur_references", "bool", False),
     ]
+    for fam in FAMILIES:
+        out.append(Setting(switch_key(fam.key), "bool", True))
+        out.append(Setting(root_key(fam.key), "string", fam.default_root))
     for k in TOGGLE_KEYS:
         out.append(Setting(f"tag_{k}", "bool", True))
         name = _SHOT_BASE if k == "shot" else DIAG_DEFAULTS[k]
@@ -181,13 +190,27 @@ def _shot_from_rules(diag, log_mismatch, log):
     return None
 
 
+def _removed(where: str, key: str, replacement: str) -> SettingsError:
+    place = "" if where == "settings.json" else " in settings.json"
+    return SettingsError(f'{where}: {key} was removed; use {replacement}{place} (README, "Tag families")')
+
+
 def load_settings(collection_dir: str, rules_raw, log, path: str = "") -> tuple[dict, tuple[str, ...]]:
     """Every schema key resolved: settings.json, else the old entries.json rules, else the default.
+    A family root is only stripped here; families.resolve checks it.
 
-    Returns (values, keys that came from rules_raw)."""
+    Returns (values, keys that came from rules_raw). Raises SettingsError for a key in REMOVED_KEYS,
+    in settings.json or as the old rules.colour_tags / rules.diagnostics.colour."""
     file_vals = _read_file(path or os.path.join(collection_dir, "settings.json"), log)
-    old = _rules_values(rules_raw)
+    for k, replacement in REMOVED_KEYS.items():
+        if k in file_vals:
+            raise _removed("settings.json", k, replacement)
     diag = rules_raw.get("diagnostics") if isinstance(rules_raw, dict) else None
+    if isinstance(rules_raw, dict) and "colour_tags" in rules_raw:
+        raise _removed("entries.json", "rules.colour_tags", REMOVED_KEYS["colour_tags"])
+    if isinstance(diag, dict) and "colour" in diag:
+        raise _removed("entries.json", "rules.diagnostics.colour", REMOVED_KEYS["tag_colour_name"])
+    old = _rules_values(rules_raw)
     if isinstance(rules_raw, dict) and "diagnostics" in rules_raw:
         if not isinstance(diag, dict):
             log("entries.json: rules.diagnostics must be an object, ignored")

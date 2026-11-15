@@ -1,16 +1,15 @@
 {
   "rules": {
-    "tag_prefix": "Motorsport|F1",
     "team_only": "shared tags",
     "unidentified": [],
     "sponsor_keywords": {
-      "petronas": "Motorsport|F1|Mercedes",
-      "ineos": "Motorsport|F1|Mercedes",
-      "mercedes": "Motorsport|F1|Mercedes",
-      "ferrari": "Motorsport|F1|Ferrari",
-      "santander": "Motorsport|F1|Ferrari",
-      "shell": "Motorsport|F1|Ferrari",
-      "hp": "Motorsport|F1|Ferrari"
+      "petronas": "Motorsport|F1|Team|Mercedes",
+      "ineos": "Motorsport|F1|Team|Mercedes",
+      "mercedes": "Motorsport|F1|Team|Mercedes",
+      "ferrari": "Motorsport|F1|Team|Ferrari",
+      "santander": "Motorsport|F1|Team|Ferrari",
+      "shell": "Motorsport|F1|Team|Ferrari",
+      "hp": "Motorsport|F1|Team|Ferrari"
     }
   },
   "entries": [

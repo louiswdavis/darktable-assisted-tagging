@@ -36,27 +36,28 @@ def run_tests():
 
         with open(src, "w", encoding="utf-8") as f:
             f.write("number,driver\n12,Smith\n7\n 101 ,x\n\n")
-        M.main([src, out, "--tag-prefix", "Rally|2026"])
+        M.main([src, out])
         data = json.load(open(out, encoding="utf-8"))
         check("import writes numbers-only entries", data["entries"],
               [{"id": "12", "number": "12"}, {"id": "7", "number": "7"}, {"id": "101", "number": "101"}])
-        check("import writes only tag_prefix to the rules", data["rules"], {"tag_prefix": "Rally|2026"})
-        check("import never writes order_weight (it lives in settings.json)", "order_weight" in data["rules"], False)
+        check("import writes no rules (tag roots and order_weight live in settings.json)", list(data), ["entries"])
 
-        check("import refuses to overwrite", exits_2([src, out, "--tag-prefix", "Rally|2026"]), 2)
+        check("import refuses to overwrite", exits_2([src, out]), 2)
 
         dup = os.path.join(tmp, "dup.csv")
         with open(dup, "w", encoding="utf-8") as f:
             f.write("12\n7\n12\n")
-        check("import rejects a duplicate number", exits_2([dup, os.path.join(tmp, "d.json"), "--tag-prefix", "R"]), 2)
+        check("import rejects a duplicate number", exits_2([dup, os.path.join(tmp, "d.json")]), 2)
 
         empty = os.path.join(tmp, "empty.csv")
         with open(empty, "w", encoding="utf-8") as f:
             f.write("number\n")
-        check("import rejects an empty list", exits_2([empty, os.path.join(tmp, "e.json"), "--tag-prefix", "R"]), 2)
+        check("import rejects an empty list", exits_2([empty, os.path.join(tmp, "e.json")]), 2)
 
         check("import rejects the removed --order-weight flag",
-              exits_2([src, os.path.join(tmp, "w.json"), "--tag-prefix", "R", "--order-weight", "0.5"]), 2)
+              exits_2([src, os.path.join(tmp, "w.json"), "--order-weight", "0.5"]), 2)
+        check("import rejects the removed --tag-prefix flag",
+              exits_2([src, os.path.join(tmp, "p.json"), "--tag-prefix", "R"]), 2)
 
     if failures == 0:
         print("all tests passed")

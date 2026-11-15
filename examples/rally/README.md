@@ -1,10 +1,10 @@
 # Rally
 
-Cars of no known livery, passing in loops, identified by their race number alone. Each entry is just a number (`{"id": "12", "number": "12"}`); the tag it writes is `Rally|2026|12`. With no references, a car whose number can't be read stays *Unidentified*, unless its neighbours help (below).
+Cars of no known livery, passing in loops, identified by their race number alone. Each entry is just a number (`{"id": "12", "number": "12"}`); the tag it writes is `Rally|2026|Number|12` (`family_number_root` in `settings.json`). With no references, a car whose number can't be read stays *Unidentified*, unless its neighbours help (below).
 
 ## Using it
 
-1. Copy this folder's `entries.json` and `settings.json` into a new collection folder, or build one from your own list: put one number per line in a CSV, then run `python python/import_numbers.py numbers.csv entries.json --tag-prefix "Rally|2026"`; this folder's `settings.json` sets `order_weight` to `0.5`. It refuses to overwrite an existing file and stops on a duplicate or non-number. A full start list with drivers, teams and classes goes in through the panel's **Import start list** (section **1 collection**) or `python python/import_start_list.py <collection folder> --csv start.csv --tag-prefix "Rally|2026"`.
+1. Copy this folder's `entries.json` and `settings.json` into a new collection folder, or build one from your own list: put one number per line in a CSV, then run `python python/import_numbers.py numbers.csv entries.json`; this folder's `settings.json` sets `order_weight` to `0.5` and the family roots. It refuses to overwrite an existing file and stops on a duplicate or non-number. A full start list with drivers, teams and classes goes in through the panel's **Import start list** (section **1 collection**) or `python python/import_start_list.py <collection folder> --csv start.csv`.
 2. Click **Reload**, then **Identify selection** on the batch.
 
 ## Order weight

@@ -36,6 +36,7 @@ class Entry:
     tags: tuple
     camera: str = ""  # onboard camera pod colour ("yellow" / "black"), a teammate tie-break; "" when unknown
     colour: str = ""  # body colour (a palette name or "Multi"), a doubtful-decision tie-break; "" when unknown
+    name: str = ""  # the driver, the value of the driver tag family; "" when unknown
 
 
 @dataclass(frozen=True)
@@ -267,13 +268,13 @@ TEAM_KEY = "@team@"  # reference folder / index key prefix of a team-level refer
 
 
 def team_key(prefix: str) -> str:
-    """The refs/ folder name of a team prefix (`|` can't sit in a path on every platform)."""
+    """The refs/ folder name of a team tag (`|` can't sit in a path on every platform)."""
     return TEAM_KEY + prefix.replace("|", "__")
 
 
 def match_team(result: BoxResult, team_sims: list, entries: dict) -> BoxResult:
     """A `none` result upgraded to `team` when one team's references clearly lead: team_sims is
-    [(team prefix, similarity)] most similar first. The first two entries under the team become
+    [(team tag, similarity)] most similar first. The first two entries under the team become
     entry/alt so the plugin writes only their shared tags. Any other result is returned as is."""
     if result.method != "none" or not team_sims:
         return result

@@ -1,9 +1,9 @@
 """Build a numbers-only entries.json from a list of car numbers.
 
-  python python/import_numbers.py NUMBERS_CSV OUT_ENTRIES_JSON --tag-prefix PREFIX
+  python python/import_numbers.py NUMBERS_CSV OUT_ENTRIES_JSON
 
 NUMBERS_CSV holds one number per line (first column; a first line that isn't digits is a header and
-is skipped). Each entry gets the tag `PREFIX|<number>` (see identify.py's numbers-only entries).
+is skipped). Each entry is tagged by the number family (family_number_root in settings.json).
 Refuses to overwrite OUT_ENTRIES_JSON. Exit 2 with a message on bad input.
 Settings such as order_weight live in the collection's settings.json, not in entries.json."""
 
@@ -42,12 +42,11 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Build a numbers-only entries.json from a list of car numbers")
     parser.add_argument("numbers_csv")
     parser.add_argument("out_entries_json")
-    parser.add_argument("--tag-prefix", required=True, help="Tag prefix; each car is tagged PREFIX|<number>")
     args = parser.parse_args(argv)
     if os.path.exists(args.out_entries_json):
         fail(f"{args.out_entries_json} already exists; not overwriting")
     numbers = read_numbers(args.numbers_csv)
-    data = {"rules": {"tag_prefix": args.tag_prefix}, "entries": [{"id": n, "number": n} for n in numbers]}
+    data = {"entries": [{"id": n, "number": n} for n in numbers]}
     with open(args.out_entries_json, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
         f.write("\n")

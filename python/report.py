@@ -196,7 +196,7 @@ def pod_stats(data: dict, all_rows: list) -> dict:
 
 
 def sponsor_suggestions(data: dict, all_rows: list) -> list:
-    """Words OCR read confidently on identified boxes that point at one tag prefix, not yet in
+    """Words OCR read confidently on identified boxes that point at one team tag, not yet in
     `sponsor_keywords`: [{word, prefix, identified, other, unhinted}], best first. `prefix` is the
     entry's shallowest tag; `other` counts identified boxes of a different prefix carrying the word;
     `unhinted` counts team-obvious/weak-match/no-references boxes that carry it (what it would hint)."""
@@ -306,7 +306,7 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int, extra: dict =
     suggestions = extra["sponsor_suggestions"]
     if suggestions and top > 0:
         out += ["", "## sponsor keyword suggestions", "",
-                "words OCR read on identified boxes of one tag prefix only; add under `rules.sponsor_keywords` after checking:"]
+                "words OCR read on identified boxes of one team tag only; add under `rules.sponsor_keywords` after checking:"]
         out += [f"- `{s['word']}` → `{s['prefix']}`: {s['identified']} identified, would hint {s['unhinted']} unidentified"
                 for s in suggestions[:top]]
     pod = extra.get("pod")

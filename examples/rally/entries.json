@@ -1,7 +1,4 @@
 {
-  "rules": {
-    "tag_prefix": "Rally|2026"
-  },
   "entries": [
     { "id": "3", "number": "3" },
     { "id": "5", "number": "5" },

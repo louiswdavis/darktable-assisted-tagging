@@ -52,8 +52,6 @@ M.DIAG_TAGS = {
     -- Suffixed with the literal digits read, e.g. "...|Number seen|115"; independent of
     -- the outcome tags above, added whenever OCR read a number that didn't resolve.
     number_seen = "Assisted Tagging|Identification|Number seen",
-    -- Suffixed with the decided colour, e.g. "...|Colour|Red"; independent of the outcome.
-    colour = "Assisted Tagging|Colour",
     check_colour = "Assisted Tagging|Identification|Check colour",
     -- Experimental (rules.burst_livery_pooling): a frame resolved by pooling box-0
     -- livery similarity across its burst rather than on its own.
@@ -63,6 +61,25 @@ M.DIAG_TAGS = {
     shot_pack = "Assisted Tagging|Identification|Shot|Pack",
     shot_crowded = "Assisted Tagging|Identification|Shot|Crowded",
 }
+
+-- Tag families, in order: each writes <root>|<value>, with a switch (family_<key>) and a root
+-- (family_<key>_root) in the collection's settings. `source` is the entry field the value comes
+-- from; "" = read from the photo. Mirrors FAMILIES in python/families.py (test_families.py checks).
+M.FAMILIES = {
+    { key = "colour", source = "", default_root = "Assisted Tagging|Colour" },
+    { key = "number", source = "number", default_root = "Motorsport|Number" },
+    { key = "team", source = "team", default_root = "Motorsport|Team" },
+    { key = "driver", source = "name", default_root = "Motorsport|Driver" },
+}
+
+-- Family key → root for each family switched on in settings `s`.
+function M.family_roots(s)
+    local roots = {}
+    for _, f in ipairs(M.FAMILIES) do
+        if s["family_" .. f.key] then roots[f.key] = s["family_" .. f.key .. "_root"] end
+    end
+    return roots
+end
 
 function M.exif_time_to_epoch(s)
     if not s then return nil end
@@ -174,13 +191,13 @@ local function split(s, sep)
     return out
 end
 
--- identify.py's entries.csv (id,team,number,tag;tag…) → entries by id, and the ids in file order.
+-- identify.py's entries.csv (id,team,number,tag;tag…,name) → entries by id, and the ids in file order.
 function M.parse_entries_csv(text)
     local entries, order = {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 4)
+        local p = M.parse_csv_line(line, 5) or M.parse_csv_line(line, 4)
         if p and p[1] ~= "" and p[4] ~= "" and not entries[p[1]] then
-            entries[p[1]] = { id = p[1], team = p[2], number = p[3], tags = split(p[4], ";") }
+            entries[p[1]] = { id = p[1], team = p[2], number = p[3], tags = split(p[4], ";"), name = p[5] or "" }
             order[#order + 1] = p[1]
         end
     end
@@ -190,16 +207,17 @@ end
 function M.default_rules()
     local diag = {}
     for k, v in pairs(M.DIAG_TAGS) do diag[k] = v end
-    return { team_only = "shared tags", unidentified = {}, diag = diag, settings = {}, from_entries_json = {} }
+    return { team_only = "shared tags", unidentified = {}, diag = diag, families = {}, settings = {},
+        from_entries_json = {} }
 end
 
 -- The collection settings identify.py writes into rules.csv (python/settings.py MOVED_RULES).
 local MOVED_RULES = { order_weight = true, neighbour_tolerance = true, min_read = true,
-    colour_weight = true, colour_tags = true, partial_references = true, min_sim = true,
+    colour_weight = true, partial_references = true, min_sim = true,
     margin = true, min_face_px = true, burst_livery_pooling = true, blur_references = true }
 
--- identify.py's rules.csv (key,value lines) → rules. Besides team_only, unidentified and
--- diag_<outcome>: each resolved setting as rules.settings[key] (numbers and booleans), and
+-- identify.py's rules.csv (key,value lines) → rules. Besides team_only, unidentified,
+-- diag_<outcome> and family_<key> (the root of a family that is on): each resolved setting as rules.settings[key] (numbers and booleans), and
 -- from_entries_json, the settings keys still read from entries.json's old "rules".
 function M.parse_rules_csv(text)
     local rules = M.default_rules()
@@ -213,6 +231,8 @@ function M.parse_rules_csv(text)
             rules.diag[key:sub(6)] = value
         elseif key == "from_entries_json" then
             rules.from_entries_json = split(value, ";")
+        elseif key and key:sub(1, 7) == "family_" then
+            rules.families[key:sub(8)] = value
         elseif key and MOVED_RULES[key] then
             if value == "true" or value == "false" then
                 rules.settings[key] = value == "true"
@@ -272,7 +292,7 @@ function M.wanted_tags(rows, entries, rules)
         end
         -- Independent of the outcome; a no-vehicle row (box -1) has no colour to report.
         if r.box >= 0 and r.colour and r.colour ~= "" then
-            local base = rules.diag.colour
+            local base = rules.families.colour
             if base and base ~= "" then diag[base .. "|" .. r.colour] = true end
             if r.colour_flag then note("check_colour") end
         end
@@ -335,6 +355,10 @@ function M.named_rules(rules, s)
             or s["tag_" .. k .. "_name"]
     end
     named.diag = diag
+    -- every family's root, on or off: a switched-off family's tags are still the plugin's
+    local families = {}
+    for _, f in ipairs(M.FAMILIES) do families[f.key] = s["family_" .. f.key .. "_root"] end
+    named.families = families
     return named
 end
 
@@ -351,13 +375,12 @@ function M.mask_diag(rules, off)
     return masked
 end
 
--- Prefixes of the dynamic diagnostics (one tag per value): "...Number seen|<digits>"
--- and "...Colour|<colour>".
+-- Prefixes of the tags written one per value: "...Number seen|<digits>" and the colour
+-- family's "<root>|<colour>".
 function M.owned_prefixes(rules)
     local out = {}
-    for _, k in ipairs({ "number_seen", "colour" }) do
-        local base = rules.diag[k]
-        if base and base ~= "" then out[#out + 1] = base .. "|" end
+    for _, base in ipairs({ rules.diag.number_seen or "", rules.families.colour or "" }) do
+        if base ~= "" then out[#out + 1] = base .. "|" end
     end
     return out
 end
@@ -558,24 +581,14 @@ function M.protected_tags(have, ledger_set, entries)
     return out
 end
 
--- Tags among `have` the user applied (not in `ledger_set`) that are a strict prefix of some
--- entry's tag (`prefix|…`): team-level hints that narrow matching. A driver's own leaf tag is not.
-function M.hint_prefixes(have, ledger_set, entries)
-    local below = {}
-    for _, e in pairs(entries) do
-        for _, t in ipairs(e.tags) do
-            local pos = 1
-            while true do
-                local bar = t:find("|", pos, true)
-                if not bar then break end
-                below[t:sub(1, bar - 1)] = true
-                pos = bar + 1
-            end
-        end
-    end
+-- Team tags (`team_root`|<team> of an entry) among `have` that the user applied (not in
+-- `ledger_set`): hints that narrow matching. Empty when the team family is off (no `team_root`).
+function M.hint_tags(have, ledger_set, entries, team_root)
     local out = {}
-    for name in pairs(have) do
-        if below[name] and not (ledger_set and ledger_set[name]) then out[name] = true end
+    if not team_root or team_root == "" then return out end
+    for _, e in pairs(entries) do
+        local name = e.team ~= "" and (team_root .. "|" .. e.team)
+        if name and have[name] and not (ledger_set and ledger_set[name]) then out[name] = true end
     end
     return out
 end
@@ -749,56 +762,18 @@ local function json_string(s)
     return '"' .. tostring(s):gsub('\\', '\\\\'):gsub('"', '\\"') .. '"'
 end
 
--- The shared prefix and each entry's name when every entry's tags are exactly
--- prefix|team and prefix|team|name (prefix|name with no team) under one prefix, which
--- is what rules.tag_prefix rebuilds; nil when any entry doesn't fit.
-function M.prefix_form(entries)
-    local prefix, names = nil, {}
-    for i, e in ipairs(entries) do
-        local team = e.team or ""
-        local deepest = e.tags[1]
-        for _, t in ipairs(e.tags) do
-            if tag_depth(t) > tag_depth(deepest) then deepest = t end
-        end
-        local name = tag_leaf(deepest)
-        local parent = deepest:match("^(.*)|[^|]*$")
-        if not parent or #e.tags ~= (team ~= "" and 2 or 1) then return nil end
-        if team ~= "" then
-            if tag_leaf(parent) ~= team then return nil end
-            local team_tag = false
-            for _, t in ipairs(e.tags) do if t == parent then team_tag = true end end
-            parent = parent:match("^(.*)|[^|]*$")
-            if not team_tag or not parent then return nil end
-        end
-        if prefix and prefix ~= parent then return nil end
-        prefix, names[i] = parent, name
-    end
-    return prefix, names
-end
-
--- An entries.json for derived entries. Entries already carry only ids/tags/numbers that
--- passed sanitize_id/hierarchical_tags/the digit check, so this never needs to reject
--- input. With prefix_form it is the {rules, entries} object using rules.tag_prefix and
--- `name`; otherwise a bare list of entries with full tags (default rules apply).
+-- An entries.json for derived entries: each with its full tags. Entries already carry only
+-- ids/tags/numbers that passed sanitize_id/hierarchical_tags/the digit check, so this never
+-- needs to reject input.
 function M.entries_json(entries)
-    local prefix, names = M.prefix_form(entries)
-    if prefix then
-        local parts = {}
-        for i, e in ipairs(entries) do
-            parts[#parts + 1] = string.format('    { "id": %s, "number": %s, "team": %s, "name": %s }',
-                json_string(e.id), json_string(e.number or ""), json_string(e.team or ""), json_string(names[i]))
-        end
-        return string.format('{\n  "rules": { "tag_prefix": %s },\n  "entries": [\n%s\n  ]\n}\n',
-            json_string(prefix), table.concat(parts, ",\n"))
-    end
     local parts = {}
     for _, e in ipairs(entries) do
         local tag_parts = {}
         for _, t in ipairs(e.tags) do tag_parts[#tag_parts + 1] = json_string(t) end
-        parts[#parts + 1] = string.format('  { "id": %s, "number": %s, "team": %s, "tags": [%s] }',
+        parts[#parts + 1] = string.format('    { "id": %s, "number": %s, "team": %s, "tags": [%s] }',
             json_string(e.id), json_string(e.number or ""), json_string(e.team or ""), table.concat(tag_parts, ", "))
     end
-    return "[\n" .. table.concat(parts, ",\n") .. "\n]\n"
+    return '{\n  "entries": [\n' .. table.concat(parts, ",\n") .. "\n  ]\n}\n"
 end
 
 
@@ -818,13 +793,20 @@ M.PRESET_SCHEMA = {
     { key = "neighbour_tolerance", kind = "number", default = 5 },
     { key = "min_read", kind = "number", default = 0.85 },
     { key = "colour_weight", kind = "number", default = 0 },
-    { key = "colour_tags", kind = "bool", default = false },
     { key = "partial_references", kind = "bool", default = false },
     { key = "min_sim", kind = "number", default = 0.5 },
     { key = "margin", kind = "number", default = 0.05 },
     { key = "min_face_px", kind = "number", default = 48 },
     { key = "burst_livery_pooling", kind = "bool", default = false },
     { key = "blur_references", kind = "bool", default = false },
+    { key = "family_colour", kind = "bool", default = true },
+    { key = "family_colour_root", kind = "string", default = "Assisted Tagging|Colour" },
+    { key = "family_number", kind = "bool", default = true },
+    { key = "family_number_root", kind = "string", default = "Motorsport|Number" },
+    { key = "family_team", kind = "bool", default = true },
+    { key = "family_team_root", kind = "string", default = "Motorsport|Team" },
+    { key = "family_driver", kind = "bool", default = true },
+    { key = "family_driver_root", kind = "string", default = "Motorsport|Driver" },
     { key = "tag_number", kind = "bool", default = true },
     { key = "tag_number_name", kind = "string", default = "Assisted Tagging|Identification|By number" },
     { key = "tag_livery", kind = "bool", default = true },
@@ -843,8 +825,6 @@ M.PRESET_SCHEMA = {
     { key = "tag_none_name", kind = "string", default = "Assisted Tagging|Identification|Unidentified" },
     { key = "tag_number_seen", kind = "bool", default = true },
     { key = "tag_number_seen_name", kind = "string", default = "Assisted Tagging|Identification|Number seen" },
-    { key = "tag_colour", kind = "bool", default = true },
-    { key = "tag_colour_name", kind = "string", default = "Assisted Tagging|Colour" },
     { key = "tag_check_colour", kind = "bool", default = true },
     { key = "tag_check_colour_name", kind = "string", default = "Assisted Tagging|Identification|Check colour" },
     { key = "tag_shot", kind = "bool", default = true },
@@ -867,6 +847,25 @@ local SETTING_RANGES = {
 local SCHEMA_BY_KEY = {}
 for _, item in ipairs(M.PRESET_SCHEMA) do SCHEMA_BY_KEY[item.key] = item end
 
+-- Settings that no longer exist → the family setting that replaced each
+-- (python/settings.py REMOVED_KEYS).
+local REMOVED_SETTINGS = {
+    { "colour_tags", "family_colour" },
+    { "tag_colour", "family_colour" },
+    { "tag_colour_name", "family_colour_root" },
+}
+
+-- Why decoded settings.json `s` can't be used: the first removed key it still holds, worded as
+-- identify.py words it. nil when it holds none.
+function M.removed_settings(s)
+    for _, pair in ipairs(REMOVED_SETTINGS) do
+        if s[pair[1]] ~= nil then
+            return string.format('settings.json: %s was removed; use %s (README, "Tag families")', pair[1], pair[2])
+        end
+    end
+    return nil
+end
+
 -- Panel entry text for setting `key` → its value, or nil and why. Blank text is an error;
 -- the panel decides what blank means.
 function M.parse_setting(key, text)
@@ -876,6 +875,10 @@ function M.parse_setting(key, text)
     if t == "" then return nil, "blank" end
     if item.kind == "string" then
         if key:match("_name$") and t:find('[,;"]') then return nil, 'a tag name can\'t hold , ; or "' end
+        if key:match("^family_.+_root$") then
+            if t:find('[,;"]') then return nil, 'can\'t contain , ; or "' end
+            if t:find("^|") or t:find("|$") then return nil, "can't start or end with | or a space" end
+        end
         return t
     end
     if item.kind == "bool" then
@@ -910,7 +913,7 @@ function M.panel_value(key, text)
 end
 
 -- A copy of settings `s` with every PRESET_SCHEMA key present: a missing key gets its
--- default (not listed), and each number or tag name that M.parse_setting refuses (e.g. a
+-- default (not listed), and each number, tag name or family root that M.parse_setting refuses (e.g. a
 -- hand-edited settings.json out of range) is set to its default and listed in `replaced`.
 function M.checked_settings(s)
     local out, replaced = {}, {}
@@ -919,7 +922,7 @@ function M.checked_settings(s)
         local key = item.key
         if s[key] == nil then
             out[key] = item.default
-        elseif item.kind == "number" or key:match("^tag_.+_name$") then
+        elseif item.kind == "number" or key:match("^tag_.+_name$") or key:match("^family_.+_root$") then
             if M.parse_setting(key, tostring(s[key] or "")) == nil then
                 out[key] = item.default
                 replaced[#replaced + 1] = key
@@ -1011,8 +1014,6 @@ local TAG_TOGGLES = {
     { key = "none", kind = "check", label = "Unidentified (check)", when = "no vehicle was found, or no confident match." },
     { key = "number_seen", kind = "diag", label = "Number seen",
       when = "OCR read digits that didn't resolve to one entry. Added alongside the outcome tag." },
-    { key = "colour", kind = "output", label = "Colour",
-      when = "a colour was decided for the vehicle. Added alongside the outcome tag." },
     { key = "check_colour", kind = "check", label = "Check colour",
       when = "the number read is confident but the car's colour differs from its entry's. Delete this tag once checked." },
     { key = "shot", kind = "check", label = "Shot",
@@ -1025,10 +1026,8 @@ M.TAG_TOGGLES = TAG_TOGGLES
 -- Tag switches whose tag needs another setting: `on` takes that setting's raw value (nil when
 -- missing = off) and `off` is the suffix the row's label shows while the setting is off.
 M.TAG_GATES = {
-    { key = "colour", by = "colour_tags", on = function(v) return v and true or false end,
-      off = "read car colour is off" },
-    { key = "check_colour", by = "colour_tags", on = function(v) return v and true or false end,
-      off = "read car colour is off" },
+    { key = "check_colour", by = "family_colour", on = function(v) return v and true or false end,
+      off = "the Colour family is off" },
     { key = "neighbour", by = "order_weight",
       on = function(v) return (tonumber(v) or 0) > 0 end, off = "order weight is 0" },
     { key = "pooled", by = "burst_livery_pooling", on = function(v) return v and true or false end,
@@ -1048,7 +1047,6 @@ end
 
 -- Headings of the tags-written page, in order; each TAG_TOGGLES row's `kind` is one of these.
 M.TAG_KINDS = {
-    { kind = "output", label = "outputs" },
     { kind = "check", label = "checks" },
     { kind = "diag", label = "how it decided" },
 }
@@ -1066,6 +1064,10 @@ end
 
 -- The panel's pages and the preset keys each page's widgets edit (C.page_coverage checks them).
 local tag_page_keys = {}
+for _i, f in ipairs(M.FAMILIES) do
+    tag_page_keys[#tag_page_keys + 1] = "family_" .. f.key
+    tag_page_keys[#tag_page_keys + 1] = "family_" .. f.key .. "_root"
+end
 for _i, t in ipairs(TAG_TOGGLES) do
     tag_page_keys[#tag_page_keys + 1] = "tag_" .. t.key
     tag_page_keys[#tag_page_keys + 1] = "tag_" .. t.key .. "_name"
@@ -1073,7 +1075,7 @@ end
 M.PANEL_PAGES = {
     { number = 1, title = "collection", keys = {} },
     { number = 2, title = "bursts", keys = { "group_support", "group_node" } },
-    { number = 3, title = "matching", keys = { "colour_tags", "use_hints", "embedder_file", "ocr_rec_file",
+    { number = 3, title = "matching", keys = { "use_hints", "embedder_file", "ocr_rec_file",
         "neighbour_tolerance", "order_weight", "min_read", "colour_weight", "partial_references" } },
     { number = 4, title = "tags written", keys = tag_page_keys },
     { number = 5, title = "run", keys = { "run_tag" } },
@@ -1228,6 +1230,16 @@ local function collection_settings(name)
 end
 local settings = collection_settings(current_collection())
 
+-- M.removed_settings of the selected collection's settings.json; nil for the template.
+local function removed_setting()
+    local name = current_collection()
+    local f = name ~= "" and io.open(collections_root() .. "/" .. name .. "/settings.json", "rb")
+    if not f then return nil end
+    local text = f:read("a")
+    f:close()
+    return M.removed_settings(M.preset_decode(text) or {})
+end
+
 local function model_path(name, script)
     local file = MODEL_FILES[name]
     if name == "embedder_model" and settings.embedder_file ~= "" then file = settings.embedder_file end
@@ -1323,8 +1335,11 @@ local read_panel = nil -- set by install_panel: the panel's values as settings
 
 -- A GUI run reads the panel as it starts; headless runs keep the collection's settings.
 -- False, with read_panel's "<key>: <why>" on screen, when an entry is invalid (blank entries
--- read as their defaults), so the run doesn't start.
+-- read as their defaults), so the run doesn't start. Nor does it while settings.json holds a
+-- removed setting: the panel's values would hide what identify.py refuses.
 local function take_settings()
+    local removed = removed_setting()
+    if removed then dt.print("Assisted Tagging: " .. removed); return false end
     if not read_panel then return true end
     local s, why = read_panel()
     if not s then dt.print("Assisted Tagging: " .. why); return false end
@@ -1341,8 +1356,7 @@ local function tag_tooltip(t, named)
     local names = {}
     for _i, k in ipairs(keys) do
         local name = named.diag[k]
-        names[#names + 1] = k == "number_seen" and name .. "|<digits>"
-            or k == "colour" and name .. "|<colour>" or name
+        names[#names + 1] = k == "number_seen" and name .. "|<digits>" or name
     end
     local writes = table.concat(names, ", ")
     return string.format(_("Writes: %s\nWhen: %s\nOff: stops writing it and removes it from images on the next run. Identification is unchanged."),
@@ -1804,6 +1818,7 @@ local function prepare_run(images, replace_manual)
     local protected_of, hints_of, sent_protected_of = {}, {}, {}
     local use_hints = settings.use_hints
     local named = M.named_rules(rules, settings)
+    local team_root = M.family_roots(settings).team
     for _, copies in pairs(group_of) do
         for _, copy in ipairs(copies) do
             local have = tags_of(copy)
@@ -1813,7 +1828,7 @@ local function prepare_run(images, replace_manual)
             end
             ledger[copy.id] = next(kept) and kept or nil
             protected_of[copy.id] = replace_manual and {} or M.protected_tags(have, kept, entries)
-            hints_of[copy.id] = replace_manual and {} or M.hint_prefixes(have, kept, entries)
+            hints_of[copy.id] = replace_manual and {} or M.hint_tags(have, kept, entries, team_root)
             -- the identifier sees protected tags for skip and conflict checks; with hints off a team tag
             -- is not among them, but protected_of still keeps the run from detaching it
             local sent = {}
@@ -1823,7 +1838,7 @@ local function prepare_run(images, replace_manual)
             sent_protected_of[copy.id] = sent
             if not use_hints then hints_of[copy.id] = {} end
             -- hand colour tags only stop a detach; sent to the identifier they'd read as entry tags
-            for name in pairs(replace_manual and {} or M.hand_colour_tags(have, kept, named.diag.colour)) do
+            for name in pairs(replace_manual and {} or M.hand_colour_tags(have, kept, named.families.colour)) do
                 protected_of[copy.id][name] = true
             end
             -- likewise hand-applied diagnostic, unidentified and number-seen tags
@@ -1986,6 +2001,8 @@ local function apply_results(run, job)
         if not settings["tag_" .. t.key] then diag_off[t.key] = true end
     end
     local write_rules = M.mask_diag(named, diag_off)
+    -- likewise named.families holds every root; only the families that are on get written
+    write_rules.families = M.family_roots(settings)
     -- one stamp per run; never owned, so later runs leave earlier stamps in place
     local run_tag = settings.run_tag
         and os.date("Assisted Tagging|Run|%Y-%m-%d %H:%M") or nil
@@ -2266,7 +2283,7 @@ function M.add_references(images, entry_id)
         local rows, n_skipped, sent = {}, 0, {}
         local _, pick_of = with_paired_jpegs(images)
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
-        local colour_base = M.named_rules(rules, settings).diag.colour
+        local colour_base = M.family_roots(settings).colour
         for _, img in ipairs(images) do
             -- the entry comes from the selected image's tags; the crop from its paired JPEG
             local src = pick_of[img.id]
@@ -2274,7 +2291,7 @@ function M.add_references(images, entry_id)
             if not eid then
                 -- tagged only to team level: identify.py saves it as a team reference when
                 -- rules.partial_references is on and the shot is solo
-                local prefixes = sorted_names(M.hint_prefixes(tags_of(img), nil, entries))
+                local prefixes = sorted_names(M.hint_tags(tags_of(img), nil, entries, M.family_roots(settings).team))
                 if #prefixes == 1 then eid = prefixes[1] end
             end
             if eid then
@@ -2329,8 +2346,8 @@ function M.fill_entry_colours(images)
         return
     end
     if not take_settings() then return end
-    if not settings.colour_tags then
-        dt.print(_("Assisted Tagging: tick read car colour (section 3) first."))
+    if not settings.family_colour then
+        dt.print(_("Assisted Tagging: tick the Colour family (section 4) first."))
         return
     end
     busy = true
@@ -2342,12 +2359,12 @@ function M.fill_entry_colours(images)
         local rows, n_skipped, sent = {}, 0, {}
         local _, pick_of = with_paired_jpegs(images)
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
-        local colour_base = M.named_rules(rules, settings).diag.colour
+        local colour_base = M.family_roots(settings).colour
         for _, img in ipairs(images) do
             local src = pick_of[img.id]
             local eid = M.entry_for_tags(tags_of(img), entries, entry_order)
             if not eid then
-                local prefixes = sorted_names(M.hint_prefixes(tags_of(img), nil, entries))
+                local prefixes = sorted_names(M.hint_tags(tags_of(img), nil, entries, M.family_roots(settings).team))
                 if #prefixes == 1 then eid = prefixes[1] end
             end
             if eid then
@@ -2399,7 +2416,7 @@ function M.promote_references(images)
         -- Identify recorded boxes for the JPEG of a RAW+JPEG pair, so a selected RAW reads its JPEG's
         local rows = {}
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
-        local colour_base = M.named_rules(rules, settings).diag.colour
+        local colour_base = M.family_roots(settings).colour
         for _, img in ipairs((with_paired_jpegs(images))) do
             rows[#rows + 1] = { img.id, img.path .. "/" .. img.filename, "",
                 M.hand_colour(tags_of(img), ledger[img.id], colour_base) or "" }
@@ -3010,13 +3027,31 @@ local function install_panel()
         _("Also write re-cut copies of wide references (one car found) into ref-audit-crops in the collection folder, for you to review. Nothing in refs/ is changed. The first audit with this ticked is slow (about 8 minutes for 2000 refs); later ones are fast.\nDefault: off. Turn on when the audit flags wide refs you want re-cut."))
     local quarantine_check = check("quarantine", _("Audit: quarantine poor refs"),
         _("After the report is written, move the refs flagged by 2+ checks out of refs/ into refs-quarantine in the collection folder (moved.txt lists each). Nothing is deleted: copy a file back into refs/<entry>/ to undo it.\nDefault: off. Turn on once you trust the audit's flags for this collection."))
-    local colour_tags_check = check("colour_tags", _("read car colour"),
-        _("Read each car's paintwork colour. Needed by the Colour tag, Check colour and entry colours (Fill entry colours and the reference actions). Turning it on re-reads every photo once.\nDefault: off."))
     local partial_references_check = check("partial_references", _("partial references"),
         _("Add tagged images also accepts a solo shot tagged only to team level and saves it as a team reference; a clear team lead with no clear driver then gives a team result.\nDefault: off."))
     -- Per tag switch: its check button and the tag name it writes (tag_<key>_name). The row's
     -- box is greyed while a gate in M.TAG_GATES is off (refresh_gates). A heading opens each kind.
     local tag_rows, name_entries, tag_row_boxes = {}, {}, {}
+    -- Per family: its switch and the root its tags sit under (family_<key>_root).
+    local family_rows = {
+        colour = { _("Colour"), _("Read each car's paintwork colour and write it as <root>|<colour>. Also needed by Check colour and entry colours (Fill entry colours and the reference actions). Turning it on re-reads every photo once.") },
+        number = { _("Number"), _("Write an identified entry's race number as <root>|<number>.") },
+        team = { _("Team"), _("Write an identified entry's team as <root>|<team>. A team tag you applied by hand is also the hint that narrows matching.") },
+        driver = { _("Driver"), _("Write an identified entry's name as <root>|<name>.") },
+    }
+    tag_rows[#tag_rows + 1] = dt.new_widget("section_label") { label = _("tag families") }
+    for _i, f in ipairs(M.FAMILIES) do
+        local label, what = family_rows[f.key][1], family_rows[f.key][2]
+        local c = check("family_" .. f.key, label,
+            what .. "\n" .. _("Off: runs stop writing it.") .. "\n" .. _("Default: on."))
+        local e = dt.new_widget("entry") {
+            placeholder = "blank = " .. f.default_root,
+            tooltip = string.format(_("The root the %s tags sit under. Each family needs its own root. Blank = %s."), label, f.default_root),
+            text = "",
+        }
+        name_entries[#name_entries + 1] = { key = "family_" .. f.key .. "_root", entry = e }
+        tag_rows[#tag_rows + 1] = dt.new_widget("box") { orientation = "horizontal", c, e }
+    end
     local kind_labels, last_kind = {}, nil
     for _i, k in ipairs(M.TAG_KINDS) do kind_labels[k.kind] = k.label end
     for _i, t in ipairs(M.tag_rows_in_order()) do
@@ -3181,7 +3216,6 @@ local function install_panel()
             group_node_entry,
         },
         {
-            colour_tags_check,
             use_hints_check,
             dt.new_widget("label") { label = _("embedder model file"), halign = "start" },
             embedder_entry,

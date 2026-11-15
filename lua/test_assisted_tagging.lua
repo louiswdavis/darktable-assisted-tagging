@@ -194,6 +194,10 @@ local entries, order = T.parse_entries_csv(table.concat({
 check("entries keep file order", table.concat(order, ","), "VER,TSU,HAM,SC")
 check("entries split their tags", entries.VER.tags[2], "F1|Red Bull|Verstappen")
 check("an entry may have no team or number", entries.SC.team .. "|" .. entries.SC.number, "|")
+check("entries: four fields leave the name empty", entries.VER.name, "")
+local named_entries = T.parse_entries_csv("NOR,McLaren,4,Motorsport|Number|4;Motorsport|Driver|Norris,Norris")
+check("entries: a fifth field is the name", named_entries.NOR.name, "Norris")
+check("entries: five fields still split the tags", named_entries.NOR.tags[2], "Motorsport|Driver|Norris")
 
 local defaults = T.default_rules()
 check("default rules share team tags", defaults.team_only, "shared tags")
@@ -211,6 +215,32 @@ check("rules: unidentified tags", table.concat(rules.unidentified, ","), "F1|Che
 check("rules: an empty diagnostic is off", rules.diag.burst, "")
 check("rules: a renamed diagnostic", rules.diag.team, "X|Team")
 check("rules: unlisted diagnostics keep their default", rules.diag.none, "Assisted Tagging|Identification|Unidentified")
+check("rules: no family line, no family", next(rules.families), nil)
+local fam_rules = T.parse_rules_csv("family_colour,Assisted Tagging|Colour\nfamily_team,Rally 2026|Team")
+check("rules: a family root keeps its space and |", fam_rules.families.team, "Rally 2026|Team")
+check("rules: an off family has no line and no root", fam_rules.families.number, nil)
+
+-- families ------------------------------------------------------------------
+do
+    local keys_in_order = {}
+    for _, f in ipairs(T.FAMILIES) do keys_in_order[#keys_in_order + 1] = f.key end
+    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver")
+    local fs = T.preset_defaults(T.PRESET_SCHEMA)
+    local roots = T.family_roots(fs)
+    check("family_roots: every family on by default", roots.colour .. " " .. roots.number .. " " .. roots.team .. " " .. roots.driver,
+        "Assisted Tagging|Colour Motorsport|Number Motorsport|Team Motorsport|Driver")
+    fs.family_team, fs.family_number_root = false, "Rally|Number"
+    roots = T.family_roots(fs)
+    check("family_roots: an off family has no root", roots.team, nil)
+    check("family_roots: a set root is used", roots.number, "Rally|Number")
+    check("removed_settings: clean settings pass", T.removed_settings(fs), nil)
+    check("removed_settings: colour_tags", T.removed_settings({ colour_tags = false }),
+        'settings.json: colour_tags was removed; use family_colour (README, "Tag families")')
+    check("removed_settings: tag_colour", T.removed_settings({ tag_colour = true }),
+        'settings.json: tag_colour was removed; use family_colour (README, "Tag families")')
+    check("removed_settings: tag_colour_name", T.removed_settings({ tag_colour_name = "X" }),
+        'settings.json: tag_colour_name was removed; use family_colour_root (README, "Tag families")')
+end
 
 -- wanted_tags ---------------------------------------------------------------
 local function row(method, entry, alt) return { box = 0, method = method, entry_id = entry or "", alt_entry_id = alt or "" } end
@@ -286,17 +316,26 @@ check("parse_setting: fractional tolerance refused", parsed("neighbour_tolerance
 check("parse_setting: order weight 1", parsed("order_weight", "1"), "1")
 check("parse_setting: order weight above 1 refused", parsed("order_weight", "1.1"), "nil err")
 check("parse_setting: blank refused", parsed("min_read", ""), "nil err")
-check("parse_setting: tag name with a comma refused", parsed("tag_colour_name", "Cars,Paint"), "nil err")
+check("parse_setting: tag name with a comma refused", parsed("tag_number_seen_name", "Cars,Paint"), "nil err")
+check("parse_setting: family root kept whole", parsed("family_number_root", " Rally 2026|Number "), "Rally 2026|Number")
+check("parse_setting: family root with a comma refused", parsed("family_number_root", "Rally,Number"), "nil err")
+check("parse_setting: family root starting with | refused", parsed("family_number_root", "|Number"), "nil err")
+check("parse_setting: family root ending with | refused", parsed("family_number_root", "Number|"), "nil err")
 
 -- panel_value: what read_panel makes of an entry
 check("panel_value: blank number is the default", T.panel_value("min_read", "  "), 0.85)
-check("panel_value: blank tag name is the default", T.panel_value("tag_colour_name", ""), "Assisted Tagging|Colour")
+check("panel_value: blank tag name is the default", T.panel_value("tag_number_seen_name", ""),
+    "Assisted Tagging|Identification|Number seen")
+check("panel_value: blank family root is the default", T.panel_value("family_team_root", ""), "Motorsport|Team")
 local pv, pv_why = T.panel_value("order_weight", "0,5")
 check("panel_value: 0,5 refused", pv, nil)
 check("panel_value: the message names the key", pv_why:sub(1, 14), "order_weight: ")
-pv, pv_why = T.panel_value("tag_colour_name", "Cars,Paint")
+pv, pv_why = T.panel_value("tag_number_seen_name", "Cars,Paint")
 check("panel_value: tag name with a comma refused", pv, nil)
-check("panel_value: tag name message names the key", pv_why:sub(1, 17), "tag_colour_name: ")
+check("panel_value: tag name message names the key", pv_why:sub(1, 22), "tag_number_seen_name: ")
+pv, pv_why = T.panel_value("family_team_root", "|Team")
+check("panel_value: bad family root refused", pv, nil)
+check("panel_value: family root message", pv_why, "family_team_root: can't start or end with | or a space")
 check("panel_value: valid number", T.panel_value("neighbour_tolerance", "4"), 4)
 
 -- tag_row_label: a gated tag switch says in its label why it is off
@@ -306,11 +345,9 @@ local function row_label(key, s)
     local label, gated = T.tag_row_label(toggles_by_key[key], s)
     return label .. (gated and " [gated]" or "")
 end
-check("tag_row_label: Colour gated by colour_tags off", row_label("colour", { colour_tags = false }),
-      "Colour (off: read car colour is off) [gated]")
-check("tag_row_label: Colour with colour_tags on", row_label("colour", { colour_tags = true }), "Colour")
-check("tag_row_label: Check colour gated by colour_tags missing", row_label("check_colour", {}),
-      "Check colour (off: read car colour is off) [gated]")
+check("tag_row_label: Check colour gated by family_colour off", row_label("check_colour", { family_colour = false }),
+      "Check colour (off: the Colour family is off) [gated]")
+check("tag_row_label: Check colour with family_colour on", row_label("check_colour", { family_colour = true }), "Check colour")
 check("tag_row_label: By neighbour gated by order_weight 0", row_label("neighbour", { order_weight = 0 }),
       "By neighbour (off: order weight is 0) [gated]")
 check("tag_row_label: By neighbour with order_weight 0.5", row_label("neighbour", { order_weight = 0.5 }), "By neighbour")
@@ -333,8 +370,8 @@ end
 check("TAG_TOGGLES: every row has a kind in TAG_KINDS", table.concat(bad_kinds, " "), "")
 local ordered = {}
 for _, t in ipairs(T.tag_rows_in_order()) do ordered[#ordered + 1] = t.key end
-check("tag_rows_in_order: outputs, checks, then diagnostics", table.concat(ordered, ","),
-    "colour,check_order,none,check_colour,shot,shot_crowded,number,livery,burst,pooled,neighbour,team,number_seen")
+check("tag_rows_in_order: checks, then diagnostics", table.concat(ordered, ","),
+    "check_order,none,check_colour,shot,shot_crowded,number,livery,burst,pooled,neighbour,team,number_seen")
 local none_label
 for _, t in ipairs(T.TAG_TOGGLES) do if t.key == "none" then none_label = t.label end end
 check("TAG_TOGGLES: none is labelled Unidentified (check)", none_label, "Unidentified (check)")
@@ -348,9 +385,11 @@ check("PANEL_PAGES: titles match the README sections", table.concat(page_titles,
 
 -- checked_settings: hand-edited settings.json values show_panel would display
 local cs = T.preset_defaults(T.PRESET_SCHEMA)
-cs.min_sim, cs.margin, cs.tag_team_name, cs.order_weight = 0, 1, "A,B", 0.3
+cs.min_sim, cs.margin, cs.tag_team_name, cs.order_weight, cs.family_driver_root = 0, 1, "A,B", 0.3, "Driver|"
 local fixed, replaced = T.checked_settings(cs)
-check("checked_settings: out-of-range and bad names replaced", table.concat(replaced, " "), "min_sim margin tag_team_name")
+check("checked_settings: out-of-range and bad names replaced", table.concat(replaced, " "),
+    "min_sim margin family_driver_root tag_team_name")
+check("checked_settings: bad family root back to default", fixed.family_driver_root, "Motorsport|Driver")
 check("checked_settings: min_sim back to default", fixed.min_sim, 0.5)
 check("checked_settings: bad tag name back to default", fixed.tag_team_name, "Assisted Tagging|Identification|Team only")
 check("checked_settings: a valid value kept", fixed.order_weight, 0.3)
@@ -358,17 +397,19 @@ check("checked_settings: the given settings untouched", cs.min_sim, 0)
 -- A settings.json lacking a key: the panel shows that key's default, and nothing is logged.
 local sparse = { min_sim = 0 }
 local filled, sparse_replaced = T.checked_settings(sparse)
-check("checked_settings: missing name key gets the default", filled.tag_colour_name, "Assisted Tagging|Colour")
+check("checked_settings: missing name key gets the default", filled.tag_number_seen_name,
+    "Assisted Tagging|Identification|Number seen")
+check("checked_settings: missing family root gets the default", filled.family_colour_root, "Assisted Tagging|Colour")
 check("checked_settings: missing number key gets the default", filled.min_read, 0.85)
 check("checked_settings: missing keys are not listed as replaced", table.concat(sparse_replaced, " "), "min_sim")
 check("checked_settings: an invalid key is still replaced and listed", filled.min_sim, 0.5)
 
 -- named_rules: switched-off diagnostics keep their names (rules.csv leaves them blank)
 local off_s = T.preset_defaults(T.PRESET_SCHEMA)
-off_s.tag_colour, off_s.tag_shot = false, false
+off_s.family_colour, off_s.tag_shot = false, false
 off_s.tag_shot_name = "My|Shot"
 off_s.tag_shot_crowded_name = "My|Framing"
-local blank_rules = T.parse_rules_csv("diag_colour,\ndiag_shot_solo,\n")
+local blank_rules = T.parse_rules_csv("diag_shot_solo,\n")
 local named = T.named_rules(blank_rules, off_s)
 local named_has_colour = false
 for _, p in ipairs(T.owned_prefixes(named)) do
@@ -378,7 +419,8 @@ check("named_rules: colour off still owns the colour prefix", named_has_colour, 
 check("named_rules: shot_crowded from tag_shot_crowded_name", named.diag.shot_crowded, "My|Framing|Crowded")
 check("named_rules: solo and pack from tag_shot_name", named.diag.shot_solo .. " " .. named.diag.shot_pack, "My|Shot|Solo My|Shot|Pack")
 check("named_rules: off diagnostic still owned", T.owned_tags({}, named)["My|Shot|Solo"], true)
-check("named_rules: leaves the rules it was given alone", blank_rules.diag.colour, "")
+check("named_rules: an off family keeps its root", named.families.colour, "Assisted Tagging|Colour")
+check("named_rules: leaves the rules it was given alone", blank_rules.diag.shot_solo .. "|" .. tostring(next(blank_rules.families)), "|nil")
 
 -- owned_tags / tag_changes (Review Focus 5) ---------------------------------
 local owned = T.owned_tags(entries, rules)
@@ -446,26 +488,27 @@ do
     local ident, unident, none_box = row("number", "VER"), row("none"), row("none")
     ident.colour, unident.colour, none_box.colour = "Red", "Blue", "Red"
     none_box.box = -1
-    local _w, dd = T.wanted_tags({ ident }, entries)
+    local crules = T.default_rules()
+    crules.families = { colour = CB }
+    local _w, dd = T.wanted_tags({ ident }, entries, crules)
     check("identified row gets the colour tag", dd[CB .. "|Red"], true)
-    _w, dd = T.wanted_tags({ unident }, entries)
+    _w, dd = T.wanted_tags({ unident }, entries, crules)
     check("unidentified row gets the colour tag", dd[CB .. "|Blue"], true)
-    _w, dd = T.wanted_tags({ none_box }, entries)
+    _w, dd = T.wanted_tags({ none_box }, entries, crules)
     check("box -1 row gets no colour tag", dd[CB .. "|Red"], nil)
-    local no_colour = T.default_rules()
-    no_colour.diag.colour = ""
-    _w, dd = T.wanted_tags({ ident }, entries, no_colour)
-    check("colour rule blank writes no colour tag", dd[CB .. "|Red"], nil)
+    _w, dd = T.wanted_tags({ ident }, entries, T.default_rules())
+    check("colour family off writes no colour tag", dd[CB .. "|Red"], nil)
     local fl = row("number", "VER")
     fl.colour, fl.colour_flag = "Red", true
-    _w, dd = T.wanted_tags({ fl }, entries)
+    _w, dd = T.wanted_tags({ fl }, entries, crules)
     check("colour flag adds Check colour", dd["Assisted Tagging|Identification|Check colour"], true)
-    _w, dd = T.wanted_tags({ fl }, entries, T.mask_diag(T.default_rules(), { colour = true }))
-    check("mask_diag: colour off blanks colour", dd[CB .. "|Red"], nil)
-    _w, dd = T.wanted_tags({ fl }, entries, T.mask_diag(T.default_rules(), { check_colour = true }))
+    local masked = T.mask_diag(crules, { check_colour = true })
+    _w, dd = T.wanted_tags({ fl }, entries, masked)
     check("mask_diag: check_colour off blanks it", dd["Assisted Tagging|Identification|Check colour"], nil)
+    check("mask_diag: the colour tag is still written", dd[CB .. "|Red"], true)
     check("owned: colour check tag", T.owned_tags(entries, rules)["Assisted Tagging|Identification|Check colour"], true)
-    local pre = T.owned_prefixes(rules)
+    check("owned_prefixes: no colour root, no colour prefix", #T.owned_prefixes(T.default_rules()), 1)
+    local pre = T.owned_prefixes(crules)
     local has = false
     for _, p in ipairs(pre) do if p == CB .. "|" then has = true end end
     check("owned_prefixes includes the colour base", has, true)
@@ -564,13 +607,14 @@ check("protected: an entry tag not in the ledger is the user's", prot["F1|Red Bu
 check("protected: a ledgered tag is the plugin's", prot["F1|Red Bull|Verstappen"], nil)
 check("protected: a non-entry tag is ignored", prot["Holiday"], nil)
 
-local hint = T.hint_prefixes(
-    { ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true, ["F1|Ferrari"] = true, ["Holiday"] = true },
-    { ["F1|Ferrari"] = true }, entries)
-check("hint: a user-applied strict prefix of an entry tag hints", hint["F1|Red Bull"], true)
-check("hint: a driver's own leaf tag is not a hint", hint["F1|Red Bull|Verstappen"], nil)
+local hint_have = { ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true, ["F1|Ferrari"] = true, ["Holiday"] = true }
+local hint = T.hint_tags(hint_have, { ["F1|Ferrari"] = true }, entries, "F1")
+check("hint: a user-applied team tag hints", hint["F1|Red Bull"], true)
+check("hint: a tag under the team tag is not a hint", hint["F1|Red Bull|Verstappen"], nil)
 check("hint: a ledgered tag is the plugin's, not a hint", hint["F1|Ferrari"], nil)
 check("hint: a non-entry tag is ignored", hint["Holiday"], nil)
+check("hint: another root's team tag is not a hint", next(T.hint_tags(hint_have, {}, entries, "Motorsport|Team")), nil)
+check("hint: team family off, no hints", next(T.hint_tags(hint_have, {}, entries, nil)), nil)
 
 attach, detach = T.tag_changes({ ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true },
     T.wanted_tags({ row("none") }, entries), owned, nil, { ["F1|Red Bull"] = true })
@@ -674,34 +718,23 @@ check("a colliding id gets a numeric suffix", dup[1].id .. "," .. dup[2].id, "X,
 local j = T.entries_json({
     { id = "VER", number = "1", team = "Red Bull", tags = { "F1|Red Bull", "F1|Red Bull|Verstappen", "F1|Champion" } },
 })
-check("entries_json emits a bare list", j:match("^%[") ~= nil, true)
+check("entries_json emits the entries object", j:match('^{\n  "entries": %[') ~= nil, true)
 check("entries_json quotes every field", j:find('"id": "VER"', 1, true) ~= nil, true)
 check("entries_json emits the number field", j:find('"number": "1"', 1, true) ~= nil, true)
 check("entries_json emits the tag array", j:find('"tags": ["F1|Red Bull", "F1|Red Bull|Verstappen", "F1|Champion"]', 1, true) ~= nil,
     true)
-
-local pj = T.entries_json({
-    { id = "VER", number = "1", team = "Red Bull", tags = { "Sports|F1|Red Bull", "Sports|F1|Red Bull|Verstappen" } },
-    { id = "NOR", number = "4", team = "McLaren", tags = { "Sports|F1|McLaren", "Sports|F1|McLaren|Norris" } },
-})
-check("a shared prefix emits the object form", pj:match("^{") ~= nil, true)
-check("the shared prefix becomes rules.tag_prefix", pj:find('"tag_prefix": "Sports|F1"', 1, true) ~= nil, true)
-check("the driver leaf becomes name", pj:find('"name": "Norris"', 1, true) ~= nil, true)
-check("prefix form drops explicit tags", pj:find('"tags"', 1, true), nil)
-check("differing prefixes fall back to the bare list", T.entries_json({
-    { id = "A", number = "", team = "X", tags = { "P|X", "P|X|A" } },
-    { id = "B", number = "", team = "Y", tags = { "Q|Y", "Q|Y|B" } },
-}):match("^%[") ~= nil, true)
-check("extra tags fall back to the bare list", T.entries_json({
-    { id = "A", number = "", team = "X", tags = { "P|X", "P|X|A", "P|Other" } },
-}):match("^%[") ~= nil, true)
+check("entries_json writes no rules", j:find('"rules"', 1, true), nil)
 
 require("test_preset_block")(T, check)
 
 do
     local d = T.preset_defaults(T.PRESET_SCHEMA)
-    check("tagging schema has 45 keys", #T.PRESET_SCHEMA, 45)
-    check("colour keys default on", tostring(d.tag_colour) .. tostring(d.tag_check_colour), "truetrue")
+    check("tagging schema has 50 keys", #T.PRESET_SCHEMA, 50)
+    check("colour keys default on", tostring(d.family_colour) .. tostring(d.tag_check_colour), "truetrue")
+    for _, f in ipairs(T.FAMILIES) do
+        check("family " .. f.key .. " defaults", tostring(d["family_" .. f.key]) .. " " .. d["family_" .. f.key .. "_root"],
+            "true " .. f.default_root)
+    end
     check("tagging defaults", table.concat({ tostring(d.use_hints), d.group_support, d.group_node,
         tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine), d.embedder_file,
         d.ocr_rec_file, tostring(d.neighbour_tolerance) }, " "), "true native  false false false   5")
@@ -714,11 +747,11 @@ do
     local merged, problems = T.preset_merge(T.PRESET_SCHEMA, { order_weight = "" })
     check("stored blank order_weight is the default", merged.order_weight, 0)
     check("stored blank order_weight is no problem", #problems, 0)
-    local r = T.parse_rules_csv("order_weight,0.5\nneighbour_tolerance,5\ncolour_tags,true\nfrom_entries_json,order_weight;colour_tags")
+    local r = T.parse_rules_csv("order_weight,0.5\nneighbour_tolerance,5\nblur_references,true\nfrom_entries_json,order_weight;blur_references")
     check("rules.csv: order_weight number", r.settings.order_weight, 0.5)
     check("rules.csv: neighbour_tolerance number", r.settings.neighbour_tolerance, 5)
-    check("rules.csv: colour_tags boolean", r.settings.colour_tags, true)
-    check("rules.csv: from_entries_json keys", table.concat(r.from_entries_json, ";"), "order_weight;colour_tags")
+    check("rules.csv: blur_references boolean", r.settings.blur_references, true)
+    check("rules.csv: from_entries_json keys", table.concat(r.from_entries_json, ";"), "order_weight;blur_references")
     check("rules.csv: empty from_entries_json", #T.parse_rules_csv("from_entries_json,").from_entries_json, 0)
 end
 

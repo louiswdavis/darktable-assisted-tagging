@@ -1,14 +1,14 @@
 """Add a start list to a collection's entries.json.
 
-  python python/import_start_list.py COLLECTION_DIR --csv START_LIST.csv [--columns MAP] [--tag-prefix PREFIX]
-  python python/import_start_list.py COLLECTION_DIR --text PASTED.txt [--tag-prefix PREFIX]
+  python python/import_start_list.py COLLECTION_DIR --csv START_LIST.csv [--columns MAP]
+  python python/import_start_list.py COLLECTION_DIR --text PASTED.txt
 
 A CSV has a header row; MAP says which header holds which role, as `role=header` pairs joined
 by ";" (roles: number, driver, co-driver, team, class). A role left out of MAP is found by its
 usual names (ALIASES); only `number` is required. Pasted text (an entry list copied from a PDF)
 has one entry per line, number first, then "driver / co-driver"; lines without a leading number
 are skipped and counted. Each entry becomes {"id": number, "number": number, "name": "driver /
-co-driver", "team": team, "tags": ["<prefix>|Class|<class>"]}, with the empty fields left out.
+co-driver", "team": team, "tags": ["Motorsport|Class|<class>"]}, with the empty fields left out.
 Numbers already in entries.json are skipped and listed, never overwritten. The previous file is
 kept as entries.json.bak. A file not in the one-entry-per-line layout is reflowed into it. Exit 2
 with a message on bad input."""
@@ -35,6 +35,7 @@ ALIASES = {
 }
 _LINE = re.compile(r"^\s*#?(\d{1,3})(?!\d)[\s.:)\-–]*(.*?)\s*$")
 _BAD = re.compile(r'[,;"]')
+CLASS_ROOT = "Motorsport|Class"
 
 
 class BadInput(Exception):
@@ -107,7 +108,7 @@ def rows_from_text(text: str) -> tuple:
 
 def entries_from(rows: list) -> tuple:
     """Rows → (entries, cleaned names): numbers are checked, names and teams lose , ; and ". A class
-    stays under "class" until merge knows the tag prefix to build its tag with."""
+    stays under "class" until merge builds its tag."""
     entries, cleaned, seen = [], [], set()
     for n, row in enumerate(rows, 1):
         number = row.get("number", "").strip().lstrip("#")
@@ -135,30 +136,22 @@ def entries_from(rows: list) -> tuple:
     return entries, cleaned
 
 
-def merge(collection_dir: str, entries: list, tag_prefix: str) -> dict:
+def merge(collection_dir: str, entries: list) -> dict:
     """Appends the entries whose number (and id) is new. Returns {"added", "skipped", "path"}. A file
     in dump's layout keeps it; any other layout is reflowed into the canonical one."""
     path = os.path.join(collection_dir, "entries.json")
     if not os.path.exists(path):
-        if not tag_prefix:
-            raise BadInput(f"{path} doesn't exist yet; give --tag-prefix to create it")
-        data, text, inline = {"rules": {"tag_prefix": tag_prefix}, "entries": []}, None, False
+        data, text, inline = {"entries": []}, None, False
     else:
         with open(path, encoding="utf-8-sig", newline="") as f:
             text = f.read().replace("\r\n", "\n")
         data = json.loads(text)
         if not isinstance(data, dict):
-            raise BadInput(f"{path} is a bare list with no rules.tag_prefix; make it {{\"rules\": ..., \"entries\": [...]}} first")
-        rules = data.setdefault("rules", {})
-        if not rules.get("tag_prefix"):
-            if not tag_prefix:
-                raise BadInput(f"{path} has no rules.tag_prefix, which the names need; give --tag-prefix")
-            rules["tag_prefix"] = tag_prefix
+            raise BadInput(f"{path} is a bare list; make it {{\"entries\": [...]}} first")
         inline = next((i for i in (False, True) if dump(json.loads(text), i).rstrip() == text.rstrip()), None)
     existing = data.setdefault("entries", [])
     have = {str(e.get("number", "")) for e in existing if isinstance(e, dict)} | {e.get("id") for e in existing if isinstance(e, dict)}
-    prefix = data["rules"]["tag_prefix"]
-    new = [{**{k: v for k, v in e.items() if k != "class"}, **({"tags": [f"{prefix}|Class|{e['class']}"]} if e.get("class") else {})}
+    new = [{**{k: v for k, v in e.items() if k != "class"}, **({"tags": [f"{CLASS_ROOT}|{e['class']}"]} if e.get("class") else {})}
            for e in entries if e["number"] not in have and e["id"] not in have]
     skipped = [e["number"] for e in entries if e["number"] in have or e["id"] in have]
     if not new:
@@ -178,7 +171,6 @@ def main(argv=None):
     src.add_argument("--csv", help="a start list with a header row")
     src.add_argument("--text", help="pasted lines, number first")
     parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class)')
-    parser.add_argument("--tag-prefix", default="", help="rules.tag_prefix for a new entries.json, or one without a prefix")
     args = parser.parse_args(argv)
     try:
         with open(args.csv or args.text, encoding="utf-8-sig", newline="") as f:
@@ -189,7 +181,7 @@ def main(argv=None):
         else:
             rows, skipped_lines = rows_from_text(text)
         entries, cleaned = entries_from(rows)
-        result = merge(args.collection_dir, entries, args.tag_prefix)
+        result = merge(args.collection_dir, entries)
     except (BadInput, OSError, json.JSONDecodeError) as e:
         print(f"import_start_list: {e}", file=sys.stderr)
         sys.exit(2)

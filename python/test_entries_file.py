@@ -75,11 +75,11 @@ def run_tests():
     check("a split entry is reflowed onto one line", read(split),
           '{\n  "rules": {},\n  "entries": [\n    { "id": "A", "number": "1", "colour": "Red" }\n  ]\n}\n')
 
-    lua_form = write('{\n  "rules": { "tag_prefix": "F1" },\n  "entries": [\n'
+    lua_form = write('{\n  "rules": { "team_only": "none" },\n  "entries": [\n'
                      '    { "id": "A", "number": "1", "team": "", "name": "A" }\n  ]\n}\n')
     check("the panel's one-line rules layout writes", F.set_colours(lua_form, {"A": "Red"}), (True, "set"))
     check("the one-line rules layout is kept", read(lua_form),
-          '{\n  "rules": { "tag_prefix": "F1" },\n  "entries": [\n'
+          '{\n  "rules": { "team_only": "none" },\n  "entries": [\n'
           '    { "id": "A", "number": "1", "team": "", "name": "A", "colour": "Red" }\n  ]\n}\n')
 
     bare = write('[\n  { "id": "A", "number": "1" },\n  { "id": "B", "number": "2" }\n]\n')

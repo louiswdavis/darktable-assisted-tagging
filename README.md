@@ -5,7 +5,7 @@ A tagging assistant for [darktable](https://www.darktable.org/) that recognises 
 - **read its race number** and look it up in your entry list
 - if the number isn't readable, **match its livery** against reference samples you picked
 - if that's still unclear, **borrow the answer from the rest of its group** (a darktable group or an Assisted Grouping tag group, see [Grouping support](#grouping-support))
-- tag the image with that entry's tags, e.g. `Motorsport|F1|Red Bull|Max Verstappen`
+- tag the image with that entry's tags, e.g. `Motorsport|Team|Red Bull` and `Motorsport|Driver|Max Verstappen`
 
 Teammates in identical liveries that it can't tell apart get only their shared team tag, never a guessed driver. Everything runs locally: a Lua plugin inside darktable and a Python identifier it shells out to. No API keys, no cloud. It only adds and removes tags from your entry list and its own `Assisted Tagging|…` tags; your other tags, ratings and colour labels are never touched.
 
@@ -220,9 +220,8 @@ Write `entries.json` yourself for more control than tags alone give you: a race 
 ```json
 {
   "rules": {
-    "tag_prefix": "Motorsport|F1",
     "team_only": "shared tags",
-    "unidentified": ["Motorsport|F1|Unidentified"]
+    "unidentified": ["Motorsport|Unidentified"]
   },
   "entries": [
     { "id": "VER", "number": "1",  "team": "Red Bull", "name": "Max Verstappen" },
@@ -232,30 +231,54 @@ Write `entries.json` yourself for more control than tags alone give you: a race 
 }
 ```
 
-Here VER gets `Motorsport|F1|Red Bull` and `Motorsport|F1|Red Bull|Max Verstappen`, and SAFETY gets `Motorsport|F1|Safety Car`. Add a `tags` list to an entry for extra tags on top; without `tag_prefix`, `tags` is the full list as before.
+Here VER gets `Motorsport|Number|1`, `Motorsport|Team|Red Bull` and `Motorsport|Driver|Max Verstappen`, and SAFETY gets `Motorsport|Driver|Safety Car`: one tag per [tag family](#tag-families) the entry has a value for. Add a `tags` list to an entry for extra tags on top.
 
-A file that's just the `[ … ]` list of entries works too, with the default rules — this is the shape **new collection → From tagged images** writes when its tags don't share one prefix. When every car's tags are `prefix|team` and `prefix|team|name` under the same prefix, it writes the `tag_prefix` form above instead (with `name` per entry). Either way you can hand-edit the result to add numbers or rules.
+A file that's just the `[ … ]` list of entries works too, with the default rules — this is the shape **new collection → From tagged images** writes, each entry with its tags in full. You can hand-edit the result to add numbers or rules.
 
 [`examples/`](examples) has four collections — pick one from the panel's **example** dropdown (see [above](#from-an-example)), which copies its `entries.json` and `settings.json`, or copy its folder into the collections folder by hand. Each has a README on what it shows and how to supply its references:
 
 - [`f1-season`](examples/f1-season): a season with near-identical teammates, a one-off livery and number-less cars
 - [`btcc-event`](examples/btcc-event): one race weekend, with a "check me" tag for misses and no team-only tags
 - [`minimal`](examples/minimal): a bare entry list on the default rules
-- [`rally`](examples/rally): number-only entries for cars of no known livery, with the neighbour aid on (`order_weight`) and colour tags on (`colour_tags`), and grouping support set to Grouping tags, all set in its `settings.json`
+- [`rally`](examples/rally): number-only entries for cars of no known livery, with the neighbour aid on (`order_weight`) and its own family roots, and grouping support set to Grouping tags, all set in its `settings.json`
 
 #### Entries
 
 | Field | Required | Rules |
 |---|---|---|
 | `id` | yes | unique within the collection; it's also the folder name under `refs/`, so it can't contain `, ; " / \ : * ? < > \|` |
-| `tags` | yes, unless `rules.tag_prefix` is set | one or more darktable tag names (`\|` makes a hierarchy); no `,` `;` or `"`. With `rules.tag_prefix` these are extras added after the built tags |
-| `name` | no | the driver's display name, e.g. `Max Verstappen`; needs `rules.tag_prefix`, which builds `prefix\|team\|name` from it |
+| `tags` | only when no [tag family](#tag-families) builds a tag for the entry | one or more darktable tag names (`\|` makes a hierarchy); no `,` `;` or `"`. Extras added after the family tags |
+| `name` | no | the driver's display name, e.g. `Max Verstappen`; the Driver family writes it as `<root>\|<name>` |
 | `number` | no | the race number, 1–3 digits. Leave it out for a car with no number; it can then only be identified by livery. Two entries with the same number are allowed, but that number then identifies neither. |
-| numbers-only entry | | `{"id": "12", "number": "12"}`: an entry with a number and no `team`, `name` or `tags`, under `rules.tag_prefix`, gets the tag `prefix\|12`. Build a whole list from a CSV with `python python/import_numbers.py numbers.csv entries.json --tag-prefix "Rally\|2026"`, or add a full start list (names, teams, classes) with the panel's **Import start list** (see [1 collection](#1-collection)); see [`rally`](examples/rally) |
-| `team` | no | entries with the same team can fall back to their shared tags when their liveries are too close to call |
-| `colour` | no | the car's paintwork colour: a name in the active palette, or `Multi` (needs [`colour_tags`](#collection-settings-settingsjson)). Breaks ties between number candidates and flags a number read that disagrees; never a hard filter. The reference actions fill it in when it is missing |
+| numbers-only entry | | `{"id": "12", "number": "12"}`: an entry with a number and no `team`, `name` or `tags` gets the Number family's tag, `Motorsport\|Number\|12` by default. Build a whole list from a CSV with `python python/import_numbers.py numbers.csv entries.json`, or add a full start list (names, teams, classes) with the panel's **Import start list** (see [1 collection](#1-collection)); see [`rally`](examples/rally) |
+| `team` | no | the Team family writes it as `<root>\|<team>`; entries with the same team can fall back to their shared tags when their liveries are too close to call |
+| `colour` | no | the car's paintwork colour: a name in the active palette, or `Multi` (needs the [Colour family](#tag-families)). Breaks ties between number candidates and flags a number read that disagrees; never a hard filter. The reference actions fill it in when it is missing |
 
-The tags are yours to design: put the team tag on both teammates and the driver tag on one, and a team-only result carries exactly the team tag. The examples leave the year out of the tags: the collection already separates seasons for matching, and darktable's collections module filters by capture date. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags and no `number`, so the number still identifies `VER`) or a new collection.
+Teammates share their team tag, so a team-only result carries exactly the team tag. The examples leave the year out of the tags: the collection already separates seasons for matching, and darktable's collections module filters by capture date. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags and no `number`, so the number still identifies `VER`) or a new collection.
+
+#### Tag families
+
+A family is one kind of tag the plugin writes. Each has a switch and a root in the collection's [`settings.json`](#collection-settings-settingsjson) (panel section **4**, **tag families**), and writes `<root>|<value>`:
+
+| Family | Value | Switch | Root setting | Default root |
+|---|---|---|---|---|
+| Colour | the paintwork colour read from the photo | `family_colour` | `family_colour_root` | `Assisted Tagging\|Colour` |
+| Number | the entry's `number` | `family_number` | `family_number_root` | `Motorsport\|Number` |
+| Team | the entry's `team` | `family_team` | `family_team_root` | `Motorsport\|Team` |
+| Driver | the entry's `name` | `family_driver` | `family_driver_root` | `Motorsport\|Driver` |
+
+All four are on by default. An identified entry gets one tag per family that is on and that it has a value for, then its own `tags`. An entry that builds no tag at all stops the run.
+
+A root is a tag path: no `,` `;` or `"`, and it can't start or end with `|` or a space. Each family needs its own root: no root may equal another or sit under it. Switching a family off stops runs writing its tags; the Colour family also reads the colour, so switching it on re-reads every photo once.
+
+**Coming from `tag_prefix`.** `rules.tag_prefix`, `colour_tags`, `tag_colour` and `tag_colour_name` no longer exist, and a collection that still has one stops with a message naming the replacement. In each collection:
+
+1. Delete `"tag_prefix"` from `rules` in `entries.json`. Where it built `prefix|team|name`, the families now write `<root>|<team>` and `<root>|<name>` separately.
+2. Delete `colour_tags`, `tag_colour` and `tag_colour_name` from `settings.json`, and set `family_colour` to what `colour_tags` was.
+3. To keep tags under the old prefix, set the roots below it, e.g. `"family_team_root": "Motorsport|F1|Team"`.
+4. Point each `rules.sponsor_keywords` value at the team's new tag.
+
+Tags a previous run wrote under the old names stay on images until you remove them.
 
 #### Rules
 
@@ -266,8 +289,7 @@ Every key is optional; leave one out for its default.
 | `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
 | `colour_palette` | the 11 built-in colours | an object mapping each tag name to a built-in colour (`"Red"`, `"Orange"`, `"Yellow"`, `"Green"`, `"Blue"`, `"Purple"`, `"Pink"`, `"Brown"`, `"White"`, `"Grey"`, `"Black"`) or to a list of bounds in OpenCV HSV, e.g. `{"Red": "Red", "Teal": [{"hue": [80, 95], "sat": [90, 255]}], "Silver": "Grey"}`. Each bounds object needs `hue` (0–179) and may have `sat` and `val` (0–255); a missing one is the full range. A pixel goes to the first colour that matches. A name can't be `Multi` or contain `\|`. Entry colours must be in the palette. Unlisted built-ins are dropped |
-| `sponsor_keywords` | `{}` | maps a lowercase sponsor word to the tag prefix of its team, e.g. `{"petronas": "Motorsport\|F1\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
-| `tag_prefix` | `""` | a tag path for the whole collection, e.g. `Motorsport\|F1`. Each entry's tags are then built: `prefix\|team`, then `prefix\|team\|name` (`prefix\|name` with no team), then its own `tags` as extras. A driver match writes all of them; a team-only result writes the shared `prefix\|team`. Empty keeps `tags` as the full list. |
+| `sponsor_keywords` | `{}` | maps a lowercase sponsor word to its team's tag, e.g. `{"petronas": "Motorsport\|Team\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
 
 Behaviour settings moved to settings.json on 2026-11-11; an old entries.json still loads, each old rule is copied into settings.json once and logged.
 
@@ -290,14 +312,15 @@ Every other setting lives in the collection's `settings.json`, beside `entries.j
 | `order_weight` | how far the cars pass in number order: `0` is random (the neighbour aid is off), `1` is strictly in order. Above 0, groups shot just before and after a doubtful read help identify it, including unselected photos in the same film rolls already tagged with an entry; from `0.5` up an unsupported doubtful read is flagged *Check order*; see [How it works](#how-it-works) | number, 0 to 1 | `0` | yes |
 | `neighbour_tolerance` | the most places apart in the sorted number list a neighbouring car can be and still support a read; `order_weight` sets how much of it is used (up to `order_weight × (tolerance + 1)` places) | whole number, 0 or more | `5` | yes |
 | `min_read` | how sure a number read must be to count. A read's confidence is the lower of two scores: how sure the text detector is that it found text, and how sure the reader is of its least certain digit. Raise it if plates or signs get read as numbers; lower it if clear numbers are missed | number, 0 to 1 | `0.85` | yes |
-| `colour_weight` | how much the colour histogram counts in livery matching, from `0` (off) up. Separate from `colour_tags` | number, 0 or more | `0` | yes |
-| `colour_tags` | reads each car's paintwork colour, writes it as a `Colour` tag and uses an entry's `colour` to break ties and flag number reads that disagree; see [How it works](#how-it-works). Turning it on re-reads every photo once | `true`, `false` | `false` | yes |
-| `partial_references` | **Add tagged images** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|F1\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only) | `true`, `false` | `false` | yes |
+| `colour_weight` | how much the colour histogram counts in livery matching, from `0` (off) up. Separate from the Colour family | number, 0 or more | `0` | yes |
+| `partial_references` | **Add tagged images** also accepts a solo shot tagged only to team level (e.g. `Motorsport\|Team\|Red Bull`) and saves it as a team reference under `refs/@team@…`. When no driver is clear but one team's references lead clearly, the result is *team* (shared tags only) | `true`, `false` | `false` | yes |
 | `min_sim` | people collections: the least face similarity that counts as a match | number, above 0 up to 1 | `0.5` | no |
 | `margin` | people collections: how far the best face match must lead the runner-up | number, 0 up to but not including 1 | `0.05` | no |
 | `min_face_px` | people collections: the smallest face, in pixels, that is used | whole number, 1 or more | `48` | no |
 | `burst_livery_pooling` | experimental: resolves a burst frame that didn't clear the threshold from the burst's pooled livery similarity (*By pooled burst*) | `true`, `false` | `false` | no |
 | `blur_references` | blurs reference crops before they are compared | `true`, `false` | `false` | no |
+| `family_colour`, `family_number`, `family_team`, `family_driver` | write that [tag family](#tag-families); `family_colour` also reads each car's paintwork colour, and turning it on re-reads every photo once | `true`, `false` | `true` | yes |
+| `family_colour_root`, `family_number_root`, `family_team_root`, `family_driver_root` | the root each family's tags sit under | a tag path | see [Tag families](#tag-families) | yes |
 | `tag_number`, `tag_number_name` | write the *By number* diagnostic; the tag it writes | `true`/`false`; a tag name | `true`; `Assisted Tagging\|Identification\|By number` | yes |
 | `tag_livery`, `tag_livery_name` | *By livery* | same | `true`; `Assisted Tagging\|Identification\|By livery` | yes |
 | `tag_burst`, `tag_burst_name` | *By burst* | same | `true`; `Assisted Tagging\|Identification\|By burst` | yes |
@@ -307,8 +330,7 @@ Every other setting lives in the collection's `settings.json`, beside `entries.j
 | `tag_team`, `tag_team_name` | *Team only* | same | `true`; `Assisted Tagging\|Identification\|Team only` | yes |
 | `tag_none`, `tag_none_name` | *Unidentified* | same | `true`; `Assisted Tagging\|Identification\|Unidentified` | yes |
 | `tag_number_seen`, `tag_number_seen_name` | *Number seen* (the digits are added as a leaf) | same | `true`; `Assisted Tagging\|Identification\|Number seen` | yes |
-| `tag_colour`, `tag_colour_name` | the *Colour* tag (the colour is added as a leaf; needs `colour_tags`) | same | `true`; `Assisted Tagging\|Colour` | yes |
-| `tag_check_colour`, `tag_check_colour_name` | *Check colour* (needs `colour_tags`) | same | `true`; `Assisted Tagging\|Identification\|Check colour` | yes |
+| `tag_check_colour`, `tag_check_colour_name` | *Check colour* (needs the Colour family) | same | `true`; `Assisted Tagging\|Identification\|Check colour` | yes |
 | `tag_shot`, `tag_shot_name` | the *Shot* tag (`Solo` or `Pack` is added as a leaf) | same | `true`; `Assisted Tagging\|Identification\|Shot` | yes |
 | `tag_shot_crowded`, `tag_shot_crowded_name` | *Shot crowded* (leaf `Crowded`) | same | `true`; `Assisted Tagging\|Identification\|Shot`, the same base as `tag_shot_name` | yes |
 
@@ -325,7 +347,7 @@ To rename a diagnostic tag for one collection:
 The next run writes the new name. `settings.json` ends up with, for example:
 
 ```json
-"tag_colour_name": "Cars|Paint",
+"tag_number_seen_name": "Cars|Number seen",
 "tag_shot_name": "Cars|Framing"
 ```
 
@@ -344,8 +366,8 @@ Numbers aren't readable in every shot (rear views, motion blur, a number hidden 
 - **Add as reference**: pick the entry in the **entry** list, select photos of that car, click. The largest vehicle in each photo is cropped and saved under that entry. A photo where no vehicle is found is saved whole, and the done message says how many.
 - **Add tagged images**: select photos you've already tagged by hand. Each one carrying *all* of one entry's tags is added under that entry. A photo with only a shared team tag, or with two drivers' tags, is skipped.
 - **Add from last run**: select photos from the last **Identify selection** run. Each vehicle that run was sure of (its number was read, or its livery led the runner-up by `REFERENCE_MIN_MARGIN`) is saved under the entry it found. This works for pack shots: the saved crop is that one car, not the whole photo, so the entry's tag doesn't have to describe the frame. Burst, team-only and held-back results are never saved. Photos changed since the run are skipped.
-- **Fill entry colours** (needs **read car colour** on, section 3): select photos that already carry one entry's tags, click. Each car's paintwork colour is read and written as that entry's `colour` in `entries.json`; no reference is saved. The done message counts the entries set, those that already had that colour and the images where no car or colour could be read, and names the file. A photo whose tags match no single entry is skipped.
-- **Entry colour** (**read car colour** on): the three add actions above also fill an entry's missing `colour` in `entries.json` from the one colour tag you applied by hand to the photo, else from the plugin's reading of the saved car. An entry that already has a different colour is never overwritten; the log says so and the done message counts it. `entries.json.bak` keeps the previous file. A file not laid out one entry per line is rewritten that way. The reference job's result rows are `id,status,colour_note,entry_id`.
+- **Fill entry colours** (needs the **Colour** family on, section 4): select photos that already carry one entry's tags, click. Each car's paintwork colour is read and written as that entry's `colour` in `entries.json`; no reference is saved. The done message counts the entries set, those that already had that colour and the images where no car or colour could be read, and names the file. A photo whose tags match no single entry is skipped.
+- **Entry colour** (**Colour** family on): the three add actions above also fill an entry's missing `colour` in `entries.json` from the one colour tag you applied by hand to the photo, else from the plugin's reading of the saved car. An entry that already has a different colour is never overwritten; the log says so and the done message counts it. `entries.json.bak` keeps the previous file. A file not laid out one entry per line is rewritten that way. The reference job's result rows are `id,status,colour_note,entry_id`.
 - **Add-time screening** (vehicle collections): after saving, both reference actions run the audit's mislabel, copy, outlier, colour and crop checks on the new refs. **Add confident vehicles** does not save a box that 2+ checks flag (the log names them; the summary counts them as not saved). **Add references** keeps the ref but logs the flags, since you named the car. Entries with too few refs for a check pass it, and the whole-frame and attractor checks don't run at add time.
 - **Audit references**: needs no selected photos. Refreshes the collection's `index.npz` from `refs/` (deleted or moved crops drop out, new ones are embedded), then writes `ref-audit.txt` in the collection folder. Sections: *strongest candidates* (refs flagged by two or more of the checks below; start there), *mislabel suspects* (closer to another entry's refs than its own by 0.2 or more), *cross-entry copies* (near-identical crop filed under two entries), *outliers* (far from the rest of its entry), *odd crops* (crop size or shape far from the entry's usual: a distant car, a whole frame, a nose-only cut; unusual angles are not flagged by this one), *whole frames* (the vehicle detector finds no car in the ref, or one under 15% of it, so scenery drives its matches; re-crop or delete), *attractors* (correctly filed refs that are the closest match for three or more refs of other teams' entries, so an odd angle or size pulls other cars toward them; teammates' pulls are shown but not counted), *colour outliers* (livery hue and saturation unlike the entry's typical colours from the same event, brightness ignored; refs are grouped into events by filename id, where ids more than 1000 apart are different race weekends, and the event ranges are printed at the top of the report; `looks like [entry]` names a better colour match) and *redundant* (near-duplicates within an entry) and *duplicate groups* (near-identical crops with their similarity; many are burst frames of the same car and fine to keep, so judge by eye). The whole-frame check also fires when the detector misses a dark or blurred car (tight crops often do), so look before deleting; refs with no car found are listed but don't count toward *strongest candidates*. The report shows the first 40 per section and every whole frame is in `ref-audit-frames.txt`. Each ref's car share is cached in `frame-share-cache.json`, so only the first audit is slow (about 8 minutes for 2000 refs, then seconds). Starting another action while one runs queues it; cancelling drops the queue. Two panel checkboxes above the button, both off by default: **Audit: suggest re-crops** also writes re-cut copies of wide refs where the detector found exactly one car into `ref-audit-crops/<entry>/` for you to review and copy over the ref (nothing in `refs/` changes; the first run with it ticked re-detects every ref, about 8 minutes), and **Audit: quarantine poor refs** moves the refs flagged by 2+ checks into `refs-quarantine/<entry>/` after the report is written, listing each in `moved.txt` there, then refreshes `index.npz`. To undo, copy a file back into `refs/<entry>/` and re-run the audit. On a terminal: `--suggest-crops` and `--quarantine`. The audit never moves or deletes anything: check the listed crops, then delete or move them yourself. Entries with 4 to 5 or more refs are needed for the outlier checks. It also runs from a terminal: `python python/audit_refs.py COLLECTION_DIR` (embedding, colour and crop checks only, no index refresh; add `--detector path/to/yolox.onnx` for the whole-frame check). The run log is rewritten, so audit before reading an Identify log.
 
@@ -365,11 +387,11 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 | `Assisted Tagging\|Identification\|By pooled burst` | the experimental `burst_livery_pooling` rule resolved it from its burst's pooled livery similarity |
 | `Assisted Tagging\|Identification\|By neighbour` | a doubtful number read was settled by the groups shot just before and after (needs `order_weight` above 0) |
 | `Assisted Tagging\|Identification\|Check order` | a low-confidence number read that no neighbouring group supports; the entry tag stays. Delete the tag once checked |
-| `Assisted Tagging\|Identification\|Check colour` | a number read whose entry's `colour` differs from the car's paintwork colour (needs `colour_tags`); the entry tag stays. Delete the tag once checked |
+| `Assisted Tagging\|Identification\|Check colour` | a number read whose entry's `colour` differs from the car's paintwork colour (needs the Colour family); the entry tag stays. Delete the tag once checked |
 | `Assisted Tagging\|Identification\|Team only` | two teammates were too close to call; only their shared tags were added |
 | `Assisted Tagging\|Identification\|Unidentified` | no vehicle, or no confident match |
 | `Assisted Tagging\|Identification\|Number seen\|<digits>` | OCR read these digits but they didn't resolve to one entry; added alongside the outcome tag |
-| `Assisted Tagging\|Colour\|<name>` | the car's paintwork colour (`Red`, `Orange`, `Yellow`, `Green`, `Blue`, `Purple`, `Pink`, `Brown`, `White`, `Grey`, `Black`, or `Multi` for a two-tone car; silver reads as `Grey`); needs `colour_tags`. Filter on it to hand-sort cars by colour |
+| `Assisted Tagging\|Colour\|<name>` | the car's paintwork colour (`Red`, `Orange`, `Yellow`, `Green`, `Blue`, `Purple`, `Pink`, `Brown`, `White`, `Grey`, `Black`, or `Multi` for a two-tone car; silver reads as `Grey`); the Colour family, under `family_colour_root`. Filter on it to hand-sort cars by colour |
 | `Assisted Tagging\|Identification\|Shot\|Solo` | one vehicle was found in the frame |
 | `Assisted Tagging\|Identification\|Shot\|Pack` | two or three vehicles were found |
 | `Assisted Tagging\|Identification\|Shot\|Crowded` | the detector's limit (`MAX_BOXES`) was reached, so there may be more cars than were identified |
@@ -395,7 +417,7 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 **Clear tagging marks** reads the same ledger, so hand-applied tags survive it even when they sit under the plugin's roots.
 
 - A **solo shot** whose result disagrees with the tags you applied is left as you had it: nothing is added, it doesn't get the *Unidentified* tags, and the done message counts it. Packs aren't checked, since you may have tagged just one of the cars.
-- A **team tag** you applied (a tag that is a prefix of an entry's tags, such as `Motorsport|F1|Red Bull`) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car. Untick **Use team tags as hints** in the panel to ignore team tags instead: matching isn't narrowed, and a differing result is not held back as a conflict, so the run can override your team tag. The tag itself stays on the image beside whatever the run adds (tick **Replace manual tags** too to have the run overwrite it). Driver-level tags still protect their images either way.
+- A **team tag** you applied (an entry's Team family tag, such as `Motorsport|Team|Red Bull`; needs the Team family on) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car. Untick **Use team tags as hints** in the panel to ignore team tags instead: matching isn't narrowed, and a differing result is not held back as a conflict, so the run can override your team tag. The tag itself stays on the image beside whatever the run adds (tick **Replace manual tags** too to have the run overwrite it). Driver-level tags still protect their images either way.
 - An image already carrying all of one entry's tags is **skipped** without being analysed.
 - To let a run replace your tags, tick **Replace manual tags** under **Identify selection**. It applies to the next run only and clears itself.
 - If you remove a tag the plugin attached and later apply it again by hand, it counts as yours.
@@ -432,7 +454,7 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 
 - **Show tag plan.** Writes `tag-plan.txt` (see [Checking what it will tag](#checking-what-it-will-tag)).
 - **Edit entries.json ▸.** A toggle in the top area, above the page buttons, so it shows whichever page is open. It opens the file in an editor below it, with **Save entries.json** and **Cancel edit**, and reads **▾** while open; clicking it again, saving, cancelling or switching collection closes it.
-- **start list** → **Import start list.** Adds a start list to the collection's `entries.json` without typing the entries. Either choose a CSV with a header row (number, driver, co-driver, team, class; any other columns are ignored), or paste the text copied from a PDF entry list into the box, one entry per line with the number first (`12 Smith / Jones`); pasted text is used when both are given. The **columns** field maps a header to a role when its name isn't one of the usual ones, as `role=header` pairs: `number=Start No.; driver=Pilot`; only `number` is required. Each entry becomes `{"id": "<number>", "number": "<number>", "name": "<driver> / <co-driver>", "team": "<team>", "tags": ["<prefix>|Class|<class>"]}` under the collection's `rules.tag_prefix`, with the empty fields left out. Numbers already in the file are kept and listed in the message, the previous file is saved as `entries.json.bak`, and the lists reload. A file not in the one-entry-per-line layout is rewritten that way. Same thing from a shell: `python python/import_start_list.py <collection folder> --csv start.csv [--columns "number=No."]` or `--text pasted.txt` (`--tag-prefix` only when the file has no prefix yet).
+- **start list** → **Import start list.** Adds a start list to the collection's `entries.json` without typing the entries. Either choose a CSV with a header row (number, driver, co-driver, team, class; any other columns are ignored), or paste the text copied from a PDF entry list into the box, one entry per line with the number first (`12 Smith / Jones`); pasted text is used when both are given. The **columns** field maps a header to a role when its name isn't one of the usual ones, as `role=header` pairs: `number=Start No.; driver=Pilot`; only `number` is required. Each entry becomes `{"id": "<number>", "number": "<number>", "name": "<driver> / <co-driver>", "team": "<team>", "tags": ["Motorsport|Class|<class>"]}`, with the empty fields left out. Numbers already in the file are kept and listed in the message, the previous file is saved as `entries.json.bak`, and the lists reload. A file not in the one-entry-per-line layout is rewritten that way. Same thing from a shell: `python python/import_start_list.py <collection folder> --csv start.csv [--columns "number=No."]` or `--text pasted.txt`.
 
 ### 2 bursts
 
@@ -441,7 +463,6 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 
 ### 3 matching
 
-- **read car colour** (off by default). Reads each car's paintwork colour: it breaks ties between number candidates, flags a number read whose entry colour disagrees, and feeds the Colour and Check colour tags and **Fill entry colours**. `colour_tags` in `settings.json`.
 - **Use team tags as hints** (on by default). A team tag you applied narrows matching on a solo shot.
 - **embedder model file (blank = bundled)** (text field). File name in `models/` used to compare liveries, e.g. `dinov2_base.onnx`; blank uses `dinov2_small.onnx`. Changing it re-embeds every reference on the next run.
 - **number reader model file** (text field, blank = PP-OCRv5, or the CRNN when the v5 files are missing). File name in `models/` of the text recogniser, e.g. `text_recognition_CRNN_EN_2021sep.onnx` for the older reader (see [Models](#2-models)). Changing it re-reads every photo on the next run.
@@ -450,7 +471,7 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 
 ### 4 tags written
 
-One switch per diagnostic (default on), each on one line with the tag name it writes beside it, under three headings: **outputs** (`Colour`), **checks** (`Check order`, `Unidentified (check)`, `Check colour`, `Shot`, `Shot crowded`) and **how it decided** (`By number`, `By livery`, `By burst`, `By pooled burst`, `By neighbour`, `Team only`, `Number seen`). Off removes that diagnostic on the next run; see [Choosing which diagnostics are written](#choosing-which-diagnostics-are-written). A switch whose tag needs another setting shows why it is off in its label, e.g. `Colour (off: read car colour is off)`, and is greyed until that setting is on. A `settings.json` from before *Shot crowded* existed loads with `tag_shot_crowded` and `tag_shot_crowded_name` copied from the Shot switch, once, and the log says so.
+First the four [tag families](#tag-families): a switch each, with its root beside it (blank means the default root). Then one switch per diagnostic (default on), each on one line with the tag name it writes beside it, under two headings: **checks** (`Check order`, `Unidentified (check)`, `Check colour`, `Shot`, `Shot crowded`) and **how it decided** (`By number`, `By livery`, `By burst`, `By pooled burst`, `By neighbour`, `Team only`, `Number seen`). Off removes that diagnostic on the next run; see [Choosing which diagnostics are written](#choosing-which-diagnostics-are-written). A switch whose tag needs another setting shows why it is off in its label, e.g. `Check colour (off: the Colour family is off)`, and is greyed until that setting is on. A `settings.json` from before *Shot crowded* existed loads with `tag_shot_crowded` and `tag_shot_crowded_name` copied from the Shot switch, once, and the log says so.
 
 ### 5 run
 
@@ -510,7 +531,7 @@ taken from the selection and from unselected photos in the same film rolls that 
            a misread or unmatched number near a nearby entry in the list → neighbour (order)
            a box with no number read that looks like a nearby identified car → neighbour (look-alike)
            unsupported low-confidence read → "Check order" tag
-           colour tags on (`colour_tags`): the box's paintwork colour breaks ties; see below
+           Colour family on (`family_colour`): the box's paintwork colour breaks ties; see below
         |
         v
 per group: frames with nothing identified take the group's entry when
@@ -541,7 +562,7 @@ Frames are decoded at native resolution (a raw file's embedded preview) and each
 
 **Shared detection cache.** Vehicle boxes are cached in `assisted_plugins/detections.sqlite` in darktable's config directory, shared with the culling plugin so a frame both plugins see is detected once. The key is the file (path, modified time, size), the detector model file and a fingerprint of the shared detector code, so a new detector or a `vehicle_detect.py` change re-detects everything once; rows unused for 90 days are dropped. Delete the file to start over.
 
-**Colour tags.** With `colour_tags` on (a [collection setting](#collection-settings-settingsjson); rename the tag with [Renaming tags](#renaming-tags)), each car's paintwork is measured on the middle of its crop (margin, roofline and the lower tyre band are left out) and becomes the palette colour with the largest share. White, grey and black count half, since tarmac, glass and shadow are also in the crop. It is `Multi` when the second colour is close to the first. The decided colour is written as `…|Colour|<name>`. An entry's `colour` is a tie-breaker only, never a filter. A weak number read for an entry whose colour differs from the car's doesn't count towards a group's agreement; the neighbour aid drops candidates whose colour differs and a look-alike car only lends its entry when the colours don't differ; a confident number read is never blocked, but when its entry's colour differs from the car's the image gets *Check colour*. An entry with no `colour`, or a car whose colour can't be told, is neutral. `Multi` agrees only with `Multi`. Turning `colour_tags` on re-reads every photo once.
+**Colour tags.** With the [Colour family](#tag-families) on, each car's paintwork is measured on the middle of its crop (margin, roofline and the lower tyre band are left out) and becomes the palette colour with the largest share. White, grey and black count half, since tarmac, glass and shadow are also in the crop. It is `Multi` when the second colour is close to the first. The decided colour is written as `<family_colour_root>|<name>`. An entry's `colour` is a tie-breaker only, never a filter. A weak number read for an entry whose colour differs from the car's doesn't count towards a group's agreement; the neighbour aid drops candidates whose colour differs and a look-alike car only lends its entry when the colours don't differ; a confident number read is never blocked, but when its entry's colour differs from the car's the image gets *Check colour*. An entry with no `colour`, or a car whose colour can't be told, is neutral. `Multi` agrees only with `Multi`. Turning the family on re-reads every photo once.
 
 **RAW+JPEG pairs are read once, from the JPEG.** A RAW and a JPEG in the same folder with the same name before the extension (case ignored, as darktable pairs them on import) are one shot, and so are darktable duplicates of a file. The JPEG is read: it has the camera's exposure and colour at full size. Every file in the shot gets the same tags, and a hand tag on any of them is protected for the whole shot. A RAW with no JPEG is read as before. Same name in another folder is a separate shot.
 

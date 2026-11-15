@@ -46,7 +46,40 @@ def defaults_match_spec():
     check("default neighbour_tolerance", d["neighbour_tolerance"], 5)
     check("default tag_shot_name", d["tag_shot_name"], "Assisted Tagging|Identification|Shot")
     check("default tag_burst", d["tag_burst"] is True, True)
-    check("schema length", len(S.SETTINGS_SCHEMA), 8 + 11 + 24)
+    check("schema length", len(S.SETTINGS_SCHEMA), 8 + 11 + 21 + 8)
+    check("family defaults", {k: v for k, v in d.items() if k.startswith("family_")}, {
+        "family_colour": True, "family_colour_root": "Assisted Tagging|Colour",
+        "family_number": True, "family_number_root": "Motorsport|Number",
+        "family_team": True, "family_team_root": "Motorsport|Team",
+        "family_driver": True, "family_driver_root": "Motorsport|Driver"})
+
+
+def removed_keys_stop_the_load():
+    for old, new in (("colour_tags", "family_colour"), ("tag_colour", "family_colour"),
+                     ("tag_colour_name", "family_colour_root")):
+        try:
+            load({old: True})
+            msg = "(no error)"
+        except S.SettingsError as e:
+            msg = str(e)
+        check(f"removed {old} in settings.json", msg, f'settings.json: {old} was removed; use {new} (README, "Tag families")')
+    for rules, key, new in (({"colour_tags": True}, "rules.colour_tags", "family_colour"),
+                            ({"diagnostics": {"colour": "Cars|Paint"}}, "rules.diagnostics.colour", "family_colour_root")):
+        try:
+            load(None, rules)
+            msg = "(no error)"
+        except S.SettingsError as e:
+            msg = str(e)
+        check(f"removed {key} in entries.json", msg,
+              f'entries.json: {key} was removed; use {new} in settings.json (README, "Tag families")')
+
+
+def family_roots_are_only_stripped():
+    v, fe, lines = load({"family_team_root": "  A|B  ", "family_number_root": "", "family_driver": False})
+    check("family root stripped", v["family_team_root"], "A|B")
+    check("empty family root is the default", v["family_number_root"], "Motorsport|Number")
+    check("family switch read", v["family_driver"], False)
+    check("family settings log nothing", lines, [])
 
 
 def file_wins_over_rules():
@@ -101,10 +134,10 @@ def non_object_file_counts_as_empty():
 
 
 def diag_names_from_rules():
-    v, fe, lines = load(None, {"diagnostics": {"colour": "Cars|Paint"}})
-    check("diag name: value", v["tag_colour_name"], "Cars|Paint")
-    check("diag name: from entries", "tag_colour_name" in fe, True)
-    check("diag name: diagnostics_of", ("colour", "Cars|Paint") in S.diagnostics_of(v), True)
+    v, fe, lines = load(None, {"diagnostics": {"burst": "Cars|Burst"}})
+    check("diag name: value", v["tag_burst_name"], "Cars|Burst")
+    check("diag name: from entries", "tag_burst_name" in fe, True)
+    check("diag name: diagnostics_of", ("burst", "Cars|Burst") in S.diagnostics_of(v), True)
 
 
 def empty_diag_turns_switch_off():
@@ -122,7 +155,7 @@ def unknown_diagnostic_logs():
 
 
 def non_object_diagnostics_logs():
-    v, fe, lines = load(None, {"diagnostics": ["colour"]})
+    v, fe, lines = load(None, {"diagnostics": ["burst"]})
     check("non-object diagnostics: log line", lines, ["entries.json: rules.diagnostics must be an object, ignored"])
     check("non-object diagnostics: defaults", (v, fe), (S.defaults(), ()))
 
@@ -168,8 +201,8 @@ def invalid_rules_value_logs():
     check("invalid rules value: one log line", len(lines), 1)
     check("invalid rules value: names key and entries.json",
           "min_read" in lines[0] and "entries.json" in lines[0], True)
-    v, fe, lines = load(None, {"diagnostics": {"colour": "  "}})
-    check("blank rules name: default", v["tag_colour_name"], S.DIAG_DEFAULTS["colour"])
+    v, fe, lines = load(None, {"diagnostics": {"burst": "  "}})
+    check("blank rules name: default", v["tag_burst_name"], S.DIAG_DEFAULTS["burst"])
     check("blank rules name: one log line", len(lines), 1)
 
 
@@ -178,10 +211,10 @@ def normalisation_and_edge_values():
     check("whole float for integer", (v["min_face_px"], type(v["min_face_px"]), lines), (64, int, []))
     v, fe, lines = load({"colour_weight": float("inf"), "margin": float("nan")})
     check("non-finite rejected", (v["colour_weight"], v["margin"], len(lines)), (0, 0.05, 2))
-    v, fe, lines = load({"tag_colour_name": "  Cars|Paint  "})
-    check("file name stripped", v["tag_colour_name"], "Cars|Paint")
-    v, fe, lines = load({"tag_colour_name": "  "})
-    check("file blank name invalid", (v["tag_colour_name"], len(lines)), (S.DIAG_DEFAULTS["colour"], 1))
+    v, fe, lines = load({"tag_burst_name": "  Cars|Burst  "})
+    check("file name stripped", v["tag_burst_name"], "Cars|Burst")
+    v, fe, lines = load({"tag_burst_name": "  "})
+    check("file blank name invalid", (v["tag_burst_name"], len(lines)), (S.DIAG_DEFAULTS["burst"], 1))
     v, fe, lines = load(None, {"min_face_px": 0, "colour_weight": 0})
     check("zero from rules is not False", (v["min_face_px"], v["colour_weight"], fe), (48, 0, ("colour_weight",)))
 
@@ -238,7 +271,7 @@ def lua_schema_parity():
     check("lua SETTING_RANGES name only number settings", sorted(set(lua_ranges) - set(py_ranges)), [])
 
 
-for t in (defaults_match_spec, file_wins_over_rules, rules_fallback_logs,
+for t in (defaults_match_spec, removed_keys_stop_the_load, family_roots_are_only_stripped, file_wins_over_rules, rules_fallback_logs,
           invalid_file_value_logs_and_falls_through, blank_is_absent, bool_is_not_a_number,
           bom_accepted, non_object_file_counts_as_empty, diag_names_from_rules,
           empty_diag_turns_switch_off, unknown_diagnostic_logs, non_object_diagnostics_logs, shot_base_from_three_paths, diagnostics_of_shot_leaves,

@@ -28,7 +28,7 @@ import shutil
 import sqlite3
 import sys
 import time
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 
 from vehicles import MAX_BOXES, crop_box, detect, detect_vehicles, load_hires, log
 from vehicle_detect import DetectionCache, decode_rgb, detect_cached, file_key, load_detector
@@ -50,7 +50,8 @@ from rescue import RESCUE_MIN_SIM, plan_burst
 from sponsors import sponsor_prefixes
 from report import write_report
 from kinds import DEFAULT_KIND, check_entry_fields, check_kind
-from settings import DIAG_DEFAULTS, MOVED_RULES, diagnostics_of, load_settings
+from settings import DIAG_DEFAULTS, MOVED_RULES, SettingsError, diagnostics_of, load_settings
+from families import FAMILIES, family_tag, resolve, team_tags
 from reference_store import ReferenceIndex
 from people import FACE_EMBED_DIM, FaceModel, face_model_key
 from people_run import analyse_frame_people, build_boxes_people, match_frame_people, reference_face
@@ -89,7 +90,7 @@ class Rules:
     # ((lowercase keyword, tag prefix), …): a sponsor word read on a car hints its team's prefix
     # (see sponsors.sponsor_prefixes). Empty: off.
     sponsor_keywords: tuple = ()
-    # Solo shots carrying only a team-prefix tag are accepted as team-level references.
+    # Solo shots carrying only a team tag are accepted as team-level references.
     partial_references: bool = False
     # Which pipeline the collection runs (kinds.KINDS). The three below only steer `people`: a face
     # is tagged when its entry scores at least min_sim, leads the runner-up by margin, and is at
@@ -101,9 +102,10 @@ class Rules:
     # Motorsport: how much a car's colour histogram counts next to its embedding when scoring references
     # (reference_store.best_per_entry). 0 turns colour off.
     colour_weight: float = 0.0
-    # Motorsport: a tag prefix for the whole collection. An entry's team is appended to it, its name
-    # to that, and the entry's own `tags` are extras (see _entry_tags). "" keeps `tags` as the full list.
-    tag_prefix: str = ""
+    # Motorsport: {family key: root tag} for each tag family switched on (families.resolve). An entry's
+    # number, team and name each become a tag under their root (see _entry_tags); "colour" in it turns
+    # on reading each car's body colour (car_colour). People collections have none.
+    families: dict = field(default_factory=dict)
     # Motorsport: how much the groups shot just before and after a photo help a doubtful number read
     # (neighbour.neighbour_aid): 0 ignores them (random order), 1 expects the numbers strictly in order.
     order_weight: float = 0.0
@@ -113,31 +115,22 @@ class Rules:
     # Motorsport: the least confidence (lower of text detection and the reader's own) a number read needs
     # to count. Weaker reads stay in the box's OCR trace but name nothing.
     min_read: float = 0.85
-    # Motorsport: read each car's body colour and write it as a tag (car_colour). Off: nothing runs.
-    colour_tags: bool = False
     # ((tag name, ((hue_lo, hue_hi, sat_lo, sat_hi, val_lo, val_hi), ...)), ...): the colours read, in output order.
     colour_palette: tuple = car_colour.PALETTE
 
 
-def _entry_tags(eid: str, item: dict, team: str, name: str, prefix: str, bad, number: str = "") -> tuple:
-    """An entry's tags. Without a prefix, its `tags` list as written. With one: prefix|team,
-    prefix|team|name (prefix|name with no team), then any extra `tags`, without repeats. A numbers-only
-    entry (a number, no team, name or tags) gets prefix|number."""
-    where = f'entry "{eid}": tags'
-    if not prefix:
-        if name:
-            raise bad(f'entry "{eid}": name needs rules.tag_prefix; without one, list the full tags')
-        _check_tags(item.get("tags"), where, bad)
-        return tuple(item["tags"])
+def _entry_tags(eid: str, item: dict, roots: dict, bad) -> tuple:
+    """An entry's tags: one per family in `roots` the entry has a value for (number, team, name),
+    then its own `tags` as extras, without repeats. The caller has checked the three values."""
     extra = item.get("tags", [])
-    _check_tags(extra, where, bad, allow_empty=True)
-    built = [f"{prefix}|{team}"] if team else []
-    if name:
-        built.append(f"{prefix}|{team}|{name}" if team else f"{prefix}|{name}")
-    if not built and not extra and number:
-        built = [f"{prefix}|{number}"]
+    _check_tags(extra, f'entry "{eid}": tags', bad, allow_empty=True)
+    built = []
+    for fam in FAMILIES:
+        value = str(item.get(fam.source, "")) if fam.source else ""
+        if value and fam.key in roots:
+            built.append(family_tag(roots[fam.key], value))
     if not built and not extra:
-        raise bad(f'entry "{eid}": needs a team or name to build its tags from rules.tag_prefix, or its own tags')
+        raise bad(f'entry "{eid}": builds no tag; turn on a family it has a value for, or give it tags')
     return tuple(dict.fromkeys(built + extra))
 
 
@@ -190,16 +183,16 @@ def _load_rules(raw, bad) -> dict:
         return {}
     if not isinstance(raw, dict):
         raise bad('"rules" must be an object')
-    unknown = sorted(set(raw) - {"team_only", "unidentified", "sponsor_keywords", "tag_prefix", "colour_palette",
-                                  "diagnostics", *MOVED_RULES})
+    if "tag_prefix" in raw:
+        raise bad('rules.tag_prefix was removed; set family_number_root, family_team_root and family_driver_root '
+                  'in settings.json (README, "Tag families")')
+    unknown = sorted(set(raw) - {"team_only", "unidentified", "sponsor_keywords", "colour_palette",
+                                  "diagnostics", "colour_tags", *MOVED_RULES})
     if unknown:
         raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, sponsor_keywords, '
-                   f'tag_prefix, colour_palette; behaviour settings such as order_weight go in settings.json)')
+                   f'colour_palette; behaviour settings such as order_weight go in settings.json)')
     defaults = Rules()
     colour_palette = _load_palette(raw["colour_palette"], bad) if "colour_palette" in raw else defaults.colour_palette
-    tag_prefix = raw.get("tag_prefix", defaults.tag_prefix)
-    if not isinstance(tag_prefix, str) or _BAD_TAG.search(tag_prefix) or tag_prefix != tag_prefix.strip("| "):
-        raise bad('rules.tag_prefix must be a tag path like "Motorsport|F1": no , ; " and no leading or trailing |')
     sponsors = raw.get("sponsor_keywords", {})
     if not isinstance(sponsors, dict) or not all(
             isinstance(k, str) and k.strip() and k == k.lower() and isinstance(v, str) and v.strip()
@@ -211,7 +204,7 @@ def _load_rules(raw, bad) -> dict:
     unidentified = raw.get("unidentified", [])
     _check_tags(unidentified, "rules.unidentified", bad, allow_empty=True)
     return dict(team_only=team_only, unidentified=tuple(unidentified), sponsor_keywords=tuple(sponsors.items()),
-                tag_prefix=tag_prefix, colour_palette=colour_palette)
+                colour_palette=colour_palette)
 
 
 def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
@@ -244,9 +237,17 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         raise bad(str(e))
     if not isinstance(data, list):
         raise bad('"entries" must be a list of entries')
-    values, from_entries = load_settings(collection_dir, rules_raw, log, settings_path)
-    rules = Rules(**_load_rules(rules_raw, bad), **{k: values[k] for k in MOVED_RULES},
-                  diagnostics=diagnostics_of(values), kind=kind)
+    own_rules = _load_rules(rules_raw, bad)
+    try:
+        values, from_entries = load_settings(collection_dir, rules_raw, log, settings_path)
+    except SettingsError as e:
+        raise InputError(str(e))
+    try:
+        roots = {} if kind == "people" else resolve(values)
+    except ValueError as e:
+        raise InputError(f"settings.json: {e}")
+    rules = Rules(**own_rules, **{k: values[k] for k in MOVED_RULES},
+                  diagnostics=diagnostics_of(values), kind=kind, families=roots)
     entries = {}
     for n, item in enumerate(data, 1):
         if not isinstance(item, dict):
@@ -283,7 +284,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         colours = [n for n, _ in rules.colour_palette] + [car_colour.MULTI]
         if colour != "" and colour not in colours:
             raise bad(f'entry "{eid}": colour "{colour}" is not one of {", ".join(colours)}')
-        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, team, name, rules.tag_prefix, bad, number), camera, colour)
+        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, rules.families, bad), camera, colour, name)
     if kind == "people":
         if rules_raw is None:
             log("warning: entries.json has no rules block, so the face thresholds use defaults")
@@ -306,17 +307,20 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
 def write_entries_csv(entries: dict, path: str):
     with open(path, "w", newline="", encoding="utf-8") as f:
         for e in entries.values():
-            f.write(f"{e.id},{e.team},{e.number},{';'.join(e.tags)}\n")
+            f.write(f"{e.id},{e.team},{e.number},{';'.join(e.tags)},{e.name}\n")
 
 
 def write_rules_csv(rules: Rules, from_entries: tuple, path: str):
     """key,value lines for assisted_tagging.lua: team_only, unidentified (tags joined by ;), diag_<outcome>,
+    family_<key> (the root of each family that is on),
     each moved setting, and from_entries_json (the settings keys still read from entries.json, joined by ;)."""
     with open(path, "w", newline="", encoding="utf-8") as f:
         f.write(f"team_only,{rules.team_only}\n")
         f.write(f"unidentified,{';'.join(rules.unidentified)}\n")
         for key, name in rules.diagnostics:
             f.write(f"diag_{key},{name}\n")
+        for key, root in rules.families.items():
+            f.write(f"family_{key},{root}\n")
         for key in MOVED_RULES:
             v = getattr(rules, key)
             f.write(f"{key},{str(v).lower() if isinstance(v, bool) else v}\n")
@@ -597,17 +601,6 @@ def read_manifest(path: str, columns: int, optional: int = 0) -> list:
     """Rows of `columns` + `optional` fields; a row may omit the optional ones (read as "")."""
     with open(path, newline="", encoding="utf-8") as f:
         return [(row + [""] * optional)[:columns + optional] for row in csv.reader(f) if len(row) >= columns]
-
-
-def strict_prefixes(entries: dict) -> list:
-    """Every tag path that is a strict prefix of some entry tag, in first-seen order."""
-    found = {}
-    for e in entries.values():
-        for t in e.tags:
-            parts = t.split("|")
-            for n in range(1, len(parts)):
-                found["|".join(parts[:n])] = True
-    return list(found)
 
 
 def box_hint(tag_prefixes: list, sponsor: list) -> tuple:
@@ -1084,7 +1077,7 @@ def identify(args, models: dict):
     entries, rules, from_entries = load_collection(collection, args.settings)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
-    models["car_colour"] = rules.colour_palette if rules.kind != "people" and rules.colour_tags else None
+    models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     embedder = check_models(models)
     if rules.kind == "people":
@@ -1093,7 +1086,7 @@ def identify(args, models: dict):
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     verify = getattr(args, "verify", False)
-    # 5th column: hand-applied tags that are a strict prefix of an entry's tags (team hints), ";"-joined.
+    # 5th column: hand-applied team tags (team hints), ";"-joined.
     # --verify checks the tags, so they must not steer the match.
     tag_hints_of = {r[0]: [] if verify else [t for t in r[4].split(";") if t] for r in rows}
     fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
@@ -1107,7 +1100,7 @@ def identify(args, models: dict):
     else:
         log("references: " + ", ".join(f"{e} {counts.get(e, 0)}" for e in entries))
     unknown = sorted(k for k in set(counts) - set(entries) if not k.startswith(TEAM_KEY))
-    team_of = {team_key(p): p for p in strict_prefixes(entries)} if rules.partial_references else {}
+    team_of = {team_key(p): p for p in team_tags(entries, rules.families)} if rules.partial_references else {}
     if unknown:
         log("references for entries not in entries.json (ignored): " + ", ".join(unknown))
 
@@ -1314,7 +1307,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
     entries, rules, from_entries = load_collection(collection, args.settings)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
-    models["car_colour"] = rules.colour_palette if rules.kind != "people" and rules.colour_tags else None
+    models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     embedder = check_models(models)
     index = open_index(collection, models, rules, embedder, args.progress)
@@ -1347,7 +1340,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
 
 
 def add_references(args, models: dict):
-    """Each manifest image becomes a reference for its entry (and, with rules.colour_tags, reads
+    """Each manifest image becomes a reference for its entry (and, with the colour family on, reads
     the car's colour into entries.json). `args.colours_only` reads the colour alone: no reference
     is saved, team rows are "unread", and a row is "read" or "unread" by whether a colour came out."""
     teams = None
@@ -1373,8 +1366,8 @@ def add_references(args, models: dict):
         if rules.kind == "people":
             return handle_people(index, entries, rules, image_id, filepath, entry_id)
         if teams is None:
-            teams = set(strict_prefixes(entries))
-        # a team prefix instead of an entry id: a solo shot tagged only to team level
+            teams = set(team_tags(entries, rules.families))
+        # a team tag instead of an entry id: a solo shot tagged only to team level
         is_team = entry_id not in entries and entry_id in teams
         if entry_id not in entries and not is_team:
             log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")
@@ -1404,7 +1397,7 @@ def add_references(args, models: dict):
             rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop)
             log(f"{image_id}: reference {rel}" + ("" if boxes else f" (whole frame; {note})"))
             proposals = []
-            if rules.colour_tags and not is_team:
+            if "colour" in rules.families and not is_team:
                 colour = hand_colour or (car_colour.decide_colour(car_colour.colour_shares(crop, rules.colour_palette))
                                          if boxes else "")
                 proposals = [(entry_id, colour)] if colour else []
@@ -1418,8 +1411,8 @@ def add_references(args, models: dict):
         only_rules = load_collection(collection, args.settings)[1]
         if only_rules.kind == "people":
             raise InputError("Fill entry colours is for vehicle collections")
-        if not only_rules.colour_tags:
-            raise InputError("Fill entry colours needs read car colour (colour_tags) on")
+        if "colour" not in only_rules.families:
+            raise InputError("Fill entry colours needs the colour family (family_colour) on")
     run_reference_job(args, models, handle, screen="" if colours_only else "warn")
 
 
@@ -1454,7 +1447,7 @@ def promote_boxes(args, models: dict):
                 log(f"{image_id}: box {b['box']} ({b['method']}) reference {rel}")
                 # a boxes.json from before colour reading has no shares, so gives no colour
                 colour = hand_colour if hand_colour and len(wanted) == 1 else car_colour.decide_colour(b.get("colour_shares", {}))
-                if rules.colour_tags and colour:
+                if "colour" in rules.families and colour:
                     proposals.append((b["entry"], colour))
             return "added", proposals, wanted[0]["entry"]
         except Exception as e:
@@ -1472,7 +1465,7 @@ def audit_references(args, models: dict):
     entries, rules, _ = load_collection(collection, args.settings)
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
-    models["car_colour"] = rules.colour_palette if rules.kind != "people" and rules.colour_tags else None
+    models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
     models["segmenter"] = ""
     index = open_index(collection, models, rules, check_models(models), args.progress)
     if cancel_requested(args.progress):

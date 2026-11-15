@@ -46,14 +46,15 @@ def run_tests():
         csv_path = os.path.join(tmp, "start.csv")
         write(csv_path, "No.;Driver;Co-Driver;Entrant;Class\n1;Smith;Jones;Team A;RC1\n#12;Doe, J;;;\n7;Lee;Kim;Team B;RC2\n\n")
 
-        check("a new entries.json needs a prefix", exits_2([cdir, "--csv", csv_path]), 2)
-        M.main([cdir, "--csv", csv_path, "--tag-prefix", "Rally|2026"])
+        check("the removed --tag-prefix flag is rejected", exits_2([cdir, "--csv", csv_path, "--tag-prefix", "Rally|2026"]), 2)
+        check("a rejected run writes no entries.json", os.path.exists(os.path.join(cdir, "entries.json")), False)
+        M.main([cdir, "--csv", csv_path])
         data = json.load(open(os.path.join(cdir, "entries.json"), encoding="utf-8"))
-        check("a CSV creates entries.json with the prefix", data["rules"], {"tag_prefix": "Rally|2026"})
+        check("a CSV creates entries.json with no rules", list(data), ["entries"])
         check("header aliases map the columns; class becomes a tag; commas are cleaned", data["entries"], [
-            {"id": "1", "number": "1", "name": "Smith / Jones", "team": "Team A", "tags": ["Rally|2026|Class|RC1"]},
+            {"id": "1", "number": "1", "name": "Smith / Jones", "team": "Team A", "tags": ["Motorsport|Class|RC1"]},
             {"id": "12", "number": "12", "name": "Doe J"},
-            {"id": "7", "number": "7", "name": "Lee / Kim", "team": "Team B", "tags": ["Rally|2026|Class|RC2"]},
+            {"id": "7", "number": "7", "name": "Lee / Kim", "team": "Team B", "tags": ["Motorsport|Class|RC2"]},
         ])
         check("the file is in the canonical layout", open(os.path.join(cdir, "entries.json"), encoding="utf-8").read(),
               dump(data))
@@ -101,19 +102,19 @@ def run_tests():
 
         hand = os.path.join(tmp, "hand")
         os.makedirs(hand)
-        write(os.path.join(hand, "entries.json"), '{"rules": {"tag_prefix": "R"},\n "entries": [{"id": "1", "number": "1"}]}\n')
+        write(os.path.join(hand, "entries.json"), '{"rules": {"team_only": "none"},\n "entries": [{"id": "1", "number": "1"}]}\n')
         M.main([hand, "--text", pasted])
         reflowed = json.load(open(os.path.join(hand, "entries.json"), encoding="utf-8"))
         check("a hand-formatted file gets the new entries", [e["id"] for e in reflowed["entries"]], ["1", "7", "21", "105"])
         check("a hand-formatted file is reflowed into the canonical layout",
               open(os.path.join(hand, "entries.json"), encoding="utf-8").read(), dump(reflowed))
         check("the hand-formatted original is kept as .bak", open(os.path.join(hand, "entries.json.bak"), encoding="utf-8").read(),
-              '{"rules": {"tag_prefix": "R"},\n "entries": [{"id": "1", "number": "1"}]}\n')
+              '{"rules": {"team_only": "none"},\n "entries": [{"id": "1", "number": "1"}]}\n')
 
         bare = os.path.join(tmp, "bare")
         os.makedirs(bare)
         write(os.path.join(bare, "entries.json"), '[\n  { "id": "1", "tags": ["X"] }\n]\n')
-        check("a bare list without rules fails", exits_2([bare, "--text", pasted, "--tag-prefix", "R"]), 2)
+        check("a bare list fails", exits_2([bare, "--text", pasted]), 2)
 
     if failures == 0:
         print("all tests passed")

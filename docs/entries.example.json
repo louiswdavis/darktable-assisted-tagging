@@ -1,6 +1,5 @@
 {
   "rules": {
-    "tag_prefix": "Motorsport|F1",
     "team_only": "shared tags",
     "unidentified": [],
     "diagnostics": {
