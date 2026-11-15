@@ -658,6 +658,72 @@ do
     check("a hand result counts as identified", hok, true)
 end
 
+-- Find new entries ----------------------------------------------------------
+do
+    local NR, SEEN = "M|Number", "AT|Seen"
+    local roots = { number = NR, team = "M|Team", driver = "M|Driver" }
+    local ne = {
+        ["12"] = { number = "12", team = "", name = "" },
+        ["7"] = { number = "7", team = "Ferrari", name = "Leclerc" },
+    }
+    local function img(id, have, ledger_set) return { id = id, have = have, ledger_set = ledger_set or {} } end
+    local function shape(rows)
+        local out = {}
+        for _, r in ipairs(rows) do
+            out[#out + 1] = r.kind .. ":" .. r.number .. ":" .. r.value .. " r" .. table.concat(r.read, ",") .. " h" .. table.concat(r.hand, ",")
+        end
+        return table.concat(out, "; ")
+    end
+    -- test_new_entries_from_reads
+    check("new entries: unlisted reads make one number row", shape(T.new_entry_candidates({
+        img(1, { [SEEN .. "|115"] = true, [SEEN .. "|7"] = true }), img(2, { [SEEN .. "|115"] = true }),
+    }, ne, roots, SEEN)), "number:115:115 r1,2 h")
+    -- test_new_entries_from_hand_number
+    check("new entries: an unlisted hand number makes a row; read too counts as hand", shape(T.new_entry_candidates({
+        img(1, { [NR .. "|88"] = true, [SEEN .. "|88"] = true }), img(2, { [NR .. "|88"] = true }, { [NR .. "|88"] = true }),
+    }, ne, roots, SEEN)), "number:88:88 r h1")
+    -- test_new_entries_field_row
+    local field = T.new_entry_candidates({
+        img(1, { [NR .. "|12"] = true, ["M|Team|Ferrari"] = true }, { [NR .. "|12"] = true }),
+        img(2, { [NR .. "|12"] = true, ["M|Team|Ferrari"] = true, ["M|Driver|Smith"] = true }),
+    }, ne, roots, SEEN)
+    check("new entries: hand team and driver on entry 12 make field rows", shape(field),
+        "team:12:Ferrari r h1,2; driver:12:Smith r h2")
+    check("new entries: a field row carries its entry", field[1].entry, "12")
+    -- test_new_entries_field_already_set
+    check("new entries: a field the entry has makes no row", shape(T.new_entry_candidates({
+        img(1, { [NR .. "|7"] = true, ["M|Team|Sauber"] = true, ["M|Driver|Bearman"] = true }),
+    }, ne, roots, SEEN)), "")
+    -- test_new_entries_order
+    check("new entries: most photos first, then number", shape(T.new_entry_candidates({
+        img(1, { [SEEN .. "|115"] = true, [SEEN .. "|9"] = true, [SEEN .. "|30"] = true }),
+        img(2, { [SEEN .. "|30"] = true }),
+    }, ne, roots, SEEN)), "number:30:30 r1,2 h; number:9:9 r1 h; number:115:115 r1 h")
+    check("new entries: a ledgered team tag makes no row", shape(T.new_entry_candidates({
+        img(1, { [NR .. "|12"] = true, ["M|Team|Ferrari"] = true }, { ["M|Team|Ferrari"] = true }),
+    }, ne, roots, SEEN)), "")
+    check("candidate_label: read", T.candidate_label({ kind = "number", number = "115", value = "115", read = { 1, 2 }, hand = {} }),
+        "115    read on 2 photos")
+    check("candidate_label: both ways, one photo", T.candidate_label({ kind = "number", number = "88", value = "88", read = { 1 }, hand = { 2, 3 } }),
+        "88    read on 1 photo, hand-tagged on 2 photos")
+    check("candidate_label: field", T.candidate_label({ kind = "team", entry = "12", number = "12", value = "Ferrari", read = {}, hand = { 1 } }),
+        "12: team Ferrari    hand-tagged on 1 photo")
+    -- test_same_field_twice
+    local t1 = { kind = "team", entry = "12", number = "12", value = "Ferrari" }
+    local t2 = { kind = "team", entry = "12", number = "12", value = "AF Corse" }
+    check("check_additions: two teams for one entry", T.check_additions({ t1, t2 }, roots),
+        "Entry 12 has two ticked teams: Ferrari, AF Corse. Tick one.")
+    -- test_number_family_off
+    check("check_additions: number family off", T.check_additions({ { kind = "number", number = "115", value = "115" } }, { team = "M|Team" }),
+        "Turn on the number family before adding numbers: a new entry needs a tag.")
+    -- test_none_ticked
+    check("check_additions: nothing ticked", T.check_additions({}, roots), "Nothing ticked.")
+    check("check_additions: a number and one team pass", tostring(T.check_additions({ t1, { kind = "number", number = "115", value = "115" } }, roots)), "nil")
+    check("addition_rows: number and field rows", T.csv_line(T.addition_rows({ { kind = "number", number = "115" } })[1]) .. " / "
+        .. T.csv_line(T.addition_rows({ { kind = "driver", entry = "12", value = "Smith" } })[1]),
+        '"number","115" / "field","12","name","Smith"')
+end
+
 local hint_have = { ["F1|Red Bull"] = true, ["F1|Red Bull|Verstappen"] = true, ["F1|Ferrari"] = true, ["Holiday"] = true }
 local hint = T.hint_tags(hint_have, { ["F1|Ferrari"] = true }, entries, "F1")
 check("hint: a user-applied team tag hints", hint["F1|Red Bull"], true)

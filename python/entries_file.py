@@ -1,9 +1,15 @@
-"""entries.json round trip for the reference actions: fills an entry's `colour` without changing
-anything else. A file already in the canonical layout (`dump`) keeps its layout; any other layout
-is reflowed into the canonical one, with the previous file kept as entries.json.bak."""
+"""entries.json round trip: fills an entry's `colour` (the reference actions) and adds confirmed
+entries and fields (the panel's Find new entries) without changing anything else. A file already in
+the canonical layout (`dump`) keeps its layout; any other layout is reflowed into the canonical one,
+with the previous file kept as entries.json.bak.
 
+From a shell: python entries_file.py add <entries.json> <additions.csv>, the CSV holding rows
+`number,<n>` and `field,<entry id>,<team|name>,<value>`."""
+
+import csv
 import json
 import shutil
+import sys
 
 from common import atomic_write
 
@@ -54,10 +60,100 @@ def set_colours(path: str, colours: dict) -> tuple:
             changed = True
     if not changed:
         return False, "unchanged"
+    _write(path, text, data, eol)
+    return True, "set"
+
+
+def _write(path: str, text: str, data, eol: str) -> None:
+    """Replaces the file whose \\n-normalised content is `text` with `data`, in `text`'s layout when
+    that is one of `dump`'s, keeping the previous file as <path>.bak."""
     original = json.loads(text)
     inline = next((i for i in (False, True) if dump(original, i).rstrip() == text.rstrip()), None)
     out = dump(data, False) if inline is None else dump(data, inline).rstrip() + text[len(text.rstrip()):]
     with atomic_write(path, newline="") as f:
         f.write(out.replace("\n", eol))
         shutil.copy2(path, path + ".bak")  # the original, before the replace on exit
-    return True, "set"
+
+
+FIELD_NOUNS = {"team": "team", "name": "driver"}
+
+
+def add_entries(path: str, numbers: list, fields: list) -> int:
+    """Appends an entry `{"id": n, "number": n}` for each of `numbers` and sets each of `fields`
+    ((entry id, "team" | "name", value)) on its entry. Returns the number of changes written.
+    Raises ValueError, writing nothing, when the file does not parse, a number is already an
+    entry's id or number, a field's entry is missing or already has a value, or two rows set the
+    same field of one entry. Layout, line endings and the .bak are as in set_colours."""
+    with open(path, encoding="utf-8", newline="") as f:
+        raw = f.read()
+    eol = "\r\n" if "\r\n" in raw else "\n"
+    text = raw.replace("\r\n", "\n")
+    try:
+        data = json.loads(text)
+    except ValueError as e:
+        raise ValueError(f"entries.json does not parse ({e})") from None
+    entries = data.get("entries") if isinstance(data, dict) else data
+    if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+        raise ValueError("entries.json has no list of entries")
+    taken = {str(e[k]) for e in entries for k in ("id", "number") if e.get(k) not in (None, "")}
+    for n in numbers:
+        if not n:
+            raise ValueError("a new entry needs a number")
+        if n in taken:
+            raise ValueError(f"{n} is already an entry")
+        taken.add(n)
+    by_id = {str(e.get("id")): e for e in entries}
+    seen = set()
+    for entry_id, key, value in fields:
+        if key not in FIELD_NOUNS:
+            raise ValueError(f"{key} is not a field this adds (team or name)")
+        if not value:
+            raise ValueError(f"entry {entry_id}: the {FIELD_NOUNS[key]} to add is empty")
+        entry = by_id.get(entry_id)
+        if entry is None:
+            raise ValueError(f"entry {entry_id} is not in entries.json")
+        if entry.get(key):
+            raise ValueError(f"entry {entry_id} already has a {FIELD_NOUNS[key]}: {entry[key]}")
+        if (entry_id, key) in seen:
+            raise ValueError(f"entry {entry_id} is given two {FIELD_NOUNS[key]}s")
+        seen.add((entry_id, key))
+    if not numbers and not fields:
+        return 0
+    for n in numbers:
+        entries.append({"id": n, "number": n})
+    for entry_id, key, value in fields:
+        by_id[entry_id][key] = value
+    _write(path, text, data, eol)
+    return len(numbers) + len(fields)
+
+
+def read_additions(path: str) -> tuple:
+    """(numbers, fields) from an additions CSV. Raises ValueError on any other row."""
+    numbers, fields = [], []
+    with open(path, encoding="utf-8", newline="") as f:
+        for row in csv.reader(f):
+            if len(row) == 2 and row[0] == "number":
+                numbers.append(row[1])
+            elif len(row) == 4 and row[0] == "field":
+                fields.append((row[1], row[2], row[3]))
+            elif row:
+                raise ValueError(f"additions: unreadable row {row}")
+    return numbers, fields
+
+
+def main(argv) -> int:
+    if len(argv) != 3 or argv[0] != "add":
+        print("usage: entries_file.py add <entries.json> <additions.csv>")
+        return 2
+    try:
+        numbers, fields = read_additions(argv[2])
+        add_entries(argv[1], numbers, fields)
+    except (ValueError, OSError) as e:
+        print(f"entries.json was not changed: {e}")
+        return 1
+    print(f"added {len(numbers)} entries and {len(fields)} fields to entries.json")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -443,6 +443,150 @@ function M.hand_entry(have, ledger_set, entries, roots)
     return id
 end
 
+local CANDIDATE_KINDS = { number = 1, team = 2, driver = 3 }
+local CANDIDATE_FIELDS = { team = "team", driver = "name" }
+
+local function by_number_first(a, b)
+    local na, nb = tonumber(a), tonumber(b)
+    if na and nb and na ~= nb then return na < nb end
+    return a < b
+end
+
+-- Find new entries: what the selected photos show that entries.json lacks. `images`: list of
+-- { id, have, ledger_set }. A `<seen_base>|<digits>` tag whose digits are no entry's number makes a
+-- `number` row (image in `read`); a hand tag `<number root>|<n>` with n unlisted makes one too
+-- (image in `hand`, never also in `read`). A hand team or driver tag on an image whose number tags,
+-- hand or plugin-written, name exactly one entry with that field empty makes a `team`/`driver` row
+-- (`entry` = its id). One row per number or per (entry, field, value); values holding `|` are
+-- skipped. Rows come most photos first, then by number.
+function M.new_entry_candidates(images, entries, roots, seen_base)
+    local listed = {}
+    for id, e in pairs(entries) do
+        if e.number and e.number ~= "" then
+            listed[e.number] = listed[e.number] or {}
+            listed[e.number][#listed[e.number] + 1] = id
+        end
+    end
+    local rows, index = {}, {}
+    local function add(key, fresh, list, image_id)
+        local r = index[key]
+        if not r then
+            r = fresh
+            r.read, r.hand = {}, {}
+            index[key] = r
+            rows[#rows + 1] = r
+        end
+        r[list][#r[list] + 1] = image_id
+    end
+    local number_root = roots.number or ""
+    local seen_prefix = (seen_base or "") ~= "" and seen_base .. "|" or nil
+    for _, img in ipairs(images) do
+        local hand_numbers = {}
+        for _, n in ipairs(hand_values(img.have, img.ledger_set, number_root)) do
+            if not n:find("|", 1, true) then hand_numbers[n] = true end
+        end
+        local read_numbers = {}
+        if seen_prefix then
+            for name in pairs(img.have) do
+                local digits = name:sub(1, #seen_prefix) == seen_prefix and name:sub(#seen_prefix + 1)
+                if digits and digits:match("^%d+$") and not hand_numbers[digits] then read_numbers[#read_numbers + 1] = digits end
+            end
+        end
+        table.sort(read_numbers)
+        for _, n in ipairs(read_numbers) do
+            if not listed[n] then add("number\0" .. n, { kind = "number", number = n, value = n }, "read", img.id) end
+        end
+        local hands = {}
+        for n in pairs(hand_numbers) do hands[#hands + 1] = n end
+        table.sort(hands)
+        for _, n in ipairs(hands) do
+            if not listed[n] then add("number\0" .. n, { kind = "number", number = n, value = n }, "hand", img.id) end
+        end
+        if number_root ~= "" then
+            local ids, prefix = {}, number_root .. "|"
+            for name in pairs(img.have) do
+                local n = name:sub(1, #prefix) == prefix and name:sub(#prefix + 1)
+                for _, id in ipairs(n and listed[n] or {}) do ids[id] = true end
+            end
+            local eid = next(ids)
+            if eid and not next(ids, eid) then
+                local e = entries[eid]
+                for _, kind in ipairs({ "team", "driver" }) do
+                    local field = CANDIDATE_FIELDS[kind]
+                    if (e[field] or "") == "" then
+                        for _, value in ipairs(hand_values(img.have, img.ledger_set, roots[kind])) do
+                            if not value:find("|", 1, true) then
+                                add(kind .. "\0" .. eid .. "\0" .. value,
+                                    { kind = kind, entry = eid, number = e.number, value = value }, "hand", img.id)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    table.sort(rows, function(a, b)
+        local ca, cb = #a.read + #a.hand, #b.read + #b.hand
+        if ca ~= cb then return ca > cb end
+        if a.number ~= b.number then return by_number_first(a.number, b.number) end
+        if a.kind ~= b.kind then return CANDIDATE_KINDS[a.kind] < CANDIDATE_KINDS[b.kind] end
+        return a.value < b.value
+    end)
+    return rows
+end
+
+-- The check-button text of a Find new entries row.
+function M.candidate_label(row)
+    local function photos(n) return n == 1 and "1 photo" or (n .. " photos") end
+    local seen
+    if #row.read > 0 and #row.hand > 0 then
+        seen = "read on " .. photos(#row.read) .. ", hand-tagged on " .. photos(#row.hand)
+    elseif #row.read > 0 then
+        seen = "read on " .. photos(#row.read)
+    else
+        seen = "hand-tagged on " .. photos(#row.hand)
+    end
+    local what = row.kind == "number" and row.number or (row.number .. ": " .. row.kind .. " " .. row.value)
+    return what .. "    " .. seen
+end
+
+-- Why the ticked rows can't be added, or nil when they can. `roots`: the families switched on.
+function M.check_additions(ticked, roots)
+    if #ticked == 0 then return "Nothing ticked." end
+    for _, r in ipairs(ticked) do
+        if r.kind == "number" and (roots.number or "") == "" then
+            return "Turn on the number family before adding numbers: a new entry needs a tag."
+        end
+    end
+    local values, order = {}, {}
+    for _, r in ipairs(ticked) do
+        if r.kind ~= "number" then
+            local key = r.entry .. "\0" .. r.kind
+            if not values[key] then
+                values[key] = {}
+                order[#order + 1] = { key = key, row = r }
+            end
+            values[key][#values[key] + 1] = r.value
+        end
+    end
+    for _, o in ipairs(order) do
+        if #values[o.key] > 1 then
+            return string.format("Entry %s has two ticked %ss: %s. Tick one.",
+                o.row.number, o.row.kind, table.concat(values[o.key], ", "))
+        end
+    end
+    return nil
+end
+
+-- The additions CSV rows entries_file.py reads: `number,<n>` and `field,<entry id>,<team|name>,<value>`.
+function M.addition_rows(ticked)
+    local out = {}
+    for _, r in ipairs(ticked) do
+        out[#out + 1] = r.kind == "number" and { "number", r.number } or { "field", r.entry, CANDIDATE_FIELDS[r.kind], r.value }
+    end
+    return out
+end
+
 -- have: an image's tag names (name → true). Returns the names to attach and to
 -- detach, sorted. Only owned tags, or tags starting with an owned prefix (the dynamic
 -- "...Number seen|<digits>" diagnostic, one tag per distinct digit string), are detached.
@@ -2395,6 +2539,97 @@ end
 -- Reads the paintwork colour of each selected image's car and writes it as that entry's colour
 -- in entries.json, saving no references. Mirrors M.add_references(images, nil): the entry comes
 -- from the image's tags, a hand-applied colour tag wins over the reading.
+-- After Find new entries adds numbers: each image that read one (`read`) gets the number tag
+-- <number root>|<n> in place of <seen_base>|<n>, both recorded as the plugin's in the ledger.
+-- Hand-tagged images keep their tags. `image_of`: image id → image. Returns the images retagged.
+local function retag_added_numbers(rows, image_of, number_root, seen_base)
+    local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
+    local n_images, failed = 0, nil
+    for _, r in ipairs(rows) do
+        if r.kind == "number" then
+            local new_name, old_name = number_root .. "|" .. r.number, seen_base .. "|" .. r.number
+            local new_tag = tags.create(new_name)
+            for _, id in ipairs(r.read) do
+                local img = image_of[id]
+                local mine = ledger[img.id] or {}
+                local ok, err = pcall(function()
+                    tags.attach(new_tag, img)
+                    mine[new_name] = true
+                    if tags_of(img)[old_name] then
+                        tags.detach(tags.create(old_name), img)
+                        mine[old_name] = nil
+                    end
+                end)
+                ledger[img.id] = next(mine) and mine or nil
+                if ok then n_images = n_images + 1 else failed = failed or tostring(err) end
+            end
+        end
+    end
+    write_ledger(ledger, _("The number tags just attached will count as yours next run."))
+    if failed then notify_error(_("Assisted Tagging: some number tags couldn't be attached: ") .. failed) end
+    return n_images
+end
+
+-- Find new entries: the rows for the selected images (see M.new_entry_candidates), with the
+-- images by id. nil when the run can't start (the reason is already on screen).
+function M.find_new_entries(images)
+    if not can_start(images) or not take_settings() then return nil end
+    local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
+    local list, image_of = {}, {}
+    for _, img in ipairs(images) do
+        image_of[img.id] = img
+        list[#list + 1] = { id = img.id, have = tags_of(img), ledger_set = ledger[img.id] or {} }
+    end
+    local roots = M.family_roots(settings)
+    return M.new_entry_candidates(list, entries, roots, M.named_rules(rules, settings).diag.number_seen), image_of
+end
+
+-- Adds the ticked Find new entries rows to entries.json (entries_file.py, which keeps a .bak),
+-- reloads the lists, then retags the images that read an added number. Returns true when
+-- entries.json was written; on false the message is already on screen.
+function M.add_found_entries(ticked, image_of)
+    if busy or not orphan_gone() then
+        dt.print(_("Assisted Tagging: busy, try again when the current run finishes."))
+        return false
+    end
+    if not take_settings() then return false end
+    local roots = M.family_roots(settings)
+    local problem = M.check_additions(ticked, roots)
+    if problem then
+        dt.print("Assisted Tagging: " .. _(problem))
+        return false
+    end
+    local path = TMP_DIR .. "/assisted_tagging_additions.csv"
+    local lines = {}
+    for _, row in ipairs(M.addition_rows(ticked)) do lines[#lines + 1] = M.csv_line(row) end
+    if not write_file_atomic(path, table.concat(lines, "\n") .. "\n") then
+        notify_error(_("Assisted Tagging: couldn't write the additions to darktable's tmp folder."))
+        return false
+    end
+    local script = identify_script()
+    local cmd = command_line(python_bin(script), { plugin_root(script) .. "/python/entries_file.py", "add",
+        entries_json_path(), path }) .. " 2>&1"
+    -- cmd.exe strips the outer quotes of a quoted command line, so the whole thing gets one more pair
+    if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
+    log("add new entries: " .. cmd)
+    local p = io.popen(cmd)
+    if not p then
+        notify_error(_("Assisted Tagging: couldn't start Python to add the entries."))
+        return false
+    end
+    local out = (p:read("a") or ""):gsub("%s+$", "")
+    local ok = p:close()
+    log("add new entries: " .. (out ~= "" and out or (ok and "no output" or "failed")))
+    if not ok then
+        notify_error("Assisted Tagging: " .. (out ~= "" and out or _("adding the entries failed, see the log.")))
+        return false
+    end
+    if not reload_lists(true) then return true end
+    local n_images = retag_added_numbers(ticked, image_of, roots.number, M.named_rules(rules, settings).diag.number_seen)
+    say(string.format("Assisted Tagging: %s; %d photos tagged with their new number.", out, n_images))
+    return true
+end
+
 function M.fill_entry_colours(images)
     if queue_if_busy(_("Fill entry colours"), images and #images > 0, function() M.fill_entry_colours(images) end) then return end
     if not can_start(images) then return end
@@ -3004,6 +3239,48 @@ local function install_panel()
             if reload_lists(true) then dt.print("Assisted Tagging: " .. out) end
         end,
     }
+    local found = { checks = {}, rows = {}, image_of = {} }
+    local found_title = dt.new_widget("label") { label = "", halign = "start" }
+    local found_box = dt.new_widget("box") { orientation = "vertical" }
+    local add_found_button = dt.new_widget("button") {
+        label = _("Add ticked to entries.json"),
+        tooltip = _("Add the ticked numbers as new entries and the ticked teams and drivers to their entries. The previous file is saved as entries.json.bak. Photos that read an added number get its number tag."),
+        visible = false,
+        clicked_callback = function() end,
+    }
+    local function show_found(rows, title)
+        for i = #found_box, 1, -1 do found_box[i] = nil end
+        found.rows, found.checks = rows, {}
+        for i, r in ipairs(rows) do
+            found.checks[i] = dt.new_widget("check_button") { label = M.candidate_label(r), value = false }
+            found_box[#found_box + 1] = found.checks[i]
+        end
+        found_title.label = title
+        add_found_button.visible = #rows > 0
+    end
+    local function clear_found() show_found({}, "") end
+    add_found_button.clicked_callback = function()
+        local ticked = {}
+        for i, check in ipairs(found.checks) do
+            if check.value then ticked[#ticked + 1] = found.rows[i] end
+        end
+        if M.add_found_entries(ticked, found.image_of) then clear_found() end
+    end
+    local find_button = dt.new_widget("button") {
+        label = _("Find new entries"),
+        tooltip = _("List the numbers the selected photos read or carry by hand that entries.json lacks, and the teams and drivers you tagged by hand on entries that have none. Nothing is added until you tick it."),
+        clicked_callback = function()
+            local images = dt.gui.action_images
+            local rows, image_of = M.find_new_entries(images)
+            if not rows then return end
+            found.image_of = image_of
+            if #rows == 0 then
+                show_found(rows, string.format(_("No new entries in %d selected photos."), #images))
+            else
+                show_found(rows, string.format(_("New in %d selected photos:"), #images))
+            end
+        end,
+    }
     identify_button = dt.new_widget("button") {
         label = _("Identify selection"),
         tooltip = _("Identify the vehicles in the selected images and tag them with their entries' tags"),
@@ -3266,7 +3543,8 @@ local function install_panel()
     local page_widgets = {
         { plan_button,
           dt.new_widget("label") { label = _("start list"), halign = "start" },
-          start_list_file, start_list_columns, start_list_text, import_start_list_button },
+          start_list_file, start_list_columns, start_list_text, import_start_list_button,
+          find_button, found_title, found_box, add_found_button },
         {
             group_support_combo,
             dt.new_widget("label") { label = _("grouping tag node"), halign = "start" },
@@ -3321,6 +3599,7 @@ local function install_panel()
             template_box.visible = is_template
             collection_box.visible = not is_template
             close_entries_editor()
+            clear_found()
             collection_loaded = false
             if is_template then
                 entries, entry_order = {}, {}
