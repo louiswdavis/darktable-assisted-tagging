@@ -165,6 +165,26 @@ function M.collapse_shots(images)
     return primaries, group_of
 end
 
+-- `carriers` that take the tags of an image in `read` without being in it: the same shot
+-- (see M.collapse_shots) or the same darktable group. Images: { id, path, filename, group_leader }.
+function M.shot_copies(read, carriers)
+    local in_read, shot, leader = {}, {}, {}
+    for _, img in ipairs(read) do
+        in_read[img.id] = true
+        shot[img.path .. "/" .. M.shot_stem(img.filename)] = true
+        if img.group_leader then leader[img.group_leader.id] = true end
+    end
+    local out = {}
+    for _, img in ipairs(carriers) do
+        if not in_read[img.id] and (shot[img.path .. "/" .. M.shot_stem(img.filename)]
+            or (img.group_leader and leader[img.group_leader.id])) then
+            in_read[img.id] = true
+            out[#out + 1] = img
+        end
+    end
+    return out
+end
+
 -- Selected images → the same list with each one swapped for the best-ranked image of its
 -- shot found in `pool` (e.g. a RAW → its paired JPEG), duplicates dropped, order kept.
 -- Also returns how many selections were swapped, and per selected id the image picked.
@@ -2549,9 +2569,10 @@ end
 -- Reads the paintwork colour of each selected image's car and writes it as that entry's colour
 -- in entries.json, saving no references. Mirrors M.add_references(images, nil): the entry comes
 -- from the image's tags, a hand-applied colour tag wins over the reading.
--- After Find new entries adds numbers: each image that read one (`read`) gets the number tag
--- <number root>|<n> in place of <seen_base>|<n>, both recorded as the plugin's in the ledger.
--- Hand-tagged images keep their tags. `image_of`: image id → image. Returns the images retagged.
+-- After Find new entries adds numbers: each image that read one (`read`), and its unselected
+-- copies still carrying <seen_base>|<n> (M.shot_copies), gets the number tag <number root>|<n>
+-- in place of <seen_base>|<n>, both recorded as the plugin's in the ledger. Hand-tagged images
+-- keep their tags. `image_of`: image id → image. Returns the images retagged.
 local function retag_added_numbers(rows, image_of, number_root, seen_base)
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
     local n_images, failed = 0, nil
@@ -2559,13 +2580,22 @@ local function retag_added_numbers(rows, image_of, number_root, seen_base)
         if r.kind == "number" then
             local new_name, old_name = number_root .. "|" .. r.number, seen_base .. "|" .. r.number
             local new_tag = tags.create(new_name)
-            for _, id in ipairs(r.read) do
-                local img = image_of[id]
+            local read, carriers = {}, {}
+            for _, id in ipairs(r.read) do read[#read + 1] = image_of[id] end
+            local old_tag = tags.find(old_name)
+            for i = 1, old_tag and #old_tag or 0 do carriers[#carriers + 1] = old_tag[i] end
+            local targets = { table.unpack(read) }
+            for _, img in ipairs(M.shot_copies(read, carriers)) do targets[#targets + 1] = img end
+            for _, img in ipairs(targets) do
                 local mine = ledger[img.id] or {}
                 local ok, err = pcall(function()
-                    tags.attach(new_tag, img)
-                    mine[new_name] = true
-                    if tags_of(img)[old_name] then
+                    local have = tags_of(img)
+                    -- a copy may carry the number tag by hand; it stays the user's
+                    if not have[new_name] or mine[new_name] then
+                        tags.attach(new_tag, img)
+                        mine[new_name] = true
+                    end
+                    if have[old_name] then
                         tags.detach(tags.create(old_name), img)
                         mine[old_name] = nil
                     end

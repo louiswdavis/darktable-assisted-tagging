@@ -29,7 +29,7 @@ local cf = assert(io.open(script_dir .. "/plugin_common.lua", "rb"))
 local common_text = cf:read("a"):gsub("\r\n", "\n")
 cf:close()
 check("plugin_common.lua matches COMMON_HASH (copy it to the other repos after a change)", fnv1a(common_text), COMMON_HASH)
-check("shell_quote: Windows escapes quotes and doubles %", PC.shell_quote('C:\\x %y% "z"', true), '"C:\\x %%y%% \\"z\\""')
+check("shell_quote: Windows escapes quotes, keeps %", PC.shell_quote('C:\\x %y% "z"', true), '"C:\\x %y% \\"z\\""')
 check("shell_quote: POSIX escapes single quotes", PC.shell_quote("a'b", false), "'a'\\''b'")
 check("parse_csv_line: quoted comma and doubled quote", PC.parse_csv_line('1,"a ""x"", b.jpg",3\r', 3)[2], 'a "x", b.jpg')
 check("parse_csv_line: wrong field count is nil", PC.parse_csv_line("a,b", 3), nil)
@@ -162,6 +162,17 @@ check("collapse_shots: pair and duplicate take the JPEG's tags", ids(cg[2]), "1,
 check("collapse_shots: RAW alone is read itself", ids(cg[3]), "3")
 check("collapse_shots: same stem in another folder is its own shot", ids(cg[4]), "4")
 check("collapse_shots: the replaced lead has no group", cg[1], nil)
+
+-- shot_copies ---------------------------------------------------------------
+local sc_read = { { id = 2, path = "D:/a", filename = "dsc1.jpg", group_leader = { id = 2 } } }
+local sc = T.shot_copies(sc_read, {
+    { id = 1, path = "D:/a", filename = "DSC1.ARW", group_leader = { id = 1 } },
+    { id = 2, path = "D:/a", filename = "dsc1.jpg", group_leader = { id = 2 } },
+    { id = 6, path = "D:/a", filename = "DSC9.jpg", group_leader = { id = 2 } },
+    { id = 7, path = "D:/b", filename = "DSC1.JPG", group_leader = { id = 7 } },
+    { id = 1, path = "D:/a", filename = "DSC1.ARW", group_leader = { id = 1 } },
+})
+check("shot_copies: RAW pair and group member, not the read image, another folder or a repeat", ids(sc), "1,6")
 
 -- prefer_paired -------------------------------------------------------------
 local raw1 = { id = 1, path = "D:/a", filename = "DSC1.ARW" }

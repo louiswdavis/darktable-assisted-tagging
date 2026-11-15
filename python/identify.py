@@ -1132,6 +1132,10 @@ def identify(args, models: dict):
     team_of = {team_key(p): p for p in team_tags(entries, rules.families)} if rules.partial_references else {}
     if unknown:
         log("references for entries not in entries.json (ignored): " + ", ".join(unknown))
+    # team references saved under a tag no entry carries now, e.g. the old tag_prefix|team keys
+    stale_teams = sorted(k[len(TEAM_KEY):].replace("__", "|") for k in counts if k.startswith(TEAM_KEY) and k not in team_of)
+    if rules.partial_references and stale_teams:
+        log("team references for tags no entry carries under the team root (ignored): " + ", ".join(stale_teams))
 
     cache = IdentifyCache(args.cache)
     try:
