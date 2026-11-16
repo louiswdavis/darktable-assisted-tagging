@@ -108,7 +108,8 @@ with tempfile.TemporaryDirectory() as tmp:
     det_config = O.paddle_det_config(det_yml)
     check("a detector yml gives its DB settings", (det_config["thresh"], det_config["box_thresh"],
           det_config["unclip_ratio"], det_config["max_candidates"]), (0.2, 0.45, 1.4, 3000))
-    check("a detector yml gives its mean and std", (det_config["mean"].round(3).tolist(), det_config["std"].round(3).tolist()),
+    check("a detector yml gives its mean and std",
+          tuple([round(float(x), 3) for x in det_config[k]] for k in ("mean", "std")),
           ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]))
     try:
         O.paddle_det_config(yml)

@@ -619,12 +619,13 @@ def _supported(sims: list, eid: str) -> bool:
 def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, box0_sims: dict = None,
                 solo: bool = False) -> list:
     """The frame's rows with box 0 set to the burst's entry, or the rows unchanged when the frame is
-    already identified, has no box 0, shows a team-only result for another team (a different car), the
+    already identified on box 0 or as a whole (a car on box 1 alone is another car in a pack), already
+    names the entry on another box, has no box 0, shows a team-only result for another team (a different car), the
     confidence is under BURST_MIN_CONFIDENCE (waived when `solo`: a SOLO_ANCHOR_CONF read anchors the
     burst), or (with `box0_sims`) box 0's own similarities don't back the entry. A frame where no
     vehicle was found (a lone box -1 `none` row) takes the entry on that row: nothing in it contradicts the burst."""
     rows = frames[fid]
-    if any(r.method in BURST_ANCHORS for r in rows):
+    if _anchor_rows(rows) or any(r.entry_id == eid for r in rows):
         return rows
     if confidence < BURST_MIN_CONFIDENCE and not solo:
         return rows
@@ -688,7 +689,7 @@ def _smooth_spikes(ids: list, frames: dict) -> dict:
 
 
 def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None, box0_sims: dict = None) -> dict:
-    """frames: image id → [BoxResult]. A frame none of whose boxes was identified
+    """frames: image id → [BoxResult]. A frame whose box 0 wasn't identified (and no hand tag)
     takes its burst's entry on its largest box when at least BURST_MIN_AGREE
     frames agree on that entry (a number, livery, neighbour or hand result), or one number read reaches
     SOLO_ANCHOR_CONF or one frame is hand-tagged, and no frame names another. With `entries`, a

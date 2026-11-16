@@ -1606,6 +1606,18 @@ function M.model_choice(item, present, on_disk)
     return { line = item.job .. ": none installed", err = M.missing_model_message(item) }
 end
 
+-- identify.py's progress line: `stage,cur,tot,cached` ({ stage, cur, tot, cached }), or the
+-- older `cur,tot` (stage nil, cached 0). nil when there is no line yet.
+function M.parse_progress(line)
+    local stage, cur, tot, cached = (line or ""):match("^([%a ]+),(%d+),(%d+),(%d+)")
+    if not stage then
+        cur, tot = (line or ""):match("^(%d+),(%d+)")
+        if not cur then return nil end
+        cached = "0"
+    end
+    return { stage = stage, cur = tonumber(cur), tot = tonumber(tot), cached = tonumber(cached) }
+end
+
 local ok, dt = pcall(require, "darktable")
 if not ok then return M end
 
@@ -1786,18 +1798,6 @@ local function fmt_eta(elapsed, done, total)
     if elapsed < 3 or done <= 0 or done >= total then return "" end
     local remaining = math.ceil(elapsed * (total - done) / done)
     return string.format(" | ~%dm %02ds left", remaining // 60, remaining % 60)
-end
-
--- identify.py's progress line: `stage,cur,tot,cached` ({ stage, cur, tot, cached }), or the
--- older `cur,tot` (stage nil, cached 0). nil when there is no line yet.
-function M.parse_progress(line)
-    local stage, cur, tot, cached = (line or ""):match("^([%a ]+),(%d+),(%d+),(%d+)")
-    if not stage then
-        cur, tot = (line or ""):match("^(%d+),(%d+)")
-        if not cur then return nil end
-        cached = "0"
-    end
-    return { stage = stage, cur = tonumber(cur), tot = tonumber(tot), cached = tonumber(cached) }
 end
 
 -- Lines wait here while identify.py appends its stderr to the same file:
