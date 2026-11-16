@@ -15,16 +15,5 @@ ok   summarise: missed_cars None when no row has truth
 ok   disagreements: frames whose box counts differ, sorted by frame
 ok   disagreements: counts per detector id
 ok   disagreements: empty when every frame agrees
-
---- stderr ---
-Traceback (most recent call last):
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_compare_detectors.py", line 65, in <module>
-    check("read_truth: path \u2192 has vehicle, via manifest ids", truth, {"C:/p/a.jpg": True, "C:/p/c.jpg": False})
-    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_compare_detectors.py", line 19, in check
-    print(f"ok   {name}")
-    ~~~~~^^^^^^^^^^^^^^^^
-  File "C:\Python313\Lib\encodings\cp1252.py", line 19, in encode
-    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
-           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 22: character maps to <undefined>
+ok   read_truth: path → has vehicle, via manifest ids
+all tests passed
