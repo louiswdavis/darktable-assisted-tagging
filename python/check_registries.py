@@ -1,0 +1,85 @@
+"""Bookkeeping checks that run anywhere with plain Python (no cv2, numpy or onnx):
+- every constant of a module fingerprint.py lists is filed once in CACHE_INPUTS or
+  CACHE_NEUTRAL, and nothing filed is missing (read from the source, nothing imported)
+- lua/assisted_tagging.lua's PRESET_SCHEMA matches settings.SETTINGS_SCHEMA
+  (settings.py is stdlib-only, so it is imported)
+The same checks run in test_identify.py and test_settings.py; this catches them first.
+
+Run with: python python/check_registries.py   (exit 1 and a list when something is off)"""
+
+import ast
+import os
+import re
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+
+
+def parse(name: str) -> ast.Module:
+    with open(os.path.join(HERE, name), encoding="utf-8") as f:
+        return ast.parse(f.read())
+
+
+def module_constants(tree: ast.Module) -> list:
+    """Top-level UPPER_CASE assignments, as test_identify.py collects them."""
+    return [t.id for node in tree.body if isinstance(node, (ast.Assign, ast.AnnAssign))
+            for t in (node.targets if isinstance(node, ast.Assign) else [node.target])
+            if isinstance(t, ast.Name) and t.id.lstrip("_").isupper() and t.id != "__all__"]
+
+
+def filed_tables(tree: ast.Module) -> dict:
+    """{"CACHE_INPUTS": {module: [names]}, "CACHE_NEUTRAL": {...}} from fingerprint.py."""
+    tables = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Dict):
+            name = node.targets[0].id
+            if name in ("CACHE_INPUTS", "CACHE_NEUTRAL"):
+                tables[name] = {k.id: [e.value for e in v.elts] for k, v in zip(node.value.keys, node.value.values)}
+    return tables
+
+
+def fingerprint_problems() -> list:
+    tables = filed_tables(parse("fingerprint.py"))
+    out = []
+    for mod in sorted(set(tables["CACHE_INPUTS"]) | set(tables["CACHE_NEUTRAL"])):
+        names = module_constants(parse(mod + ".py"))
+        filed = tables["CACHE_INPUTS"].get(mod, []) + tables["CACHE_NEUTRAL"].get(mod, [])
+        out += [f"{mod}: {n} is filed {filed.count(n)} times in fingerprint.py, want 1"
+                for n in sorted(set(names)) if filed.count(n) != 1]
+        out += [f"{mod}: {n} is filed in fingerprint.py but doesn't exist" for n in sorted(set(filed) - set(names))]
+    return out
+
+
+def lua_value(text: str):
+    text = text.strip()
+    if text in ("true", "false"):
+        return text == "true"
+    if text.startswith('"'):
+        return text[1:-1]
+    return float(text) if "." in text else int(text)
+
+
+def schema_problems() -> list:
+    sys.path.insert(0, HERE)
+    import settings
+    with open(os.path.join(os.path.dirname(HERE), "lua", "assisted_tagging.lua"), encoding="utf-8") as f:
+        found = re.search(r"M\.PRESET_SCHEMA = \{(.*?)\n\}", f.read(), re.S)
+    if found is None:
+        return ["lua: M.PRESET_SCHEMA block not found"]
+    rows = re.findall(r'\{ key = "(\w+)", kind = "(\w+)"(?:, choices = \{([^}]*)\})?, default = ([^}]+) \}',
+                      found.group(1))
+    lua = {r[0]: (r[1], tuple(re.findall(r'"(\w+)"', r[2])), lua_value(r[3])) for r in rows}
+    py = {s.key: (s.kind, s.choices, s.default) for s in settings.SETTINGS_SCHEMA}
+    out = [f"schema: {k} is in settings.py but not lua PRESET_SCHEMA" for k in py if k not in lua]
+    out += [f"schema: {k} is in lua PRESET_SCHEMA but not settings.py" for k in lua if k not in py]
+    out += [f"schema: {k} differs (kind, choices, default): lua {lua[k]}, python {py[k]}"
+            for k in py if k in lua and lua[k] != py[k]]
+    if not out and list(lua) != list(py):
+        out.append("schema: same keys, different order in lua and settings.py")
+    return out
+
+
+if __name__ == "__main__":
+    found = fingerprint_problems() + schema_problems()
+    print("\n".join(found) if found else "registries ok")
+    sys.exit(1 if found else 0)

@@ -41,7 +41,7 @@ def siglip_files(vision_path: str) -> tuple:
 def siglip_key(vision_path: str) -> list:
     """Cache key parts: the code token, a digest of this module's constants and all three files."""
     import hashlib
-    consts = hashlib.sha1(repr((TEXT_LEN, IMAGE_SIZE, SCALE, CAR_PROMPTS, MULTI_PROMPT)).encode()).hexdigest()[:8]
+    consts = hashlib.sha1(repr((TEXT_LEN, IMAGE_SIZE, SCALE, CAR_PROMPTS, MULTI_PROMPT, VEHICLES)).encode()).hexdigest()[:8]
     return [SIGLIP_CACHE_TOKEN, consts, *(file_key(p) for p in siglip_files(vision_path))]
 
 

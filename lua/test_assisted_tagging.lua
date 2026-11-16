@@ -976,7 +976,13 @@ require("test_preset_block")(T, check)
 
 do
     local d = T.preset_defaults(T.PRESET_SCHEMA)
-    check("tagging schema has 56 keys", #T.PRESET_SCHEMA, 56)
+    -- the key list itself is checked against settings.py by test_settings.py (lua schema keys)
+    local seen, twice = {}, {}
+    for _, s in ipairs(T.PRESET_SCHEMA) do
+        if seen[s.key] then twice[#twice + 1] = s.key end
+        seen[s.key] = true
+    end
+    check("tagging schema: no key twice", table.concat(twice, ","), "")
     check("colour keys default on", tostring(d.family_colour) .. tostring(d.tag_check_colour), "truetrue")
     for _, f in ipairs(T.FAMILIES) do
         check("family " .. f.key .. " defaults", tostring(d["family_" .. f.key]) .. " " .. d["family_" .. f.key .. "_root"],

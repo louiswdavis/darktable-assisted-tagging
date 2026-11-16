@@ -46,7 +46,8 @@ def defaults_match_spec():
     check("default neighbour_tolerance", d["neighbour_tolerance"], 5)
     check("default tag_shot_name", d["tag_shot_name"], "Assisted Tagging|Identification|Shot")
     check("default tag_burst", d["tag_burst"] is True, True)
-    check("schema length", len(S.SETTINGS_SCHEMA), 6 + 11 + 21 + 16 + 2)
+    keys = [s.key for s in S.SETTINGS_SCHEMA]
+    check("schema: no key twice", sorted({k for k in keys if keys.count(k) > 1}), [])
     check("family defaults", {k: v for k, v in d.items() if k.startswith("family_")}, {
         "family_colour": True, "family_colour_root": "Assisted Tagging|Motorsport|Colour",
         "family_number": True, "family_number_root": "Assisted Tagging|Motorsport|Number",

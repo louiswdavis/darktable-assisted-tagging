@@ -51,9 +51,10 @@ CACHE_NEUTRAL = {
     pod: (),
     colour: (),
     car_colour: ("PALETTE", "MULTI", "COLOUR_NAMES", "ACHROMATIC", "ACHROMATIC_WEIGHT", "MULTI_RATIO",
-                 "_SAT", "_VAL"),
+                 "_SAT", "_VAL", "SIGLIP_MIN_SCORE", "SIGLIP_MIN_GAP"),
     people: (),
-    siglip: ("TEXT_LEN", "IMAGE_SIZE", "SCALE", "SIGLIP_CACHE_TOKEN", "CAR", "CAR_PROMPTS", "MULTI_PROMPT"),  # siglip_key
+    siglip: ("TEXT_LEN", "IMAGE_SIZE", "SCALE", "SIGLIP_CACHE_TOKEN", "CAR", "CAR_PROMPTS", "MULTI_PROMPT",
+             "VEHICLES"),  # siglip_key
 }
 _FINGERPRINT = ""
 
