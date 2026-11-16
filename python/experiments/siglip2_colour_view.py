@@ -10,6 +10,8 @@ vision_model.onnx, text_model.onnx, tokenizer.json.
 1. Sample crops from a run's boxes.json and classify them (writes the crops and a CSV):
      python python/experiments/siglip2_colour_view.py sample --boxes <config>/last-run/<collection>.boxes.json
          --model-dir models/siglip2 --out siglip2.csv --crops siglip2-crops --limit 50
+   --boxes takes several runs' files (pooled). --seed N picks at random instead of evenly spread;
+   --skip <earlier>.csv leaves out boxes an earlier sample already tested.
 2. Open each crop, fill colour_ok / view_ok in the CSV with r (rules right), s (SigLIP right),
    b (both right) or n (neither).
 3. Count:
@@ -93,15 +95,28 @@ def pick(image_vec, text_vecs, labels: list):
     return ranked[0][1], round(ranked[0][0] - ranked[1][0], 4)
 
 
-def sample_boxes(boxes_json: str, limit: int) -> list:
-    """Up to `limit` (image id, record, box) spread evenly over the run's plain-crop boxes."""
+def sample_boxes(boxes_jsons: list, limit: int, seed, skip_csvs: list) -> list:
+    """Up to `limit` (image id, record, box) from the runs' plain-crop boxes, minus boxes already in
+    `skip_csvs`. Spread evenly, or a random pick when `seed` is set."""
     import json
-    with open(boxes_json, encoding="utf-8") as f:
-        run = json.load(f)
-    plain = [(iid, rec, b) for iid, rec in run["images"].items() if rec.get("status") == "ok"
-             for b in rec.get("boxes", []) if not b.get("overlap") and not b.get("masked") and not b.get("rescued")]
+    import random
+    skip = set()
+    for path in skip_csvs:
+        with open(path, encoding="utf-8") as f:
+            skip.update((row["image"], str(row["box"])) for row in csv.DictReader(f))
+    plain = []
+    for boxes_json in boxes_jsons:
+        with open(boxes_json, encoding="utf-8") as f:
+            run = json.load(f)
+        plain += [(iid, rec, b) for iid, rec in run["images"].items() if rec.get("status") == "ok"
+                  for b in rec.get("boxes", [])
+                  if not b.get("overlap") and not b.get("masked") and not b.get("rescued")
+                  and (iid, str(b["box"])) not in skip]
+    print(f"{len(plain)} plain-crop boxes to pick from ({len(skip)} skipped as already tested)")
     if len(plain) <= limit:
         return plain
+    if seed is not None:
+        return sorted(random.Random(seed).sample(plain, limit), key=lambda p: p[1]["file"])
     step = len(plain) / limit
     return [plain[int(i * step)] for i in range(limit)]
 
@@ -119,7 +134,7 @@ def sample(args):
     view_vecs = model.embed_text([VIEW_PROMPTS[k] for k in view_labels])
     os.makedirs(args.crops, exist_ok=True)
     rows, frames = [], {}
-    for iid, rec, b in sample_boxes(args.boxes, args.limit):
+    for iid, rec, b in sample_boxes(args.boxes, args.limit, args.seed, args.skip):
         if rec["file"] not in frames:
             frames.clear()
             frames[rec["file"]] = decode_rgb(rec["file"])
@@ -168,7 +183,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     sub = parser.add_subparsers(dest="cmd", required=True)
     s = sub.add_parser("sample")
-    s.add_argument("--boxes", required=True, help="a run's boxes.json (last-run/<collection>.boxes.json)")
+    s.add_argument("--boxes", required=True, nargs="+",
+                   help="one or more runs' boxes.json (last-run/<collection>.boxes.json); boxes are pooled")
+    s.add_argument("--seed", type=int, help="pick boxes at random with this seed (default: spread evenly)")
+    s.add_argument("--skip", nargs="*", default=[], help="CSVs from earlier samples; their boxes aren't picked again")
     s.add_argument("--model-dir", required=True, help="folder with vision_model.onnx, text_model.onnx, tokenizer.json")
     s.add_argument("--out", default="siglip2.csv")
     s.add_argument("--crops", default="siglip2-crops")
