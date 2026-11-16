@@ -31,7 +31,7 @@ import time
 from dataclasses import dataclass, field, replace
 
 from vehicles import MAX_BOXES, crop_box, detect, detect_vehicles, load_hires, log
-from vehicle_detect import DetectionCache, decode_rgb, detect_cached, file_key, load_detector
+from vehicle_detect import DetectionCache, boxes_in, decode_rgb, decode_rgb_sized, detect_cached, file_key, load_detector
 from common import atomic_write
 from ocr import NumberReader, ocr_key
 import car_colour
@@ -557,14 +557,23 @@ def _init_worker(models: dict):
 
 def analyse_frame(filepath: str) -> dict:
     """Boxes, OCR candidates and embeddings for one frame: the cached value, plus `detection_cached`
-    (whether the shared detection entry was already there), which run_frames pops off."""
-    rgb = decode_rgb(filepath)
+    (whether the shared detection entry was already there), which run_frames pops off. Detection
+    reads a fast small decode; the full-size decode runs only when a vehicle box passes. Boxes,
+    candidates and `frame` are in full-size pixels either way."""
     if _W["models"]["kind"] == "people":
-        return analyse_frame_people(rgb, _W["faces"])
-    entry, hit = frame_entry(filepath, rgb, _W["models"])
-    boxes, weak, note = detect(rgb, entry)
-    h, w = rgb.shape[:2]
-    out = _read_boxes(rgb, boxes)
+        return analyse_frame_people(decode_rgb(filepath), _W["faces"])
+    small, (w, h) = decode_rgb_sized(filepath, fast_jpeg=True)
+    entry, hit = frame_entry(filepath, small, _W["models"])
+    boxes, weak, note = detect(small, entry)
+    if boxes:
+        rgb = decode_rgb(filepath)
+        h, w = rgb.shape[:2]
+        boxes, weak, note = detect(rgb, entry)
+        out = _read_boxes(rgb, boxes)
+    else:
+        sh, sw = small.shape[:2]
+        weak = boxes_in({"frame": [sw, sh], "boxes": weak}, w, h)
+        out = _read_boxes(small, [])
     out.update(note=note, frame=[w, h], candidates=[list(b) for b in weak], detection_cached=hit)
     return out
 
@@ -725,7 +734,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
     if not todo:
         return out
     workers = worker_count(os.cpu_count() or 2)
-    hits, detected = 0, 0
+    hits, detected, started = 0, 0, time.time()
     with concurrent.futures.ProcessPoolExecutor(max_workers=workers, initializer=_init_worker,
                                                 initargs=(models,)) as executor:
         futures = {executor.submit(analyse_frame, p): p for p in todo}
@@ -751,6 +760,8 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
                 out[p] = None
             done += 1
             write_progress(progress, done, total)
+    elapsed = time.time() - started
+    log(f"analysis: {len(todo)} frames in {elapsed:.0f}s, {len(todo) * 60 / max(elapsed, 0.001):.0f} frames/min ({workers} workers)")
     if models["kind"] != "people":
         log(f"detections: {hits} cached, {detected} detected")
     return out
