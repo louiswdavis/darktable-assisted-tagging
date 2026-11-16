@@ -2,7 +2,7 @@ ok   default min_read
 ok   default neighbour_tolerance
 ok   default tag_shot_name
 ok   default tag_burst
-ok   schema length
+ok   schema: no key twice
 ok   family defaults
 ok   removed colour_tags in settings.json
 ok   removed tag_colour in settings.json
