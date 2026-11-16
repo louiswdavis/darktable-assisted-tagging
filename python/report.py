@@ -94,7 +94,7 @@ def rows(data: dict) -> list:
                         "score": box.get("score"), "decided_by": box["decided_by"], "gap": box["gap"],
                         "top1": round(top1_of(box), 4),
                         "margin": round(margin_of(box), 4), "candidates": box["candidates"],
-                        "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []), "pod": box.get("pod", {}), "hint": box.get("hint", {}),
+                        "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []), "list_read": box.get("list_read", ""), "pod": box.get("pod", {}), "hint": box.get("hint", {}),
                         **({"colour": box.get("colour", ""), "colour_shares": box["colour_shares"]} if "colour_shares" in box else {}),
                         "lever": lever(cat, box, entries)})
     return out
@@ -256,6 +256,8 @@ def describe(r: dict) -> str:
         parts.append(f"detector {r['score']:.2f}")
     if r["ocr"]:
         parts.append("read " + ", ".join(f"`{d}`" for d, _ in r["ocr"]))
+        if r.get("list_read"):
+            parts.append(f"start list {r['list_read']}")
     elif r.get("ocr_trace"):
         parts.append("ocr saw " + ", ".join(f"`{t}` {c:.2f}" + "".join(f" h{s:.2f}" for s in rest)
                                             for c, t, *rest in r["ocr_trace"][:3]))

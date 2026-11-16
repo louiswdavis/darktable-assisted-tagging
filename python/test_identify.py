@@ -353,7 +353,7 @@ def run_tests():
     models["car_colour"] = None
     check("no colour tags leaves the cache key as it was", I.frame_key(frame, models),
           [VD.file_key(frame), VD.file_key(models["detector"]), I.ocr_key(models["ocr_det"], models["ocr_rec"]),
-           I.embedder_key(models["embedder"]), fp, "ocr-trace-2", "read-conf-1", "pod-2", "cand-1", "overlap-2"])
+           I.embedder_key(models["embedder"]), fp, "ocr-trace-2", "read-conf-1", "ctc-1", "pod-2", "cand-1", "overlap-2"])
     models["car_colour"] = C.PALETTE
     colour_key = I.frame_key(frame, models)
     check("colour tags add the palette to the cache key", colour_key[-2:], ["car-colour-1", C.palette_digest(C.PALETTE)])

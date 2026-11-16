@@ -29,6 +29,8 @@ PADDLE_REC_HEIGHT = 48  # PaddleOCR rec inference.yml: RecResizeImg image_shape 
 PADDLE_REC_MIN_WIDTH = 320
 # letters the recogniser confuses with digits on a race number
 _DIGIT_LOOKALIKES = str.maketrans({"o": "0", "l": "1", "i": "1"})
+DIGIT_COLUMNS = 11  # a digit matrix's columns: blank, then 0-9
+CTC_TRIM_BLANK = 0.995  # leading and trailing steps this sure of blank carry no digit evidence
 
 
 def digits_only(text: str):
@@ -93,6 +95,24 @@ def _ctc_greedy(out: np.ndarray, charset=REC_CHARSET) -> tuple:
     return "".join(chars), float(min(confs, default=0.0))
 
 
+def digit_matrix(out: np.ndarray, charset=REC_CHARSET) -> list:
+    """Recogniser output folded to DIGIT_COLUMNS per step, [blank, 0..9], as a list of rows rounded
+    to 4 decimals. A digit's column sums its charset column and its look-alike letters' (o, l, i),
+    so every reader gives the same shape. Leading and trailing steps with blank above CTC_TRIM_BLANK
+    are dropped; an all-blank output gives []."""
+    p = _probs(out)
+    cols = np.zeros((p.shape[0], DIGIT_COLUMNS))
+    cols[:, 0] = p[:, 0]
+    for i, ch in enumerate(charset, start=1):
+        d = str(ch).lower().translate(_DIGIT_LOOKALIKES)
+        if len(d) == 1 and d in "0123456789":
+            cols[:, 1 + int(d)] += p[:, i]
+    keep = np.nonzero(cols[:, 0] <= CTC_TRIM_BLANK)[0]
+    if not len(keep):
+        return []
+    return np.round(cols[keep[0]:keep[-1] + 1], 4).tolist()
+
+
 def paddle_charset(dict_path: str, classes: int) -> list:
     """The character list from a PaddleOCR inference.yml's PostProcess.character_dict, with the space
     PaddleOCR appends when the model has one more class than blank + dictionary."""
@@ -139,7 +159,8 @@ class CrnnRecogniser:
         m = cv2.getPerspectiveTransform(np.asarray(quad, np.float32).reshape(4, 2), REC_TARGET)
         word = cv2.warpPerspective(gray, m, REC_INPUT)
         self.net.setInput(cv2.dnn.blobFromImage(word, 1 / 127.5, REC_INPUT, 127.5))
-        return _ctc_greedy(self.net.forward())
+        out = self.net.forward()
+        return (*_ctc_greedy(out), digit_matrix(out))
 
 
 class PaddleRecogniser:
@@ -159,7 +180,7 @@ class PaddleRecogniser:
 
     def read_word(self, bgr: np.ndarray, quad) -> tuple:
         out = self.session.run(None, {self.input: paddle_rec_input(quad_word(bgr, quad))})[0][0]
-        return _ctc_greedy(out, self.charset)
+        return (*_ctc_greedy(out, self.charset), digit_matrix(out, self.charset))
 
 
 def recogniser(rec_path: str):
@@ -171,6 +192,7 @@ def recogniser(rec_path: str):
 class NumberReader:
     def __init__(self, det_path: str, rec_path: str):
         self.last_trace: list = []
+        self.last_ctc: dict = {}
         for label, p in (("OCR text detection", det_path), ("OCR text recognition", rec_path)):
             if not os.path.isfile(p):
                 raise FileNotFoundError(f"{label} model not found: {p}")
@@ -188,18 +210,20 @@ class NumberReader:
         lower of the detection score and the recogniser's read confidence: a plate can look very like
         text and still be read unsurely. Also sets `last_trace`: the five most confident detected text
         regions as [confidence, raw text, height share], accepted or not, so a zero-read crop shows
-        what the reader saw."""
+        what the reader saw, and `last_ctc`: each returned number's digit_matrix from its best region."""
         h, w = crop_rgb.shape[:2]
         bgr = cv2.cvtColor(_letterbox(crop_rgb, DET_INPUT), cv2.COLOR_RGB2BGR)
         quads, confidences = self.det.detect(bgr)
-        best, trace = {}, []
+        best, trace, ctc = {}, [], {}
         for quad, conf in zip(quads, confidences):
-            text, read_conf = self.rec.read_word(bgr, quad)
+            text, read_conf, matrix = self.rec.read_word(bgr, quad)
             both = min(float(conf), read_conf)
             share = height_share(quad, h, w)
             trace.append([both, text, round(share, 3)])
             digits = digits_only(text)
             if conf >= OCR_MIN_SCORE and digits and share >= NUMBER_MIN_HEIGHT and both > best.get(digits, -1.0):
                 best[digits] = both
+                ctc[digits] = matrix
         self.last_trace = sorted(trace, reverse=True)[:5]
+        self.last_ctc = ctc
         return sorted(best.items(), key=lambda kv: kv[1], reverse=True)

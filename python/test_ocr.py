@@ -100,6 +100,15 @@ check("a long word widens the input", O.paddle_rec_input(np.zeros((10, 100, 3), 
 quad = np.array([[0, 20], [0, 0], [40, 0], [40, 20]], np.float32)
 check("a quad warps flat at its own size", O.quad_word(np.zeros((30, 50, 3), np.uint8), quad).shape, (20, 40, 3))
 
+# Digit matrices: [blank, 0..9] per step, lead and trail blanks trimmed.
+m = O.digit_matrix(steps((0, 0.999), (digit(4), 0.99), (0, 0.9), (digit(2), 0.97), (0, 0.999)))
+check("a digit matrix trims sure blanks at either end", len(m), 3)
+check("a digit matrix row is blank then 0-9", len(m[0]), 11)
+check("a digit's column holds its probability", round(m[0][5], 2), 0.99)
+check("a look-alike letter adds to its digit", O.digit_matrix(steps((O.REC_CHARSET.index("o") + 1, 0.9)))[0][1] >= 0.9, True)
+check("an all-blank output gives no matrix", O.digit_matrix(steps((0, 0.999))), [])
+check("a PaddleOCR charset folds to digits", O.digit_matrix(paddle, ["A", "7", "1", " "])[0][2], 1.0)
+
 if failures:
     print(f"{failures} failed")
     sys.exit(1)

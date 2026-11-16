@@ -494,7 +494,7 @@ def frame_key(filepath: str, models: dict) -> list:
                 analysis_fingerprint(), "face-1"]
     return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), analysis_fingerprint(),
-            "ocr-trace-2", "read-conf-1", "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
+            "ocr-trace-2", "read-conf-1", "ctc-1", "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
             *(["car-colour-1", car_colour.palette_digest(models["car_colour"])] if models.get("car_colour") else []),
             *([SEGMENT_CACHE_TOKEN, file_key(models["segmenter"])] if models.get("segmenter") else [])]
 
@@ -582,7 +582,7 @@ def _read_boxes(rgb, boxes: list, hi=None) -> dict:
     """OCR candidates, pod reading and embedding of each box, in the analysis shape. With `hi`, a
     sharper decode of the same frame, the crops (OCR, embedding, colour) come from it; boxes stay in
     `rgb`'s pixels."""
-    ocr, trace, emb, pod, hist, overlap, masked, shares = [], [], [], [], [], [], [], []
+    ocr, trace, ctc, emb, pod, hist, overlap, masked, shares = [], [], [], [], [], [], [], [], []
     palette = _W["models"].get("car_colour")
     scale = hi.shape[1] / rgb.shape[1] if hi is not None else 1.0
     seen_boxes = visible_boxes(boxes)
@@ -599,12 +599,13 @@ def _read_boxes(rgb, boxes: list, hi=None) -> dict:
         crop = crop_box(*cut) if cut else crop_box(src, area)
         ocr.append([[d, c] for d, c in _W["reader"].read(crop)])
         trace.append(_W["reader"].last_trace)
+        ctc.append(_W["reader"].last_ctc)
         emb.append(encode(_W["embedder"].embed(crop)))
         if _W["models"].get("colour"):
             hist.append(encode(colour_hist(crop)))
         if palette:
             shares.append({} if state == HIDDEN else car_colour.colour_shares(crop, palette, masked=cut is not None))
-    out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "pod": pod, "emb": emb, "overlap": overlap, "masked": masked}
+    out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "ocr_ctc": ctc, "pod": pod, "emb": emb, "overlap": overlap, "masked": masked}
     if hist:
         out["hist"] = hist
     if palette:
@@ -679,7 +680,8 @@ def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) ->
     fw, fh = frame
     frac = f"; box {bw:.0f}x{bh:.0f} ({bw * bh / max(fw * fh, 1):.1%} of frame)"
     colour = f"; colour {r.colour}" if r.colour else ""
-    return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}; livery {top}{unmatched}{colour}{frac})"
+    listed = f"; list {r.list_read}" if r.list_read else ""
+    return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}{listed}; livery {top}{unmatched}{colour}{frac})"
 
 
 def check_models(models: dict):
@@ -855,7 +857,7 @@ def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, p
         if not read:
             continue
         a = dict(analyses[p])
-        for key in ("ocr", "ocr_trace", "emb", "hist", "car_colour"):
+        for key in ("ocr", "ocr_trace", "ocr_ctc", "emb", "hist", "car_colour"):
             if key in a and key in read:
                 a[key] = [read[key][i] if i in idx else v for i, v in enumerate(a[key])]
         a["hires"] = [i in idx for i in range(len(a["boxes"]))]
@@ -946,7 +948,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict", "order_flag": r.order_flag,
                           "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "overlap": b.get("overlap", ""), "hires": b.get("hires", False), "masked": b.get("masked", False), "rescued": b.get("rescued", {}),
-                          "colour": r.colour, "colour_shares": b.get("colour_shares", {})})
+                          "colour": r.colour, "colour_shares": b.get("colour_shares", {}), "list_read": r.list_read})
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes}
     return {"collection": collection,
@@ -981,7 +983,8 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         prefixes, source = box_hint(tag_hints if len(a["boxes"]) == 1 else [],
                                     sponsor_prefixes(trace, rules.sponsor_keywords))
         reads = [tuple(c) for c in ocr if c[1] >= rules.min_read]
-        r, hint = hinted_match(i, reads, sims, entries, prefixes, source)
+        ctc = a["ocr_ctc"][i] if "ocr_ctc" in a else None
+        r, hint = hinted_match(i, reads, sims, entries, prefixes, source, ctc)
         r = match_team(r, team_sims, entries)
         pod = a["pod"][i]
         before = r.entry_id

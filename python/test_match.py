@@ -392,6 +392,58 @@ def run_tests():
     check("match_camera: two owners of a colour is a no-op", Mt.match_camera(team_r, "yellow", two_yellow), team_r)
     check("match_camera: owner outside the candidates is a no-op", Mt.match_camera(replace(team_r, alt_entry_id="X"), "black", two_yellow).method, "team")
 
+    # Start-list scoring: reads scored against every entry number by their digit matrices.
+    def matrix(*steps):
+        """Digit matrix rows from {column: probability} per step; "-" is blank, else a digit."""
+        rows = []
+        for step in steps:
+            row = [0.0] * 11
+            for k, v in step.items():
+                row[0 if k == "-" else 1 + int(k)] = v
+            rows.append(row)
+        return rows
+
+    def numbered(*numbers):
+        return {f"E{n}": Entry(f"E{n}", n, "", (f"Rally|Number|{n}",)) for n in numbers}
+
+    check("ctc: a sure one-step digit spells it", round(Mt.ctc_log_likelihood(matrix({"1": 1.0}), "1"), 3), 0.0)
+    check("ctc: a repeated digit needs a blank between, so two steps can't spell 11",
+          Mt.ctc_log_likelihood(matrix({"1": 1.0}, {"1": 1.0}), "11"), float("-inf"))
+
+    # greedy 1 - 4 - 4 = "144", but the second 4 is weaker than reading one long 4
+    m144 = matrix({"1": .98, "-": .02}, {"-": .95, "1": .05}, {"4": .98, "-": .02}, {"-": .6, "4": .4}, {"4": .55, "-": .45})
+    r = Mt.match_box(0, [("144", 0.9)], [], numbered("14", "44", "22"), {"144": m144})
+    check("list: a 144 read gives 14 when 144 isn't on the list", (r.method, r.entry_id), ("number", "E14"))
+    check("list: the result shows greedy, best and runner-up", r.list_read.startswith("144>14 "), True)
+    check("list: a number not on the list never wins", "144" not in r.list_read.split(">", 1)[1], True)
+
+    # greedy "1", with a faint 4 after it
+    m1 = matrix({"1": .98, "-": .02}, {"-": .9, "1": .1}, {"-": .55, "4": .45}, {"-": .55, "4": .45})
+    r = Mt.match_box(0, [("1", 0.9)], [], numbered("14", "44", "22"), {"1": m1})
+    check("list: a 1 read gives 14 when 1 isn't on the list", (r.method, r.entry_id), ("number", "E14"))
+    r = Mt.match_box(0, [("1", 0.9)], [], numbered("1", "14"), {"1": m1})
+    check("list: 1 and 14 both on the list and the 4 faint is a close call", (r.method, r.list_read.endswith("close call")), ("none", True))
+
+    # first digit unclear between 1 and 4
+    m_x4 = matrix({"1": .5, "4": .48, "-": .02}, {"-": .95, "4": .05}, {"4": .98, "-": .02})
+    r = Mt.match_box(0, [("14", 0.9)], [], numbered("14", "44"), {"14": m_x4})
+    check("list: 14 and 44 with an unclear first digit is a close call", (r.method, r.entry_id, r.unmatched_number), ("none", "", "14"))
+    check("list: a close call says so", r.list_read.endswith("close call"), True)
+    r = Mt.match_box(0, [("14", 0.9)], [("E44", 0.8), ("E14", 0.5)], numbered("14", "44"), {"14": m_x4})
+    check("list: a close call goes on to livery", (r.method, r.entry_id), ("livery", "E44"))
+
+    r = Mt.match_box(0, [("7", 0.9)], [], numbered("14", "44"), {"7": matrix({"7": .99})})
+    check("list: a read far from every number is no list read", (r.method, r.unmatched_number, r.list_read), ("none", "7", "7> no list read"))
+
+    # without the matrix, today's path
+    sims = [("HAM", 0.8), ("VER", 0.5)]
+    for name, ctc in (("none", None), ("missing for a read", {"9": m1})):
+        check(f"list: matrix {name} gives today's result", Mt.match_box(0, [("1", 0.9)], sims, ENTRIES, ctc),
+              Mt.match_box(0, [("1", 0.9)], sims, ENTRIES))
+    check("list: no matrix keeps the look-alike fallback", Mt.match_box(0, [("11", 0.9)], [("E14", 0.8)], numbered("14", "77"), None).entry_id, "E14")
+    check("list: hinted_match passes the matrix on",
+          Mt.hinted_match(0, [("144", 0.9)], [], numbered("14", "44", "22"), [], "", {"144": m144})[0].entry_id, "E14")
+
     if failures == 0:
         print("all tests passed")
         sys.exit(0)

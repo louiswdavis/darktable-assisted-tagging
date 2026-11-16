@@ -613,6 +613,8 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 |---|---|---|---|
 | `OCR_MIN_SCORE` | `ocr.py` | 0.80 | how sure the text detector must be before a number is read |
 | `NUMBER_MIN_HEIGHT` | `ocr.py` | 0.07 | a number's text region must be at least this share of the vehicle crop's height, so plate characters and lone sticker letters aren't read as numbers. A first guess: the report's "ocr saw" line shows each region's share (`h0.12`). Raise it if plates still get read; lower it if small but real numbers are dropped |
+| `NUMBER_LIST_MARGIN` | `match.py` | 2.3 | every start-list number is scored against the reader's digit-by-digit probabilities (natural log). The best one counts as the number read only when it leads the runner-up by this much (10×); otherwise the box is a close call and goes to livery. The log and the report show greedy read, best and runner-up with their scores |
+| `NUMBER_LIST_FLOOR` | `match.py` | 4.6 | the best start-list number must also be within this of what the reader actually spelled (100×), or there is no list read |
 | `MATCH_MIN_SIM` | `match.py` | 0.60 | the livery similarity a match needs at all |
 | `MATCH_MIN_MARGIN` | `match.py` | 0.10 | how far the best entry must be ahead of the next one. Similarities are centred on the references' mean once a collection has 20+ references, which spreads them out, so the gate is wider than it looks; `python/eval_matching.py` sweeps it on your own references |
 | `BURST_MIN_AGREE` | `match.py` | 2 | frames that must agree before a burst fills in the rest |

@@ -1,6 +1,7 @@
 """Identification rules: number first, then livery similarity, then burst
 consensus. Pure functions over OCR candidates and similarities."""
 
+import math
 from dataclasses import dataclass, replace
 
 from car_colour import colour_relation
@@ -23,6 +24,13 @@ WEAK_AGREE_MIN = 2
 
 CONFUSABLE_DIGITS = {frozenset(p) for p in ("56", "17", "06", "08", "38", "35", "14")}  # pairs OCR swaps on race numbers
 MISREAD_TOP_N = 3  # a misread number only backs an entry in the livery's own top N
+
+# Start-list scoring (list_read), in natural-log likelihood relative to the greedy read's own: the best
+# number must lead the runner-up by NUMBER_LIST_MARGIN (10x) and score at least -NUMBER_LIST_FLOOR
+# (within 100x of the greedy read). First guesses; the log prints both scores per box to tune them.
+NUMBER_LIST_MARGIN = 2.3
+NUMBER_LIST_FLOOR = 4.6
+CTC_MIN_PROB = 1e-4  # a digit matrix holds 4 decimals; a 0 there is read as this
 
 IDENTIFIED = ("number", "livery")
 HAND = "hand"  # the entry the user's own number or driver tag names (the manifest's 7th field)
@@ -65,6 +73,30 @@ class BoxResult:
     colour: str = ""
     # A confident number read whose entry's colour disagrees with `colour`; the result stays, the photographer checks it.
     colour_flag: bool = False
+    # ListRead.text() when the box's reads were scored against the start list; "" on the fallback path.
+    list_read: str = ""
+
+
+@dataclass(frozen=True)
+class ListRead:
+    greedy: str  # the box's greedy reads, "/"-joined
+    best: str = ""  # the best-scoring start-list number; "" when none scored
+    score: float = -math.inf
+    runner: str = ""
+    runner_score: float = -math.inf
+    winner: str = ""  # `best` when it clears NUMBER_LIST_FLOOR and NUMBER_LIST_MARGIN, else ""
+    confidence: float = 0.0  # the read confidence of the region that gave `best`
+
+    def text(self) -> str:
+        """`1>14 -0.40, 44 -6.10`, then ` close call` or ` no list read` when nothing won."""
+        if not self.best:
+            return f"{self.greedy}> no list read"
+        out = f"{self.greedy}>{self.best} {self.score:.2f}"
+        if self.runner:
+            out += f", {self.runner} {self.runner_score:.2f}"
+        if self.winner:
+            return out
+        return out + (" no list read" if self.score < -NUMBER_LIST_FLOOR else " close call")
 
 
 def by_car(sims: list, entries: dict) -> list:
@@ -148,12 +180,81 @@ def _misread_number(ocr: list, sims: list, entries: dict):
     return near[0] if len(near) == 1 else None
 
 
-def match_box(box: int, ocr: list, sims: list, entries: dict) -> BoxResult:
-    """ocr: [(digits, confidence)]; sims: [(entry_id, similarity)] most similar first."""
+def _logadd(a: float, b: float) -> float:
+    if a == -math.inf:
+        return b
+    if b == -math.inf:
+        return a
+    hi, lo = max(a, b), min(a, b)
+    return hi + math.log1p(math.exp(lo - hi))
+
+
+def ctc_log_likelihood(matrix: list, number: str) -> float:
+    """Natural-log probability that a digit matrix (ocr.digit_matrix: rows [blank, 0..9]) spells
+    `number`: the CTC forward sum over every step path that collapses to it. Every step counts, so a
+    short number scores low on a longer number's steps. -inf when there are too few steps."""
+    if not matrix:
+        return -math.inf
+    lp = [[math.log(max(v, CTC_MIN_PROB)) for v in row] for row in matrix]
+    labels = [0]
+    for ch in number:
+        labels += [1 + int(ch), 0]
+    alpha = [-math.inf] * len(labels)
+    alpha[0], alpha[1] = lp[0][0], lp[0][labels[1]]
+    for row in lp[1:]:
+        nxt = []
+        for s, lab in enumerate(labels):
+            a = alpha[s]
+            if s >= 1:
+                a = _logadd(a, alpha[s - 1])
+            if s >= 2 and lab != 0 and lab != labels[s - 2]:
+                a = _logadd(a, alpha[s - 2])
+            nxt.append(a + row[lab] if a > -math.inf else -math.inf)
+        alpha = nxt
+    return _logadd(alpha[-1], alpha[-2])
+
+
+def list_read(ocr: list, ctc, entries: dict):
+    """ocr scored against the start list: each entry number's ctc_log_likelihood under each read's
+    matrix (`ctc`: {digits: digit matrix}) minus the read's own, best over the reads. None when there
+    are no reads or a read has no matrix (an analysis cached before matrices were kept)."""
+    if not ocr or ctc is None or any(d not in ctc for d, _ in ocr):
+        return None
+    numbers = sorted({e.number for e in entries.values() if e.number.isascii() and e.number.isdigit()})
+    scores, conf_of = {}, {}
+    for d, conf in ocr:
+        base = ctc_log_likelihood(ctc[d], d)
+        if base == -math.inf:
+            continue
+        for n in numbers:
+            s = ctc_log_likelihood(ctc[d], n) - base
+            if s > scores.get(n, -math.inf):
+                scores[n], conf_of[n] = s, conf
+    greedy = "/".join(d for d, _ in ocr)
+    ranked = sorted(((n, s) for n, s in scores.items() if s > -math.inf), key=lambda kv: kv[1], reverse=True)
+    if not ranked:
+        return ListRead(greedy)
+    (best, score), (runner, runner_score) = ranked[0], ranked[1] if len(ranked) > 1 else ("", -math.inf)
+    wins = score >= -NUMBER_LIST_FLOOR and score - runner_score >= NUMBER_LIST_MARGIN
+    return ListRead(greedy, best, score, runner, runner_score, best if wins else "", conf_of[best])
+
+
+def match_box(box: int, ocr: list, sims: list, entries: dict, ctc=None) -> BoxResult:
+    """ocr: [(digits, confidence)]; sims: [(entry_id, similarity)] most similar first; ctc: {digits:
+    digit matrix} or None. With every read's matrix the reads are scored against the start list
+    (list_read): only a clear winner counts as the number read, and look-alike guessing is skipped.
+    Without, an exact number hit, then one look-alike digit away (_misread_number)."""
     by_number: dict = {}
     for e in entries.values():
         if e.number:
             by_number.setdefault(e.number, []).append(e.id)
+    listed = list_read(ocr, ctc, entries)
+    if listed is not None:
+        unmatched = ";".join(dict.fromkeys(digits for digits, _ in ocr))
+        hits = by_number.get(listed.winner, []) if listed.winner else []
+        if len(hits) == 1 and not _fragment_of_livery(hits[0], [(listed.winner, listed.confidence)], sims, entries):
+            return BoxResult(box, "number", hits[0], "", listed.confidence, list_read=listed.text())
+        return replace(match_livery(box, sims, entries, unmatched), list_read=listed.text())
     hits, best_conf = set(), 0.0
     for digits, conf in ocr:
         for eid in by_number.get(digits, []):
@@ -232,15 +333,15 @@ def most_specific(prefixes: list) -> list:
     return [p for p in dict.fromkeys(prefixes) if not any(q.startswith(p + "|") for q in prefixes)]
 
 
-def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list, source: str) -> tuple:
+def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list, source: str, ctc=None) -> tuple:
     """(BoxResult, hint) matching only the entries under `prefixes`. The restriction is a soft
     prior: it is dropped (the full set is matched) when it holds no entries, every restricted
     similarity is under MATCH_MIN_SIM, or OCR read a number that belongs to an entry outside it.
     The exception is a weak livery under a user-applied tag (`source` "tag") whose entries all share
     one team: that gives a `team` result instead, since the user already said which team.
-    `hint` is {} without prefixes, else {prefixes, source, restricted, dropped, reason}."""
+    `hint` is {} without prefixes, else {prefixes, source, restricted, dropped, reason}. `ctc` goes to match_box."""
     if not prefixes:
-        return match_box(box, ocr, sims, entries), {}
+        return match_box(box, ocr, sims, entries, ctc), {}
     prefixes = most_specific(prefixes)
     inside = entries_under(entries, prefixes)
     hint = {"prefixes": list(prefixes), "source": source, "restricted": len(inside), "dropped": False, "reason": ""}
@@ -267,7 +368,7 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
         # A number inside still identifies; otherwise one team's worth of entries gives a team
         # result, which the camera pod can narrow to a driver.
         restricted = [(eid, s) for eid, s in sims if eid in inside]
-        r = match_box(box, ocr, restricted, inside)
+        r = match_box(box, ocr, restricted, inside, ctc)
         teams = {e.team for e in inside.values()}
         if r.method == "number":
             return r, hint
@@ -276,8 +377,8 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
             return replace(r, method="team", entry_id=e1, alt_entry_id=e2, confidence=s1), hint
     if reason:
         hint.update(dropped=True, reason=reason)
-        return match_box(box, ocr, sims, entries), hint
-    return match_box(box, ocr, [(eid, s) for eid, s in sims if eid in inside], inside), hint
+        return match_box(box, ocr, sims, entries, ctc), hint
+    return match_box(box, ocr, [(eid, s) for eid, s in sims if eid in inside], inside, ctc), hint
 
 
 TEAM_KEY = "@team@"  # reference folder / index key prefix of a team-level reference
