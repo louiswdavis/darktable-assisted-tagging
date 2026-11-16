@@ -179,13 +179,13 @@ class StubSession:
 
     def run(self, names, feeds):
         self.feeds = feeds
-        return [np.array([[2, 0]]), np.array([[[10, 10, 50, 50], [0, 0, 5, 5]]], np.float32), np.array([[0.8, 0.9]], np.float32)]
+        return [np.array([[2, 0]]), np.array([[[10, 10, 50, 50], [0, 0, 5, 5]]], np.float32), np.array([[0.75, 0.9]], np.float32)]  # 0.75: exact in float32
 
 
 stub = StubSession()
 detr = V.Detector(id="detr:dfine_s_coco.onnx:1:abc", family="detr", net=stub, classes=V.FAMILIES["detr"]["classes"])
 e = V.detect(np.zeros((640, 640, 3), np.uint8), detr)
-check("detr keeps the vehicle box and drops the person", e["boxes"], [[10.0, 10.0, 50.0, 50.0, 0.8, 2]])
+check("detr keeps the vehicle box and drops the person", e["boxes"], [[10.0, 10.0, 50.0, 50.0, 0.75, 2]])
 check("detr feeds images and orig_target_sizes", sorted(stub.feeds), ["images", "orig_target_sizes"])
 check("detr images input is 1x3x640x640", tuple(stub.feeds["images"].shape), (1, 3, 640, 640))
 
