@@ -14,7 +14,7 @@ from embed import degrade
 from vehicles import log
 
 INDEX_NAME = "index.npz"
-CENTRE_MIN_REFS = 20  # fewer references than this: their mean says too little, so similarity stays raw
+CENTRE_MIN_REFS = 20  # fewer references than this: their mean says too little, so the run's boxes join it (use_run_centre)
 
 
 class ReferenceIndex:
@@ -31,6 +31,7 @@ class ReferenceIndex:
         self.entry: list = []
         self.path: list = []
         self.stat: list = []  # "mtime_ns:size" of each crop when embedded, so a replaced crop is re-embedded
+        self.centre = None  # under CENTRE_MIN_REFS references: the mean of references and run boxes (use_run_centre)
         self.added: list = []  # paths add() has saved since a caller last cleared this
         self.replaced: dict = {}  # rel -> (crop bytes, entry, embedding, histogram) add() overwrote
 
@@ -209,17 +210,34 @@ class ReferenceIndex:
                      path=np.array(self.path, dtype=str), stat=np.array(self.stat, dtype=str), key=np.array(self.key),
                      **extra)
 
+    def use_run_centre(self, run_vecs: list) -> str:
+        """Under CENTRE_MIN_REFS references, centres best_per_entry on the mean of the references and
+        `run_vecs` (this run's box embeddings, the same embedder) when together they reach it, so the
+        match thresholds, tuned on centred similarities, mean the same in a small collection. Returns
+        the log line naming the regime."""
+        n = len(self.emb)
+        if n >= CENTRE_MIN_REFS:
+            self.centre = None
+            return f"livery: centred on {n} references"
+        if n + len(run_vecs) < CENTRE_MIN_REFS:
+            self.centre = None
+            return f"livery: raw similarity ({n} references and {len(run_vecs)} boxes, under {CENTRE_MIN_REFS})"
+        both = np.vstack([self.emb, *(np.asarray(v, np.float32)[None] for v in run_vecs)])
+        self.centre = both.mean(axis=0)
+        return f"livery: centred on {n} references and {len(run_vecs)} boxes from this run"
+
     def best_per_entry(self, vec: np.ndarray, hist=None, colour_weight: float = 0.0) -> list:
         """[(entry_id, best cosine similarity)], most similar first. The embedder's vectors share a large
-        common component (raw cosines sit at 0.92-0.97 for any two cars), so with CENTRE_MIN_REFS or more
-        references both sides are centred on the references' mean first; the index file stays raw.
+        common component (raw cosines sit at 0.92-0.97 for any two cars), so both sides are centred on
+        the references' mean first with CENTRE_MIN_REFS or more references, else on use_run_centre's
+        mean when set; the index file stays raw.
         With a colour_weight and the query's colour histogram, each side becomes the unit-length join of
         its embedding and weight x its histogram, so colour counts alongside the embedding."""
         if not self.entry:
             return []
         emb, vec = self.emb, np.asarray(vec, np.float32)
-        if len(emb) >= CENTRE_MIN_REFS:
-            mean = emb.mean(axis=0)
+        mean = emb.mean(axis=0) if len(emb) >= CENTRE_MIN_REFS else self.centre
+        if mean is not None:
             emb, vec = emb - mean, vec - mean
             emb = emb / np.maximum(np.linalg.norm(emb, axis=1, keepdims=True), 1e-9)
             vec = vec / max(float(np.linalg.norm(vec)), 1e-9)

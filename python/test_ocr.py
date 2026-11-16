@@ -59,9 +59,17 @@ paddle = np.zeros((2, 5))
 paddle[0, 3], paddle[1, 2] = 1.0, 1.0
 check("a PaddleOCR charset decodes", O._ctc_greedy(paddle, ["A", "7", "1", " "])[0], "17")
 
-check("superscript digits are not a number", O.digits_only("1²"), None)
-check("circled digits are not a number", O.digits_only("①"), None)
-check("look-alike letters still read as digits", O.digits_only("1O"), "10")
+check("superscript digits are not part of a number", O.digit_runs("1²"), ["1"])
+check("circled digits are not a number", O.digit_runs("①"), [])
+check("look-alike letters still read as digits", O.digit_runs("1O"), ["10"])
+check("a trailing space keeps the number", O.digit_runs("14 "), ["14"])
+check("a hash before the number", O.digit_runs("#7"), ["7"])
+check("a letter after the number", O.digit_runs("14A"), ["14"])
+check("a word beside the number, its l not folded", O.digit_runs("14 RALLYE"), ["14"])
+check("a year is not a number", O.digit_runs("2026"), [])
+check("one read per digit run", O.digit_runs("l4-22"), ["14", "22"])
+check("| reads as 1", O.digit_runs("|4"), ["14"])
+check("S4 keeps its S in the read", O.digit_runs("S4"), ["4"])
 
 # height_share: quads are bottom-left, top-left, top-right, bottom-right in letterbox pixels.
 def quad(top, bottom, left=10, right=60):
@@ -108,6 +116,50 @@ check("a digit's column holds its probability", round(m[0][5], 2), 0.99)
 check("a look-alike letter adds to its digit", O.digit_matrix(steps((O.REC_CHARSET.index("o") + 1, 0.9)))[0][1] >= 0.9, True)
 check("an all-blank output gives no matrix", O.digit_matrix(steps((0, 0.999))), [])
 check("a PaddleOCR charset folds to digits", O.digit_matrix(paddle, ["A", "7", "1", " "])[0][2], 1.0)
+s4, five4 = np.zeros((2, 5)), np.zeros((2, 5))
+s4[0, 1], s4[1, 4] = 1.0, 1.0        # S then 4
+five4[0, 2], five4[1, 4] = 1.0, 1.0  # 5 then 4
+check("an S's matrix scores 5 as a 5's does", O.digit_matrix(s4, ["S", "5", "|", "4"]), O.digit_matrix(five4, ["S", "5", "|", "4"]))
+check("| and ! fold to 1 in the matrix", O.digit_matrix(np.eye(3)[1:], ["|", "!"])[0][2] + O.digit_matrix(np.eye(3)[1:], ["|", "!"])[1][2], 2.0)
+
+# read_turned: a fake recogniser reads "42" only from an upright word, which it knows by a dark mark
+# in the word's top-left corner; any other warp reads unsurely.
+calls = []
+
+
+def upright_only(bgr, q):
+    calls.append(1)
+    word = O.quad_word(bgr, q)
+    h, w = word.shape[:2]
+    if w > h and word[:h // 2, :w // 4].mean() < 80:
+        return "42", 0.95, []
+    return "??", 0.3, []
+
+
+def box_quad(x0, y0, x1, y1):
+    return np.array([[x0, y1], [x0, y0], [x1, y0], [x1, y1]], np.float32)
+
+
+frame = np.full((120, 200, 3), 255, np.uint8)
+frame[40:60, 40:70] = 0  # the word spans x 40-160, y 40-80; its top-left quarter is dark
+for name, img, q, want in (
+        ("upright", frame, box_quad(40, 40, 160, 80), ("42", 0)),
+        ("turned 180°", np.rot90(frame, 2), box_quad(40, 40, 160, 80), ("42", 180)),
+        ("turned 90° clockwise, a tall quad", np.rot90(frame, -1), box_quad(40, 40, 80, 160), ("42", 90)),
+        ("turned 90° anticlockwise, a tall quad", np.rot90(frame, 1), box_quad(40, 40, 80, 160), ("42", 270))):
+    got = O.read_turned(upright_only, np.ascontiguousarray(img), q)
+    check(f"read_turned: a number {name} reads as upright", (got[0], got[3]), want)
+
+calls.clear()
+O.read_turned(upright_only, frame, box_quad(40, 40, 160, 80))
+check("read_turned: a sure read is not retried", len(calls), 1)
+calls.clear()
+O.read_turned(upright_only, np.full((120, 200, 3), 255, np.uint8), box_quad(40, 40, 160, 80))
+check("read_turned: a weak wide quad is retried at 180° only", len(calls), 2)
+calls.clear()
+got = O.read_turned(upright_only, np.full((200, 120, 3), 255, np.uint8), box_quad(40, 40, 80, 160))
+check("read_turned: a weak tall quad is retried at 180°, 90° and 270°", len(calls), 4)
+check("read_turned: no better read keeps the read as found", got[3], 0)
 
 if failures:
     print(f"{failures} failed")

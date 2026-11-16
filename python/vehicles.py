@@ -26,6 +26,8 @@ BOX_MARGIN_TRIM = 0.1  # trimmed off each edge of a detected box before cropping
 # box (common on cars shot at a distance) carries less background into the embedding
 DETECTOR_MIN_SCORE = 0.20  # dark and distant liveries score 0.22-0.34, below the usual 0.35
 MAX_CANDIDATES = 5  # weaker detections kept as rescue candidates (see rescue.py)
+HIRES_MIN_GAIN = 1.3  # a load_hires decode must be this much wider than the preview to be worth re-reading
+HIRES_ASPECT_TOL = 0.02  # ...and frame the same picture: aspect ratios within this share
 
 
 def log(msg: str):
@@ -95,9 +97,9 @@ def detect_vehicles(rgb: np.ndarray, entry: dict) -> tuple:
     return boxes, note
 
 
-def crop_box(rgb: np.ndarray, box) -> np.ndarray:
+def crop_box(rgb: np.ndarray, box, dim: int = CROP_DIM) -> np.ndarray:
     """The box's region, trimmed by BOX_MARGIN_TRIM on each edge and its long side
-    downscaled to at most CROP_DIM (never upscaled)."""
+    downscaled to at most dim (never upscaled)."""
     h, w = rgb.shape[:2]
     bx0, by0, bx1, by1 = box[0], box[1], box[2], box[3]
     trim_x, trim_y = (bx1 - bx0) * BOX_MARGIN_TRIM, (by1 - by0) * BOX_MARGIN_TRIM
@@ -105,7 +107,7 @@ def crop_box(rgb: np.ndarray, box) -> np.ndarray:
     x1, y1 = min(int(round(bx1 - trim_x)), w), min(int(round(by1 - trim_y)), h)
     crop = rgb[y0:max(y1, y0 + 1), x0:max(x1, x0 + 1)]
     ch, cw = crop.shape[:2]
-    scale = CROP_DIM / max(ch, cw)
+    scale = dim / max(ch, cw)
     if scale < 1:
         crop = cv2.resize(crop, (max(1, int(cw * scale)), max(1, int(ch * scale))), interpolation=cv2.INTER_AREA)
     return np.ascontiguousarray(crop)

@@ -17,7 +17,7 @@ end
 -- plugin_common.lua ---------------------------------------------------------------
 -- The same file in all three plugin repos; COMMON_HASH pins it. After changing it, copy it to the
 -- other two repos and put the hash this prints into their tests too.
-local COMMON_HASH = "503716c8"
+local COMMON_HASH = "f1505e66"
 local script_dir = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
 local PC = dofile(script_dir .. "/plugin_common.lua")
 local function fnv1a(text)
@@ -117,10 +117,30 @@ check("near_in_time with no timed selection is empty", near_ids({}, { { id = 1, 
 -- group keys ----------------------------------------------------------------
 local G10 = "Assisted Grouping|2026-11-09 10:00:00|Group"
 local G12 = "Assisted Grouping|2026-11-09 12:30:00|Group"
-check("newest_group_node picks the greatest stamp",
-    T.newest_group_node({ { G10 .. "|0001" }, { "F1|Ferrari", G12 .. "|0001" } }), G12)
-check("newest_group_node ignores other tags", T.newest_group_node({ { "F1|Ferrari" } }), nil)
-check("newest_group_node with empty input", T.newest_group_node({}), nil)
+check("latest_group_tag picks the greatest stamp",
+    T.latest_group_tag({ [G10 .. "|0001"] = true, ["F1|Ferrari"] = true, [G12 .. "|0003"] = true }), G12 .. "|0003")
+check("latest_group_tag ignores other tags and the bare node",
+    T.latest_group_tag({ ["F1|Ferrari"] = true, [G12] = true, [G12 .. "|0001|x"] = true }), nil)
+
+-- Half-regrouped selection: photos 1-2 only carry the 10:00 run, 3-4 the 12:30 run.
+local lk, n_runs = T.latest_group_keys({
+    { id = 1, tags = { [G10 .. "|0001"] = true } },
+    { id = 2, tags = { [G10 .. "|0001"] = true } },
+    { id = 3, tags = { [G10 .. "|0002"] = true, [G12 .. "|0001"] = true } },
+    { id = 4, tags = { [G12 .. "|0001"] = true } },
+    { id = 5, tags = { ["F1|Ferrari"] = true } },
+})
+check("latest_group_keys keeps each photo's own run", lk[1] == lk[2] and lk[3] == lk[4] and lk[1] ~= lk[3], true)
+check("latest_group_keys counts runs", n_runs, 2)
+check("latest_group_keys leaves untagged photos out", lk[5], nil)
+local lng = T.number_groups({ 1, 2, 3, 4, 5 }, lk)
+check("latest_group_keys -> two groups plus a single",
+    table.concat({ lng[1], lng[2], lng[3], lng[4], lng[5] }, ","), "1,1,2,2,3")
+
+local tagged = { { id = 1, tags = { [G12 .. "|0001"] = true } } }
+check("group_tags_hint fires when native found nothing but tags exist", T.group_tags_hint(0, tagged), T.GROUP_TAGS_HINT)
+check("group_tags_hint silent when native groups exist", T.group_tags_hint(2, tagged), nil)
+check("group_tags_hint silent without grouping tags", T.group_tags_hint(0, { { id = 1, tags = {} } }), nil)
 
 local gk = T.tag_group_keys({
     { id = 1, tags = { [G12 .. "|0001"] = true, [G12 .. "|0001|x"] = true } },
@@ -849,6 +869,15 @@ do
 end
 
 -- test_open_command
+local pp_new = T.parse_progress("analysing,12,40,10")
+check("parse_progress: a staged line", pp_new.stage .. " " .. pp_new.cur .. "/" .. pp_new.tot .. " " .. pp_new.cached,
+    "analysing 12/40 10")
+local pp_old = T.parse_progress("3,9")
+check("parse_progress: an old cur,tot line has no stage and nothing cached",
+    tostring(pp_old.stage) .. " " .. pp_old.cur .. "/" .. pp_old.tot .. " " .. pp_old.cached, "nil 3/9 0")
+check("parse_progress: no line yet", T.parse_progress(nil), nil)
+check("parse_progress: a two-word stage", T.parse_progress("writing tags,1,2,0").stage, "writing tags")
+
 check("open_command: Windows", T.open_command("C:/My Photos/Rallye/entries.json", "windows"),
     'start "" "C:\\My Photos\\Rallye\\entries.json"')
 check("open_command: macOS", T.open_command("/Users/me/My Photos/entries.json", "macos"), "open '/Users/me/My Photos/entries.json'")

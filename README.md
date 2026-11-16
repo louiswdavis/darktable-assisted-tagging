@@ -137,6 +137,8 @@ python python/compare_ocr.py --rec models/text_recognition_CRNN_EN_2021sep.onnx 
 
 Compare a larger embedder before installing it with `python python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx --fresh-embed` (re-embeds the refs with that model in memory; `index.npz` is untouched).
 
+Score the number reader against your hand tags with `python python/eval_numbers.py BOXES.json`, on the boxes.json of a `--verify` run (which stores every OCR region and why it was dropped). It reports how many single-box frames are read right, why each miss was missed (no region, region dropped, under `min_read`, recognised wrong, lost in matching), and the misreads. `--set OCR_MIN_SCORE=0.7` (also `NUMBER_MIN_HEIGHT`, `min_read`, `WEAK_READ_MIN`, `NUMBER_LIST_MARGIN`, `NUMBER_LIST_FLOOR`) replays the run at another threshold without re-reading any image.
+
 #### Box check and colour reader (optional, SigLIP 2)
 
 The vehicle detector also boxes marshals, sheds and railings. With SigLIP 2 in `models`, each box is checked before it is read: a box that looks more like a person, a building, a railing, spectators, trees or an empty road than a vehicle (a rally car, a race car, a motorbike or quad, or a truck) is dropped, and the log counts what was dropped (`box check: dropped 4 boxes: person 3, railing 1`). Frames you pick for Add references skip the check. The same model reads each car's paintwork colour for the [Colour family](#tag-families) in place of the built-in hue rules, comparing the car with "a photo of a red rally car." and so on for each palette name, plus "multicoloured"; an unsure read (top score under 0.4, or within 0.1 of the next) gives no colour. Without it, every box is read and colour comes from the hue rules. Adding or removing it re-reads every photo once. People collections don't use it.
@@ -505,7 +507,7 @@ At the top: the **preset** picker and **actions** (see [Presets](#presets)), and
 ### 2 bursts
 
 - **grouping support** (Native groups, Grouping tags, None). What the burst step borrows answers from (see [Grouping support](#grouping-support)).
-- **Grouping tag node (blank = newest run)** (text field). The tag node in Grouping tags mode.
+- **Grouping tag node (blank = latest run per photo)** (text field). The tag node in Grouping tags mode.
 
 ### 3 matching
 
@@ -557,7 +559,8 @@ identify.py, per frame:  fast small decode → YOLOX vehicle boxes (up to 4)
         v
 match, pass 1, per box:  sponsor words on the car (or a team tag you applied) narrow the candidates to one team, then
            every start-list number scored against the reader's digit
-           probabilities; a clear winner matching one entry → number
+           probabilities (reads down to 0.7 sure, not just min read);
+           a clear winner matching one entry → number
            (a close call skips straight to livery; a reader with no
            probabilities: one number read matches one entry → number)
            else best livery match clear of the next one → livery
@@ -568,9 +571,10 @@ match, pass 1, per box:  sponsor words on the car (or a team tag you applied) na
 hires re-read: boxes still unidentified are read again from a half-size RAW decode → match, pass 2
         |
         v
-weak reads: a number read under min read (but at least 0.7) on unidentified boxes of 2+ frames
-           of one group → number, when only one entry is read that way and nothing else in the group
-           names another entry
+weak reads: the start-list scores of a group's unidentified boxes (reads at least 0.7 sure) are
+           added up across its frames, one box per frame; a total that clears the margin → number
+           on each of those boxes, when nothing else in the group names another entry. Boxes with no
+           digit probabilities (an older cache): 2+ frames reading the same number → number
         |
         v
 neighbour aid (only when order weight > 0), against the 3 groups shot before and after (within 20 seconds),
@@ -610,7 +614,7 @@ Frames are decoded at native resolution (a raw file's embedded preview) and each
 
 **Shared detection cache.** Vehicle boxes are cached in `assisted_plugins/detections.sqlite` in darktable's config directory, shared with the culling plugin so a frame both plugins see is detected once. The key is the file (path, modified time, size), the detector model file and a fingerprint of the shared detector code, so a new detector or a `vehicle_detect.py` change re-detects everything once; rows unused for 90 days are dropped. Delete the file to start over.
 
-**Colour tags.** With the [Colour family](#tag-families) on, each car's paintwork is measured on the middle of its crop (margin, roofline and the lower tyre band are left out) and becomes the palette colour with the largest share. White, grey and black count half, since tarmac, glass and shadow are also in the crop. It is `Multi` when the second colour is close to the first. The decided colour is written as `<family_colour_root>|<name>`. An entry's `colour` is a tie-breaker only, never a filter. A weak number read for an entry whose colour differs from the car's doesn't count towards a group's agreement; the neighbour aid drops candidates whose colour differs and a look-alike car only lends its entry when the colours don't differ; a confident number read is never blocked, but when its entry's colour differs from the car's the image gets *Check colour*. An entry with no `colour`, or a car whose colour can't be told, is neutral. `Multi` agrees only with `Multi`. Turning the family on re-reads every photo once.
+**Colour tags.** With the [Colour family](#tag-families) on, each car's paintwork is measured on the middle of its crop (margin, roofline and the lower tyre band are left out) and becomes the palette colour with the largest share. White, grey and black count half, since tarmac, glass and shadow are also in the crop. It is `Multi` when the second colour is close to the first. The decided colour is written as `<family_colour_root>|<name>`. An entry's `colour` is a tie-breaker only, never a filter. A weak number read for an entry whose colour differs from the car's doesn't count towards a group's agreement; the neighbour aid drops candidates whose colour differs and a look-alike car only lends its entry when the colours don't differ; a confident number read is never blocked, but when its entry's colour differs from the car's the image gets *Check colour*. An entry with no `colour`, or a car whose colour can't be told, is neutral. Colours too close to call never count as differing: `Multi` against a single colour, white against grey and grey against black. Turning the family on re-reads every photo once.
 
 **RAW+JPEG pairs are read once, from the JPEG.** A RAW and a JPEG in the same folder with the same name before the extension (case ignored, as darktable pairs them on import) are one shot, and so are darktable duplicates of a file. The JPEG is read: it has the camera's exposure and colour at full size. Every file in the shot gets the same tags, and a hand tag on any of them is protected for the whole shot. A RAW with no JPEG is read as before. Same name in another folder is a separate shot.
 
@@ -619,7 +623,7 @@ Frames are decoded at native resolution (a raw file's embedded preview) and each
 Tagging no longer clusters photos by capture time. Consensus (the "borrow the answer from the rest of the group" step) runs over groups that something else already made, and the panel's **grouping support** combobox picks which:
 
 - **Native groups** (default): darktable's own image groups. A photo's group is its group leader.
-- **Grouping tags**: the children of an [Assisted Grouping](../darktable-assisted-grouping/README.md) tag node, e.g. `Assisted Grouping|2026-01-01 12:00:00|Group|NNNN`. The **Grouping tag node (blank = newest run)** entry names the node. Blank uses the newest Assisted Grouping run found on the selected photos. Assisted Grouping must have **Write group tags** on, or there is nothing to find.
+- **Grouping tags**: the children of an [Assisted Grouping](../darktable-assisted-grouping/README.md) tag node, e.g. `Assisted Grouping|2026-01-01 12:00:00|Group|NNNN`. The **Grouping tag node (blank = latest run per photo)** entry names the node. Blank uses each photo's own latest Assisted Grouping run, so after regrouping part of a shoot the regrouped photos use the new run and the rest keep the old one. Assisted Grouping must have **Write group tags** on, or there is nothing to find. In Native groups mode, if no photo is in a group but grouping tags are present, the log and a notice say to switch to Grouping tags.
 - **None**: every photo is its own group, so nothing is borrowed.
 
 A photo with no group (no native group, or no child tag under the node) is its own group. Groups are not size-checked: a coarse group (a long hand-made stack, or Assisted Grouping's Camera or Parent layers) is treated as one car pass, so the missed-detection rescue may carry an identification across the whole group. The log records the mechanism, how many photos landed in groups of 2 or more, and (in Grouping tags mode only) the node used.
@@ -633,15 +637,19 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 | Constant | File | Default | What it does |
 |---|---|---|---|
 | `OCR_MIN_SCORE` | `ocr.py` | 0.80 | how sure the text detector must be before a number is read |
+| `NUMBER_MAX_DIGITS` | `ocr.py` | 3 | a text region's runs of digits become number reads up to this length, so `14 RALLYE` and `#7` read as 14 and 7, while a year or phone number on a sticker gives nothing. Look-alikes fold to digits only in a token that is otherwise all digits (`l4` → 14); the start-list check also folds s, b, z and g, but a read's tag keeps the letter |
 | `NUMBER_MIN_HEIGHT` | `ocr.py` | 0.07 | a number's text region must be at least this share of the vehicle crop's height, so plate characters and lone sticker letters aren't read as numbers. A first guess: the report's "ocr saw" line shows each region's share (`h0.12`). Raise it if plates still get read; lower it if small but real numbers are dropped |
-| `NUMBER_LIST_MARGIN` | `match.py` | 2.3 | every start-list number is scored against the reader's digit-by-digit probabilities (natural log). The best one counts as the number read only when it leads the runner-up by this much (10×); otherwise the box is a close call and goes to livery. The log and the report show greedy read, best and runner-up with their scores |
+| `OCR_CROP_DIM` | `ocr.py` | 1600 | the long side of the crop the number reader gets. Text is found on a 736-px copy, then each region is read from this crop, so a small number keeps its detail. A box re-read at higher detail gains from it too |
+| `TURN_RETRY_BELOW` | `ocr.py` | 0.85 | a region read less surely than this is read again turned 180°, for a number upside down on a rolled or roof-on car. The run log's `turned reads won` line counts the reads a retry changed |
+| `TALL_QUAD` | `ocr.py` | 1.5 | a weak region at least this many times taller than wide is also read turned 90° both ways, for a number on its side |
+| `NUMBER_LIST_MARGIN` | `match.py` | 2.3 | every start-list number is scored against the reader's digit-by-digit probabilities (natural log). The best one counts as the number read only when it leads the runner-up by this much (10×); otherwise the box is a close call and goes to livery. The log and the report show greedy read, best and runner-up with their scores, marked `(weak read)` when the read was under min read and `(burst of N)` when a group's summed scores decided (the margin then applies to the totals) |
 | `NUMBER_LIST_FLOOR` | `match.py` | 4.6 | the best start-list number must also be within this of what the reader actually spelled (100×), or there is no list read |
 | `MATCH_MIN_SIM` | `match.py` | 0.60 | the livery similarity a match needs at all |
 | `MATCH_MIN_MARGIN` | `match.py` | 0.10 | how far the best entry must be ahead of the next one. Similarities are centred on the references' mean once a collection has 20+ references, which spreads them out, so the gate is wider than it looks; `python/eval_matching.py` sweeps it on your own references |
 | `BURST_MIN_AGREE` | `match.py` | 2 | frames that must agree before a burst fills in the rest |
 | `SOLO_ANCHOR_CONF` | `match.py` | 0.95 | a number read this sure fills a burst that names no other entry on its own, however few frames agree |
-| `WEAK_READ_MIN` | `match.py` | 0.7 | the lowest read that counts when frames of one group agree on a number below min read |
-| `WEAK_AGREE_MIN` | `match.py` | 2 | how many frames of the group must agree on it |
+| `WEAK_READ_MIN` | `match.py` | 0.7 | the lowest read the start-list scoring takes, alone or summed across a group, below min read |
+| `WEAK_AGREE_MIN` | `match.py` | 2 | how many frames of a group must have weak reads before their scores are summed (or, without digit probabilities, agree on one number) |
 | `BURST_MIN_CONFIDENCE` | `match.py` | 0.5 | the share of the group the entry must cover before a burst fill is written |
 | `LOOKALIKE_MIN_SIM` | `neighbour.py` | 0.85 | how alike a box with no number and a nearby identified car must look for the neighbour look-alike |
 | `LOOKALIKE_MARGIN` | `neighbour.py` | 0.05 | how far that car must lead the best-looking other car nearby |
@@ -651,7 +659,7 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 | `REFERENCE_MIN_MARGIN` | `match.py` | 0.10 | how far a livery match must lead to be saved by **Add from last run** |
 | `MIN_BOX_FRAC` | `vehicles.py` | 0.005 | the smallest vehicle, as a share of the frame, worth identifying |
 | `MAX_BOXES` | `vehicles.py` | 4 | vehicles identified per frame |
-| `CROP_DIM` | `vehicles.py` | 640 | the long side each vehicle crop is reduced to |
+| `CROP_DIM` | `vehicles.py` | 640 | the long side each vehicle crop is reduced to for the livery embedding and colour (the number reader's is `OCR_CROP_DIM`) |
 | `DETECTOR_MIN_SCORE` | `vehicles.py` | 0.20 | the confidence a vehicle detection needs |
 
 The run log has one line per vehicle with the numbers read and the top two livery matches with their similarity, e.g. `box 0: livery VER (OCR -; livery VER 0.712, TSU 0.694)`. Read a few from a shoot to see where the right and wrong answers fall before changing `MATCH_MIN_SIM` or `MATCH_MIN_MARGIN`.
@@ -701,7 +709,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 **Grouping support** (one run per mode, on a selection holding a burst)
 
 4. **Native groups.** Put the burst in a darktable group, pick *Native groups*, click **Identify selection**. *Expect:* in the log, `identify started`, then `settings: … grouping support native, node (blank), neighbour tolerance 5`, then `group support native: N of M photos in groups of 2+` with N counting the burst.
-5. **Grouping tags, blank node.** Run Assisted Grouping on the selection with **Write group tags** on. Back in tagging, pick *Grouping tags*, leave the node blank, run. *Expect:* `group support tags: N of M photos in groups of 2+, node Assisted Grouping|<stamp>|Group` naming the newest run.
+5. **Grouping tags, blank node.** Run Assisted Grouping on the selection with **Write group tags** on. Back in tagging, pick *Grouping tags*, leave the node blank, run. *Expect:* `group support tags: N of M photos in groups of 2+, latest run per photo (1 runs)`.
 6. **Grouping tags, wrong node.** Type a node no selected photo carries, run. *Expect:* `group support tags: 0 of M photos in groups of 2+, node <what you typed> (matches no selected photo)`; every photo is its own group.
 7. **None.** Pick *None*, run. *Expect:* `group support none: 0 of M photos in groups of 2+`.
 

@@ -30,16 +30,16 @@ import sys
 import time
 from dataclasses import dataclass, field, replace
 
-from vehicles import MAX_BOXES, crop_box, detect, detect_vehicles, load_hires, log
+from vehicles import HIRES_ASPECT_TOL, HIRES_MIN_GAIN, MAX_BOXES, crop_box, detect, detect_vehicles, load_hires, log
 from vehicle_detect import DetectionCache, boxes_in, decode_rgb, decode_rgb_sized, detect_cached, file_key, load_detector
 from common import atomic_write
-from ocr import NumberReader, ocr_key
+from ocr import NUMBER_MIN_HEIGHT, OCR_CROP_DIM, OCR_MIN_SCORE, NumberReader, ocr_key
 import car_colour
 import entries_file
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
-from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged,
+from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
                    burst_consensus, colour_check, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
@@ -507,21 +507,25 @@ def frame_key(filepath: str, models: dict) -> list:
                 analysis_fingerprint(), "face-1"]
     return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
             embedder_key(models["embedder"]), analysis_fingerprint(),
-            "ocr-trace-2", "read-conf-1", "ctc-1", "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
-            *(["car-colour-1", car_colour.palette_digest(models["car_colour"])] if models.get("car_colour") else []),
+            "ocr-trace-2", "read-conf-1", "ctc-1", "pod-2", "cand-1", "overlap-2", *(["colour-2"] if models.get("colour") else []),
+            *(["car-colour-2", car_colour.palette_digest(models["car_colour"])] if models.get("car_colour") else []),
             *([SEGMENT_CACHE_TOKEN, file_key(models["segmenter"])] if models.get("segmenter") else []),
-            *(siglip_key(models["siglip"]) if models.get("siglip") else [])]
+            *(siglip_key(models["siglip"]) if models.get("siglip") else []),
+            *(["ocr-regions-1"] if models.get("ocr_regions") else [])]
 
 
 # ---------------------------------------------------------------- progress
 
-def write_progress(progress_path: str, cur: int, tot: int):
+def write_progress(progress_path: str, cur: int, tot: int, stage: str = "", cached: int = 0):
+    """Writes `stage,cur,tot,cached` (or `cur,tot` with no stage) for the Lua poll: `cached` of
+    `cur` were done without work, so the ETA counts only the rest."""
     if not progress_path:
         return
+    line = f"{stage},{cur},{tot},{cached}" if stage else f"{cur},{tot}"
     for _ in range(8):
         try:
             with open(progress_path, "w", encoding="utf-8") as pf:
-                pf.write(f"{cur},{tot}")
+                pf.write(line)
             return
         except OSError:
             time.sleep(0.02)
@@ -563,11 +567,10 @@ def _init_worker(models: dict):
     if models["kind"] == "people":
         _W["faces"] = FaceModel(models["face_det"], models["face_rec"])
         return
-    _W["reader"] = NumberReader(models["ocr_det"], models["ocr_rec"])
+    _W["reader"] = NumberReader(models["ocr_det"], models["ocr_rec"], keep_regions=bool(models.get("ocr_regions")))
     _W["embedder"] = Embedder(models["embedder"])
     _W["segmenter"] = Segmenter(models["segmenter"]) if models.get("segmenter") else None
-    _detection_tools(models)
-    _siglip(models)
+    _siglip(models)  # the detector loads in frame_entry, on the first frame that detects
 
 
 def _siglip(models: dict):
@@ -622,19 +625,28 @@ def check_boxes(rgb, boxes: list) -> tuple:
     return kept, vecs, dropped
 
 
-def _read_boxes(rgb, boxes: list, hi=None, vecs=None) -> dict:
+def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -> dict:
     """OCR candidates, pod reading and embedding of each box, in the analysis shape. With `hi`, a
-    sharper decode of the same frame, the crops (OCR, embedding, colour) come from it; boxes stay in
-    `rgb`'s pixels. `vecs`, the box check's SigLIP 2 vectors of the plain box crops, are reused for
-    colour where the crop read is that same plain crop."""
-    ocr, trace, ctc, emb, pod, hist, overlap, masked, shares = [], [], [], [], [], [], [], [], []
+    sharper decode of the same frame, `rgb` is None and `frame` the preview's (w, h): the crops (OCR,
+    embedding, colour) come from `hi`, boxes stay in preview pixels and pod is None. `wanted`, box
+    indices, limits the reading to those boxes; the others hold None in every per-box list. `vecs`,
+    the box check's SigLIP 2 vectors of the plain box crops, are reused for colour where the crop read
+    is that same plain crop."""
+    ocr, trace, ctc, emb, pod, hist, overlap, masked, shares, regions = [], [], [], [], [], [], [], [], [], []
+    turns = {}
     palette = _W["models"].get("car_colour")
-    scale = hi.shape[1] / rgb.shape[1] if hi is not None else 1.0
+    keep_regions = _W["reader"].keep_regions
+    scale = hi.shape[1] / frame[0] if hi is not None else 1.0
     seen_boxes = visible_boxes(boxes)
     wants_mask = needs_mask(boxes, [state for _, state in seen_boxes]) if _W.get("segmenter") else [False] * len(boxes)
     for i, (b, (seen, state)) in enumerate(zip(boxes, seen_boxes)):
         overlap.append(state)
-        pod.append(pod_reading(rgb, seen))
+        if wanted is not None and i not in wanted:
+            for skipped in (pod, masked, ocr, trace, ctc, emb, *([hist] if _W["models"].get("colour") else []),
+                            *([shares] if palette else []), *([regions] if keep_regions else [])):
+                skipped.append(None)
+            continue
+        pod.append(pod_reading(rgb, seen) if hi is None else None)
         src, area = (rgb if hi is None else hi), tuple(v * scale for v in seen[:4])
         cut = None
         if wants_mask[i]:
@@ -642,29 +654,44 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None) -> dict:
             cut = _W["segmenter"].cut(src, area, near)
         masked.append(cut is not None)
         crop = crop_box(*cut) if cut else crop_box(src, area)
-        ocr.append([[d, c] for d, c in _W["reader"].read(crop)])
+        ocr.append([[d, c] for d, c in _W["reader"].read(crop_box(*(cut or (src, area)), OCR_CROP_DIM))])
+        for turn, n in _W["reader"].last_turns.items():
+            turns[turn] = turns.get(turn, 0) + n
         trace.append(_W["reader"].last_trace)
         ctc.append(_W["reader"].last_ctc)
+        if keep_regions:
+            regions.append(_W["reader"].last_regions)
         emb.append(encode(_W["embedder"].embed(crop)))
         if _W["models"].get("colour"):
-            hist.append(encode(colour_hist(crop)))
+            hist.append(encode(colour_hist(crop, masked=cut is not None)))
         if palette:
             plain = vecs and hi is None and cut is None and tuple(seen[:4]) == tuple(b[:4])
             shares.append({} if state == HIDDEN else colour_read(crop, palette, masked=cut is not None,
                                                                  vec=vecs[i] if plain else None))
-    out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "ocr_ctc": ctc, "pod": pod, "emb": emb, "overlap": overlap, "masked": masked}
+    out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "ocr_ctc": ctc, "ocr_turns": turns,
+           "pod": pod, "emb": emb, "overlap": overlap, "masked": masked}
     if hist:
         out["hist"] = hist
     if palette:
         out["car_colour"] = shares
+    if keep_regions:
+        out["ocr_regions"] = regions
     return out
 
 
 def colour_read(crop, palette, masked: bool = False, vec=None) -> dict:
     """The crop's colour shares: SigLIP 2 scores when this process has SigLIP 2 (`vec`, the crop's
-    image vector when already worked out), else HSV shares."""
+    image vector when already worked out), else HSV shares. A masked crop's GREY fill never counts:
+    HSV leaves it out, and SigLIP 2 sees it painted the median colour of the kept pixels."""
     siglip = _W.get("siglip")
     if siglip:
+        if vec is None and masked:
+            import numpy as np
+            from segment import GREY
+            fill = (crop == GREY).all(axis=2)
+            if (~fill).any():
+                crop = crop.copy()
+                crop[fill] = np.median(crop[~fill], axis=0).astype(crop.dtype)
         return siglip.colour_scores(vec if vec is not None else siglip.embed_image(crop), palette)
     return car_colour.colour_shares(crop, palette, masked=masked)
 
@@ -687,22 +714,17 @@ def rescue_frame(job: tuple):
     return out
 
 
-HIRES_MIN_GAIN = 1.3  # a sharper decode must be this much wider than the preview to be worth re-reading
-HIRES_ASPECT_TOL = 0.02  # ...and frame the same picture: aspect ratios within this share
-
-
 def hires_frame(job: tuple):
-    """(path, the analysis's boxes) → every box re-read from a sharper decode of the frame (the analysis
-    shape), or {} when there is none: not a RAW, not enough wider than the preview, or framed differently."""
-    path, boxes = job
+    """(path, the analysis's boxes, its frame [w, h], the wanted box indices) → those boxes re-read from
+    a sharper decode of the frame (the analysis shape, None for the other boxes), or {} when there is
+    none: not a RAW, not enough wider than the preview, or framed differently."""
+    path, boxes, (w, h), wanted = job
     hi = load_hires(path)
     if hi is None:
         return {}
-    rgb = decode_rgb(path)
-    if hi.shape[1] < HIRES_MIN_GAIN * rgb.shape[1] or \
-            abs(hi.shape[1] / hi.shape[0] / (rgb.shape[1] / rgb.shape[0]) - 1) > HIRES_ASPECT_TOL:
+    if hi.shape[1] < HIRES_MIN_GAIN * w or abs(hi.shape[1] / hi.shape[0] / (w / h) - 1) > HIRES_ASPECT_TOL:
         return {}
-    return _read_boxes(rgb, [tuple(b) for b in boxes], hi)
+    return _read_boxes(None, [tuple(b) for b in boxes], hi, frame=(w, h), wanted=set(wanted))
 
 
 # ---------------------------------------------------------------- identify mode
@@ -790,7 +812,41 @@ def worker_count(cpus: int) -> int:
     return max(1, min(cpus - 1, MAX_WORKERS))
 
 
-def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -> dict:
+class WorkerPool:
+    """One process pool for every stage of a run (analysis, rescue, re-read), so each worker loads
+    the models once per run. Started by the first stage with work to do; a run that is all cache
+    hits starts no workers."""
+
+    def __init__(self, models: dict):
+        self.models, self.size, self.executor = models, worker_count(os.cpu_count() or 2), None
+
+    def get(self) -> concurrent.futures.ProcessPoolExecutor:
+        if self.executor is None:
+            log(f"worker pool: {self.size} workers, models load once per worker for the whole run")
+            self.executor = concurrent.futures.ProcessPoolExecutor(max_workers=self.size, initializer=_init_worker,
+                                                                   initargs=(self.models,))
+        return self.executor
+
+    def cancel(self):
+        """Stops the workers now, frames in flight included, so a cancelled run exits within the
+        plugin's 5 s wait instead of after the slowest running frame (a RAW demosaic, a model load)."""
+        if self.executor is None:
+            return
+        processes = list((self.executor._processes or {}).values())  # shutdown drops the private map
+        self.executor.shutdown(wait=False, cancel_futures=True)
+        for process in processes:
+            process.terminate()
+        self.executor = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        if self.executor is not None:
+            self.executor.shutdown(wait=True, cancel_futures=True)
+
+
+def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, pool: WorkerPool) -> dict:
     """filepath → analysis (cached or fresh); a frame that fails to decode maps to None."""
     unique = list(dict.fromkeys(paths))  # darktable duplicates and versions share a file
     done, total, out, todo = 0, len(unique), {}, []
@@ -802,42 +858,44 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
         else:
             todo.append(p)
     log(f"analysing: {total} frames, {done} from cache, {len(todo)} to decode")
-    write_progress(progress, done, total)
+    cached = done
+    write_progress(progress, done, total, "analysing", cached)
     if not todo:
         log_box_check(out, models)
+        log_turns("analysis", out.values())
         return out
-    workers = worker_count(os.cpu_count() or 2)
+    workers = pool.size
     hits, detected, started = 0, 0, time.time()
-    with concurrent.futures.ProcessPoolExecutor(max_workers=workers, initializer=_init_worker,
-                                                initargs=(models,)) as executor:
-        futures = {executor.submit(analyse_frame, p): p for p in todo}
-        for fut in concurrent.futures.as_completed(futures):
-            if cancel_requested(progress):
-                log("cancelled")
-                executor.shutdown(wait=False, cancel_futures=True)
-                cache.close()
-                sys.exit(130)
-            p = futures[fut]
-            try:
-                out[p] = fut.result()
-                if out[p].pop("detection_cached", False):
-                    hits += 1
-                else:
-                    detected += 1
-                cache.put(out[p], *frame_key(p, models))
-            except concurrent.futures.process.BrokenProcessPool as e:
-                raise InputError(f"an analysis worker died (out of memory or a crashed library?); "
-                                 f"frames finished so far are cached, rerun to continue: {e}") from e
-            except Exception as e:
-                log(f"{p}: couldn't analyse ({type(e).__name__}: {e})")
-                out[p] = None
-            done += 1
-            write_progress(progress, done, total)
+    executor = pool.get()
+    futures = {executor.submit(analyse_frame, p): p for p in todo}
+    for fut in concurrent.futures.as_completed(futures):
+        if cancel_requested(progress):
+            log("cancelled")
+            pool.cancel()
+            cache.close()
+            sys.exit(130)
+        p = futures[fut]
+        try:
+            out[p] = fut.result()
+            if out[p].pop("detection_cached", False):
+                hits += 1
+            else:
+                detected += 1
+            cache.put(out[p], *frame_key(p, models))
+        except concurrent.futures.process.BrokenProcessPool as e:
+            raise InputError(f"an analysis worker died (out of memory or a crashed library?); "
+                             f"frames finished so far are cached, rerun to continue: {e}") from e
+        except Exception as e:
+            log(f"{p}: couldn't analyse ({type(e).__name__}: {e})")
+            out[p] = None
+        done += 1
+        write_progress(progress, done, total, "analysing", cached)
     elapsed = time.time() - started
     log(f"analysis: {len(todo)} frames in {elapsed:.0f}s, {len(todo) * 60 / max(elapsed, 0.001):.0f} frames/min ({workers} workers)")
     if models["kind"] != "people":
         log(f"detections: {hits} cached, {detected} detected")
     log_box_check(out, models)
+    log_turns("analysis", out.values())
     return out
 
 
@@ -853,10 +911,22 @@ def log_box_check(analyses: dict, models: dict):
     log(f"box check: dropped {sum(dropped.values())} boxes" + (f": {counts}" if counts else ""))
 
 
-def rescue_frames(rows: list, analyses: dict, models: dict, progress: str = "") -> dict:
+def log_turns(stage: str, analyses):
+    """One run-log line counting the number reads a turned retry won, per turn (ocr.read_turned), over
+    the analyses that carry `ocr_turns`; none when no analysis read numbers."""
+    read = [a["ocr_turns"] for a in analyses if a and "ocr_turns" in a]
+    if not read:
+        return
+    won = {turn: sum(t.get(turn, 0) for t in read) for turn in ("180", "90", "270")}
+    log(f"{stage}: turned reads won {sum(won.values())} regions (" + ", ".join(f"{t}° {n}" for t, n in won.items()) + ")")
+
+
+def rescue_frames(rows: list, analyses: dict, models: dict, cache: IdentifyCache, pool: WorkerPool,
+                  progress: str = "") -> dict:
     """analyses with the frames the detector missed filled in from burst-mates: for a no-vehicle
     frame in a burst that has vehicle frames, a weak candidate that tracks a mate's box becomes its
-    box when its crop looks like the mate's (rescue.py). Not cached: it depends on the burst."""
+    box when its crop looks like the mate's (rescue.py). Each job is cached under rescue_key, so a
+    changed burst (another mate) re-runs it and an unchanged one doesn't."""
     bursts: dict = {}
     seen = set()
     for _id, filepath, burst, _protected, _hints, taken, *_rest in rows:
@@ -871,77 +941,98 @@ def rescue_frames(rows: list, analyses: dict, models: dict, progress: str = "") 
             jobs.append((path, box, mate, analyses[mate]["emb"][0]))
     if not jobs:
         return analyses
-    log(f"rescue: {len(jobs)} frames with no vehicle have a candidate where a burst-mate's car is")
-    out = dict(analyses)
-    write_progress(progress, 0, len(jobs))
-    with concurrent.futures.ProcessPoolExecutor(max_workers=min(worker_count(os.cpu_count() or 2), len(jobs)),
-                                                initializer=_init_worker, initargs=(models,)) as executor:
-        for n, (job, result) in enumerate(zip(jobs, executor.map(rescue_frame, jobs)), 1):
+    results = {}
+    for job in jobs:
+        hit = cache.get(*rescue_key(job, models))
+        if hit is not None:
+            results[job[0]] = hit or None  # {} is a cached "doesn't look like the mate's car"
+    todo = [job for job in jobs if job[0] not in results]
+    log(f"rescue: {len(jobs)} frames with no vehicle have a candidate where a burst-mate's car is, "
+        f"{len(jobs) - len(todo)} from cache, {len(todo)} to decode")
+    write_progress(progress, 0, len(todo), "rescue")
+    if todo:
+        executor = pool.get()
+        for n, (job, result) in enumerate(zip(todo, executor.map(rescue_frame, todo)), 1):
             if cancel_requested(progress):
                 log("cancelled")
-                executor.shutdown(wait=False, cancel_futures=True)
-                sys.exit(130)
-            write_progress(progress, n, len(jobs))
-            if result is None:
-                log(f"{job[0]}: rescue candidate doesn't look like {os.path.basename(job[2])}'s car, left as no vehicle")
-                continue
-            log(f"{job[0]}: rescued a vehicle from {result['rescued']['from']} (crop similarity {result['rescued']['sim']})")
-            out[job[0]] = result
+                pool.cancel()
+                sys.exit(130)  # the caller's finally closes the cache
+            write_progress(progress, n, len(todo), "rescue")
+            cache.put(result or {}, *rescue_key(job, models))
+            results[job[0]] = result
+    out = dict(analyses)
+    for job in jobs:
+        result = results[job[0]]
+        if result is None:
+            log(f"{job[0]}: rescue candidate doesn't look like {os.path.basename(job[2])}'s car, left as no vehicle")
+            continue
+        log(f"{job[0]}: rescued a vehicle from {result['rescued']['from']} (crop similarity {result['rescued']['sim']})")
+        out[job[0]] = result
     return out
 
 
-def hires_key(boxes: list) -> list:
-    """The re-read's cache key parts: the box list is in it, so a box rescued from a burst
-    never reuses a re-read made without it."""
-    digest = hashlib.sha1(json.dumps(sorted(boxes, key=repr), default=str).encode()).hexdigest()[:12]
-    return ["hires-2", digest]
+def rescue_key(job: tuple, models: dict) -> list:
+    """A rescue job's cache key parts: the frame's own key, the candidate box and the mate's file. The
+    mate's embedding follows from its file under the same models, so the three fix the result."""
+    path, box, mate, _mate_emb = job
+    return [*frame_key(path, models), "rescue-1", json.dumps(list(box)), file_key(mate)]
 
 
-def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, progress: str = "") -> dict:
+def hires_key(boxes: list, wanted) -> list:
+    """The re-read's cache key parts: the box list and the wanted box indices are in it, so a box
+    rescued from a burst, or a box not re-read last time, never reuses a re-read made without it."""
+    digest = hashlib.sha1(json.dumps([sorted(boxes, key=repr), sorted(wanted)], default=str).encode()).hexdigest()[:12]
+    return ["hires-3", digest]
+
+
+def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, pool: WorkerPool,
+                  progress: str = "") -> dict:
     """analyses with the boxes in `wanted` (filepath → box indices) re-read from a sharper decode of
     the frame: OCR, embedding and colour replace the first-pass ones, and `hires` lists the boxes
-    that changed. The re-read of a frame's every box is cached, so a rerun doesn't decode again."""
+    that changed. Only the wanted boxes are re-read, and the re-read is cached, so a rerun doesn't
+    decode again."""
     cache = IdentifyCache(cache_path)
     try:
         reads, todo = {}, []
         for p in wanted:
-            hit = cache.get(*frame_key(p, models), *hires_key(analyses[p]["boxes"]))
+            hit = cache.get(*frame_key(p, models), *hires_key(analyses[p]["boxes"], wanted[p]))
             if hit is None:
                 todo.append(p)
             else:
                 reads[p] = hit
         log(f"refining: {len(wanted)} frames have boxes to re-read at higher detail, {len(reads)} from cache, {len(todo)} to decode")
         if todo:
-            with concurrent.futures.ProcessPoolExecutor(max_workers=min(worker_count(os.cpu_count() or 2), len(todo)),
-                                                        initializer=_init_worker, initargs=(models,)) as executor:
-                futures = {executor.submit(hires_frame, (p, analyses[p]["boxes"])): p for p in todo}
-                done, started = 0, time.time()
-                write_progress(progress, 0, len(todo))
-                for fut in concurrent.futures.as_completed(futures):
-                    if cancel_requested(progress):
-                        log("cancelled")
-                        executor.shutdown(wait=False, cancel_futures=True)
-                        cache.close()
-                        sys.exit(130)
-                    p = futures[fut]
-                    try:
-                        reads[p] = fut.result()
-                        cache.put(reads[p], *frame_key(p, models), *hires_key(analyses[p]["boxes"]))
-                    except Exception as e:
-                        log(f"{p}: couldn't re-read at higher detail ({type(e).__name__}: {e}), first pass kept")
-                    done += 1
-                    write_progress(progress, done, len(todo))
-                    if done % 10 == 0 or done == len(todo):
-                        log(f"refining: {done}/{len(todo)} done, {time.time() - started:.0f}s")
+            executor = pool.get()
+            futures = {executor.submit(hires_frame, (p, analyses[p]["boxes"], analyses[p]["frame"], sorted(wanted[p]))): p
+                       for p in todo}
+            done, started = 0, time.time()
+            write_progress(progress, 0, len(todo), "refining")
+            for fut in concurrent.futures.as_completed(futures):
+                if cancel_requested(progress):
+                    log("cancelled")
+                    pool.cancel()
+                    cache.close()
+                    sys.exit(130)
+                p = futures[fut]
+                try:
+                    reads[p] = fut.result()
+                    cache.put(reads[p], *frame_key(p, models), *hires_key(analyses[p]["boxes"], wanted[p]))
+                except Exception as e:
+                    log(f"{p}: couldn't re-read at higher detail ({type(e).__name__}: {e}), first pass kept")
+                done += 1
+                write_progress(progress, done, len(todo), "refining")
+                if done % 10 == 0 or done == len(todo):
+                    log(f"refining: {done}/{len(todo)} done, {time.time() - started:.0f}s")
     finally:
         cache.close()
+    log_turns("refining", reads.values())
     out = dict(analyses)
     for p, idx in wanted.items():
         read = reads.get(p)
         if not read:
             continue
         a = dict(analyses[p])
-        for key in ("ocr", "ocr_trace", "ocr_ctc", "emb", "hist", "car_colour"):
+        for key in ("ocr", "ocr_trace", "ocr_ctc", "ocr_regions", "emb", "hist", "car_colour"):
             if key in a and key in read:
                 a[key] = [read[key][i] if i in idx else v for i, v in enumerate(a[key])]
         a["hires"] = [i in idx for i in range(len(a["boxes"]))]
@@ -1009,7 +1100,7 @@ def archive_run(files: list, archive_dir: str, keep: int):
 
 
 def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entries: dict, counts: dict,
-                sponsor_keywords: tuple = ()) -> dict:
+                sponsor_keywords: tuple = (), min_read: float = Rules.min_read) -> dict:
     """The run's per-vehicle record (see the README for the shape). `skipped` lists images
     left alone because they already carry one entry's full tag set; each image's `status` is
     ok, no_vehicle or error. `entries` and `thresholds` give the debug report what it needs."""
@@ -1032,15 +1123,24 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
                           "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict", "order_flag": r.order_flag,
                           "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "overlap": b.get("overlap", ""), "hires": b.get("hires", False), "masked": b.get("masked", False), "rescued": b.get("rescued", {}),
-                          "colour": r.colour, "colour_shares": b.get("colour_shares", {}), "list_read": r.list_read})
+                          "colour": r.colour, "colour_shares": b.get("colour_shares", {}), "list_read": r.list_read,
+                          "read_entry": b.get("read_entry", "")})
+            if "ocr_regions" in b:
+                boxes[-1].update(ocr_regions=b["ocr_regions"], ocr_ctc=b["ocr_ctc"],
+                                 sims=[[e, s] for e, s in b["all_sims"]])
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
-                            "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes}
+                            "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes,
+                            "hand": d.get("hand", ""), "tagged": d.get("tagged", "")}
     return {"collection": collection,
             "thresholds": {"min_sim": MATCH_MIN_SIM, "min_margin": MATCH_MIN_MARGIN,
-                           "reference_margin": REFERENCE_MIN_MARGIN},
+                           "reference_margin": REFERENCE_MIN_MARGIN,
+                           # the number path's knobs, which eval_numbers.py replays and overrides
+                           "ocr_min_score": OCR_MIN_SCORE, "number_min_height": NUMBER_MIN_HEIGHT,
+                           "min_read": min_read, "weak_read_min": WEAK_READ_MIN,
+                           "number_list_margin": NUMBER_LIST_MARGIN, "number_list_floor": NUMBER_LIST_FLOOR},
             "sponsor_keywords": dict(sponsor_keywords),
             "entries": {e.id: {"team": e.team, "number": e.number, "tags": list(e.tags), "camera": e.camera,
-                                    "refs": counts.get(e.id, 0)}
+                                    "colour": e.colour, "car": e.car, "refs": counts.get(e.id, 0)}
                         for e in entries.values()},
             "images": images, "skipped": skipped}
 
@@ -1066,9 +1166,12 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         trace = a["ocr_trace"][i]
         prefixes, source = box_hint(tag_hints if len(a["boxes"]) == 1 else [],
                                     sponsor_prefixes(trace, rules.sponsor_keywords))
-        reads = [tuple(c) for c in ocr if c[1] >= rules.min_read]
         ctc = a["ocr_ctc"][i] if "ocr_ctc" in a else None
-        r, hint = hinted_match(i, reads, sims, entries, prefixes, source, ctc)
+        reads = usable_reads([tuple(c) for c in ocr], ctc, rules.min_read)
+        r, hint = hinted_match(i, reads, sims, entries, prefixes, source, ctc, rules.min_read)
+        if r.method == "number" and r.list_read and r.confidence < rules.min_read:
+            r = replace(r, list_read=r.list_read + " (weak read)")
+        read_entry = r.entry_id if r.method == "number" else ""
         r = match_team(r, team_sims, entries)
         pod = a["pod"][i]
         before = r.entry_id
@@ -1092,7 +1195,9 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         boxes_out.append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
                           "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "pod_colour": pod_colour(pod), "hint": hint,
                           "overlap": overlap, "hires": a.get("hires", [])[i:i + 1] == [True], "masked": a.get("masked", [])[i:i + 1] == [True], "rescued": a.get("rescued", {}),
-                          "colour_shares": shares})
+                          "colour_shares": shares, "read_entry": read_entry})
+        if "ocr_regions" in a:
+            boxes_out[-1].update(ocr_regions=a["ocr_regions"][i], ocr_ctc=ctc, all_sims=sims)
         if i == 0:
             box0_sims[image_id] = sims
     return results
@@ -1171,7 +1276,7 @@ def open_index(collection: str, models: dict, rules: Rules, embedder, progress: 
     Re-embedding (new embedder or blur setting) ticks `progress`, so the plugin's stall timer
     doesn't fire, and a cancel stops it; the caller checks cancel_requested afterwards."""
     def on_progress(done, total):
-        write_progress(progress, done, total)
+        write_progress(progress, done, total, "references")
         return not cancel_requested(progress)
 
     if rules.kind == "people":
@@ -1199,7 +1304,9 @@ def identify_people(args, models: dict, entries: dict, rules: Rules, from_entrie
         log("references: " + ", ".join(f"{e} {counts.get(e, 0)}" for e in entries))
     cache = IdentifyCache(args.cache)
     try:
-        analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache, args.progress)
+        with WorkerPool(models) as pool:
+            analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache,
+                                  args.progress, pool)
     finally:
         cache.close()
     if cancel_requested(args.progress):
@@ -1251,6 +1358,8 @@ def identify(args, models: dict):
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     verify = getattr(args, "verify", False)
+    # --verify keeps every OCR region with its drop reason for eval_numbers.py
+    models["ocr_regions"] = verify
     # 5th column: hand-applied team tags (team hints), ";"-joined.
     # --verify checks the tags, so they must not steer the match.
     tag_hints_of = {r[0]: [] if verify else [t for t in r[4].split(";") if t] for r in rows}
@@ -1279,60 +1388,67 @@ def identify(args, models: dict):
     if rules.partial_references and stale_teams:
         log("team references for tags no entry carries under the team root (ignored): " + ", ".join(stale_teams))
 
-    cache = IdentifyCache(args.cache)
-    try:
-        analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache, args.progress)
-    finally:
-        cache.close()
-    if cancel_requested(args.progress):
-        log("cancelled")
-        sys.exit(130)
-    # --verify compares each frame's own reading with its tags: no inference from burst mates
-    if not verify:
-        analyses = rescue_frames(rows, analyses, models, args.progress)
+    with WorkerPool(models) as pool:
+        cache = IdentifyCache(args.cache)
+        try:
+            analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache, args.progress, pool)
+            if cancel_requested(args.progress):
+                log("cancelled")
+                sys.exit(130)
+            # --verify compares each frame's own reading with its tags: no inference from burst mates
+            if not verify:
+                analyses = rescue_frames(rows, analyses, models, cache, pool, args.progress)
+        finally:
+            cache.close()
+        log(index.use_run_centre([decode(e) for a in analyses.values() if a for e in a.get("emb", []) if e]))
 
-    def match_all(analyses: dict, quiet: bool = False) -> tuple:
-        frames, burst_of, box0_sims, detail = {}, {}, {}, {}
-        for image_id, filepath, burst, _protected, _hints, taken, _hand in rows:
-            burst_of[image_id] = burst
-            detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst,
-                                "time": int(taken) if taken.isdigit() else None}
-            if image_id in fully_tagged and not verify:
-                if not quiet:
-                    log(f"{image_id}: already carries all of {already_tagged(protected_of[image_id], entries)}'s tags, skipped")
-                frames[image_id] = [BoxResult(-1, "skipped")]
-                continue
-            a = analyses.get(filepath)
-            if a is None:
-                # an error row: assisted_tagging.lua leaves this image's tags alone
-                frames[image_id] = [BoxResult(-1, "error")]
-                continue
-            if not a["boxes"]:
-                if not quiet:
-                    log(f"{image_id}: {a['note']}")
-                detail[image_id]["note"] = a["note"]
-                frames[image_id] = [BoxResult(-1, "none")]
-                continue
-            detail[image_id]["frame"] = a["frame"]
-            frames[image_id] = match_frame(image_id, a, index, entries, rules, team_of, tag_hints_of[image_id],
-                                           detail[image_id]["boxes"], box0_sims, quiet)
-        return frames, burst_of, box0_sims, detail
+        def match_all(analyses: dict, quiet: bool = False) -> tuple:
+            frames, burst_of, box0_sims, detail = {}, {}, {}, {}
+            for image_id, filepath, burst, _protected, _hints, taken, hand in rows:
+                burst_of[image_id] = burst
+                # hand and tagged are the truth eval_numbers.py scores a --verify run against
+                detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst,
+                                    "time": int(taken) if taken.isdigit() else None,
+                                    "hand": hand if hand in entries else "",
+                                    "tagged": already_tagged(protected_of[image_id], entries)}
+                if image_id in fully_tagged and not verify:
+                    if not quiet:
+                        log(f"{image_id}: already carries all of {already_tagged(protected_of[image_id], entries)}'s tags, skipped")
+                    frames[image_id] = [BoxResult(-1, "skipped")]
+                    continue
+                a = analyses.get(filepath)
+                if a is None:
+                    # an error row: assisted_tagging.lua leaves this image's tags alone
+                    frames[image_id] = [BoxResult(-1, "error")]
+                    continue
+                if not a["boxes"]:
+                    if not quiet:
+                        log(f"{image_id}: {a['note']}")
+                    detail[image_id]["note"] = a["note"]
+                    frames[image_id] = [BoxResult(-1, "none")]
+                    continue
+                detail[image_id]["frame"] = a["frame"]
+                frames[image_id] = match_frame(image_id, a, index, entries, rules, team_of, tag_hints_of[image_id],
+                                               detail[image_id]["boxes"], box0_sims, quiet)
+            return frames, burst_of, box0_sims, detail
 
-    # first pass on the cheap analysis; boxes it can't identify are then re-read at higher detail
-    frames, burst_of, box0_sims, detail = match_all(analyses, quiet=True)
-    wanted = hires_wanted(frames, detail, analyses)
-    if wanted and not cancel_requested(args.progress):
-        analyses = refine_frames(wanted, analyses, models, args.cache, args.progress)
+        # first pass on the cheap analysis; boxes it can't identify are then re-read at higher detail
+        frames, burst_of, box0_sims, detail = match_all(analyses, quiet=True)
+        wanted = hires_wanted(frames, detail, analyses)
+        if wanted and not cancel_requested(args.progress):
+            analyses = refine_frames(wanted, analyses, models, args.cache, pool, args.progress)
     frames, burst_of, box0_sims, detail = match_all(analyses)
     if not verify:
-        weak = {fid: {i: [tuple(c) for c in b["ocr"] if WEAK_READ_MIN <= c[1] < rules.min_read]
+        weak = {fid: {i: [tuple(c) for c in b["ocr"] if c[1] >= WEAK_READ_MIN]
                       for i, b in enumerate(d["boxes"]) if b["overlap"] != HIDDEN}
                 for fid, d in detail.items()}
-        agreed = agreeing_reads(frames, burst_of, weak, entries)
+        ctc_of = {fid: dict(enumerate(analyses.get(d["file"], {}).get("ocr_ctc", []))) for fid, d in detail.items()}
+        agreed = agreeing_reads(frames, burst_of, weak, entries, ctc_of)
         for fid, rs in agreed.items():
             for a, b in zip(rs, frames[fid]):
                 if a.method != b.method:
-                    log(f"{fid}: box {a.box}: number {a.entry_id} (weak read {a.confidence:.2f}, agreed across the group)")
+                    how = f"list {a.list_read}" if a.list_read else "agreed across the group"
+                    log(f"{fid}: box {a.box}: number {a.entry_id} (weak read {a.confidence:.2f}, {how})")
         frames = agreed
     if rules.burst_livery_pooling and not verify:
         frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
@@ -1396,7 +1512,8 @@ def identify(args, models: dict):
 
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:
-        write_run_outputs(args, build_boxes(args.collection, frames, shots, detail, entries, counts, rules.sponsor_keywords))
+        write_run_outputs(args, build_boxes(args.collection, frames, shots, detail, entries, counts, rules.sponsor_keywords,
+                                            rules.min_read))
     write_collection_outputs(args, collection, entries, rules, from_entries)
     log("vehicles by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 

@@ -108,12 +108,20 @@ def decide_colour(shares: dict) -> str:
     return ranked[0][1]
 
 
+NEAR_COLOURS = (("White", "Grey"), ("Grey", "Black"))  # shade and silver blur these; neither agrees nor differs
+
+
 def colour_relation(entry_colour: str, seen: str) -> int:
-    """1 when the entry's colour and the seen colour agree, -1 when they differ, 0 when either is empty.
-    MULTI agrees only with MULTI."""
+    """1 when the entry's colour and the seen colour agree, -1 when they differ, 0 when either is empty
+    or the two are too close to call: MULTI against a single colour (a multicoloured car often reads as
+    its main colour, and the other way round) or a NEAR_COLOURS pair."""
     if not entry_colour or not seen:
         return 0
-    return 1 if entry_colour == seen else -1
+    if entry_colour == seen:
+        return 1
+    if MULTI in (entry_colour, seen) or (entry_colour, seen) in NEAR_COLOURS or (seen, entry_colour) in NEAR_COLOURS:
+        return 0
+    return -1
 
 
 def palette_digest(palette) -> str:

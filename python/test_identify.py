@@ -359,13 +359,19 @@ def run_tests():
     FP._FINGERPRINT = ""
     check("restoring the constant restores the fingerprint", FP.analysis_fingerprint(), fp)
     check("the cache key is stable", I.frame_key(frame, models), key)
+    saved = V.HIRES_MIN_GAIN
+    V.HIRES_MIN_GAIN = saved + 0.1
+    FP._FINGERPRINT = ""
+    check("changing HIRES_MIN_GAIN changes the cache key", I.frame_key(frame, models) != key, True)
+    V.HIRES_MIN_GAIN = saved
+    FP._FINGERPRINT = ""
     models["car_colour"] = None
     check("no colour tags leaves the cache key as it was", I.frame_key(frame, models),
           [VD.file_key(frame), VD.file_key(models["detector"]), I.ocr_key(models["ocr_det"], models["ocr_rec"]),
            I.embedder_key(models["embedder"]), fp, "ocr-trace-2", "read-conf-1", "ctc-1", "pod-2", "cand-1", "overlap-2"])
     models["car_colour"] = C.PALETTE
     colour_key = I.frame_key(frame, models)
-    check("colour tags add the palette to the cache key", colour_key[-2:], ["car-colour-1", C.palette_digest(C.PALETTE)])
+    check("colour tags add the palette to the cache key", colour_key[-2:], ["car-colour-2", C.palette_digest(C.PALETTE)])
     models["car_colour"] = (("Crimson", C.PALETTE[0][1]),) + tuple(C.PALETTE[1:])
     check("renaming a palette colour changes the cache key", I.frame_key(frame, models) != colour_key, True)
     models["car_colour"] = None
@@ -384,6 +390,109 @@ def run_tests():
           ("m/siglip2_base_vision.onnx", "m/siglip2_base_text.onnx", "m/siglip2_base_tokenizer.json"))
     check("custom palette names are the colour prompts", S.colour_prompts((("Teal", ()),)),
           {"Teal": "a photo of a teal rally car.", C.MULTI: S.MULTI_PROMPT})
+
+    # ---- a masked crop's GREY fill never reads as the car's colour (HSV, histogram, SigLIP 2)
+    from colour import colour_hist
+    from segment import GREY
+    half = np.full((40, 40, 3), GREY, dtype=np.uint8)
+    half[:, :20] = (200, 20, 20)
+    red = np.full((40, 40, 3), (200, 20, 20), dtype=np.uint8)
+    old_siglip = I._W.get("siglip")
+    I._W["siglip"] = None
+    shares = I.colour_read(half, C.PALETTE, masked=True)
+    check("a half-GREY masked crop of a red car reads Red", max(shares, key=shares.get), "Red")
+    check("the masked histogram matches the plain red crop's",
+          bool(np.allclose(colour_hist(half, masked=True), colour_hist(red))), True)
+
+    class FillSigLIP:
+        """Records the crop it embeds."""
+        def embed_image(self, crop):
+            self.seen = crop
+            return None
+
+        def colour_scores(self, vec, palette):
+            return {}
+
+    I._W["siglip"] = fake = FillSigLIP()
+    I.colour_read(half, C.PALETTE, masked=True)
+    check("SigLIP 2 sees the GREY fill painted the kept colour", bool((fake.seen == red).all()), True)
+    check("the caller's crop is left as it was", int((half == GREY).all(axis=2).sum()), 40 * 20)
+    I._W["siglip"] = old_siglip
+
+    # ---- the hires re-read takes the preview size from the analysis and reads only the wanted boxes
+    class CountingReader:
+        """Counts crops read; every read is empty."""
+        last_trace, last_ctc, calls = [], [], 0
+
+        def read(self, crop):
+            self.calls += 1
+            return []
+
+    class OneEmbedder:
+        def embed(self, crop):
+            return np.ones(4, dtype=np.float32)
+
+    saved_w, real_hires = dict(I._W), I.load_hires
+    I._W.clear()
+    I._W.update(reader=CountingReader(), embedder=OneEmbedder(), models={"kind": "motorsport"})
+    I.load_hires = lambda path: np.zeros((200, 300, 3), dtype=np.uint8)
+    two = [[0, 0, 40, 40, 0.9, 2], [60, 0, 100, 40, 0.9, 2]]
+    read = I.hires_frame(("/x/1.cr3", two, [100, 66], [1]))
+    check("the hires re-read reads only the wanted box", (I._W["reader"].calls, read["ocr"][0], read["ocr"][1]),
+          (1, None, []))
+    check("the hires re-read keeps the per-box list shape", (len(read["emb"]), read["pod"]), (2, [None, None]))
+    check("a decode not wide enough over the analysis frame isn't re-read",
+          I.hires_frame(("/x/1.cr3", two, [250, 166], [1])), {})
+    check("the wanted boxes join the hires key", I.hires_key(two, [1]) != I.hires_key(two, [0, 1]), True)
+    I.load_hires = real_hires
+    I._W.clear()
+    I._W.update(saved_w)
+
+    # ---- rescue reads are cached: an unchanged re-run decodes nothing, a new mate re-runs
+    class CountingPool:
+        """Stands in for WorkerPool: map runs inline and counts the jobs."""
+        jobs = 0
+
+        def get(self):
+            return self
+
+        def map(self, fn, jobs):
+            self.jobs += len(jobs)
+            return [fn(j) for j in jobs]
+
+    real_rescue = (I.plan_burst, I.rescue_frame, I.frame_key, I.file_key)
+    mate = {"/x/2.jpg": "/x/1.jpg"}
+    I.plan_burst = lambda ordered: {"/x/2.jpg": ([1, 2, 3, 4, 0.1, 2], mate["/x/2.jpg"])}
+    I.rescue_frame = lambda job: {"boxes": [job[1]], "rescued": {"from": job[2], "sim": 0.9}}
+    I.frame_key = lambda p, m: [p]
+    I.file_key = lambda p: p
+    rescue_rows = [["1", "/x/1.jpg", "b", "", "", "1", ""], ["2", "/x/2.jpg", "b", "", "", "2", ""],
+                   ["3", "/x/3.jpg", "b", "", "", "3", ""]]
+    rescue_an = {p: {"boxes": [], "emb": [encode(np.ones(4, dtype=np.float32))]} for p in ("/x/1.jpg", "/x/2.jpg", "/x/3.jpg")}
+    rescue_db = os.path.join(tempfile.mkdtemp(), "cache.sqlite")
+    counts = []
+    for new_mate in ("/x/1.jpg", "/x/1.jpg", "/x/3.jpg"):
+        mate["/x/2.jpg"] = new_mate
+        pool, cache = CountingPool(), I.IdentifyCache(rescue_db)
+        got = I.rescue_frames(rescue_rows, rescue_an, {}, cache, pool)
+        cache.close()
+        counts.append((pool.jobs, got["/x/2.jpg"]["rescued"]["from"]))
+    check("rescue: first run decodes, an unchanged re-run reads the cache, a new mate re-runs", counts,
+          [(1, "/x/1.jpg"), (0, "/x/1.jpg"), (1, "/x/3.jpg")])
+    I.plan_burst, I.rescue_frame, I.frame_key, I.file_key = real_rescue
+
+    # ---- cancel stops a worker mid-frame instead of waiting for it
+    import concurrent.futures
+    import time
+    slow = I.WorkerPool({})
+    slow.executor = concurrent.futures.ProcessPoolExecutor(max_workers=1)
+    slow.executor.submit(time.sleep, 0).result()  # the worker is up
+    slow.executor.submit(time.sleep, 30)
+    time.sleep(0.5)
+    started = time.time()
+    with slow:
+        slow.cancel()
+    check("cancel ends a run with a 30 s frame in flight in under 2 s", time.time() - started < 2, True)
 
     # ---- the box check: non-car boxes are dropped and counted; no SigLIP keeps every box
     class FakeSigLIP:
@@ -546,8 +655,8 @@ def run_tests():
 
     real = (I.check_models, I.Embedder, I.run_frames, I.refine_frames)
     I.check_models, I.Embedder = (lambda m, siglip=True: FakeEmbedder("fake")), FakeEmbedder
-    I.run_frames = lambda paths, models, cache, progress: stub
-    I.refine_frames = lambda wanted, analyses, models, cache, progress="": analyses  # the re-read needs real files
+    I.run_frames = lambda paths, models, cache, progress, pool: stub
+    I.refine_frames = lambda wanted, analyses, models, cache, pool, progress="": analyses  # the re-read needs real files
     results = os.path.join(img, "results.csv")
     args = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "progress.txt"), cache="",
                      collections_root=root, collection=os.path.basename(coll), settings="", entries_out=os.path.join(img, "e.csv"),
@@ -828,6 +937,15 @@ def run_tests():
     check("a non-boolean partial_references in entries.json logs and keeps the default",
           (pr_rules.partial_references, "entries.json: rules.partial_references invalid, using False" in lines),
           (False, True))
+
+    # ticket 60: the progress line names its stage and how many were cached
+    prog = os.path.join(tempfile.mkdtemp(), "progress.txt")
+    I.write_progress(prog, 12, 40, "analysing", 10)
+    with open(prog, encoding="utf-8") as pf:
+        check("a staged progress line is stage,cur,tot,cached", pf.read(), "analysing,12,40,10")
+    I.write_progress(prog, 3, 9)
+    with open(prog, encoding="utf-8") as pf:
+        check("a progress line with no stage stays cur,tot", pf.read(), "3,9")
 
     print("")
     if failures == 0:

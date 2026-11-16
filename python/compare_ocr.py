@@ -14,7 +14,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from ocr import NumberReader
+from ocr import OCR_CROP_DIM, NumberReader
 from vehicles import crop_box, detect_vehicles
 from vehicle_detect import decode_rgb, detect, load_detector
 
@@ -70,7 +70,7 @@ def main():
             continue
         boxes, _note = detect_vehicles(rgb, detect(rgb, detector))
         for i, box in enumerate(boxes):
-            crop = crop_box(rgb, box)
+            crop = crop_box(rgb, box, OCR_CROP_DIM)
             vehicles += 1
             reads = [r.read(crop) for _n, r in readers]
             for n, rd in zip(names, reads):

@@ -17,8 +17,9 @@ BURST_MAX_RANK = 2  # the burst's entry must be in the box's own top N by simila
 BURST_SIM_SLACK = 0.05  # ...or within this of its top-1
 REFERENCE_MIN_MARGIN = 0.10  # a livery match must lead by this much to be saved as a reference
 
-# a number read under rules.min_read but at least this sure counts when WEAK_AGREE_MIN frames of
-# one group read it (agreeing_reads)
+# a number read under rules.min_read but at least this sure goes through the start-list scoring
+# (usable_reads), and its scores are summed across WEAK_AGREE_MIN or more frames of a group
+# (burst_list_read); without digit matrices, that many frames must read the same number
 WEAK_READ_MIN = 0.7  # the rally's old-reader misreads of a lone letter as 5 sat at about 0.6
 WEAK_AGREE_MIN = 2
 
@@ -90,17 +91,19 @@ class ListRead:
     runner_score: float = -math.inf
     winner: str = ""  # `best` when it clears NUMBER_LIST_FLOOR and NUMBER_LIST_MARGIN, else ""
     confidence: float = 0.0  # the read confidence of the region that gave `best`
+    burst: int = 0  # frames whose scores were summed (burst_list_read); 0 for one box
 
     def text(self) -> str:
-        """`1>14 -0.40, 44 -6.10`, then ` close call` or ` no list read` when nothing won."""
+        """`1>14 -0.40, 44 -6.10`, then ` close call` or ` no list read` when nothing won, then
+        ` (burst of 3)` for a burst total."""
         if not self.best:
             return f"{self.greedy}> no list read"
         out = f"{self.greedy}>{self.best} {self.score:.2f}"
         if self.runner:
             out += f", {self.runner} {self.runner_score:.2f}"
-        if self.winner:
-            return out
-        return out + (" no list read" if self.score < -NUMBER_LIST_FLOOR else " close call")
+        if not self.winner:
+            out += " no list read" if self.score < -NUMBER_LIST_FLOOR * max(self.burst, 1) else " close call"
+        return out + (f" (burst of {self.burst})" if self.burst else "")
 
 
 def by_car(sims: list, entries: dict) -> list:
@@ -218,10 +221,17 @@ def ctc_log_likelihood(matrix: list, number: str) -> float:
     return _logadd(alpha[-1], alpha[-2])
 
 
-def list_read(ocr: list, ctc, entries: dict):
-    """ocr scored against the start list: each entry number's ctc_log_likelihood under each read's
-    matrix (`ctc`: {digits: digit matrix}) minus the read's own, best over the reads. None when there
-    are no reads or a read has no matrix (an analysis cached before matrices were kept)."""
+def usable_reads(ocr: list, ctc, min_read: float) -> list:
+    """The reads matching may use: those at min_read or more, plus those at WEAK_READ_MIN or more
+    that have a digit matrix, since list_read holds a weak read to the same bar as a sure one."""
+    return [(d, c) for d, c in ocr if c >= min_read or (c >= WEAK_READ_MIN and ctc is not None and d in ctc)]
+
+
+def list_scores(ocr: list, ctc, entries: dict):
+    """({number: score}, {number: confidence}): each start-list number's ctc_log_likelihood under
+    each read's matrix (`ctc`: {digits: digit matrix}) minus the read's own, best over the reads,
+    with that read's confidence. None when there are no reads or a read has no matrix (an analysis
+    cached before matrices were kept)."""
     if not ocr or ctc is None or any(d not in ctc for d, _ in ocr):
         return None
     numbers = sorted({e.number for e in entries.values() if e.number.isascii() and e.number.isdigit()})
@@ -234,8 +244,18 @@ def list_read(ocr: list, ctc, entries: dict):
             s = ctc_log_likelihood(ctc[d], n) - base
             if s > scores.get(n, -math.inf):
                 scores[n], conf_of[n] = s, conf
+    return {n: s for n, s in scores.items() if s > -math.inf}, conf_of
+
+
+def list_read(ocr: list, ctc, entries: dict):
+    """ocr scored against the start list (list_scores): the best number wins when it clears
+    NUMBER_LIST_FLOOR and leads the runner-up by NUMBER_LIST_MARGIN. None as list_scores."""
+    scored = list_scores(ocr, ctc, entries)
+    if scored is None:
+        return None
+    scores, conf_of = scored
     greedy = "/".join(d for d, _ in ocr)
-    ranked = sorted(((n, s) for n, s in scores.items() if s > -math.inf), key=lambda kv: kv[1], reverse=True)
+    ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
     if not ranked:
         return ListRead(greedy)
     (best, score), (runner, runner_score) = ranked[0], ranked[1] if len(ranked) > 1 else ("", -math.inf)
@@ -274,13 +294,62 @@ def match_box(box: int, ocr: list, sims: list, entries: dict, ctc=None) -> BoxRe
     return match_livery(box, sims, entries, unmatched)
 
 
-def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict) -> dict:
+def burst_list_read(ids: list, frames: dict, weak: dict, ctc: dict, entries: dict):
+    """(ListRead, {frame: (box, confidence)}) from summing list_scores across the group `ids`'
+    unidentified boxes: each frame gives each number its best box's score, a number counts only when
+    every scoring frame scored it, and the best total wins when it leads the runner-up's by
+    NUMBER_LIST_MARGIN and averages at least -NUMBER_LIST_FLOOR per frame. A number whose entry's
+    colour disagrees with a box's can't win, but still ranks. The map gives each frame's box for the
+    winner. None when fewer than WEAK_AGREE_MIN frames have a box with every read's matrix."""
+    by_number: dict = {}
+    for e in entries.values():
+        if e.number:
+            by_number.setdefault(e.number, []).append(e.id)
+    per_frame, reads_seen, clashes = {}, [], set()
+    for fid in ids:
+        for r in frames[fid]:
+            if r.method != "none" or r.box < 0:
+                continue
+            reads = weak.get(fid, {}).get(r.box, [])
+            scored = list_scores(reads, ctc.get(fid, {}).get(r.box), entries)
+            if not scored:
+                continue
+            scores, conf_of = scored
+            best = per_frame.setdefault(fid, {})
+            reads_seen += [d for d, _ in reads]
+            for n, s in scores.items():
+                eids = by_number.get(n, [])
+                if len(eids) == 1 and colour_relation(entries[eids[0]].colour, r.colour) == -1:
+                    clashes.add(n)
+                if s > best.get(n, (-math.inf,))[0]:
+                    best[n] = (s, r.box, conf_of[n])
+    per_frame = {fid: best for fid, best in per_frame.items() if best}
+    if len(per_frame) < WEAK_AGREE_MIN:
+        return None
+    totals = {n: sum(best[n][0] for best in per_frame.values())
+              for n in set.intersection(*(set(best) for best in per_frame.values()))}
+    greedy = "/".join(dict.fromkeys(reads_seen))
+    ranked = sorted(totals.items(), key=lambda kv: kv[1], reverse=True)
+    if not ranked:
+        return ListRead(greedy, burst=len(per_frame)), {}
+    (top, total), (runner, runner_total) = ranked[0], ranked[1] if len(ranked) > 1 else ("", -math.inf)
+    wins = (total >= -NUMBER_LIST_FLOOR * len(per_frame) and total - runner_total >= NUMBER_LIST_MARGIN
+            and top not in clashes)
+    boxes = {fid: best[top][1:] for fid, best in per_frame.items()}
+    conf = max(c for _, c in boxes.values())
+    return ListRead(greedy, top, total, runner, runner_total, top if wins else "", conf, len(per_frame)), boxes
+
+
+def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict, ctc: dict = None) -> dict:
     """`frames` with weak number reads promoted where a group agrees on them. `weak` is
-    {frame_id: {box: [(digits, confidence)]}}, the reads under rules.min_read. In a group, an entry
-    whose number (held by no other entry) is read at WEAK_READ_MIN or more on unidentified boxes of
-    WEAK_AGREE_MIN or more frames becomes `number` on those boxes, when it is the only entry so
-    agreed and no number, livery or neighbour result in the group names another entry. A read naming
-    an entry whose colour disagrees with the box's isn't counted."""
+    {frame_id: {box: [(digits, confidence)]}}, the reads at WEAK_READ_MIN or more; `ctc` is
+    {frame_id: {box: {digits: digit matrix}}}. A group whose unidentified boxes carry matrices in
+    WEAK_AGREE_MIN or more frames is decided by burst_list_read: its winner becomes `number` on each
+    frame's box, `list_read` giving the burst total. Otherwise, an entry whose number (held by no
+    other entry) is read on unidentified boxes of WEAK_AGREE_MIN or more frames becomes `number`
+    on those boxes, when it is the only entry so agreed. Either way, nothing changes when a number,
+    livery or neighbour result in the group names another entry. A read naming an entry whose
+    colour disagrees with the box's isn't counted."""
     by_number: dict = {}
     for e in entries.values():
         if e.number:
@@ -290,6 +359,17 @@ def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict) -> d
         groups.setdefault(burst_of.get(fid, fid), []).append(fid)
     out = dict(frames)
     for ids in groups.values():
+        fused = burst_list_read(ids, frames, weak, ctc or {}, entries)
+        if fused is not None:
+            listed, boxes = fused
+            eids = by_number.get(listed.winner, []) if listed.winner else []
+            if len(eids) != 1 or any(r.method in BURST_ANCHORS and r.entry_id != eids[0] for fid in ids for r in frames[fid]):
+                continue
+            for fid, (box, conf) in boxes.items():
+                out[fid] = [replace(r, method="number", entry_id=eids[0], alt_entry_id="", confidence=conf,
+                                    unmatched_number="", list_read=listed.text())
+                            if r.box == box else r for r in frames[fid]]
+            continue
         hits: dict = {}  # entry -> {frame: (box, confidence)}, the surest box per frame
         for fid in ids:
             for r in frames[fid]:
@@ -337,10 +417,12 @@ def most_specific(prefixes: list) -> list:
     return [p for p in dict.fromkeys(prefixes) if not any(q.startswith(p + "|") for q in prefixes)]
 
 
-def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list, source: str, ctc=None) -> tuple:
+def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list, source: str, ctc=None,
+                 min_read: float = 0.0) -> tuple:
     """(BoxResult, hint) matching only the entries under `prefixes`. The restriction is a soft
     prior: it is dropped (the full set is matched) when it holds no entries, every restricted
-    similarity is under MATCH_MIN_SIM, or OCR read a number that belongs to an entry outside it.
+    similarity is under MATCH_MIN_SIM, or OCR read a number at `min_read` or more that belongs to an
+    entry outside it (a weak read can't drop it).
     The exception is a weak livery under a user-applied tag (`source` "tag") whose entries all share
     one team: that gives a `team` result instead, since the user already said which team.
     `hint` is {} without prefixes, else {prefixes, source, restricted, dropped, reason}. `ctc` goes to match_box."""
@@ -353,7 +435,7 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
     if not inside:
         reason = "no_entries"
     else:
-        digits = {d for d, _ in ocr}
+        digits = {d for d, c in ocr if c >= min_read}
         outside = [eid for eid, e in entries.items() if e.number and e.number in digits and eid not in inside]
         if outside and source == "tag":
             # The user tagged this photo to the set; a number outside it only wins when the livery
@@ -537,29 +619,31 @@ def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, bo
 
 
 def _split_burst(ids: list, frames: dict) -> list:
-    """Fill spans for a burst that names several entries: [(entry id, [frame ids to fill from])]. `ids` is
-    in shooting order. An anchor is a frame whose box 0 was identified; a run of anchors with one entry
-    (at least BURST_MIN_AGREE) fills the frames between its first and last anchor, plus the unidentified
-    frames reaching the burst's edge on its side. Frames between two runs of different entries could
-    belong to either car and stay unfilled."""
+    """Fill spans for a burst that names several entries: [(entry id, [frame ids to fill from], anchor
+    count, solo)]. `ids` is in shooting order. An anchor is a frame with an _anchor_rows result; a run of
+    anchors with one entry (at least BURST_MIN_AGREE, or one _solo anchor) fills the frames between its
+    first and last anchor, plus the unidentified frames reaching the burst's edge on its side. Frames
+    between two runs of different entries could belong to either car and stay unfilled."""
     anchors = []
     for pos, fid in enumerate(ids):
-        ident = [r.entry_id for r in frames[fid] if r.box == 0 and r.method in BURST_ANCHORS]
-        if ident:
-            anchors.append((pos, ident[0]))
+        rows = _anchor_rows(frames[fid])
+        if rows:
+            anchors.append((pos, rows[0]))
     runs: list = []
-    for pos, eid in anchors:
-        if runs and runs[-1][0] == eid:
+    for pos, row in anchors:
+        if runs and runs[-1][0] == row.entry_id:
             runs[-1][1].append(pos)
+            runs[-1][2].append(row)
         else:
-            runs.append((eid, [pos]))
+            runs.append((row.entry_id, [pos], [row]))
     spans = []
-    for n, (eid, positions) in enumerate(runs):
-        if len(positions) < BURST_MIN_AGREE:
+    for n, (eid, positions, rows) in enumerate(runs):
+        solo = any(_solo(r) for r in rows)
+        if len(positions) < BURST_MIN_AGREE and not solo:
             continue
         lo = 0 if n == 0 else positions[0]
         hi = len(ids) - 1 if n == len(runs) - 1 else positions[-1]
-        spans.append((eid, ids[lo:hi + 1], len(positions)))
+        spans.append((eid, ids[lo:hi + 1], len(positions), solo))
     return spans
 
 
@@ -567,7 +651,7 @@ def _smooth_spikes(ids: list, frames: dict) -> dict:
     """`frames` with each isolated `livery` anchor set to the entry its neighbouring anchors agree on:
     a livery call is weaker than a number, and one flanked on both sides by the same other car is
     a misread of that car, not a car passing for one frame."""
-    anchors = [(fid, [r for r in frames[fid] if r.box == 0 and r.method in BURST_ANCHORS]) for fid in ids]
+    anchors = [(fid, _anchor_rows(frames[fid])) for fid in ids]
     anchors = [(fid, rs[0]) for fid, rs in anchors if rs]
     out = dict(frames)
     for n in range(1, len(anchors) - 1):
@@ -596,23 +680,34 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
     for ids in members.values():
         agree: dict = {}
         for fid in ids:
-            for eid in {r.entry_id for r in frames[fid] if r.method in BURST_ANCHORS}:
+            for eid in {r.entry_id for r in _anchor_rows(frames[fid])}:
                 agree[eid] = agree.get(eid, 0) + 1
         if len(agree) > 1:
             ordered = sorted(ids, key=order.__getitem__) if order else ids
             smoothed = _smooth_spikes(ordered, frames)
             out.update({fid: smoothed[fid] for fid in ids})
-            for eid, span, n in _split_burst(ordered, smoothed):
+            for eid, span, n, solo in _split_burst(ordered, smoothed):
                 for fid in span:
-                    out[fid] = _burst_fill(smoothed, fid, eid, n / len(span), entries, box0_sims)
+                    out[fid] = _burst_fill(smoothed, fid, eid, n / len(span), entries, box0_sims, solo)
             continue
         if len(agree) != 1:
             continue
         (eid, n), = agree.items()
-        solo = any(r.entry_id == eid and (r.method == HAND or r.method == "number" and r.confidence >= SOLO_ANCHOR_CONF)
-                   for fid in ids for r in frames[fid])
+        solo = any(r.entry_id == eid and _solo(r) for fid in ids for r in _anchor_rows(frames[fid]))
         if n < BURST_MIN_AGREE and not solo:
             continue
         for fid in ids:
             out[fid] = _burst_fill(frames, fid, eid, n / len(ids), entries, box0_sims, solo)
     return out
+
+
+def _anchor_rows(rows: list) -> list:
+    """The results in `rows` that can anchor a burst fill: identified on box 0, the frame's main car,
+    or on the frame as a whole (box -1, a hand tag). A car seen only on box 1 is another car in a pack
+    and never names the burst."""
+    return [r for r in rows if r.box <= 0 and r.method in BURST_ANCHORS]
+
+
+def _solo(row) -> bool:
+    """Whether one anchor is enough to fill its burst: a hand tag or a number read at SOLO_ANCHOR_CONF."""
+    return row.method == HAND or row.method == "number" and row.confidence >= SOLO_ANCHOR_CONF

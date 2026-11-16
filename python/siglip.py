@@ -61,8 +61,10 @@ class SigLIP:
         for path in (text, tokenizer):
             if not os.path.isfile(path):
                 raise FileNotFoundError(f"{os.path.basename(path)} must sit beside {os.path.basename(vision)}")
-        self.vision = ort.InferenceSession(vision)
-        self.text = ort.InferenceSession(text)
+        opts = ort.SessionOptions()
+        opts.intra_op_num_threads = 1  # the worker pool supplies the parallelism
+        self.vision = ort.InferenceSession(vision, opts, providers=["CPUExecutionProvider"])
+        self.text = ort.InferenceSession(text, opts, providers=["CPUExecutionProvider"])
         self.tok = Tokenizer.from_file(tokenizer)
         self.pad = self.tok.token_to_id("<pad>")
         self.eos = self.tok.token_to_id("<eos>")

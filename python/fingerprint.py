@@ -25,10 +25,12 @@ import vehicles
 
 # module -> constants whose value changes a cached box, read, embedding, histogram or mask
 CACHE_INPUTS = {
-    vehicles: ("MIN_BOX_FRAC", "MAX_BOXES", "CROP_DIM", "BOX_MARGIN_TRIM", "DETECTOR_MIN_SCORE", "MAX_CANDIDATES"),
+    vehicles: ("MIN_BOX_FRAC", "MAX_BOXES", "CROP_DIM", "BOX_MARGIN_TRIM", "DETECTOR_MIN_SCORE", "MAX_CANDIDATES",
+               "HIRES_MIN_GAIN", "HIRES_ASPECT_TOL"),
     vehicle_detect: ("DETECTOR_INPUT", "DETECTOR_STRIDES", "DETECTOR_NMS", "CANDIDATE_MIN_SCORE", "DETECT_VERSION"),
-    ocr: ("OCR_MIN_SCORE", "NUMBER_MIN_HEIGHT", "DET_INPUT", "DET_MEAN", "REC_INPUT", "REC_CHARSET",
-          "PADDLE_REC_HEIGHT", "PADDLE_REC_MIN_WIDTH", "_DIGIT_LOOKALIKES", "CTC_TRIM_BLANK"),
+    ocr: ("OCR_MIN_SCORE", "NUMBER_MIN_HEIGHT", "DET_INPUT", "OCR_CROP_DIM", "TURN_RETRY_BELOW", "TALL_QUAD", "DET_MEAN", "REC_INPUT", "REC_CHARSET",
+          "PADDLE_REC_HEIGHT", "PADDLE_REC_MIN_WIDTH", "_DIGIT_LOOKALIKES", "_MATRIX_LOOKALIKES", "NUMBER_MAX_DIGITS",
+          "_TOKEN_BREAK", "CTC_TRIM_BLANK"),
     embed: ("EMBED_INPUT", "_MEAN", "_STD"),
     segment: ("SEGMENT_INPUT", "MAX_POINTS", "REGION_PAD", "MASK_MIN_SHARE", "GREY", "_INPUTS", "_OUTPUTS"),
     overlap: ("OVERLAP_MIN", "CONTAINED_MIN", "VISIBLE_MIN", "LEVEL_TOL"),
@@ -44,14 +46,14 @@ CACHE_NEUTRAL = {
     vehicles: (),  # RAW_EXTENSIONS is common.py's, not filed here
     # FAMILIES holds lambdas (unstable repr); its class sets are in vehicle_detect.detection_fingerprint()
     vehicle_detect: ("CACHE_MAX_AGE_DAYS", "FAST_JPEG_DIM", "COCO_NAMES", "_RAW_FLIP_TURNS", "FAMILIES"),
-    ocr: ("REC_TARGET", "DIGIT_COLUMNS"),
+    ocr: ("DIGIT_COLUMNS",),
     embed: ("DEGRADE_FACTOR",),
     segment: ("SEGMENTER_FILE", "SEGMENT_CACHE_TOKEN"),
     overlap: (),
     pod: (),
     colour: (),
     car_colour: ("PALETTE", "MULTI", "COLOUR_NAMES", "ACHROMATIC", "ACHROMATIC_WEIGHT", "MULTI_RATIO",
-                 "_SAT", "_VAL", "SIGLIP_MIN_SCORE", "SIGLIP_MIN_GAP"),
+                 "_SAT", "_VAL", "SIGLIP_MIN_SCORE", "SIGLIP_MIN_GAP", "NEAR_COLOURS"),
     people: (),
     siglip: ("TEXT_LEN", "IMAGE_SIZE", "SCALE", "SIGLIP_CACHE_TOKEN", "CAR", "CAR_PROMPTS", "MULTI_PROMPT",
              "VEHICLES"),  # siglip_key
@@ -72,7 +74,8 @@ def _jsonable(v):
 
 
 def analysis_fingerprint() -> str:
-    """12 hex chars over CACHE_INPUTS' values and the versions of OpenCV, Pillow, rawpy and numpy."""
+    """12 hex chars over CACHE_INPUTS' values and the versions of OpenCV, Pillow, rawpy, numpy and
+    onnxruntime (the recogniser, DINOv2 and SigLIP 2 run on it)."""
     global _FINGERPRINT
     if _FINGERPRINT:
         return _FINGERPRINT
@@ -81,8 +84,16 @@ def analysis_fingerprint() -> str:
         rawpy_version = getattr(rawpy, "__version__", "?")
     except ImportError:
         rawpy_version = "none"
+    from importlib import metadata
+    ort_version = "none"
+    for dist in ("onnxruntime", "onnxruntime-directml", "onnxruntime-gpu"):  # read without importing it
+        try:
+            ort_version = metadata.version(dist)
+            break
+        except metadata.PackageNotFoundError:
+            pass
     bits = {m.__name__: {n: _jsonable(getattr(m, n)) for n in names} for m, names in CACHE_INPUTS.items()}
-    bits["versions"] = [cv2.__version__, PIL.__version__, rawpy_version, np.__version__]
+    bits["versions"] = [cv2.__version__, PIL.__version__, rawpy_version, np.__version__, ort_version]
     bits["detection"] = vehicle_detect.detection_fingerprint()
     _FINGERPRINT = hashlib.sha1(json.dumps(bits, sort_keys=True, default=str).encode()).hexdigest()[:12]
     return _FINGERPRINT

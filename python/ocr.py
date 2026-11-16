@@ -4,6 +4,8 @@ en_PP-OCRv5_mobile_rec) when its inference.yml sits beside the model as <model n
 
 import math
 import os
+import re
+import string
 
 import numpy as np
 import cv2
@@ -18,26 +20,42 @@ OCR_MIN_SCORE = 0.80
 NUMBER_MIN_HEIGHT = 0.07
 
 DET_INPUT = 736  # PP-OCRv3 DB takes sides that are multiples of 32
+# the long-side cap of the crop the reader gets: text is found on its DET_INPUT letterbox, then
+# each quad is read from this crop, so a small number keeps the pixels the letterbox threw away
+OCR_CROP_DIM = 1600
+# a region read less surely than this is read again turned 180° (Rules.min_read's default; the
+# reads are cached before matching, so a preset's min_read can't steer them)
+TURN_RETRY_BELOW = 0.85
+TALL_QUAD = 1.5  # ...and a quad at least this many times taller than wide, 90° both ways too
 DET_MEAN = (122.67891434, 116.66876762, 104.00698793)
 REC_INPUT = (100, 32)
 REC_CHARSET = "0123456789abcdefghijklmnopqrstuvwxyz"
-# CRNN wants the quad's corners bottom-left, top-left, top-right, bottom-right, which is the
-# order the DB detector returns them in
-REC_TARGET = np.array([[0, REC_INPUT[1] - 1], [0, 0], [REC_INPUT[0] - 1, 0],
-                       [REC_INPUT[0] - 1, REC_INPUT[1] - 1]], dtype=np.float32)
 PADDLE_REC_HEIGHT = 48  # PaddleOCR rec inference.yml: RecResizeImg image_shape 3 x 48 x 320
 PADDLE_REC_MIN_WIDTH = 320
 # letters the recogniser confuses with digits on a race number
-_DIGIT_LOOKALIKES = str.maketrans({"o": "0", "l": "1", "i": "1"})
+_DIGIT_LOOKALIKES = str.maketrans({"o": "0", "l": "1", "i": "1", "|": "1", "!": "1"})
+# digit_matrix also folds these: list_read weighs them against the start list, while a read's
+# text keeps the letter, so S4 is never tagged 54 unless 54 is on the list
+_MATRIX_LOOKALIKES = str.maketrans({"o": "0", "l": "1", "i": "1", "|": "1", "!": "1",
+                                    "s": "5", "b": "8", "z": "2", "g": "6"})
+NUMBER_MAX_DIGITS = 3  # a longer run (a year, a phone number on a sticker) is not a race number
+# a region's text splits into tokens at spaces and punctuation, except | and ! (look-alikes of 1)
+_TOKEN_BREAK = re.compile("[\\s" + re.escape(string.punctuation.replace("|", "").replace("!", "")) + "]+")
 DIGIT_COLUMNS = 11  # a digit matrix's columns: blank, then 0-9
 CTC_TRIM_BLANK = 0.995  # leading and trailing steps this sure of blank carry no digit evidence
 
 
-def digits_only(text: str):
-    """A 1–3 digit race number from recognised text, or None. ASCII digits only: a larger
-    dictionary also holds superscript and circled digits, which str.isdigit accepts."""
-    t = text.lower().translate(_DIGIT_LOOKALIKES)
-    return t if 1 <= len(t) <= 3 and t.isascii() and t.isdigit() else None
+def digit_runs(text: str) -> list:
+    """The race numbers in recognised text, in order, each once: a token that is all digits once
+    look-alikes are folded counts whole (l4 → 14); in any other token only its ASCII digits count
+    (14A → 14, #7 → 7, RALLYE → none). Runs over NUMBER_MAX_DIGITS (2026) are dropped. Superscript
+    and circled digits are not ASCII, so they never count."""
+    out = []
+    for token in _TOKEN_BREAK.split(text.lower()):
+        folded = token.translate(_DIGIT_LOOKALIKES)
+        runs = [folded] if folded.isascii() and folded.isdigit() else re.findall("[0-9]+", token)
+        out += [r for r in runs if len(r) <= NUMBER_MAX_DIGITS and r not in out]
+    return out
 
 
 def paddle_dict_path(rec_path: str) -> str:
@@ -97,14 +115,14 @@ def _ctc_greedy(out: np.ndarray, charset=REC_CHARSET) -> tuple:
 
 def digit_matrix(out: np.ndarray, charset=REC_CHARSET) -> list:
     """Recogniser output folded to DIGIT_COLUMNS per step, [blank, 0..9], as a list of rows rounded
-    to 4 decimals. A digit's column sums its charset column and its look-alike letters' (o, l, i),
+    to 4 decimals. A digit's column sums its charset column and its look-alikes' (_MATRIX_LOOKALIKES),
     so every reader gives the same shape. Leading and trailing steps with blank above CTC_TRIM_BLANK
     are dropped; an all-blank output gives []."""
     p = _probs(out)
     cols = np.zeros((p.shape[0], DIGIT_COLUMNS))
     cols[:, 0] = p[:, 0]
     for i, ch in enumerate(charset, start=1):
-        d = str(ch).lower().translate(_DIGIT_LOOKALIKES)
+        d = str(ch).lower().translate(_MATRIX_LOOKALIKES)
         if len(d) == 1 and d in "0123456789":
             cols[:, 1 + int(d)] += p[:, i]
     keep = np.nonzero(cols[:, 0] <= CTC_TRIM_BLANK)[0]
@@ -132,19 +150,32 @@ def paddle_rec_input(word_bgr: np.ndarray) -> np.ndarray:
     -1..1, right-padded with 0 to at least PADDLE_REC_MIN_WIDTH; shape 1 × 3 × H × W."""
     h, w = word_bgr.shape[:2]
     rw = max(1, math.ceil(PADDLE_REC_HEIGHT * w / max(h, 1)))
-    img = cv2.resize(word_bgr, (rw, PADDLE_REC_HEIGHT)).astype(np.float32) / 255.0
+    img = _resized(word_bgr, (rw, PADDLE_REC_HEIGHT)).astype(np.float32) / 255.0
     out = np.zeros((3, PADDLE_REC_HEIGHT, max(rw, PADDLE_REC_MIN_WIDTH)), np.float32)
     out[:, :, :rw] = ((img - 0.5) / 0.5).transpose(2, 0, 1)
     return out[np.newaxis]
 
 
+def _resized(img: np.ndarray, size: tuple) -> np.ndarray:
+    """img at size (w, h): area-averaged when shrinking, so a word read from a large crop doesn't alias."""
+    shrink = size[0] * size[1] < img.shape[0] * img.shape[1]
+    return cv2.resize(img, size, interpolation=cv2.INTER_AREA if shrink else cv2.INTER_LINEAR)
+
+
 def quad_word(bgr: np.ndarray, quad: np.ndarray) -> np.ndarray:
     """The quad (bottom-left, top-left, top-right, bottom-right) warped flat at its own size."""
     q = np.asarray(quad, np.float32).reshape(4, 2)
-    w = int(round(max(np.linalg.norm(q[2] - q[1]), np.linalg.norm(q[3] - q[0])))) or 1
-    h = int(round(max(np.linalg.norm(q[0] - q[1]), np.linalg.norm(q[3] - q[2])))) or 1
+    w, h = _quad_size(q)
     target = np.array([[0, h - 1], [0, 0], [w - 1, 0], [w - 1, h - 1]], dtype=np.float32)
     return cv2.warpPerspective(bgr, cv2.getPerspectiveTransform(q, target), (w, h))
+
+
+def _quad_size(q: np.ndarray) -> tuple:
+    """(width, height) in whole pixels, at least 1, of a 4 × 2 quad: its longer top or bottom side, and
+    its longer left or right side."""
+    w = int(round(max(np.linalg.norm(q[2] - q[1]), np.linalg.norm(q[3] - q[0])))) or 1
+    h = int(round(max(np.linalg.norm(q[0] - q[1]), np.linalg.norm(q[3] - q[2])))) or 1
+    return w, h
 
 
 class CrnnRecogniser:
@@ -155,9 +186,7 @@ class CrnnRecogniser:
         self.net = read_onnx(rec_path)
 
     def read_word(self, bgr: np.ndarray, quad) -> tuple:
-        gray = cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY)
-        m = cv2.getPerspectiveTransform(np.asarray(quad, np.float32).reshape(4, 2), REC_TARGET)
-        word = cv2.warpPerspective(gray, m, REC_INPUT)
+        word = _resized(quad_word(cv2.cvtColor(bgr, cv2.COLOR_BGR2GRAY), quad), REC_INPUT)
         self.net.setInput(cv2.dnn.blobFromImage(word, 1 / 127.5, REC_INPUT, 127.5))
         out = self.net.forward()
         return (*_ctc_greedy(out), digit_matrix(out))
@@ -189,10 +218,43 @@ def recogniser(rec_path: str):
     return PaddleRecogniser(rec_path, dict_path) if os.path.isfile(dict_path) else CrnnRecogniser(rec_path)
 
 
+def drop_reason(region: dict, min_score: float = OCR_MIN_SCORE, min_height: float = NUMBER_MIN_HEIGHT) -> str:
+    """Why a text region (NumberReader.last_regions) gives no number: "score" (detection under
+    min_score), "not_digits" (no digit_runs) or "height" (under min_height of the crop), first
+    failing first; "" when it passes."""
+    if region["det"] < min_score:
+        return "score"
+    if not digit_runs(region["text"]):
+        return "not_digits"
+    if region["share"] < min_height:
+        return "height"
+    return ""
+
+
+def pick_reads(regions: list, min_score: float = OCR_MIN_SCORE, min_height: float = NUMBER_MIN_HEIGHT) -> tuple:
+    """([(digits, confidence)] most confident first, {digits: digit matrix}) from text regions
+    (NumberReader.last_regions): each distinct number's best passing region, confidence the lower of
+    detection and read. A region with several digit runs gives each one, all with its whole matrix.
+    Shared by NumberReader.read and eval_numbers' replay, so both decide alike."""
+    best, ctc = {}, {}
+    for region in regions:
+        if drop_reason(region, min_score, min_height):
+            continue
+        both = min(region["det"], region["rec"])
+        for digits in digit_runs(region["text"]):
+            if both > best.get(digits, -1.0):
+                best[digits] = both
+                ctc[digits] = region["matrix"]
+    return sorted(best.items(), key=lambda kv: kv[1], reverse=True), ctc
+
+
 class NumberReader:
-    def __init__(self, det_path: str, rec_path: str):
+    def __init__(self, det_path: str, rec_path: str, keep_regions: bool = False):
         self.last_trace: list = []
         self.last_ctc: dict = {}
+        self.last_turns: dict = {}
+        self.keep_regions = keep_regions  # --verify: last_regions holds every region, for eval_numbers
+        self.last_regions: list = []
         for label, p in (("OCR text detection", det_path), ("OCR text recognition", rec_path)):
             if not os.path.isfile(p):
                 raise FileNotFoundError(f"{label} model not found: {p}")
@@ -208,22 +270,47 @@ class NumberReader:
         """[(digits, confidence)], distinct numbers, most confident first, for text regions detected at
         OCR_MIN_SCORE or above and at least NUMBER_MIN_HEIGHT of the crop's height. Confidence is the
         lower of the detection score and the recogniser's read confidence: a plate can look very like
-        text and still be read unsurely. Also sets `last_trace`: the five most confident detected text
+        text and still be read unsurely. Text is found on the crop's DET_INPUT letterbox and each
+        quad is read from the crop itself (read_turned), so a crop up to OCR_CROP_DIM keeps its detail.
+        Also sets `last_trace`: the five most confident detected text
         regions as [confidence, raw text, height share], accepted or not, so a zero-read crop shows
-        what the reader saw, and `last_ctc`: each returned number's digit_matrix from its best region."""
+        what the reader saw, `last_ctc`: each returned number's digit_matrix from its best region,
+        and `last_turns`: {"90" | "180" | "270": regions whose turned read won}.
+        With keep_regions, `last_regions` holds every detected region as {det, rec, text, share,
+        matrix, dropped} (drop_reason at today's thresholds), else []."""
         h, w = crop_rgb.shape[:2]
-        bgr = cv2.cvtColor(_letterbox(crop_rgb, DET_INPUT), cv2.COLOR_RGB2BGR)
-        quads, confidences = self.det.detect(bgr)
-        best, trace, ctc = {}, [], {}
+        src = cv2.cvtColor(crop_rgb, cv2.COLOR_RGB2BGR)
+        quads, confidences = self.det.detect(cv2.cvtColor(_letterbox(crop_rgb, DET_INPUT), cv2.COLOR_RGB2BGR))
+        back = max(h, w) / DET_INPUT  # letterbox pixels → crop pixels; the letterbox keeps the crop top-left
+        regions, trace, turns = [], [], {}
         for quad, conf in zip(quads, confidences):
-            text, read_conf, matrix = self.rec.read_word(bgr, quad)
-            both = min(float(conf), read_conf)
+            text, read_conf, matrix, turn = read_turned(self.rec.read_word, src, np.asarray(quad, np.float32).reshape(4, 2) * back)
+            if turn:
+                turns[str(turn)] = turns.get(str(turn), 0) + 1
             share = height_share(quad, h, w)
-            trace.append([both, text, round(share, 3)])
-            digits = digits_only(text)
-            if conf >= OCR_MIN_SCORE and digits and share >= NUMBER_MIN_HEIGHT and both > best.get(digits, -1.0):
-                best[digits] = both
-                ctc[digits] = matrix
+            trace.append([min(float(conf), read_conf), text, round(share, 3)])
+            regions.append({"det": float(conf), "rec": float(read_conf), "text": text, "share": float(share), "matrix": matrix})
+        reads, ctc = pick_reads(regions)
         self.last_trace = sorted(trace, reverse=True)[:5]
         self.last_ctc = ctc
-        return sorted(best.items(), key=lambda kv: kv[1], reverse=True)
+        self.last_turns = turns
+        self.last_regions = [dict(r, dropped=drop_reason(r)) for r in regions] if self.keep_regions else []
+        return reads
+
+
+def read_turned(read_word, bgr: np.ndarray, quad) -> tuple:
+    """(text, read confidence, digit matrix, turn) for a quad (bottom-left, top-left, top-right,
+    bottom-right): read as found and, when that read is under TURN_RETRY_BELOW, again turned 180°,
+    and 90° and 270° when the quad is TALL_QUAD or taller. Turning rolls the corner order, so the
+    word warps upright for a number upside down or on its side. The most confident read wins, the
+    one as found on a tie; turn is 0, 90, 180 or 270 (corners rolled 1, 2 or 3 places)."""
+    q = np.asarray(quad, np.float32).reshape(4, 2)
+    best = (*read_word(bgr, q), 0)
+    if best[1] >= TURN_RETRY_BELOW:
+        return best
+    w, h = _quad_size(q)
+    for rolls in ((2, 1, 3) if h >= TALL_QUAD * w else (2,)):
+        read = (*read_word(bgr, np.roll(q, -rolls, axis=0)), 90 * rolls)
+        if read[1] > best[1]:
+            best = read
+    return best

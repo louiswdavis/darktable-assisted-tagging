@@ -184,6 +184,28 @@ def run_tests():
     check("an empty index takes the embedder's size", ReferenceIndex.load(tempfile.mkdtemp(), base, ["K2", False]).emb.shape,
           (0, 768))
 
+    # ticket 58: a small collection centres on its references plus this run's boxes
+    def car(i):
+        v = np.zeros(384, np.float32)
+        v[0], v[i] = 3.0, 1.0  # a large shared component, as the real embedder gives
+        return v / np.linalg.norm(v)
+
+    s = ReferenceIndex.load(tempfile.mkdtemp(), FakeEmbedder(), ["model", 1])
+    for i in range(5):
+        s.add(f"E{i}", str(i), crop(10 + i))
+    s.emb = np.stack([car(i + 1) for i in range(5)])
+    raw = dict(s.best_per_entry(car(1)))
+    check("a small collection with no run centre scores two cars raw", round(raw["E1"], 2), 0.9)
+    check("too few run boxes keeps raw similarity", s.use_run_centre([car(6)] * 3),
+          "livery: raw similarity (5 references and 3 boxes, under 20)")
+    check("raw similarity leaves no centre", s.centre, None)
+    run = [car(i) for i in range(6, 21)]
+    check("enough run boxes centre the collection", s.use_run_centre(run),
+          "livery: centred on 5 references and 15 boxes from this run")
+    centred = dict(s.best_per_entry(car(1)))
+    check("centring drops another car's score well below raw", centred["E1"] < 0.2, True)
+    check("centring keeps the identical car at 1", round(centred["E0"], 5), 1.0)
+
     print("")
     if failures == 0:
         print("all tests passed")

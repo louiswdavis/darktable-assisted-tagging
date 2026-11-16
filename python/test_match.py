@@ -215,6 +215,26 @@ def run_tests():
           [("burst", "VER", ""), ("none", "", "")])
     check("a frame with one identified box isn't filled", summary(out["1"][1]), ("none", "", ""))
 
+    # ticket 65: a pack burst names its car from box 0 or a hand tag, never from box 1
+    def chased(eid):
+        return [BoxResult(0, "none"), BoxResult(1, "number", eid, "", 0.9)]
+
+    hand_pack = {"1": chased("HAM") + [BoxResult(-1, Mt.HAND, "VER", "", 1.0)], "2": chased("HAM"), "3": chased("HAM")}
+    out = Mt.burst_consensus(hand_pack, {k: "b" for k in hand_pack})
+    check("one hand-tagged pack frame fills its car's box 0 across the burst",
+          [[summary(r) for r in out[k]] for k in "23"],
+          [[("burst", "VER", ""), ("number", "HAM", "")]] * 2)
+    behind = {"1": chased("HAM"), "2": chased("HAM"), "3": [BoxResult(0, "none")]}
+    out = Mt.burst_consensus(behind, {k: "b" for k in behind})
+    check("an entry seen only on box 1 never fills box 0", [summary(out[k][0]) for k in "123"],
+          [("none", "", "")] * 3)
+    split_hand = {"1": ident("GAS"), "2": ident("GAS"), "3": gap(),
+                  "4": [BoxResult(0, "none"), BoxResult(1, "none"), BoxResult(-1, Mt.HAND, "COL", "", 1.0)],
+                  "5": gap()}
+    out = Mt.burst_consensus(split_hand, {k: "b" for k in split_hand})
+    check("a split run of one hand-tagged frame fills to the burst's edge", summary(out["5"][0]), ("burst", "COL", ""))
+    check("the gap between the two cars stays unfilled", summary(out["3"][0]), ("none", "", ""))
+
     # review fix 9: a team-only result for another team is evidence of a different car
     other_team = {
         "1": [BoxResult(0, "number", "VER", "", 0.9)],
@@ -443,6 +463,41 @@ def run_tests():
     check("list: no matrix keeps the look-alike fallback", Mt.match_box(0, [("11", 0.9)], [("E14", 0.8)], numbered("14", "77"), None).entry_id, "E14")
     check("list: hinted_match passes the matrix on",
           Mt.hinted_match(0, [("144", 0.9)], [], numbered("14", "44", "22"), [], "", {"144": m144})[0].entry_id, "E14")
+
+    # Weak reads through the start list, and burst totals
+    check("usable: a weak read with a matrix joins the sure ones",
+          Mt.usable_reads([("14", 0.9), ("1", 0.75), ("7", 0.6)], {"1": m1}, 0.85), [("14", 0.9), ("1", 0.75)])
+    check("usable: no matrix keeps only the sure ones", Mt.usable_reads([("14", 0.9), ("1", 0.75)], None, 0.85), [("14", 0.9)])
+    # box a reads 14 (1 at -1.73); box b reads 1 with a faint 4 after it (14 at +0.84): each alone a close call
+    m_a = matrix({"1": .9, "4": .1}, {"4": .85, "-": .15})
+    m_b = matrix({"1": .98, "-": .02}, {"-": .55, "4": .45}, {"-": .55, "4": .45})
+    nums = numbered("1", "14", "44")
+    check("burst: box a alone is no read", Mt.match_box(0, [("14", 0.78)], [], nums, {"14": m_a}).method, "none")
+    check("burst: box b alone is no read", Mt.match_box(0, [("1", 0.8)], [], nums, {"1": m_b}).method, "none")
+    pair = {"a": [BoxResult(0, "none")], "b": [BoxResult(0, "none")]}
+    pair_weak = {"a": {0: [("14", 0.78)]}, "b": {0: [("1", 0.8)]}}
+    pair_ctc = {"a": {0: {"14": m_a}}, "b": {0: {"1": m_b}}}
+    out = Mt.agreeing_reads(pair, {"a": "g", "b": "g"}, pair_weak, nums, pair_ctc)
+    check("burst: the two boxes' totals give 14", [(summary(out[f][0]), out[f][0].confidence) for f in "ab"],
+          [(("number", "E14", ""), 0.78), (("number", "E14", ""), 0.8)])
+    check("burst: list_read gives the totals", out["a"][0].list_read, "14/1>14 0.84, 1 -1.73 (burst of 2)")
+    check("burst: different groups don't sum",
+          summary(Mt.agreeing_reads(pair, {"a": "g", "b": "h"}, pair_weak, nums, pair_ctc)["a"][0]), ("none", "", ""))
+    sure = dict(pair, c=[BoxResult(0, "number", "E1", "", 0.95)])
+    out = Mt.agreeing_reads(sure, {"a": "g", "b": "g", "c": "g"}, pair_weak, nums, pair_ctc)
+    check("burst: a sure read of another number keeps its frame and the group",
+          [summary(out[f][0]) for f in "abc"], [("none", "", ""), ("none", "", ""), ("number", "E1", "")])
+    out = Mt.agreeing_reads(dict(pair, c=[BoxResult(0, "number", "E14", "", 0.95)]), {"a": "g", "b": "g", "c": "g"},
+                            pair_weak, nums, pair_ctc)
+    check("burst: a sure read of the winner leaves the fusion on", summary(out["a"][0]), ("number", "E14", ""))
+    check("burst: one frame with matrices falls back to string agreement",
+          Mt.burst_list_read(["a", "b"], pair, pair_weak, {"a": pair_ctc["a"]}, nums), None)
+    red_nums = {k: replace(e, colour="Red") if k == "E14" else e for k, e in nums.items()}
+    blue = {f: [BoxResult(0, "none", colour="Blue")] for f in "ab"}
+    check("burst: a colour clash drops the number",
+          summary(Mt.agreeing_reads(blue, {"a": "g", "b": "g"}, pair_weak, red_nums, pair_ctc)["a"][0]), ("none", "", ""))
+    check("hinted: a weak read outside the tag set doesn't drop the hint",
+          Mt.hinted_match(0, [("44", 0.75)], [("E14", 0.9)], nums, ["Rally|Number|14"], "sponsor", None, 0.85)[1]["dropped"], False)
 
     if failures == 0:
         print("all tests passed")

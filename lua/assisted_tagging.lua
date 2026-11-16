@@ -133,8 +133,9 @@ function M.near_in_time(selected_times, candidates, max_gap)
 end
 
 -- Shared with the other two plugins (plugin_common.lua); re-exported for the tests.
-M.newest_group_node, M.tag_group_keys, M.native_group_keys, M.number_groups =
-    C.newest_group_node, C.tag_group_keys, C.native_group_keys, C.number_groups
+M.latest_group_tag, M.latest_group_keys, M.group_tags_hint, M.GROUP_TAGS_HINT =
+    C.latest_group_tag, C.latest_group_keys, C.group_tags_hint, C.GROUP_TAGS_HINT
+M.tag_group_keys, M.native_group_keys, M.number_groups = C.tag_group_keys, C.native_group_keys, C.number_groups
 M.shot_stem, M.is_raw, M.csv_line, M.parse_csv_line, M.parse_report_line, M.pythonw_of =
     C.shot_stem, C.is_raw, C.csv_line, C.parse_csv_line, C.parse_csv_fields, C.pythonw_of
 local lead_rank = C.lead_rank
@@ -1675,6 +1676,18 @@ local function fmt_eta(elapsed, done, total)
     return string.format(" | ~%dm %02ds left", remaining // 60, remaining % 60)
 end
 
+-- identify.py's progress line: `stage,cur,tot,cached` ({ stage, cur, tot, cached }), or the
+-- older `cur,tot` (stage nil, cached 0). nil when there is no line yet.
+function M.parse_progress(line)
+    local stage, cur, tot, cached = (line or ""):match("^([%a ]+),(%d+),(%d+),(%d+)")
+    if not stage then
+        cur, tot = (line or ""):match("^(%d+),(%d+)")
+        if not cur then return nil end
+        cached = "0"
+    end
+    return { stage = stage, cur = tonumber(cur), tot = tonumber(tot), cached = tonumber(cached) }
+end
+
 -- Lines wait here while identify.py appends its stderr to the same file:
 -- two processes appending at once can overwrite each other's lines on Windows.
 local log_buffer = {}
@@ -1740,6 +1753,8 @@ local function take_settings()
     local s, why = read_panel()
     if not s then dt.print("Assisted Tagging: " .. why); return false end
     settings = s
+    -- text entries have no change callback, so their edits show as unsaved from the run on
+    if preset_ctl then preset_ctl.check_dirty() end
     return true
 end
 local entries, entry_order, rules = {}, {}, M.default_rules()
@@ -1814,7 +1829,7 @@ local function run_python(args, job, from, to, hint)
         notify_error("Assisted Tagging: couldn't start identify.py: " .. why .. ".")
         return nil, "launch"
     end
-    local start, last_progress, last_change = os.time(), nil, os.time()
+    local start, last_progress, last_change, stage = os.time(), nil, os.time(), nil
     while true do
         if job and cancelled(job) then
             M.cancel_requested = true
@@ -1835,12 +1850,12 @@ local function run_python(args, job, from, to, hint)
                 STALL_SECONDS // 60))
             return nil, "stalled"
         end
-        local cur, tot = (progress or ""):match("(%d+),(%d+)")
-        local num, total = tonumber(cur), tonumber(tot)
-        if hint and num and total and total > 0 then
-            if job and job.valid then job.percent = from + (to - from) * math.min(1.0, num / total) end
-            dt.print_hinter(string.format("Assisted Tagging: %s %d / %d%s", hint, num, total,
-                fmt_eta(os.time() - start, num, total)))
+        local p = M.parse_progress(progress)
+        if p and p.stage ~= stage then stage, start = p.stage, os.time() end
+        if hint and p and p.tot > 0 then
+            if job and job.valid then job.percent = from + (to - from) * math.min(1.0, p.cur / p.tot) end
+            dt.print_hinter(string.format("Assisted Tagging: %s %d / %d%s", p.stage or hint, p.cur, p.tot,
+                fmt_eta(os.time() - start, p.cur - p.cached, p.tot - p.cached)))
         end
         dt.control.sleep(150)
     end
@@ -2161,7 +2176,7 @@ local function prepare_run(images, replace_manual)
     end
 
     local mechanism = settings.group_support
-    local key_of, node, multi = {}, nil, {}
+    local key_of, node, multi, n_runs = {}, nil, {}, 0
     if mechanism == "native" then
         local items = {}
         for _, img in ipairs(primaries) do
@@ -2169,17 +2184,15 @@ local function prepare_run(images, replace_manual)
         end
         key_of = M.native_group_keys(items)
     elseif mechanism == "tags" then
-        local items, lists = {}, {}
-        for _, img in ipairs(primaries) do
-            local have = tags_of(img)
-            items[#items + 1] = { id = img.id, tags = have }
-            local names = {}
-            for name in pairs(have) do names[#names + 1] = name end
-            lists[#lists + 1] = names
-        end
+        local items = {}
+        for _, img in ipairs(primaries) do items[#items + 1] = { id = img.id, tags = tags_of(img) } end
         local typed = settings.group_node:match("^%s*(.-)%s*$")
-        node = typed ~= "" and typed or M.newest_group_node(lists)
-        if node then key_of, multi = M.tag_group_keys(items, node) end
+        if typed ~= "" then
+            node = typed
+            key_of, multi = M.tag_group_keys(items, node)
+        else
+            key_of, n_runs = M.latest_group_keys(items)
+        end
     end
     local burst_of = M.number_groups(primary_ids, key_of)
 
@@ -2190,11 +2203,21 @@ local function prepare_run(images, replace_manual)
     end
     local msg = string.format("group support %s: %d of %d photos in groups of 2+", mechanism, grouped, #primaries)
     if mechanism == "tags" then
-        msg = msg .. string.format(", node %s", node or "(none found)")
+        if node then
+            msg = msg .. string.format(", node %s", node)
+        else
+            msg = msg .. (n_runs > 0 and string.format(", latest run per photo (%d runs)", n_runs) or ", no grouping tags found")
+        end
         if node and next(key_of) == nil then msg = msg .. " (matches no selected photo)" end
         if #multi > 0 then msg = msg .. ", several children on ids " .. table.concat(multi, ",") end
     end
     log(msg)
+    if mechanism == "native" and grouped == 0 then
+        local items = {}
+        for _, img in ipairs(primaries) do items[#items + 1] = { id = img.id, tags = tags_of(img) } end
+        local hint = M.group_tags_hint(grouped, items)
+        if hint then log(hint); dt.print("Assisted Tagging: " .. hint) end
+    end
 
     -- The ledger holds the tags this plugin attached. Entries no longer on the image are
     -- dropped, so a tag removed and re-applied by hand counts as the user's again.
@@ -2460,6 +2483,8 @@ local function apply_results(run, job)
                 end
             end
         end
+        if job and job.valid then job.percent = PROGRESS_ANALYSIS + (1 - PROGRESS_ANALYSIS) * i / #primaries end
+        dt.print_hinter(string.format("Assisted Tagging: writing tags %d / %d", i, #primaries))
         if cancelled(job) then
             say(string.format("Assisted Tagging: stopped while writing tags; %d of %d images were updated. Run again to finish.",
                 i, #primaries))
@@ -3664,8 +3689,8 @@ local function install_panel()
         _(GROUP_SUPPORT_LABELS[support_keys[3]]),
     }
     local group_node_entry = dt.new_widget("entry") {
-        placeholder = _("Grouping tag node (blank = newest run)"),
-        tooltip = _("Grouping tags only: the tag node whose children are the groups, e.g. Assisted Grouping|2026-01-01 12:00:00|Group. Blank uses the newest Assisted Grouping run on the selected photos.\nDefault: blank. Set it when the photos carry more than one grouping run."),
+        placeholder = _("Grouping tag node (blank = latest run per photo)"),
+        tooltip = _("Grouping tags only: the tag node whose children are the groups, e.g. Assisted Grouping|2026-01-01 12:00:00|Group. Blank uses each photo's own latest Assisted Grouping run, so photos regrouped by a later run and photos left on an earlier run both keep their groups.\nDefault: blank. Set it to pin one run."),
         text = "",
     }
     local tolerance_entry = dt.new_widget("entry") {
