@@ -555,8 +555,8 @@ def run_tests():
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
     check("number reads, burst consensus and no-vehicle rows come out in manifest order (3-column manifest)", rows,
-          ["1,0,number,VER,,0.950,,solo,,,", "2,0,number,VER,,0.900,,solo,,,", "3,0,burst,VER,,0.667,,solo,,,",
-           "4,-1,none,,,0.000,,,,,", "5,-1,error,,,0.000,,,,,"])
+          ["1,0,number,VER,,0.950,,solo,,,,", "2,0,number,VER,,0.900,,solo,,,,", "3,0,burst,VER,,0.667,,solo,,,,",
+           "4,-1,none,,,0.000,,,,,,", "5,-1,error,,,0.000,,,,,,"])
     check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
     check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
 
@@ -591,9 +591,9 @@ def run_tests():
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a fully tagged image is skipped; solo disagreement is a conflict, also when burst-filled; packs aren't", rows,
-          ["1,-1,skipped,,,0.000,,,,,", "2,0,conflict,VER,,0.900,,solo,,,", "6,0,number,VER,,0.950,,solo,,,",
-           "7,0,number,VER,,0.950,,solo,,,", "8,0,conflict,VER,,0.667,,solo,,,", "9,0,number,VER,,0.950,,pack,,,",
-           "9,1,none,,,0.000,,pack,,,"])
+          ["1,-1,skipped,,,0.000,,,,,,", "2,0,conflict,VER,,0.900,,solo,,,,", "6,0,number,VER,,0.950,,solo,,,,",
+           "7,0,number,VER,,0.950,,solo,,,,", "8,0,conflict,VER,,0.667,,solo,,,,", "9,0,number,VER,,0.950,,pack,,,,",
+           "9,1,none,,,0.000,,pack,,,,"])
     run = json.load(open(args.boxes_out, encoding="utf-8"))
     check("boxes.json names the collection and the skipped images", (run["collection"], run["skipped"]),
           (os.path.basename(coll), ["1"]))
@@ -626,12 +626,12 @@ def run_tests():
     I.identify(args, {"embedder": "fake"})
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a hand-tagged solo shot read as another car is a conflict, though the two share a team tag", rows[0],
-          "2,0,conflict,VER,,0.900,,solo,,,")
-    check("a hand-tagged frame anchors its burst alone", rows[1], "3,0,burst,TSU,,0.500,,solo,,,")
-    check("an unread box takes the hand-tagged entry", rows[2], "8,0,hand,TSU,,1.000,,solo,,,")
-    check("a frame with no vehicle takes the hand-tagged entry", rows[3], "4,-1,hand,TSU,,1.000,,,,,")
+          "2,0,conflict,VER,,0.900,,solo,,,,")
+    check("a hand-tagged frame anchors its burst alone", rows[1], "3,0,burst,TSU,,0.500,,solo,,,,")
+    check("an unread box takes the hand-tagged entry", rows[2], "8,0,hand,TSU,,1.000,,solo,,,,")
+    check("a frame with no vehicle takes the hand-tagged entry", rows[3], "4,-1,hand,TSU,,1.000,,,,,,")
     check("a pack keeps its boxes and gains the hand-tagged entry", rows[4:],
-          ["9,0,number,VER,,0.950,,pack,,,", "9,1,none,,,0.000,,pack,,,", "9,-1,hand,TSU,,1.000,,pack,,,"])
+          ["9,0,number,VER,,0.950,,pack,,,,", "9,1,none,,,0.000,,pack,,,,", "9,-1,hand,TSU,,1.000,,pack,,,,"])
     with open(manifest, "w", encoding="utf-8") as f:
         f.write('"4","/x/4.jpg","9","Assisted Tagging|Motorsport|Number|5","","","GONE"\n')
     lines = []
@@ -642,7 +642,7 @@ def run_tests():
         I.log = real_log
     check("a hand entry that isn't in entries.json is logged and its image identified without it",
           (open(results, encoding="utf-8").read().splitlines(), any("hand-tagged as entry GONE" in ln for ln in lines)),
-          (["4,-1,none,,,0.000,,,,,"], True))
+          (["4,-1,none,,,0.000,,,,,,"], True))
 
     # ---- --promote-boxes: saves confident boxes from the box crop, replaces on re-run, flags a changed file
     real_jpg = os.path.join(img, "promo.jpg")

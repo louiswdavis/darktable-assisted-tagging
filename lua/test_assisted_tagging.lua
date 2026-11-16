@@ -240,7 +240,7 @@ check("rules: an off family has no line and no root", fam_rules.families.number,
 do
     local keys_in_order = {}
     for _, f in ipairs(T.FAMILIES) do keys_in_order[#keys_in_order + 1] = f.key end
-    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver,co_driver,extra,vehicle")
+    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver,co_driver,extra,vehicle,sponsor")
     local fs = T.preset_defaults(T.PRESET_SCHEMA)
     local roots = T.family_roots(fs)
     check("family_roots: every family on by default", roots.colour .. " " .. roots.number .. " " .. roots.team .. " " .. roots.driver,
