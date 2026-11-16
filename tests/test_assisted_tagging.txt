@@ -72,7 +72,7 @@ ok   rules: unlisted diagnostics keep their default
 ok   rules: no family line, no family
 ok   rules: a family root keeps its space and |
 ok   rules: an off family has no line and no root
-FAIL FAMILIES: order: got colour,number,team,driver,co_driver,extra,vehicle,sponsor, want colour,number,team,driver,co_driver,extra,vehicle
+ok   FAMILIES: order
 ok   family_roots: every family on by default
 ok   family_roots: an off family has no root
 ok   family_roots: a set root is used
@@ -457,4 +457,4 @@ ok   pick log line, best installed
 ok   model jobs in log order
 ok   each list ends in today's file
 
-1 test(s) failed
+all tests passed
