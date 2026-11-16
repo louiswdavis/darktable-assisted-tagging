@@ -580,6 +580,17 @@ do
     check("owned_prefixes includes the sponsor base", has, true)
 end
 
+-- start list column pickers -------------------------------------------------------
+do
+    local headers, mapped = T.parse_header_report("header\tNr\r\nheader\tPilot\nrole\tnumber\tNr\nrole\tdriver\tPilot\nrole\tteam\t\n")
+    check("parse_header_report: headers in order", table.concat(headers, ","), "Nr,Pilot")
+    check("parse_header_report: mapped roles", mapped.number .. "/" .. mapped.driver .. "/" .. mapped.team, "Nr/Pilot/")
+    check("parse_header_report: empty output", #(T.parse_header_report("")), 0)
+    check("columns_spec names every role, none as empty",
+        T.columns_spec({ number = "Nr", driver = "Pilot" }),
+        "number=Nr;driver=Pilot;co-driver=;team=;class=;make=;model=;shares-car=")
+end
+
 -- ledger / protected tags / shot + conflict handling ---------------------------
 local led = T.ledger_parse(T.ledger_format({ [3] = { b = true, a = true }, [1] = { z = true } }))
 check("ledger round-trips", led[3].a and led[3].b and led[1].z, true)

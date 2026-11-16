@@ -2,10 +2,12 @@
 
   python python/import_start_list.py COLLECTION_DIR --csv START_LIST.csv [--columns MAP]
   python python/import_start_list.py COLLECTION_DIR --text PASTED.txt
+  python python/import_start_list.py COLLECTION_DIR --csv START_LIST.csv --header
 
 A CSV has a header row; MAP says which header holds which role, as `role=header` pairs joined
-by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car). A role left out of MAP is found by its
-usual names (ALIASES); only `number` is required. Pasted text (an entry list copied from a PDF)
+by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car); `role=` says the
+CSV has none. A role left out of MAP is found by its usual names (ALIASES); only `number` is
+required. --header prints the headers and that mapping for the panel's column pickers. Pasted text (an entry list copied from a PDF)
 has one entry per line, number first, then "driver / co-driver"; lines without a leading number
 are skipped and counted. Each entry becomes {"id": number, "number": number, "name": driver,
 "co_driver": co-driver, "team": team, "extra": class, "make": make, "model": model}, with the empty fields
@@ -48,24 +50,39 @@ class BadInput(Exception):
 
 
 def parse_columns(spec: str) -> dict:
-    """`role=header;role=header` → {role: header}; an unknown role or a missing "=" is BadInput."""
+    """`role=header;role=header` → {role: header}; `role=` (no header) means the CSV has no such
+    column. An unknown role or a missing "=" is BadInput."""
     out = {}
     for part in filter(None, (p.strip() for p in (spec or "").split(";"))):
         role, eq, header = part.partition("=")
         role = role.strip().lower()
-        if not eq or role not in ROLES or not header.strip():
+        if not eq or role not in ROLES:
             raise BadInput(f'--columns: "{part}" should be role=header, with the role one of {", ".join(ROLES)}')
         out[role] = header.strip()
     return out
 
 
-def map_header(header: list, columns: dict) -> dict:
-    """{role: column index} from the header row, by --columns first and the aliases second."""
+def read_header(text: str) -> tuple:
+    """(header row, reader over the data rows); the delimiter is the one of , ; and tab the header
+    row uses most (csv.Sniffer differs between Python builds)."""
+    header_line = next((line for line in text.splitlines() if line.strip()), "")
+    reader = csv.reader(io.StringIO(text), delimiter=max(",;\t", key=header_line.count))
+    header = next(reader, None)
+    if not header:
+        raise BadInput("the CSV is empty")
+    return header, reader
+
+
+def map_header(header: list, columns: dict, need_number: bool = True) -> dict:
+    """{role: column index} from the header row, by --columns first and the aliases second. A role
+    given as "" in `columns` gets no column."""
     lowered = [h.strip().lower() for h in header]
     found = {}
     for role in ROLES:
-        want = columns.get(role)
-        if want:
+        if role in columns:
+            want = columns[role]
+            if not want:
+                continue
             if want.lower() not in lowered:
                 raise BadInput(f'no "{want}" column for {role}; the header is {", ".join(h.strip() for h in header)}')
             found[role] = lowered.index(want.lower())
@@ -73,27 +90,37 @@ def map_header(header: list, columns: dict) -> dict:
             hit = next((i for i, h in enumerate(lowered) if h in ALIASES[role]), None)
             if hit is not None and hit not in found.values():
                 found[role] = hit
-    if "number" not in found:
+    if need_number and "number" not in found:
         raise BadInput(f'no number column found in the header ({", ".join(h.strip() for h in header)}); '
                        'name it with --columns "number=<header>"')
     return found
 
 
 def rows_from_csv(text: str, columns: dict) -> list:
-    """One {role: value} per data row of a CSV with a header; the delimiter is the one of
-    , ; and tab the header row uses most (csv.Sniffer differs between Python builds)."""
-    header_line = next((line for line in text.splitlines() if line.strip()), "")
-    reader = csv.reader(io.StringIO(text), delimiter=max(",;\t", key=header_line.count))
-    header = next(reader, None)
-    if not header:
-        raise BadInput("the CSV is empty")
+    """One {role: value} per data row of a CSV with a header. With no co-driver column, a driver
+    cell "Smith / Jones" gives driver Smith, co-driver Jones (rally lists often share one cell)."""
+    header, reader = read_header(text)
     at = map_header(header, columns)
     rows = []
     for row in reader:
         if not any(c.strip() for c in row):
             continue
-        rows.append({role: (row[i].strip() if i < len(row) else "") for role, i in at.items()})
+        out = {role: (row[i].strip() if i < len(row) else "") for role, i in at.items()}
+        if "co-driver" not in at and " / " in out.get("driver", ""):
+            driver, _, co = out["driver"].partition(" / ")
+            out["driver"], out["co-driver"] = driver.strip(), co.strip()
+        rows.append(out)
     return rows
+
+
+def header_report(text: str) -> str:
+    """For the panel's column pickers: one `header<TAB><name>` line per CSV column, then one
+    `role<TAB><role><TAB><header or "">` line per role, as the aliases map it."""
+    header, _ = read_header(text)
+    at = map_header(header, {}, need_number=False)
+    lines = [f"header\t{h.strip()}" for h in header]
+    lines += [f"role\t{role}\t{header[at[role]].strip() if role in at else ''}" for role in ROLES]
+    return "\n".join(lines)
 
 
 def rows_from_text(text: str) -> tuple:
@@ -206,11 +233,17 @@ def main(argv=None):
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--csv", help="a start list with a header row")
     src.add_argument("--text", help="pasted lines, number first")
-    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car)')
+    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car); role= for none')
+    parser.add_argument("--header", action="store_true", help="with --csv: print the headers and how the usual names map them, write nothing")
     args = parser.parse_args(argv)
+    if args.header and not args.csv:
+        parser.error("--header needs --csv")
     try:
         with open(args.csv or args.text, encoding="utf-8-sig", newline="") as f:
             text = f.read()
+        if args.header:
+            print(header_report(text))
+            return
         skipped_lines = 0
         if args.csv:
             rows = rows_from_csv(text, parse_columns(args.columns))

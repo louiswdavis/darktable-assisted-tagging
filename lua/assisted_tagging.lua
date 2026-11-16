@@ -907,6 +907,31 @@ function M.read_results(text)
     return rows_of, errored, skipped
 end
 
+-- The start-list import's column roles, as import_start_list.py ROLES names them.
+M.IMPORT_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "shares-car" }
+
+-- `import_start_list.py --header` output → (CSV headers in order, {role = mapped header or ""}).
+function M.parse_header_report(out)
+    local headers, mapped = {}, {}
+    for line in (out or ""):gmatch("[^\r\n]+") do
+        local h = line:match("^header\t(.*)$")
+        if h then
+            headers[#headers + 1] = h
+        else
+            local role, name = line:match("^role\t([^\t]+)\t(.*)$")
+            if role then mapped[role] = name end
+        end
+    end
+    return headers, mapped
+end
+
+-- {role = header or ""} → the --columns value, every role named so "" stops the usual-name guess.
+function M.columns_spec(picked)
+    local parts = {}
+    for _, role in ipairs(M.IMPORT_ROLES) do parts[#parts + 1] = role .. "=" .. (picked[role] or "") end
+    return table.concat(parts, ";")
+end
+
 -- Tags usable to build an entry: hierarchical (A|B), not the plugin's own
 -- diagnostics, and clean enough for entries.json (no , ; ").
 local ASSISTED_PREFIX = "Assisted Tagging|"
@@ -3320,15 +3345,57 @@ local function install_panel()
         tooltip = _("Open the selected collection's settings.json in the app your system uses for .json files, e.g. to delete a removed setting. Save it there, then click Reload; unsaved panel changes are replaced."),
         clicked_callback = function() open_in_app(settings_json_path()) end,
     }
+    -- Runs import_start_list.py with argv after the script path; (ok, trimmed output).
+    local function run_start_list_import(extra)
+        local script = identify_script()
+        local argv = { plugin_root(script) .. "/python/import_start_list.py", collections_root() .. "/" .. current_collection() }
+        for _, a in ipairs(extra) do argv[#argv + 1] = a end
+        local cmd = command_line(python_bin(script), argv) .. " 2>&1"
+        -- cmd.exe strips the outer quotes of a quoted command line, so the whole thing gets one more pair
+        if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
+        log("import start list: " .. cmd)
+        local p = io.popen(cmd)
+        if not p then return false, _("couldn't start Python for the start list import.") end
+        local out = (p:read("a") or ""):gsub("%s+$", "")
+        return p:close(), out
+    end
+    -- One picker per role: (none) + the chosen CSV's headers, preset to the usual names.
+    local ROLE_LABELS = { number = _("number"), driver = _("driver"), ["co-driver"] = _("co-driver"), team = _("team"),
+        class = _("class"), make = _("make"), model = _("model"), ["shares-car"] = _("shares car with") }
+    local column_headers = {} -- the chosen CSV's headers; {} until one is read
+    local column_combos = {}
+    for i, role in ipairs(M.IMPORT_ROLES) do
+        column_combos[i] = dt.new_widget("combobox") {
+            label = ROLE_LABELS[role],
+            tooltip = _("The CSV column that holds this role. Choosing a CSV picks the usual header names; (none) leaves the role out. Only number is required. Driver and co-driver in one cell (Smith / Jones) split when co-driver is (none)."),
+            _("(none)"),
+        }
+    end
+    local function load_start_list_header(path)
+        column_headers = {}
+        local mapped = {}
+        if path ~= "" then
+            local ok, out = run_start_list_import({ "--csv", path, "--header" })
+            if ok then
+                column_headers, mapped = M.parse_header_report(out)
+            else
+                log("import start list: " .. (out or ""))
+                notify_error("Assisted Tagging: " .. (out ~= "" and out or _("couldn't read the CSV's header, see the log.")))
+            end
+        end
+        local items = { _("(none)") }
+        for _, h in ipairs(column_headers) do items[#items + 1] = h end
+        for i, role in ipairs(M.IMPORT_ROLES) do
+            local at = 1
+            for j, h in ipairs(column_headers) do if h == mapped[role] then at = j + 1 break end end
+            fill_combo(column_combos[i], items, at)
+        end
+    end
     local start_list_file = dt.new_widget("file_chooser_button") {
         title = _("Start list CSV"),
         value = "",
         is_directory = false,
-    }
-    local start_list_columns = dt.new_widget("entry") {
-        placeholder = _("columns: number=No.; driver=Driver (blank = usual header names)"),
-        text = "",
-        tooltip = _("Which CSV header holds each role, as role=header pairs separated by ;. Roles: number, driver, co-driver, team, class, make, model, shares-car. Blank finds them by their usual names; only number is required."),
+        changed_callback = function(self) load_start_list_header(self.value or "") end,
     }
     local start_list_text = dt.new_widget("text_view") {
         editable = true,
@@ -3338,7 +3405,7 @@ local function install_panel()
     -- File / Paste tabs: a stack shows one source; the open tab's label starts with ●.
     -- text_view has no placeholder, so the paste tab carries its hint as a label.
     local start_list_stack = dt.new_widget("stack") {
-        dt.new_widget("box") { orientation = "vertical", start_list_file, start_list_columns },
+        dt.new_widget("box") { orientation = "vertical", start_list_file, table.unpack(column_combos) },
         dt.new_widget("box") {
             orientation = "vertical",
             dt.new_widget("label") { label = _("one entry per line, number first, e.g. 12 Smith / Jones"), halign = "start" },
@@ -3363,8 +3430,7 @@ local function install_panel()
                 dt.print(_("Assisted Tagging: busy, try again when the current run finishes."))
                 return
             end
-            local script = identify_script()
-            local argv = { plugin_root(script) .. "/python/import_start_list.py", collections_root() .. "/" .. current_collection() }
+            local argv = {}
             local pasted = start_list_text.text or ""
             if start_list_stack.active == 2 then
                 if not pasted:match("%S") then
@@ -3381,26 +3447,19 @@ local function install_panel()
             elseif (start_list_file.value or "") ~= "" then
                 argv[#argv + 1] = "--csv"
                 argv[#argv + 1] = start_list_file.value
-                local cols = start_list_columns.text or ""
-                if cols:match("%S") then
+                if #column_headers > 0 then
+                    local picked = {}
+                    for i, role in ipairs(M.IMPORT_ROLES) do
+                        picked[role] = column_headers[(column_combos[i].selected or 1) - 1] or ""
+                    end
                     argv[#argv + 1] = "--columns"
-                    argv[#argv + 1] = cols
+                    argv[#argv + 1] = M.columns_spec(picked)
                 end
             else
                 dt.print(_("Assisted Tagging: choose a start list CSV first."))
                 return
             end
-            local cmd = command_line(python_bin(script), argv) .. " 2>&1"
-            -- cmd.exe strips the outer quotes of a quoted command line, so the whole thing gets one more pair
-            if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
-            log("import start list: " .. cmd)
-            local p = io.popen(cmd)
-            if not p then
-                notify_error(_("Assisted Tagging: couldn't start Python for the start list import."))
-                return
-            end
-            local out = (p:read("a") or ""):gsub("%s+$", "")
-            local ok = p:close()
+            local ok, out = run_start_list_import(argv)
             log("import start list: " .. (out ~= "" and out or (ok and "no output" or "failed")))
             if not ok then
                 notify_error("Assisted Tagging: " .. (out ~= "" and out or _("the start list import failed, see the log.")))
