@@ -48,11 +48,35 @@ ok   add: two values for one field leave the file
 ok   add: a file saved with a BOM is read and written back without it
 ok   add: the one-line rules layout is kept
 ok   add: a bare list and CRLF line endings are kept
-added 1 entries and 1 fields to entries.json
+added 1 entries, 1 fields and 0 splits to entries.json
 ok   add: the shell form writes and exits 0
 ok   add: the shell form reads quoted values
 entries.json was not changed: 115 is already an entry
 ok   add: the shell form exits 1 on stale rows
+ok   add: a split is written
+ok   add: a split sets name and co_driver, co_driver right after name
+ok   add: a co_driver field goes right after name
+ok   add: a split of three names raises
+ok   add: a split of three names leaves the file and writes no .bak
+ok   add: a split with an empty half raises
+ok   add: a split with an empty half leaves the file and writes no .bak
+ok   add: a split of a name without " / " raises
+ok   add: a split of a name without " / " leaves the file and writes no .bak
+ok   add: a split of an entry with a co-driver raises
+ok   add: a split of an entry with a co-driver leaves the file and writes no .bak
+ok   add: a split of a missing entry raises
+ok   add: a split of a missing entry leaves the file and writes no .bak
+ok   add: the same split twice raises
+ok   add: the same split twice leaves the file and writes no .bak
+ok   add: a split and a driver raises
+ok   add: a split and a driver leaves the file and writes no .bak
+ok   add: a split and a co-driver raises
+ok   add: a split and a co-driver leaves the file and writes no .bak
+ok   add: a co-driver holding a semicolon raises
+ok   add: a co-driver holding a semicolon leaves the file and writes no .bak
+added 0 entries, 0 fields and 1 splits to entries.json
+ok   add: the shell form reads a split row
+ok   add: read_additions returns the splits
 ok   upgrade: three entries change
 ok   upgrade: fields replace the old tags, other tags kept
 ok   upgrade: the previous file is kept as .bak

@@ -59,6 +59,9 @@ ok   an entry may have no team or number
 ok   entries: four fields leave the name empty
 ok   entries: a fifth field is the name
 ok   entries: five fields still split the tags
+ok   entries: five fields leave the co-driver empty
+ok   entries: a sixth field is the co-driver
+ok   entries: a parsed co-driver names its entry
 ok   default rules share team tags
 ok   default diagnostics sit under Assisted Tagging|Identification
 ok   rules: team_only
@@ -69,7 +72,7 @@ ok   rules: unlisted diagnostics keep their default
 ok   rules: no family line, no family
 ok   rules: a family root keeps its space and |
 ok   rules: an off family has no line and no root
-ok   FAMILIES: order
+FAIL FAMILIES: order: got colour,number,team,driver,co_driver,extra,vehicle, want colour,number,team,driver,extra,vehicle
 ok   family_roots: every family on by default
 ok   family_roots: an off family has no root
 ok   family_roots: a set root is used
@@ -259,6 +262,10 @@ ok   hand_entry: a vehicle tag names no entry
 ok   a hand result wants the entry's tags
 ok   a hand result adds no diagnostic
 ok   a hand result counts as identified
+ok   hand_entry: a co-driver tag names its entry
+ok   hand_entry: a shared co-driver names no entry
+ok   hand_entry: a number settles a shared co-driver
+ok   hand_entry: a co-driver of another entry disagrees
 ok   new entries: unlisted reads make one number row
 ok   new entries: an unlisted hand number makes a row; read too counts as hand
 ok   new entries: hand team and driver on entry 12 make field rows
@@ -276,6 +283,16 @@ ok   check_additions: number family off
 ok   check_additions: nothing ticked
 ok   check_additions: a number and one team pass
 ok   addition_rows: number and field rows
+ok   new entries: an entry named "A / B" makes a split row
+ok   new entries: a split row carries both halves
+ok   new entries: three names, an empty half or a co-driver already set make no split row
+ok   new entries: a hand co-driver tag makes a co_driver row
+ok   candidate_label: split
+ok   candidate_label: co-driver
+ok   check_additions: a split and a co-driver
+ok   check_additions: a split and a driver
+ok   check_additions: a split alone passes
+ok   addition_rows: split and co_driver rows
 ok   open_command: Windows
 ok   open_command: macOS
 ok   open_command: Linux
@@ -377,12 +394,13 @@ ok   preset name colon
 ok   preset name quote
 ok   preset order
 ok   preset order empty
-ok   tagging schema has 52 keys
+FAIL tagging schema has 52 keys: got 54, want 52
 ok   colour keys default on
 ok   family colour defaults
 ok   family number defaults
 ok   family team defaults
 ok   family driver defaults
+ok   family co_driver defaults
 ok   family extra defaults
 ok   family vehicle defaults
 ok   tagging defaults
@@ -426,4 +444,4 @@ ok   pick log line, best installed
 ok   model jobs in log order
 ok   each list ends in today's file
 
-all tests passed
+2 test(s) failed
