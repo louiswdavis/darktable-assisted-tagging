@@ -72,7 +72,7 @@ ok   rules: unlisted diagnostics keep their default
 ok   rules: no family line, no family
 ok   rules: a family root keeps its space and |
 ok   rules: an off family has no line and no root
-ok   FAMILIES: order
+FAIL FAMILIES: order: got colour,number,team,driver,co_driver,extra,vehicle,sponsor, want colour,number,team,driver,co_driver,extra,vehicle
 ok   family_roots: every family on by default
 ok   family_roots: an off family has no root
 ok   family_roots: a set root is used
@@ -207,6 +207,12 @@ ok   hand_value: ledgered tag
 ok   hand_value: empty base
 ok   hand colour tag survives a Blue reading
 ok   hand_family_tags: empty root
+ok   12-column row carries the sponsor
+ok   11-column row has no sponsor
+ok   sponsor family writes each word
+ok   box -1 row gets no sponsor tag
+ok   sponsor family off writes no sponsor tag
+ok   owned_prefixes includes the sponsor base
 ok   ledger round-trips
 ok   ledger output is sorted
 ok   an empty ledger formats to nothing
@@ -394,7 +400,7 @@ ok   preset name colon
 ok   preset name quote
 ok   preset order
 ok   preset order empty
-ok   tagging schema has 54 keys
+ok   tagging schema has 56 keys
 ok   colour keys default on
 ok   family colour defaults
 ok   family number defaults
@@ -403,6 +409,7 @@ ok   family driver defaults
 ok   family co_driver defaults
 ok   family extra defaults
 ok   family vehicle defaults
+ok   family sponsor defaults
 ok   tagging defaults
 ok   every tag switch defaults on
 ok   tolerance 3 kept
@@ -450,4 +457,4 @@ ok   pick log line, best installed
 ok   model jobs in log order
 ok   each list ends in today's file
 
-all tests passed
+1 test(s) failed
