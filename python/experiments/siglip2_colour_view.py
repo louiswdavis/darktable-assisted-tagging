@@ -18,7 +18,9 @@ vision_model.onnx, text_model.onnx, tokenizer.json.
      python python/experiments/siglip2_colour_view.py score siglip2.csv
 
 Car or not: `cars --boxes ... --model-dir ...` crops every box and names it (rally car, person, shed,
-railing, spectators, trees, road); fill is_car with y or n, then `score` the CSV.
+railing, spectators, trees, road); fill is_car with y (a car, even one cut off by the frame edge or
+half behind something), n (not a car) or p (a piece of a car that has its own bigger box: a wheel,
+a bonnet), then `score` the CSV.
 
 Only boxes read on a plain crop are sampled (no overlap, no mask), so the crop here is the one the
 run measured and the test compares classifiers, not crops."""
@@ -232,12 +234,17 @@ def cars(args):
 def score_cars(path: str):
     """SigLIP's car / not-car call against the user's is_car marks, next to the best single detector
     score cut-off for comparison."""
-    marked = []
+    marked, parts = [], []
     with open(path, encoding="utf-8") as f:
         for row in csv.DictReader(f):
             mark = row["is_car"].strip().lower()
             if mark in ("y", "n"):
                 marked.append((mark == "y", row["siglip_is"] == "car", float(row["det_score"] or 0)))
+            elif mark == "p":
+                parts.append(row["siglip_is"])
+    if parts:
+        print(f"{len(parts)} parts of a car already boxed (p): SigLIP calls "
+              + ", ".join(f"{k} {parts.count(k)}" for k in sorted(set(parts))))
     cars_n = sum(1 for c, _, _ in marked if c)
     print(f"{len(marked)} marked: {cars_n} cars, {len(marked) - cars_n} not cars")
     kept = sum(1 for c, s, _ in marked if c and s)
