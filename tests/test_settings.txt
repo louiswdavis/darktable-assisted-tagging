@@ -2,7 +2,7 @@ ok   default min_read
 ok   default neighbour_tolerance
 ok   default tag_shot_name
 ok   default tag_burst
-FAIL schema length: got 52, want 50
+ok   schema length
 ok   family defaults
 ok   removed colour_tags in settings.json
 ok   removed tag_colour in settings.json
@@ -81,4 +81,4 @@ ok   lua SETTING_RANGES block found
 ok   lua SETTING_RANGES match lo/hi/lo_open/hi_open/integer
 ok   lua SETTING_RANGES name only number settings
 
-1 failure(s)
+0 failure(s)
