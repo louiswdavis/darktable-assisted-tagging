@@ -150,6 +150,146 @@ In order of payoff for effort:
 3. A vision-language model as a tiebreaker on abstained or near-tie boxes. Per-image cost,
    latency, and photos leaving the machine: the user's decision.
 4. Stronger number reading (the `1`/`14`/`44` misreads), by a better OCR or a VLM.
+   Candidates from `../docs/superpowers/research/2026-11-15-model-candidates.md`:
+   PP-OCRv6 first: released 2026-06-11 with PaddleOCR 3.7.0, tiny/small/medium tiers
+   (1.5M/7.7M/34.5M params), English among its 50 languages. Medium is reported 5.2× faster than
+   PP-OCRv5 server on CPU (vendor claim). Official ONNX exists for the detector; the recogniser
+   ONNX is community-only so far. Add it to the top of the reader list in `M.MODEL_LISTS`.
+   Then Florence-2 base as a fallback reader on low-confidence reads (MIT, ~270 MB INT8).
+5. DINOv2 on segmenter-masked crops, so background and other cars don't enter the embedding.
+6. Helmet-crop embedding to tell two drivers of one car apart, where the helmet is visible.
+
+Licence-rejected: YOLO11/26 and YOLO-seg (AGPL), PaliGemma 2.
+
+## Unknown cars and review
+
+Ideas from competitor tools (`../docs/superpowers/research/2026-11-15-competitors-and-ux.md`):
+- **Cluster unknown cars, name later.** Boxes that match no entry are grouped by look, so the
+  user names a cluster once instead of tagging each photo.
+- **Ignore state.** A photo or box marked "ignore" (marshal car, spectator car) gets no identity
+  and is skipped on later runs. Hand-tag protection already keeps hand-set tags per family; this
+  covers "nobody", which today has no tag.
+- **Second pass on leftovers.** Re-run only on photos still without a number tag.
+- **Partial-number search.** Find photos whose read number contains the typed digits
+  (`14` finds 114 and 144), for photos where the OCR read part of the number.
+- **Entry-list sanity report.** Before a run: duplicate numbers, entries with 0 refs, a team
+  with one entry, numbers with no driver. Folds in the "0 refs" notice.
+- **"Checked" marker.** A tag the user sets on photos whose tags they confirmed. Those photos
+  become the truth set the model measuring in "Stronger models" waits for.
+
+## Number reading against the start list
+
+From `../docs/superpowers/research/2026-11-15-identification-techniques.md` (mostly from search
+snippets, nothing tested). Aimed at the `1`/`14`/`44` misreads:
+- **Closed vocabulary.** Score every start-list number against the reader's per-position
+  probabilities and pick the best entry; abstain when it doesn't beat the runner-up by a margin.
+  Needs the PP-OCR per-character scores exposed. No source documents this for bibs or plates.
+- **Fuse reads across a burst.** Sum each frame's log-probabilities for a car over the burst
+  instead of voting on final strings (SoccerNet jersey-number methods).
+- **"Readable?" gate.** Skip OCR on crops where no number is visible: SigLIP zero-shot first,
+  a small trained head only if that is weak.
+- **Two readers must agree.** PP-OCR and PARSeq both reading the same list entry passes;
+  disagreement becomes Unsure. A wrong tag costs more than a blank one.
+- **Several numbers per entry**, plus a filter for digits that repeat unmatched across the shoot
+  (sponsor or class numbers on the car).
+- **Group voting.** A number read with confidence in one frame votes for the same car's box in
+  every frame of its grouping-plugin group, so frames where the number is hidden still get tagged.
+  Burst consensus already does part of this; check what it covers before building. Effort M.
+
+## The car the shooter aimed at
+
+From `../docs/superpowers/research/2026-11-15-how-culling-tools-work.md`:
+- **AF-point priority.** Read the AF point from EXIF (maker notes, per maker) and tag the box
+  nearest it as the photo's main car. Other identified cars go under an `Also seen` tag, so a
+  per-driver export doesn't fill up with background cars. Fall back to the largest or most central
+  box. Culling would use the same "targeted car" pick. Effort S once the EXIF read exists.
+  The read itself (Sony `FocusLocation` via exiv2 first, other makers behind one interface) is
+  in culling's ROADMAP and `../docs/superpowers/research/2026-11-16-af-point-metadata.md`; build
+  it once in a shared helper.
+- **Calibrate the embedding thresholds.** Livery-match cut-offs need numbers from ~100 labelled
+  same-car / different-car pairs from a real shoot. SSCD's 0.75 is for edited copies, and DINOv2
+  has no standard cut-off. Share the labelled set with grouping.
+
+## Livery matching that knows its limits
+
+- **Same view first.** Match against references of the same view (front, side, rear) first,
+  other views at a penalty. A cheap form of viewpoint-aware re-ID; needs a view label per ref
+  (SigLIP 2, ticket 27).
+- **Rank-pattern rejection.** Accept a match only when the entry's other references also rank
+  near the top, not on one distance threshold (arXiv 2508.06357). Teammates with near-identical
+  liveries become Unsure instead of a guess.
+- **Self-train per shoot.** Fit a small livery head on crops confirmed by number reads.
+  A running-race study reports F1 85.8 this way vs 74 for text alone; an off-road motorcycle paper
+  (Tyo et al.) reports rider re-ID going from 33% to 79% rank-1 after fine-tuning.
+
+## Better references
+
+From `../docs/superpowers/research/2026-11-15-unbuilt-ideas-harvest.md`:
+- **Refs from confident number reads.** A box whose number was read with high confidence adds
+  its crop as a livery reference for that entry.
+- **Refs from the hi-res or masked crop**, not the downscaled detection crop.
+- **Size-check groups.** One coarse group can carry an identity across two cars; split or skip
+  groups whose boxes disagree too much.
+- **Raise the `MAX_BOXES`=4 cap** for crowded starts and pit lanes.
+- **Windscreen name cross-check** and **pack team hints** as extra tie-breaks.
+- **Reference audit speed:** ~8 min for 2000 refs; build the index in one stack in
+  `reference_store.py` (audit P1) and cut the false positives.
+
+## Per-driver export
+
+Export one folder (plus a CSV) per driver or entry, built from the number tags. The
+competitor research rates this the highest-impact gap for shooters who sell per-driver galleries.
+
+Most of it is already in darktable: export paths accept `$(CATEGORY[n,category])`
+("tag name of level n of selected category"), so an export path ending in the driver family's
+root (e.g. `…/$(CATEGORY[0,Assisted Tagging|Motorsport|Driver])/$(FILE_NAME)`) gives one folder
+per driver with no plugin code. Plugin work shrinks to:
+- a README recipe and, if possible, a shipped export preset
+- a check for photos with two driver tags (double-driven cars, `Also seen`), which the variable
+  can't split into two folders
+- the CSV (photo → entry) as a small optional script
+
+## Captions from tags
+
+Sports desks expect a caption on every photo, and Photo Mechanic's "code replacement" (type a
+number, get the driver's name) is the tool many sports shooters use for it (well known, not
+checked here). The tagging plugin already knows the entry, so it can write the caption itself:
+- Lua `dt_lua_image_t` has writable `title` and `description`; exports carry them as
+  `Xmp.dc.title` / `Xmp.dc.description`
+- template in settings, e.g. `#{number} {driver}, {team}, {vehicle} – {event}`, with the event
+  name from the collection
+- a caption the user wrote or changed by hand is never overwritten: the ledger keeps a hash of
+  the caption it last wrote and skips the photo when the text no longer matches
+- two cars → caption names the targeted car only (see "The car the shooter aimed at")
+
+Effort ~1 day. Builds on ticket 22 (separate co-driver field) for a correct `driver / co-driver`.
+
+## Timing data: which car was on track at that moment
+
+At hillclimbs and sprints (Rallye Prescott) only one or two cars are on the course at once, and
+the organiser publishes each run's start time. With the camera clock synced, a photo's timestamp
+narrows it to one or two entries before any model runs:
+- **Import run times** from the results/timing sheet (CSV, or pasted text like the start-list
+  import): entry, run, start time, and finish time when given
+- **Your spot on the course**: one setting (seconds after the start, or a fraction of the run
+  time) moves each car's window to when it passes the photographer
+- **Use it as evidence, not truth**: entries whose window covers the photo get a prior that the
+  number reader and livery match must agree with. A disagreement becomes Unsure
+- solves the double-driven car (30 / 730) case above without guessing from the running order
+
+Circuit races need lap-by-lap passing times (transponder loops). Those are seldom published as
+files, so this is hillclimb/sprint first. Effort M; needs camera clock sync (below).
+
+## Camera clock offset
+
+Everything time-based (timing data, double-driven cars, a second camera body) needs the camera
+clock to match real time. Two ways in:
+- a per-collection offset setting (`+00:01:23`)
+- **sync from a photo of a clock**: the user photographs a phone or timing-screen clock, types
+  the time shown, and the plugin sets the offset from that frame's timestamp
+
+The offset is applied when reading times. It never rewrites `exif_datetime_taken` (writable in Lua), so
+nothing is lost if it's wrong. Grouping needs the same offset per camera body.
 
 ## Which driver drove a double-driven car
 
@@ -169,3 +309,8 @@ input and per-event timing; aimed at shooters who deliver per-driver galleries.
   unless their settings.json pins the old roots. Owning the old root's first segment would also own the run stamps
   (`Assisted Tagging|Run|…`), so a fix needs the old root kept somewhere (settings or ledger).
   Workaround: select the photos, Clear tagging marks, run again.
+- A refused run consumes the "Replace manual tags" box (audit N3); it should stay ticked.
+- entries.json is written without validating the result first (audit N5).
+- Tags set before the ledger existed aren't adopted, and old `Run` stamps are never cleared.
+- Combined numbers (8108), struck-through digits and entries with 3+ drivers aren't handled.
+- A hand-formatted entries.json gets no colour filler.
