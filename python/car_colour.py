@@ -33,6 +33,8 @@ COLOUR_NAMES = tuple(n for n, _ in PALETTE) + (MULTI,)
 ACHROMATIC = ("White", "Grey", "Black")
 ACHROMATIC_WEIGHT = 0.5  # tarmac, glass and shadow in the body band are achromatic, so these count less
 MULTI_RATIO = 0.6  # the runner-up's weighted share, as a part of the winner's, from which a car is Multi
+SIGLIP_MIN_SCORE = 0.4  # a SigLIP 2 top score under this is unsure: no colour
+SIGLIP_MIN_GAP = 0.1  # nor when the runner-up is within this of the top score
 
 # Share of the crop. Drops the outer margin (sky, track) and the lower tyre/shadow band; the top band
 # (window and roofline, mostly dark) is dropped too so it doesn't read as Black.
@@ -90,8 +92,12 @@ def colour_shares(crop_rgb, palette=PALETTE, masked: bool = False) -> dict:
 def decide_colour(shares: dict) -> str:
     """The colour with the highest weighted share, MULTI when the runner-up is at least MULTI_RATIO
     of it, or "" when every share is 0. Names in ACHROMATIC count at ACHROMATIC_WEIGHT. SigLIP 2
-    scores (siglip.colour_scores, the only shares with a MULTI key) skip both: the top score wins."""
+    scores (siglip.colour_scores, the only shares with a MULTI key) skip both: the top score wins
+    when it is at least SIGLIP_MIN_SCORE and SIGLIP_MIN_GAP clear of the runner-up, else ""."""
     if MULTI in shares:
+        top, second = (sorted(shares.values(), reverse=True) + [0.0])[:2]
+        if top < SIGLIP_MIN_SCORE or round(top - second, 3) < SIGLIP_MIN_GAP:
+            return ""
         return max(shares, key=shares.get)
     ranked = sorted(((s * (ACHROMATIC_WEIGHT if n in ACHROMATIC else 1.0), n) for n, s in shares.items() if s > 0),
                     key=lambda p: -p[0])

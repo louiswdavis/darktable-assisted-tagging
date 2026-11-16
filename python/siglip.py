@@ -17,6 +17,9 @@ SIGLIP_CACHE_TOKEN = "siglip-1"
 CAR = "car"
 CAR_PROMPTS = {
     CAR: "a photo of a rally car.",
+    "race car": "a photo of a racing car on a circuit.",
+    "motorbike": "a photo of a motorbike or quad bike.",
+    "truck": "a photo of a truck.",
     "person": "a photo of a person.",
     "building": "a photo of a shed or a small building.",
     "railing": "a photo of a metal railing or crash barrier along a road.",
@@ -24,6 +27,7 @@ CAR_PROMPTS = {
     "trees": "a photo of trees and bushes.",
     "road": "a photo of an empty road.",
 }
+VEHICLES = (CAR, "race car", "motorbike", "truck")  # the detector boxes all of these; the box check keeps them
 MULTI_PROMPT = "a photo of a multicoloured rally car."
 
 
@@ -83,9 +87,11 @@ class SigLIP:
         return vec / np.linalg.norm(vec, axis=1, keepdims=True)
 
     def is_what(self, image_vec) -> str:
-        """The box check: the CAR_PROMPTS label nearest the crop (CAR or what else it shows)."""
+        """The box check: CAR when the CAR_PROMPTS label nearest the crop is one of VEHICLES, else
+        that label (what the box shows instead)."""
         labels, vecs = self._text(CAR_PROMPTS)
-        return labels[int((vecs @ image_vec[0]).argmax())]
+        label = labels[int((vecs @ image_vec[0]).argmax())]
+        return CAR if label in VEHICLES else label
 
     def _text(self, prompts: dict) -> tuple:
         key = tuple(prompts.items())

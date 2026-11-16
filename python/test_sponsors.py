@@ -41,6 +41,8 @@ def run_tests():
           S.sponsor_words([[0.99, "oracle"], [0.95, "petronas"], [0.99, "oracle"]], KW), ["Oracle", "Petronas"])
     check("sponsor_words: two teams' words are both kept", S.sponsor_words([[0.99, "oracle"], [0.99, "petronas"]], KW),
           ["Oracle", "Petronas"])
+    check("sponsor_words: a names spelling replaces title case",
+          S.sponsor_words([[0.99, "oracle"], [0.99, "petronas"]], KW, {"oracle": "ORACLE"}), ["ORACLE", "Petronas"])
     check("sponsor_words: confidence under 0.90 is ignored", S.sponsor_words([[0.89, "petronas"]], KW), [])
 
     print("")

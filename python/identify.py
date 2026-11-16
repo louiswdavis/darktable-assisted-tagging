@@ -91,6 +91,9 @@ class Rules:
     # ((lowercase keyword, tag prefix), …): a sponsor word read on a car hints its team's prefix
     # (see sponsors.sponsor_prefixes). Empty: off.
     sponsor_keywords: tuple = ()
+    # ((keyword, tag value), …): how the Sponsor family spells a keyword ("dhl" → "DHL"); a keyword
+    # not listed is title-cased.
+    sponsor_names: tuple = ()
     # Solo shots carrying only a team tag are accepted as team-level references.
     partial_references: bool = False
     # Which pipeline the collection runs (kinds.KINDS). The three below only steer `people`: a face
@@ -187,10 +190,10 @@ def _load_rules(raw, bad) -> dict:
     if "tag_prefix" in raw:
         raise bad('rules.tag_prefix was removed; set family_number_root, family_team_root and family_driver_root '
                   'in settings.json (README, "Tag families")')
-    unknown = sorted(set(raw) - {"team_only", "unidentified", "sponsor_keywords", "colour_palette",
+    unknown = sorted(set(raw) - {"team_only", "unidentified", "sponsor_keywords", "sponsor_names", "colour_palette",
                                   "diagnostics", "colour_tags", *MOVED_RULES})
     if unknown:
-        raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, sponsor_keywords, '
+        raise bad(f'unknown rule "{unknown[0]}" (rules are team_only, unidentified, sponsor_keywords, sponsor_names, '
                    f'colour_palette; behaviour settings such as order_weight go in settings.json)')
     defaults = Rules()
     colour_palette = _load_palette(raw["colour_palette"], bad) if "colour_palette" in raw else defaults.colour_palette
@@ -200,13 +203,18 @@ def _load_rules(raw, bad) -> dict:
             and isinstance(v, str) and v.strip()
             and not _BAD_TAG.search(v) for k, v in sponsors.items()):
         raise bad("rules.sponsor_keywords must map lowercase keywords to tag prefixes")
+    names = raw.get("sponsor_names", {})
+    if not isinstance(names, dict) or not all(
+            k in sponsors and isinstance(v, str) and v.strip() and not _BAD_TAG.search(v) and "|" not in v
+            for k, v in names.items()):
+        raise bad("rules.sponsor_names must map sponsor_keywords words to tag values without , ; \" or |")
     team_only = raw.get("team_only", "shared tags")
     if team_only not in TEAM_ONLY_CHOICES:
         raise bad('rules.team_only must be "shared tags" or "none"')
     unidentified = raw.get("unidentified", [])
     _check_tags(unidentified, "rules.unidentified", bad, allow_empty=True)
     return dict(team_only=team_only, unidentified=tuple(unidentified), sponsor_keywords=tuple(sponsors.items()),
-                colour_palette=colour_palette)
+                sponsor_names=tuple((k, v.strip()) for k, v in names.items()), colour_palette=colour_palette)
 
 
 def _pair_cars(entries: dict, bad):
@@ -736,9 +744,11 @@ def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) ->
     return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}{listed}; livery {top}{unmatched}{colour}{frac})"
 
 
-def check_models(models: dict):
+def check_models(models: dict, siglip: bool = True):
     """Every model exists and loads, so a bad one fails the run here, not per frame. Returns the
-    loaded embedder (a FaceModel for people collections) for the run's reference index."""
+    loaded embedder (a FaceModel for people collections) for the run's reference index. With
+    `siglip`, the loaded SigLIP 2 (or None) becomes this process's, so _siglip doesn't load it again;
+    jobs that read no crops pass False and skip it."""
     if models["kind"] == "people":
         for label, key in (("face detector", "face_det"), ("face recognizer", "face_rec")):
             if not models[key] or not os.path.isfile(models[key]):
@@ -757,7 +767,7 @@ def check_models(models: dict):
                ("OCR", "ocr_det", lambda: NumberReader(models["ocr_det"], models["ocr_rec"])),
                ("embedder", "embedder", lambda: Embedder(models["embedder"])),
                *([("segmenter", "segmenter", lambda: Segmenter(models["segmenter"]))] if models.get("segmenter") else []),
-               *([("SigLIP 2", "siglip", lambda: SigLIP(models["siglip"]))] if models.get("siglip") else []))
+               *([("SigLIP 2", "siglip", lambda: SigLIP(models["siglip"]))] if siglip and models.get("siglip") else []))
     loaded = {}
     for label, key, load in loaders:
         try:
@@ -766,6 +776,9 @@ def check_models(models: dict):
             raise InputError(f"{label} model can't be loaded ({models[key]}): {type(e).__name__}: {e}. "
                              f"Download it again (see the README).") from e
     log(f"number reader: {loaded['ocr_det'].rec.name} ({os.path.basename(models['ocr_rec'])})")
+    if not siglip:
+        return loaded["embedder"]
+    _W["siglip"] = loaded.get("siglip")
     if models.get("siglip"):
         log("box check: on (SigLIP 2)" + ("; colour reader: SigLIP 2" if models.get("car_colour") else ""))
     else:
@@ -1069,7 +1082,7 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         elif shares:
             r = replace(r, colour=car_colour.decide_colour(shares))
         if overlap != HIDDEN and "sponsor" in rules.families:
-            r = replace(r, sponsor=";".join(sponsor_words(trace, rules.sponsor_keywords)))
+            r = replace(r, sponsor=";".join(sponsor_words(trace, rules.sponsor_keywords, dict(rules.sponsor_names))))
         if not quiet:
             log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
                 + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else "")
@@ -1464,7 +1477,7 @@ def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: l
     return notes
 
 
-def run_reference_job(args, models: dict, handle_row, screen: str = ""):
+def run_reference_job(args, models: dict, handle_row, screen: str = "", siglip: bool = True):
     """Runs `handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour) -> (status,
     proposals[, row_entry])` over the manifest rows (an optional 4th column is the image's hand-applied
     colour), writing one `id,status,colour_note,entry_id` results row and a progress tick per row.
@@ -1479,9 +1492,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
-    embedder = check_models(models)
-    if rules.kind != "people":
-        _siglip(models)
+    embedder = check_models(models, siglip)
     index = open_index(collection, models, rules, embedder, args.progress)
     rows = read_manifest(args.manifest, 3, optional=1)
     done = []  # (image id, status, refs the row saved)
@@ -1553,10 +1564,7 @@ def add_references(args, models: dict):
         try:
             rgb = decode_rgb(filepath)
             entry, _ = frame_entry(filepath, rgb, models)
-            boxes, note = detect_vehicles(rgb, entry)
-            boxes, _, dropped = check_boxes(rgb, boxes)
-            if dropped and not boxes:
-                note = f"the box check dropped {sum(dropped.values())} boxes"
+            boxes, note = detect_vehicles(rgb, entry)  # no box check: the user picked this frame for the car
             if colours_only:
                 colour = hand_colour or (car_colour.decide_colour(colour_read(crop_box(rgb, boxes[0]), rules.colour_palette))
                                          if boxes else "")
@@ -1629,7 +1637,7 @@ def promote_boxes(args, models: dict):
             log(f"{image_id}: couldn't add references ({type(e).__name__}: {e})")
             return "failed", []
 
-    run_reference_job(args, models, handle, screen="skip")
+    run_reference_job(args, models, handle, screen="skip", siglip=False)
 
 
 def audit_references(args, models: dict):
@@ -1642,7 +1650,7 @@ def audit_references(args, models: dict):
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
     models["segmenter"] = ""
-    index = open_index(collection, models, rules, check_models(models), args.progress)
+    index = open_index(collection, models, rules, check_models(models, siglip=False), args.progress)
     if cancel_requested(args.progress):
         log("cancelled; no audit written")
         sys.exit(130)
@@ -1660,7 +1668,7 @@ def audit_references(args, models: dict):
         sys.exit(130)
     log(f"reference audit: {counts}; wrote {report}")
     if counts["quarantined"]:
-        index = open_index(collection, models, rules, check_models(models))  # drops the moved refs now, not at the next audit
+        index = open_index(collection, models, rules, check_models(models, siglip=False))  # drops the moved refs now, not at the next audit
         log(f"index refreshed after quarantine: {len(index.entry)} references")
     # Lua reads results once the process exits; never a half-written file
     with atomic_write(args.results, newline="") as f:

@@ -111,7 +111,7 @@ def run_tests():
         missing = str(e)
     check("a missing entries.json names the file", missing, os.path.join(d, "entries.json") + ": file not found")
     check("a misspelt rule is named", load_error({"rules": {"team_onyl": "none"}, "entries": []}),
-          'unknown rule "team_onyl" (rules are team_only, unidentified, sponsor_keywords, colour_palette; '
+          'unknown rule "team_onyl" (rules are team_only, unidentified, sponsor_keywords, sponsor_names, colour_palette; '
           'behaviour settings such as order_weight go in settings.json)')
     lines = []
     real_log, I.log = I.log, lines.append
@@ -545,7 +545,7 @@ def run_tests():
             return np.eye(384, dtype=np.float32)[0]
 
     real = (I.check_models, I.Embedder, I.run_frames, I.refine_frames)
-    I.check_models, I.Embedder = (lambda m: FakeEmbedder("fake")), FakeEmbedder
+    I.check_models, I.Embedder = (lambda m, siglip=True: FakeEmbedder("fake")), FakeEmbedder
     I.run_frames = lambda paths, models, cache, progress: stub
     I.refine_frames = lambda wanted, analyses, models, cache, progress="": analyses  # the re-read needs real files
     results = os.path.join(img, "results.csv")
@@ -813,6 +813,12 @@ def run_tests():
     check("sponsor_keywords must be lowercase", load_error(
           {"rules": {"sponsor_keywords": {"Petronas": "F1"}}, "entries": [VER]}),
           "rules.sponsor_keywords must map lowercase keywords to tag prefixes")
+    check("sponsor_names must name a sponsor_keywords word", load_error(
+          {"rules": {"sponsor_names": {"dhl": "DHL"}}, "entries": [VER]}),
+          'rules.sponsor_names must map sponsor_keywords words to tag values without , ; " or |')
+    check("sponsor_names can't hold | (it becomes a tag value)", load_error(
+          {"rules": {"sponsor_keywords": {"petronas": "F1"}, "sponsor_names": {"petronas": "PET|RONAS"}}, "entries": [VER]}),
+          'rules.sponsor_names must map sponsor_keywords words to tag values without , ; " or |')
     lines = []
     real_log, I.log = I.log, lines.append
     try:

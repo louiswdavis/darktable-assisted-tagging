@@ -38,7 +38,9 @@ def _matches(ocr_trace: list, keywords: tuple) -> list:
     return out
 
 
-def sponsor_words(ocr_trace: list, keywords: tuple) -> list:
-    """The listed keywords read in `ocr_trace`, each once in read order, as tag values ("castrol" ->
-    "Castrol"). Only listed words: free OCR text is never returned."""
-    return list(dict.fromkeys(word.title() for word, _ in _matches(ocr_trace, keywords)))
+def sponsor_words(ocr_trace: list, keywords: tuple, names: dict = None) -> list:
+    """The listed keywords read in `ocr_trace`, each once in read order, as tag values: the keyword's
+    `names` spelling ("dhl" -> "DHL"), else title-cased ("castrol" -> "Castrol"). Only listed words:
+    free OCR text is never returned."""
+    names = names or {}
+    return list(dict.fromkeys(names.get(word) or word.title() for word, _ in _matches(ocr_trace, keywords)))

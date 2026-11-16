@@ -139,7 +139,7 @@ Compare a larger embedder before installing it with `python python/eval_matching
 
 #### Box check and colour reader (optional, SigLIP 2)
 
-The vehicle detector also boxes marshals, sheds and railings. With SigLIP 2 in `models`, each box is checked before it is read: a box that looks more like a person, a building, a railing, spectators, trees or an empty road than a rally car is dropped, and the log counts what was dropped (`box check: dropped 4 boxes: person 3, railing 1`). The same model reads each car's paintwork colour for the [Colour family](#tag-families) in place of the built-in hue rules, comparing the car with "a photo of a red rally car." and so on for each palette name, plus "multicoloured". Without it, every box is read and colour comes from the hue rules. Adding or removing it re-reads every photo once. People collections don't use it.
+The vehicle detector also boxes marshals, sheds and railings. With SigLIP 2 in `models`, each box is checked before it is read: a box that looks more like a person, a building, a railing, spectators, trees or an empty road than a vehicle (a rally car, a race car, a motorbike or quad, or a truck) is dropped, and the log counts what was dropped (`box check: dropped 4 boxes: person 3, railing 1`). Frames you pick for Add references skip the check. The same model reads each car's paintwork colour for the [Colour family](#tag-families) in place of the built-in hue rules, comparing the car with "a photo of a red rally car." and so on for each palette name, plus "multicoloured"; an unsure read (top score under 0.4, or within 0.1 of the next) gives no colour. Without it, every box is read and colour comes from the hue rules. Adding or removing it re-reads every photo once. People collections don't use it.
 
 Download the three files and rename them; the plugin finds the text model and tokenizer beside the vision file by name, and stops with a message naming any that is missing. Python also needs the `tokenizers` package (in `requirements.txt`).
 
@@ -300,7 +300,7 @@ A family is one kind of tag the plugin writes. Each has a switch and a root in t
 | Co-driver | the entry's `co_driver` | `family_co_driver` | `family_co_driver_root` | `Assisted Tagging\|Motorsport\|Co-driver` |
 | Class | the entry's `extra` | `family_extra` | `family_extra_root` | `Assisted Tagging\|Motorsport\|Class` |
 | Vehicle | the entry's `make` and `model`, as `<make>\|<model>` | `family_vehicle` | `family_vehicle_root` | `Assisted Tagging\|Motorsport\|Vehicle` |
-| Sponsor | each [`sponsor_keywords`](#rules) word read inside a vehicle box, title-cased (`castrol` → `Castrol`); words read on banners or not listed are never written. Off by default | `family_sponsor` | `family_sponsor_root` | `Assisted Tagging\|Motorsport\|Sponsor` |
+| Sponsor | each [`sponsor_keywords`](#rules) word read inside a vehicle box, title-cased (`castrol` → `Castrol`) unless [`sponsor_names`](#rules) spells it; words read on banners or not listed are never written. Off by default | `family_sponsor` | `family_sponsor_root` | `Assisted Tagging\|Motorsport\|Sponsor` |
 
 All six are on by default. An identified entry gets one tag per family that is on and that it has a value for, then its own `tags`. An entry that builds no tag at all stops the run.
 
@@ -327,6 +327,7 @@ Every key is optional; leave one out for its default.
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
 | `colour_palette` | the 11 built-in colours | an object mapping each tag name to a built-in colour (`"Red"`, `"Orange"`, `"Yellow"`, `"Green"`, `"Blue"`, `"Purple"`, `"Pink"`, `"Brown"`, `"White"`, `"Grey"`, `"Black"`) or to a list of bounds in OpenCV HSV, e.g. `{"Red": "Red", "Teal": [{"hue": [80, 95], "sat": [90, 255]}], "Silver": "Grey"}`. Each bounds object needs `hue` (0–179) and may have `sat` and `val` (0–255); a missing one is the full range. A pixel goes to the first colour that matches. A name can't be `Multi` or contain `\|`. Entry colours must be in the palette. Unlisted built-ins are dropped. With SigLIP 2 installed only the names count: each becomes a prompt and the bounds are not used |
 | `sponsor_keywords` | `{}` | maps a lowercase sponsor word to its team's tag, e.g. `{"petronas": "Assisted Tagging\|Motorsport\|Team\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
+| `sponsor_names` | `{}` | how the Sponsor family writes a `sponsor_keywords` word, e.g. `{"dhl": "DHL", "mcdonalds": "McDonald's"}`. A word not listed is title-cased. Each key must be a `sponsor_keywords` word; values can't hold `,` `;` `"` or `\|`. |
 
 Behaviour settings moved to settings.json on 2026-11-11; an old entries.json still loads, each old rule is copied into settings.json once and logged.
 
