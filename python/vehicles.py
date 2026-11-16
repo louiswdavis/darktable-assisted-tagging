@@ -17,7 +17,7 @@ except ImportError as _e:
     sys.exit(3)
 
 from common import RAW_EXTENSIONS  # noqa: E402  (stdlib-only module beside this file)
-from vehicle_detect import CANDIDATE_MIN_SCORE, COCO_NAMES, boxes_in  # noqa: E402
+from vehicle_detect import CANDIDATE_MIN_SCORE, boxes_in  # noqa: E402
 
 MIN_BOX_FRAC = 0.005  # boxes smaller than this share of the frame are background traffic
 MAX_BOXES = 4
@@ -52,11 +52,12 @@ def load_hires(filepath: str):
 
 def strongest_detections(boxes: list, w: int, h: int) -> str:
     """For the log when no vehicle passes: the strongest vehicle the entry holds (only vehicle
-    classes are stored, from CANDIDATE_MIN_SCORE up), with its size in the frame."""
+    classes are stored, from CANDIDATE_MIN_SCORE up), with its size in the frame. The detector's
+    class is left out: it names side-on cars "motorcycle", and nothing else reads it."""
     if not boxes:
         return f"nothing at {CANDIDATE_MIN_SCORE}"
-    x0, y0, x1, y1, score, c = max(boxes, key=lambda b: b[4])
-    return f"strongest vehicle {COCO_NAMES.get(c, f'class {c}')} {score:.2f} ({(x1 - x0) / w:.2f}x{(y1 - y0) / h:.2f} of frame)"
+    x0, y0, x1, y1, score, _ = max(boxes, key=lambda b: b[4])
+    return f"strongest vehicle {score:.2f} ({(x1 - x0) / w:.2f}x{(y1 - y0) / h:.2f} of frame)"
 
 
 def select_boxes(boxes: list, w: int, h: int) -> list:
