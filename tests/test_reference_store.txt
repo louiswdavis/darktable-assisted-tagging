@@ -34,11 +34,11 @@ ok   an empty index takes the embedder's size
 all tests passed
 
 --- stderr ---
-15:43:45 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-15:43:45 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-15:43:45 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-15:43:45 py: references: stopped after 1 of 2; the rest are embedded next time
-15:43:46 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-15:43:46 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-15:43:46 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
-15:43:46 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:52:17 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:52:17 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:52:17 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:52:17 py: references: stopped after 1 of 2; the rest are embedded next time
+15:52:17 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:52:17 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:52:17 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
+15:52:17 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)

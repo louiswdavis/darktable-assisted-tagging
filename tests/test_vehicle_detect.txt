@@ -27,10 +27,10 @@ ok   yolox family matches the opencv_zoo name
 ok   detr family matches a D-FINE export
 ok   detr family matches an RT-DETR export
 ok   yolox family does not match a D-FINE export
-FAIL detr keeps the vehicle box and drops the person: got [[10.0, 10.0, 50.0, 50.0, 0.800000011920929, 2]], want [[10.0, 10.0, 50.0, 50.0, 0.8, 2]]
+ok   detr keeps the vehicle box and drops the person
 ok   detr feeds images and orig_target_sizes
 ok   detr images input is 1x3x640x640
 ok   detr raw export: feeds pixel_values only
 ok   detr raw export: sigmoid over vehicle classes, cxcywh × canvas / scale → source xyxy
 ok   detection_fingerprint is 12 hex
-1 FAILED
+all tests passed
