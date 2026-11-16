@@ -439,6 +439,12 @@ ok   required job with nothing installed is an error
 ok   missing reader names the base reader and its yml
 ok   missing base without base field names the last file
 ok   reader without yml is logged as missing its yml
+ok   SigLIP 2 siblings
+ok   other jobs have no siblings
+ok   SigLIP 2 with both siblings is present
+ok   SigLIP 2 without its tokenizer is not present
+ok   SigLIP 2 without its tokenizer is an error
+ok   box check is optional
 ok   pick log line
 ok   pick log line, best installed
 ok   model jobs in log order
