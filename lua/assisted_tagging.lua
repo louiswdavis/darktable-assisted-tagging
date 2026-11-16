@@ -1808,7 +1808,7 @@ end
 -- identify.py starts when a required job has nothing installed.
 local function model_args(script)
     local dir = plugin_root(script) .. "/models/"
-    local args = { "--detections", C.detections_path(dt) }
+    local args = { "--detections", (C.detections_path(dt)) } -- parens: gsub's count would ride along as an argument
     for _, item in ipairs(M.MODEL_LISTS) do
         local choice = M.model_choice(item, function(file) return M.model_present(dir .. file, item.job, file_exists) end,
             function(file) return file_exists(dir .. file) end)
