@@ -1,0 +1,14 @@
+image,box,entry,crop,rules_colour,siglip_colour,siglip_colour_gap,rules_view,siglip_view,siglip_view_gap,aspect,colour_ok,view_ok
+203731,0,103,203731_b0.jpg,Black,Black,0.032,side,front,0.008,1.7,b,b
+203745,0,119,203745_b0.jpg,Multi,Yellow,0.015,side,front,0.003,1.85,s,b
+203747,0,,203747_b0.jpg,Multi,Yellow,0.026,side,side,0.0042,1.86,s,b
+203749,0,54,203749_b0.jpg,Grey,Multi,0.0043,side,front,0.0169,1.41,n,s
+203751,0,54,203751_b0.jpg,Grey,White,0.0055,side,front,0.0117,1.64,s,s
+203753,0,107,203753_b0.jpg,Grey,White,0.0014,side,front,0.0016,1.74,s,b
+203755,0,107,203755_b0.jpg,Grey,White,0.0025,side,front,0.0032,1.83,s,b
+203759,0,107,203759_b0.jpg,Black,White,0.0071,side,rear,0.007,2.31,s,r
+203765,0,31,203765_b0.jpg,Multi,White,0.007,side,front,0.0264,1.47,s,s
+203767,0,31,203767_b0.jpg,Grey,White,0.0044,side,front,0.0301,1.46,s,s
+203781,0,31,203781_b0.jpg,Multi,White,0.0108,side,rear,0.0038,2.39,s,r
+203789,0,120,203789_b0.jpg,Multi,White,0.0129,side,front,0.014,1.63,s,b
+203791,0,120,203791_b0.jpg,Multi,White,0.0186,side,front,0.0093,1.82,s,b
