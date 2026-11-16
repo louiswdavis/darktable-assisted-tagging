@@ -1,4 +1,5 @@
 ok   common.py matches the shared copy
+FAIL vehicle_detect.py matches the shared copy: got '4d49744495084ab232542613e02fd7664fdff181f5bf511c478f9db37ae94c5b', want '547899a8663134130c51c0302ea0e7c24e21b19d79c355a56767d15d98346966'
 ok   RAW_EXTENSIONS has the dot form
 ok   RAW_EXTENSIONS count
 ok   atomic_write keeps the old file on failure
@@ -6,4 +7,4 @@ ok   atomic_write replaces on success
 ok   atomic_write binary mode
 ok   atomic_write leaves no temp file
 
-all tests passed
+1 test(s) failed

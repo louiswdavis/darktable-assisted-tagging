@@ -46,4 +46,13 @@ ok   an order tie on a box with no colour stays a tie
 ok   a white look-alike can't lend to a red box
 ok   a red look-alike lends to a red box
 ok   a look-alike with no colours lends as before
+ok   a lone doubtful read stays unread
+ok   library neighbours resolve a doubtful read
+ok   the input dicts are not changed
+ok   library frames carry the prefix
+ok   unknown, untimed and selected rows are dropped
+ok   consecutive rows of one entry form one group
+ok   a hand result supports a doubtful read
+ok   a hand result is left as it is
+ok   a hand result alone is support enough
 all tests passed

@@ -28,14 +28,17 @@ ok   a zero-byte crop is skipped
 ok   a 128-d index reloads at 128
 ok   all_sims gives one raw cosine per reference
 ok   all_sims on an empty index
+ok   a new embedder size re-embeds every reference
+ok   an empty index takes the embedder's size
 
 all tests passed
 
 --- stderr ---
-11:43:01 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-11:43:01 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-11:43:01 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-11:43:01 py: references: stopped after 1 of 2; the rest are embedded next time
-11:43:01 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-11:43:01 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-11:43:01 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
+15:23:00 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:23:00 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:23:00 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:23:00 py: references: stopped after 1 of 2; the rest are embedded next time
+15:23:00 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:23:00 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+15:23:00 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
+15:23:00 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)

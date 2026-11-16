@@ -8,14 +8,14 @@ ok   default diagnostics sit under Assisted Tagging|Motorsport
 ok   duplicate id is rejected
 ok   a comma in a tag is rejected
 ok   a non-digit number is rejected
-ok   empty tags are rejected
+FAIL empty tags are rejected: got '(no error)', want 'entry "VER": tags must be a non-empty list of tag names'
 ok   a path character in an id is rejected
 ok   bad JSON is rejected
 ok   a missing entries.json names the file
 ok   a misspelt rule is named
 ok   moved rules in entries.json still load
 ok   moved rules log the deprecation
-ok   a misspelt entry field is named
+FAIL a misspelt entry field is named: got 'entry "VER": unknown field "tagz" (fields are id, number, team, name, extra, make, model, tags, camera, colour, car)', want 'entry "VER": unknown field "tagz" (fields are id, number, team, name, tags, camera, colour)'
 ok   a misspelt top-level key is named
 ok   kind defaults to motorsport
 ok   a people collection loads
@@ -24,27 +24,62 @@ ok   people face rules are read
 ok   a people entry with a number is rejected
 ok   an unknown kind lists the valid ones
 ok   a bad team_only value is rejected
-ok   prefix: team, then team|name, then extras without repeats
-ok   prefix: a team-only entry gets just the team tag
-ok   prefix: a name with no team hangs off the prefix
-ok   name without a prefix is rejected
-ok   prefix: an entry with nothing to build from is rejected
-ok   numbers-only entry tags come from prefix and number
-ok   an entry with a team keeps the team tag, not the number
-ok   numbers-only entry without a prefix is rejected
+ok   families: every family is on by default
+ok   families: number, team, then driver
+ok   families: the entry's own tags follow as extras
+ok   families: an extra that repeats a built tag is listed once
+ok   car: both entries of a shared car get the union of tags, the named entry's first
+ok   car: both entries carry the named id
+ok   car: naming a missing id fails
+ok   car: naming itself fails
+ok   car: naming an entry that names a car fails
+ok   car: three entries in one car fail
+ok   families: team off drops the team tag
+ok   families: team off leaves it out of rules.families
+ok   families: roots come from settings.json
+ok   families: the colour root is read
+ok   families: an empty root is the default
+ok   families: a root of spaces names the setting
+ok   families: an entry that builds no tag is rejected
+ok   families: an entry with nothing at all is rejected
+ok   families: a numbers-only entry needs no tags
+ok   families: a root with a comma names the setting
+ok   families: a root ending in | names the setting
+ok   families: one root under another names both settings
+ok   families: a switched-off family's root isn't checked
+ok   vehicle: make+model, extra: class
+ok   vehicle: make only
+ok   vehicle: model without make
+ok   vehicle: make with | rejected
+ok   extra: not text rejected
+ok   families: vehicle off, no vehicle tag
+ok   vehicle: custom root
+ok   load: old vehicle tag upgraded
+ok   load: the upgraded file holds make and model
+ok   load: an upgraded vehicle follows the configured root
+ok   load: an upgrade conflict names the entry
+ok   load: a non-UTF-8 file still says not valid JSON
+ok   families: extra only, entry without extra builds no tag
+ok   rules.tag_prefix is removed and names the family roots
+ok   people: no families, the entry's tags only
 ok   order_weight defaults to 0
 ok   min_read defaults to 0.85
 ok   settings.json sets order_weight
 ok   a settings_path file overrides the collection's
-ok   diag_from_settings_json: colour switch off blanks the name
-ok   diag_from_settings_json: rules.csv has diag_colour,
-ok   colour_tags defaults off
-ok   colour_tags is read
+ok   family_colour off: no colour family
+ok   family_colour off: rules.csv has no family_colour line
+ok   family_colour off: the other families are still written
+ok   no diag_colour line is written
+ok   the colour family is on by default: rules.csv has its root
+ok   settings.json: removed colour_tags stops the load
+ok   settings.json: removed tag_colour stops the load
+ok   settings.json: removed tag_colour_name stops the load
+ok   entries.json: removed rules.colour_tags stops the load
 ok   default palette is the built-in one
 ok   a built-in name renames and drops the rest
 ok   bounds objects map to 6-tuples, missing sat/val is full range
 ok   colour_palette {'Multi': 'Red'} is rejected
-ok   colour_palette {'Red': 'Pink'} is rejected
+FAIL colour_palette {'Red': 'Pink'} is rejected: got False, want True
 ok   colour_palette {'Red': [{'hue': [9, 3]}]} is rejected
 ok   colour_palette {'Red': [{'hue': [0, 300]}]} is rejected
 ok   colour_palette {'A|B': 'Red'} is rejected
@@ -52,13 +87,14 @@ ok   colour_palette {} is rejected
 ok   colour_palette {'Red': []} is rejected
 ok   entry colour is read
 ok   entry colour defaults empty
-ok   unknown entry colour names the entry and colour
+FAIL unknown entry colour names the entry and colour: got False, want True
 ok   entry colour outside the palette names the entry and colour
-ok   colour diagnostic is renamable
-ok   a trailing | on the prefix is rejected
+ok   entries.json: removed rules.diagnostics.colour stops the load
 ok   entries.csv rows
+ok   entries.csv ends with the name
 ok   rules.csv rows
 ok   rules.csv ends with from_entries_json, empty here
+ok   rules.csv lists each family that is on
 ok   rules_csv_has_moved_keys
 ok   the plan lists the teammates' shared tags
 ok   the plan lists the unidentified tags
@@ -78,7 +114,9 @@ ok   the people key carries the fingerprint
 ok   the cache key carries no stray version
 ok   vehicles: every constant is filed once
 ok   vehicles: nothing filed that does not exist
-ok   ocr: every constant is filed once
+ok   vehicle_detect: every constant is filed once
+ok   vehicle_detect: nothing filed that does not exist
+FAIL ocr: every constant is filed once: got ['CTC_TRIM_BLANK', 'DIGIT_COLUMNS'], want []
 ok   ocr: nothing filed that does not exist
 ok   embed: every constant is filed once
 ok   embed: nothing filed that does not exist
@@ -94,6 +132,10 @@ ok   car_colour: every constant is filed once
 ok   car_colour: nothing filed that does not exist
 ok   people: every constant is filed once
 ok   people: nothing filed that does not exist
+ok   analyse_frame runs the detector once for a frame analysed twice
+ok   the first analysis detected, the second read the cache
+ok   the cached detection gives the same candidates
+ok   a box under DETECTOR_MIN_SCORE is a candidate, not a box
 ok   a no-vehicle row
 ok   a team row carries the runner-up
 ok   a row has the shot type before the order flag
@@ -123,6 +165,12 @@ ok   a number box records its OCR
 ok   boxes.json records each image's status and the box's unmatched digits
 ok   boxes.json carries the thresholds and per-entry facts the report needs
 ok   --report-out writes report.md and report.json
+ok   a hand-tagged solo shot read as another car is a conflict, though the two share a team tag
+ok   a hand-tagged frame anchors its burst alone
+FAIL an unread box takes the hand-tagged entry: got '8,0,conflict,TSU,,1.000,,solo,,,', want '8,0,hand,TSU,,1.000,,solo,,,'
+ok   a frame with no vehicle takes the hand-tagged entry
+ok   a pack keeps its boxes and gains the hand-tagged entry
+ok   a hand entry that isn't in entries.json is logged and its image identified without it
 ok   promote adds a confident box
 ok   only the wide-margin box became a reference
 ok   promoting again replaces rather than duplicates
@@ -141,10 +189,18 @@ ok   a hand colour on an entry without one is set
 ok   entries.json gains the colour
 ok   a different reading of a coloured entry differs
 ok   a differing reading leaves the colour
+ok   colours-only: a hand colour sets the entry and saves no reference
+ok   colours-only: entries.json gains the colour
+ok   colours-only: an entry with that colour is already
+ok   colours-only: no vehicle is unread and saves nothing
+ok   colours-only needs the colour family
+ok   colours-only refuses a people collection
+ok   colours-only saves no face reference
 ok   a cancelled run exits 130
 ok   a cancelled run writes no results (nor leaves a temp file)
 ok   3-, 4- and 5-column manifests all parse
-ok   strict prefixes of entry tags
+ok   team tags come from the team family root
+ok   no team tags with the team family off
 ok   tag and sponsor hints that agree merge
 ok   a tag hint beats a differing sponsor hint
 ok   sponsor hint alone
@@ -153,128 +209,178 @@ ok   sponsor_keywords naming a prefix with no entries is rejected
 ok   sponsor_keywords must be lowercase
 ok   a non-boolean partial_references in entries.json logs and keeps the default
 
-all tests passed
+6 test(s) failed
 
 --- stderr ---
-11:42:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:57 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
-11:42:57 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
-11:42:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:57 py: warning: entries.json has no rules block, so the face thresholds use defaults
-11:42:57 py: rules.min_sim in entries.json is deprecated; move it to settings.json
-11:42:57 py: rules.margin in entries.json is deprecated; move it to settings.json
-11:42:57 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
-11:42:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, RB
-11:42:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:57 py: rules.colour_tags in entries.json is deprecated; move it to settings.json
-11:42:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: rules.diagnostics.colour in entries.json is deprecated; move it to settings.json
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: rules.order_weight in entries.json is deprecated; move it to settings.json
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: collection tmp273v9_oe has no references yet: only numbers can identify a car
-11:42:58 py: 1: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 3: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 4: no vehicle
-11:42:58 py: 3: box 0: burst VER (0.67 of the burst agrees)
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmp273v9_oe\tag-plan.txt
-11:42:58 py: vehicles by method: burst 1, error 1, none 1, number 2
-11:42:58 py: rules.diagnostics.shot_* in entries.json is deprecated; move it to settings.json
-11:42:58 py: rules.diagnostics.shot_* in entries.json is deprecated; move it to settings.json
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: collection tmp273v9_oe has no references yet: only numbers can identify a car
-11:42:58 py: 1: already carries all of TSU's tags, skipped
-11:42:58 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 6: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 7: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 9: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 9: box 1: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
-11:42:58 py: 8: box 0: VER shares no tag with the ones you applied; left as you tagged it
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmp273v9_oe\tag-plan.txt
-11:42:58 py: vehicles by method: conflict 2, none 1, number 3, skipped 1
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: collection tmp273v9_oe has no references yet: only numbers can identify a car
-11:42:58 py: 1: already carries all of TSU's tags, skipped
-11:42:58 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 6: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 7: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 9: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 9: box 1: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
-11:42:58 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
-11:42:58 py: 8: box 0: VER shares no tag with the ones you applied; left as you tagged it
-11:42:58 py: report: C:\Users\Louis\AppData\Local\Temp\tmpo2cu8a42\last-run\c.report.md
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmp273v9_oe\tag-plan.txt
-11:42:58 py: vehicles by method: conflict 2, none 1, number 3, skipped 1
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmp273v9_oe\tag-plan.txt
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmp273v9_oe\tag-plan.txt
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: 1: the file no longer matches the last run (frame size changed), skipped
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmp273v9_oe\tag-plan.txt
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-11:42:58 py: 1: refs/VER/1_b0.jpg is flagged by outlier, colour; not saved
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmp273v9_oe\tag-plan.txt
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmp273v9_oe\tag-plan.txt
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-11:42:58 py: 1: refs/VER/1_b0.jpg is flagged by outlier, colour; not saved
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmp273v9_oe\tag-plan.txt
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:58 py: 1: reference refs/VER/1.jpg
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmp273v9_oe\tag-plan.txt
-11:42:58 py: rules.colour_tags in entries.json is deprecated; move it to settings.json
-11:42:58 py: rules.partial_references in entries.json is deprecated; move it to settings.json
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: 1: reference refs/@team@F1__Red Bull/1.jpg
-11:42:58 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmpbj5ny34o\tag-plan.txt
-11:42:58 py: rules.colour_tags in entries.json is deprecated; move it to settings.json
-11:42:58 py: rules.partial_references in entries.json is deprecated; move it to settings.json
-11:42:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-11:42:59 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmpbj5ny34o\tag-plan.txt
-11:42:59 py: rules.colour_tags in entries.json is deprecated; move it to settings.json
-11:42:59 py: rules.partial_references in entries.json is deprecated; move it to settings.json
-11:42:59 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:59 py: 1: reference refs/VER/1.jpg
-11:42:59 py: entry VER: colour set to Red in entries.json
-11:42:59 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmpbj5ny34o\tag-plan.txt
-11:42:59 py: rules.colour_tags in entries.json is deprecated; move it to settings.json
-11:42:59 py: rules.partial_references in entries.json is deprecated; move it to settings.json
-11:42:59 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:59 py: 1: reference refs/VER/1.jpg
-11:42:59 py: entry VER: colour is Red in entries.json, this reference reads Blue; left as Red
-11:42:59 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_z46itqbf\tmpbj5ny34o\tag-plan.txt
-11:42:59 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-11:42:59 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-11:42:59 py: cancelled
+15:22:55 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
+15:22:55 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so the face thresholds use defaults
+15:22:55 py: rules.min_sim in entries.json is deprecated; move it to settings.json
+15:22:55 py: rules.margin in entries.json is deprecated; move it to settings.json
+15:22:55 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:55 py: entries.json: 1 entries upgraded (class, make/model \u2192 fields)
+15:22:55 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: entries.json: 1 entries upgraded (class, make/model \u2192 fields)
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: entries.json has no rules block, so the face thresholds use defaults
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:56 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:56 py: rules.order_weight in entries.json is deprecated; move it to settings.json
+15:22:56 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: collection tmp_43zgdv2 has no references yet: only numbers can identify a car
+15:22:57 py: 1: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 3: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 4: no vehicle
+15:22:57 py: 3: box 0: burst VER (0.67 of the burst agrees)
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: vehicles by method: burst 1, error 1, none 1, number 2
+15:22:57 py: rules.diagnostics.shot_* in entries.json is deprecated; move it to settings.json
+15:22:57 py: rules.diagnostics.shot_* in entries.json is deprecated; move it to settings.json
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: collection tmp_43zgdv2 has no references yet: only numbers can identify a car
+15:22:57 py: 1: already carries all of TSU's tags, skipped
+15:22:57 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 6: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 7: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 9: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 9: box 1: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
+15:22:57 py: 8: box 0: VER shares no tag with the ones you applied; left as you tagged it
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: vehicles by method: conflict 2, none 1, number 3, skipped 1
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: collection tmp_43zgdv2 has no references yet: only numbers can identify a car
+15:22:57 py: 1: already carries all of TSU's tags, skipped
+15:22:57 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 6: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 7: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 9: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 9: box 1: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
+15:22:57 py: 8: box 0: VER shares no tag with the ones you applied; left as you tagged it
+15:22:57 py: report: C:\Users\Louis\AppData\Local\Temp\tmpvp5ooq9j\last-run\c.report.md
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: vehicles by method: conflict 2, none 1, number 3, skipped 1
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: collection tmp_43zgdv2 has no references yet: only numbers can identify a car
+15:22:57 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 3: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 4: no vehicle
+15:22:57 py: 9: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 9: box 1: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+15:22:57 py: 8: TSU by the tag you applied
+15:22:57 py: 4: TSU by the tag you applied
+15:22:57 py: 9: TSU by the tag you applied
+15:22:57 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
+15:22:57 py: 3: box 0: burst TSU (0.50 of the burst agrees)
+15:22:57 py: 8: box 0: TSU shares no tag with the ones you applied; left as you tagged it
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: vehicles by method: burst 1, conflict 2, hand 2, none 1, number 1
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: 1: the file no longer matches the last run (frame size changed), skipped
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+15:22:57 py: 1: refs/VER/1_b0.jpg is flagged by outlier, colour; not saved
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+15:22:57 py: 1: refs/VER/1_b0.jpg is flagged by outlier, colour; not saved
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: 1: reference refs/VER/1.jpg
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmp_43zgdv2\tag-plan.txt
+15:22:57 py: rules.partial_references in entries.json is deprecated; move it to settings.json
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: 1: reference refs/@team@F1__Red Bull/1.jpg
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmpwif8okqd\tag-plan.txt
+15:22:57 py: rules.partial_references in entries.json is deprecated; move it to settings.json
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmpwif8okqd\tag-plan.txt
+15:22:57 py: rules.partial_references in entries.json is deprecated; move it to settings.json
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: 1: reference refs/VER/1.jpg
+15:22:57 py: entry VER: colour set to Red in entries.json
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmpwif8okqd\tag-plan.txt
+15:22:57 py: rules.partial_references in entries.json is deprecated; move it to settings.json
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: 1: reference refs/VER/1.jpg
+15:22:57 py: entry VER: colour is Red in entries.json, this reference reads Blue; left as Red
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmpwif8okqd\tag-plan.txt
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: entry VER: colour set to Red in entries.json
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmpazxkznvw\tag-plan.txt
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmpazxkznvw\tag-plan.txt
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: 1: no vehicle found (no vehicle); colour unread
+15:22:57 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_7h29hxa7\tmpazxkznvw\tag-plan.txt
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: warning: entries.json has no rules block, so the face thresholds use defaults
+15:22:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+15:22:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+15:22:57 py: cancelled

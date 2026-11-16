@@ -1,0 +1,30 @@
+ok   summarise: one row per detector per threshold
+ok   summarise: frames counted once per detector
+ok   summarise: frames_with_car at 0.20
+ok   summarise: frames_with_car at 0.35 drops the 0.25 box
+ok   summarise: boxes at 0.20
+ok   summarise: boxes_per_frame rounded
+ok   summarise: missed_cars = truth frames with no box at threshold
+ok   summarise: no missed cars when every truth frame has a box
+ok   summarise: truth False frames never count as missed
+ok   summarise: ms_mean over all frames
+ok   summarise: ms_p90 nearest-rank
+ok   summarise: ms is independent of threshold
+ok   summarise: default thresholds
+ok   summarise: missed_cars None when no row has truth
+ok   disagreements: frames whose box counts differ, sorted by frame
+ok   disagreements: counts per detector id
+ok   disagreements: empty when every frame agrees
+
+--- stderr ---
+Traceback (most recent call last):
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_compare_detectors.py", line 65, in <module>
+    check("read_truth: path \u2192 has vehicle, via manifest ids", truth, {"C:/p/a.jpg": True, "C:/p/c.jpg": False})
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_compare_detectors.py", line 19, in check
+    print(f"ok   {name}")
+    ~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\encodings\cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode character '\u2192' in position 22: character maps to <undefined>

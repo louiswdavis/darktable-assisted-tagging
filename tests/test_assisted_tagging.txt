@@ -1,0 +1,429 @@
+FAIL plugin_common.lua matches COMMON_HASH (copy it to the other repos after a change): got 503716c8, want 069ea47d
+ok   shell_quote: Windows escapes quotes, keeps %
+ok   shell_quote: POSIX escapes single quotes
+ok   parse_csv_line: quoted comma and doubled quote
+ok   parse_csv_line: wrong field count is nil
+ok   lead_rank: full-size JPEG beats RAW
+ok   detections_path: <config_dir>/assisted_plugins/detections.sqlite, backslashes folded
+ok   page_index: out of range falls back to 1
+ok   page_coverage: missing and duplicate keys are named
+ok   page_coverage: complete panel is clean
+ok   temp_base: <dir>/<prefix><epoch>_<seq>_
+ok   sweep_temp: removes only this prefix's stale files
+ok   sweep_temp: newer file kept
+ok   sweep_temp: other prefix kept
+ok   plugin_folder: plugins_root/<folder>
+ok   shared key set: nothing logged
+ok   plugin_folder: old key when shared blank
+ok   deprecations: one line per old key
+ok   deprecation line: plugin_folder
+ok   plugin_folder: both blank -> fallback
+ok   plugin_folder: no fallback -> empty
+ok   register_shared_prefs: once across plugin copies
+ok   parses a normal timestamp
+ok   returns nil for missing timestamp
+ok   returns nil for garbage input
+ok   returns nil for an all-zero date
+ok   returns nil for a pre-1970 date
+ok   near_in_time keeps candidates within the gap of any selected time
+ok   near_in_time ignores untimed candidates and selected times
+ok   near_in_time with no timed selection is empty
+ok   newest_group_node picks the greatest stamp
+ok   newest_group_node ignores other tags
+ok   newest_group_node with empty input
+ok   tag_group_keys reads immediate children only
+ok   tag_group_keys takes the first child by name
+ok   tag_group_keys reports the photo
+ok   tag_group_keys leaves unmatched photos out
+ok   native_group_keys maps leaders
+ok   number_groups shares and separates
+ok   number_groups with no keys at all
+ok   collapse_shots: JPEG leads its RAW pair, any case
+ok   collapse_shots: pair and duplicate take the JPEG's tags
+ok   collapse_shots: RAW alone is read itself
+ok   collapse_shots: same stem in another folder is its own shot
+ok   collapse_shots: the replaced lead has no group
+ok   shot_copies: RAW pair and group member, not the read image, another folder or a repeat
+ok   prefer_paired: RAW swapped for its JPEG, dupes dropped, order kept
+ok   prefer_paired: counts swaps
+ok   prefer_paired: pick_of maps the RAW to the JPEG
+ok   prefer_paired: a JPEG in another folder is not a pair
+ok   prefer_paired: empty pool keeps the selection
+ok   csv_line quotes every field
+ok   parse_csv_line splits a results row
+ok   parse_csv_line keeps empty fields
+ok   parse_csv_line rejects the wrong field count
+ok   entries keep file order
+ok   entries split their tags
+ok   an entry may have no team or number
+ok   entries: four fields leave the name empty
+ok   entries: a fifth field is the name
+ok   entries: five fields still split the tags
+ok   default rules share team tags
+ok   default diagnostics sit under Assisted Tagging|Identification
+ok   rules: team_only
+ok   rules: unidentified tags
+ok   rules: an empty diagnostic is off
+ok   rules: a renamed diagnostic
+ok   rules: unlisted diagnostics keep their default
+ok   rules: no family line, no family
+ok   rules: a family root keeps its space and |
+ok   rules: an off family has no line and no root
+ok   FAMILIES: order
+ok   family_roots: every family on by default
+ok   family_roots: an off family has no root
+ok   family_roots: a set root is used
+ok   removed_settings: clean settings pass
+ok   removed_settings: colour_tags
+ok   removed_settings: tag_colour
+ok   removed_settings: tag_colour_name
+ok   removed_settings: set embedder_file stops
+ok   removed_settings: set ocr_rec_file stops
+ok   removed_settings: blank model keys are ignored
+ok   a number result wants the entry's tags
+ok   a number result gets the By number diagnostic
+ok   a number result is identified
+ok   team only wants just the shared tags
+ok   team only gets the Team only diagnostic
+ok   team_only none wants no collection tags
+ok   team_only none still uses its diagnostic
+ok   two cars want both entries' tags
+ok   no vehicle wants nothing by default
+ok   no vehicle gets the Unidentified diagnostic
+ok   no vehicle is not identified
+ok   unidentified rule tags are wanted
+ok   a dropped diagnostic writes none
+ok   an entry no longer in entries.json identifies nothing
+ok   a neighbour result wants the entry's tags
+ok   a neighbour result gets the By neighbour diagnostic
+ok   a neighbour result is identified
+ok   a flagged read keeps the entry's tags
+ok   a flagged read gets By number and Check order
+ok   a dropped Check order diagnostic writes none
+ok   mask_diag: an off outcome writes no diagnostic
+ok   mask_diag: entry tags are unchanged
+ok   mask_diag: switches off a renamed diagnostic too
+ok   mask_diag: keeps the other rules
+ok   mask_diag: leaves the rules it was given alone
+ok   mask_diag: off.shot blanks Solo and Pack, leaves shot_crowded
+ok   mask_diag: off.shot leaves shot_crowded
+ok   mask_diag: off.shot_crowded blanks only shot_crowded
+ok   mask_diag: number_seen off drops the Number seen tags
+ok   parse_setting: whole tolerance
+ok   parse_setting: fractional tolerance refused
+ok   parse_setting: order weight 1
+ok   parse_setting: order weight above 1 refused
+ok   parse_setting: blank refused
+ok   parse_setting: tag name with a comma refused
+ok   parse_setting: family root kept whole
+ok   parse_setting: family root with a comma refused
+ok   parse_setting: family root starting with | refused
+ok   parse_setting: family root ending with | refused
+ok   panel_value: blank number is the default
+ok   panel_value: blank tag name is the default
+ok   panel_value: blank family root is the default
+ok   panel_value: 0,5 refused
+ok   panel_value: the message names the key
+ok   panel_value: tag name with a comma refused
+ok   panel_value: tag name message names the key
+ok   panel_value: bad family root refused
+ok   panel_value: family root message
+ok   panel_value: valid number
+ok   tag_row_label: Check colour gated by family_colour off
+ok   tag_row_label: Check colour with family_colour on
+ok   tag_row_label: By neighbour gated by order_weight 0
+ok   tag_row_label: By neighbour with order_weight 0.5
+ok   tag_row_label: By pooled burst gated by burst_livery_pooling nil
+ok   tag_row_label: ungated row unchanged
+ok   TAG_GATES: every gate names a TAG_TOGGLES key and a PRESET_SCHEMA key
+ok   TAG_TOGGLES: every row has a kind in TAG_KINDS
+ok   tag_rows_in_order: checks, then diagnostics
+ok   TAG_TOGGLES: none is labelled Unidentified (check)
+ok   PANEL_PAGES: every preset key is on one page or listed off-stack
+ok   PANEL_PAGES: titles match the README sections
+ok   checked_settings: out-of-range and bad names replaced
+ok   checked_settings: bad family root back to default
+ok   checked_settings: min_sim back to default
+ok   checked_settings: bad tag name back to default
+ok   checked_settings: a valid value kept
+ok   checked_settings: the given settings untouched
+ok   checked_settings: missing name key gets the default
+ok   checked_settings: missing family root gets the default
+ok   checked_settings: missing number key gets the default
+ok   checked_settings: missing keys are not listed as replaced
+ok   checked_settings: an invalid key is still replaced and listed
+ok   named_rules: colour off still owns the colour prefix
+ok   named_rules: shot_crowded from tag_shot_crowded_name
+ok   named_rules: solo and pack from tag_shot_name
+ok   named_rules: off diagnostic still owned
+ok   named_rules: an off family keeps its root
+ok   named_rules: leaves the rules it was given alone
+ok   owned: entry tags
+ok   owned: unidentified rule tags
+ok   owned: renamed diagnostics
+ok   owned: default diagnostics stay owned after a rename
+ok   owned: the user's own tags are not
+ok   VER → HAM attaches Hamilton's tags
+ok   VER → HAM drops every Red Bull tag and keeps the user's own
+ok   team → VER attaches only the driver tag
+ok   team → VER keeps the team tag without detaching it
+ok   an image with all of one entry's tags maps to it
+ok   a shared team tag alone maps to no one
+ok   two drivers' tags map to no one
+ok   no matching tags map to no one
+ok   a double-driven car's full tags map to its first entry
+ok   a car plus another entry's tags map to no one
+ok   results group by image id
+ok   a no-vehicle frame has a row
+ok   an errored frame has no rows to apply
+ok   an errored frame is reported
+ok   a skipped frame has no rows to apply
+ok   a skipped frame is reported
+ok   rows carry the shot type
+ok   an 8-field line is rejected
+ok   a row carries the order flag
+ok   an unflagged row has no order flag
+ok   9-column row has no colour
+ok   9-column row has no colour flag
+ok   10-column row carries the colour
+ok   10-column row has no colour flag
+ok   11-column row carries colour and flag
+ok   identified row gets the colour tag
+ok   unidentified row gets the colour tag
+ok   box -1 row gets no colour tag
+ok   colour family off writes no colour tag
+ok   colour flag adds Check colour
+ok   mask_diag: check_colour off blanks it
+ok   mask_diag: the colour tag is still written
+ok   owned: colour check tag
+ok   owned_prefixes: no colour root, no colour prefix
+ok   owned_prefixes includes the colour base
+ok   hand_value: one hand colour
+ok   hand_value: two colours
+ok   hand_value: ledgered tag
+ok   hand_value: empty base
+ok   hand colour tag survives a Blue reading
+ok   hand_family_tags: empty root
+ok   ledger round-trips
+ok   ledger output is sorted
+ok   an empty ledger formats to nothing
+ok   a missing ledger file parses to empty
+ok   ledger_parse: another library's lines aren't ours
+ok   ledger_parse: lines without a library column are ours
+ok   ledger_parse: the other library's lines are kept
+ok   ledger_format: ours first, the other library's after
+ok   ledger_format of an unchanged file is stable
+ok   ledger_prune drops an image that's gone
+ok   ledger_prune: nothing resolving means the lookup failed
+ok   plan_clear: detaches ledger tags still on the image, hand tags stay
+ok   plan_clear: another collection's ledger tags are removed too
+ok   plan_clear: no ledger row, no plan
+ok   ledger_format after clear keeps other libraries' rows
+ok   hand_diag: the unidentified tag applied by hand
+ok   hand_diag: a number-seen tag applied by hand
+ok   hand_diag: a ledgered diagnostic is the plugin's
+ok   hand_diag: a foreign tag is not a diagnostic
+ok   hand_diag: an entry tag is protected_tags' job, not this one's
+ok   hand_diag: a run detaches only the ledgered diagnostic
+ok   reference results: every row parses
+ok   reference results: four-column rows keep the entry id
+ok   reference results: a 3-column row reads an empty entry id
+ok   reference results: a 2-column row reads an empty note
+ok   reference results: colour notes are counted
+ok   reference results: the done message names each count
+ok   reference results: no colour notes, nothing to add
+ok   colour_summary: distinct entries per note
+ok   colour_summary: nothing read, all zero
+ok   colour_summary: failed rows are counted
+ok   protected: an entry tag not in the ledger is the user's
+ok   protected: a ledgered tag is the plugin's
+ok   protected: a non-entry tag is ignored
+ok   hand_entry: a number tag names its entry
+ok   hand_entry: a driver tag names its entry
+ok   hand_entry: number and driver of one entry agree
+ok   hand_entry: a shared driver name names no entry
+ok   hand_entry: the shared name is still protected
+ok   hand_entry: a number settles a shared name
+ok   hand_entry: a number outside the shared name disagrees
+ok   hand_entry: tags naming two entries name none
+ok   hand_entry: disagreeing tags are both kept
+ok   hand_entry: a ledgered tag is the plugin's
+ok   hand_entry: an unlisted number names no entry
+ok   protected: an unlisted hand number is kept
+ok   protected: without roots only entry tags are
+ok   protected: a ledgered unlisted number is the plugin's
+ok   hand_entry: a team tag names no entry
+ok   hint: the hand team tag still hints
+ok   hand_family_tags: vehicle root
+ok   hand_entry: a vehicle tag names no entry
+ok   a hand result wants the entry's tags
+ok   a hand result adds no diagnostic
+ok   a hand result counts as identified
+ok   new entries: unlisted reads make one number row
+ok   new entries: an unlisted hand number makes a row; read too counts as hand
+ok   new entries: hand team and driver on entry 12 make field rows
+ok   new entries: a field row carries its entry
+ok   new entries: a field the entry has makes no row
+ok   new entries: most photos first, then number
+ok   new entries: a ledgered team tag makes no row
+ok   new entries: an entry's id or a 4-digit number makes no row
+ok   new entries: a team or driver holding , ; or " makes no row
+ok   candidate_label: read
+ok   candidate_label: both ways, one photo
+ok   candidate_label: field
+ok   check_additions: two teams for one entry
+ok   check_additions: number family off
+ok   check_additions: nothing ticked
+ok   check_additions: a number and one team pass
+ok   addition_rows: number and field rows
+ok   open_command: Windows
+ok   open_command: macOS
+ok   open_command: Linux
+ok   hint: a user-applied team tag hints
+ok   hint: a tag under the team tag is not a hint
+ok   hint: a ledgered tag is the plugin's, not a hint
+ok   hint: a non-entry tag is ignored
+ok   hint: another root's team tag is not a hint
+ok   hint: team family off, no hints
+ok   a protected tag is never detached
+ok   owned_roots: entry roots
+ok   owned_roots: diagnostics root is not one
+ok   ledgered_owned: a stale tag under the collection's root
+ok   ledgered_owned: another collection's tag stays out
+ok   ledgered_owned: the run stamp stays out
+ok   ledgered_owned: no ledger is nothing
+ok   a renamed entry's ledgered tag is detached; others stay
+ok   a conflict-only image gets no unidentified tags
+ok   a conflict-only image gets no none diagnostic
+ok   a conflict is not identified
+ok   a pack still tags its other cars beside a conflict
+ok   a pack adds its shot diagnostic once
+ok   pythonw_of: venv python.exe
+ok   pythonw_of: case-insensitive
+ok   pythonw_of: bare python on PATH
+ok   pythonw_of: other launcher is refused
+ok   hierarchical_tags keeps only tags with a hierarchy
+ok   hierarchical_tags drops the plugin's own diagnostics
+ok   hierarchical_tags drops a tag entries.json can't hold
+ok   sanitize_id replaces folder-unsafe characters
+ok   sanitize_id trims whitespace
+ok   sanitize_id falls back on an empty name
+ok   entries need at least this many samples of their tag
+ok   one entry per distinct tag set with enough samples
+ok   derive_entries skips images with no hierarchical tag
+ok   a tag only one image carries doesn't become an entry
+ok   the deepest tag seeds the id
+ok   a tag shared by only some groups becomes the team
+ok   teammates share the same team
+ok   a non-numeric leaf sets no race number
+ok   entry_of maps each sampled image to its entry
+ok   a thin group's images aren't mapped to an entry
+ok   a numeric leaf becomes the race number
+ok   a numeric leaf also seeds the id
+ok   no shared tag between numbers means no team
+ok   a 4-digit leaf isn't mistaken for a race number
+ok   a colliding id gets a numeric suffix
+ok   entries_json emits the entries object
+ok   entries_json quotes every field
+ok   entries_json emits the number field
+ok   entries_json emits the tag array
+ok   entries_json writes no rules
+ok   preset decode string
+ok   preset decode true
+ok   preset decode float
+ok   preset decode false
+ok   preset decode negative
+ok   preset decode version
+ok   preset decode BOM
+ok   preset decode empty object
+ok   preset decode null drops key
+ok   preset decode \u escape
+ok   preset decode surrogate pair
+ok   preset decode escapes
+ok   preset decode rejects trailing comma
+ok   preset decode rejects nested object
+ok   preset decode rejects array
+ok   preset decode rejects trailing junk
+ok   preset decode rejects empty text
+ok   preset decode rejects missing colon
+ok   preset decode rejects unterminated string
+ok   preset decode rejects bare word
+ok   preset decode rejects not an object
+ok   preset encode version first
+ok   preset encode schema order
+ok   preset encode ends with newline
+ok   preset round trip string
+ok   preset round trip bool
+ok   preset round trip number
+ok   preset round trip choice
+ok   preset encode whole number
+ok   preset merge missing key uses default
+ok   preset merge keeps valid value
+ok   preset merge string for number falls back
+ok   preset merge label for choice falls back
+ok   preset merge drops unknown key
+ok   preset merge lists problems
+ok   preset merge missing keys are not problems
+ok   preset defaults
+ok   preset equal same values
+ok   preset equal bool flipped
+ok   preset name trimmed
+ok   preset name empty
+ok   preset name blank
+ok   preset name nil
+ok   preset name reserved
+ok   preset name slash
+ok   preset name colon
+ok   preset name quote
+ok   preset order
+ok   preset order empty
+ok   tagging schema has 52 keys
+ok   colour keys default on
+ok   family colour defaults
+ok   family number defaults
+ok   family team defaults
+ok   family driver defaults
+ok   family extra defaults
+ok   family vehicle defaults
+ok   tagging defaults
+ok   every tag switch defaults on
+ok   tolerance 3 kept
+ok   stored blank order_weight is the default
+ok   stored blank order_weight is no problem
+ok   rules.csv: order_weight number
+ok   rules.csv: neighbour_tolerance number
+ok   rules.csv: blur_references boolean
+ok   rules.csv: from_entries_json keys
+ok   rules.csv: empty from_entries_json
+ok   run_settings_text_round_trips
+ok   backfill_adds_only_missing
+ok   backfill_adds_only_missing: text
+ok   backfill_noop_returns_nil
+ok   backfill_noop_returns_nil: nothing from entries.json
+ok   backfill: unreadable settings.json left alone
+ok   backfill_overwrites_blank
+ok   backfill: out-of-range stored value replaced
+ok   backfill: tag keys from the diagnostic names
+ok   run_settings_path
+ok   upgrade_settings_text: copies tag_shot into tag_shot_crowded
+ok   upgrade_settings_text: copies tag_shot_name into tag_shot_crowded_name
+ok   upgrade_settings_text: reports both keys
+ok   upgrade_settings_text: no-op when both present
+ok   upgrade_settings_text: no-op on text that is not JSON
+ok   pick first present
+ok   pick best present
+ok   none present
+ok   paddle reader without yml is skipped
+ok   paddle reader with yml is picked
+ok   optional job with nothing installed picks nil
+ok   face detector is optional
+ok   required job with nothing installed is an error
+ok   missing reader names the base reader and its yml
+ok   missing base without base field names the last file
+ok   reader without yml is logged as missing its yml
+ok   pick log line
+ok   pick log line, best installed
+ok   model jobs in log order
+ok   each list ends in today's file
+
+1 test(s) failed

@@ -1,17 +1,18 @@
-wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmpaf3x788s\entries.json
+wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmponi9gijj\entries.json
 ok   import writes numbers-only entries
-ok   import writes only tag_prefix to the rules
-ok   import never writes order_weight (it lives in settings.json)
+ok   import writes no rules (tag roots and order_weight live in settings.json)
 ok   import refuses to overwrite
 ok   import rejects a duplicate number
 ok   import rejects an empty list
 ok   import rejects the removed --order-weight flag
+ok   import rejects the removed --tag-prefix flag
 all tests passed
 
 --- stderr ---
-import_numbers: C:\Users\Louis\AppData\Local\Temp\tmpaf3x788s\entries.json already exists; not overwriting
+import_numbers: C:\Users\Louis\AppData\Local\Temp\tmponi9gijj\entries.json already exists; not overwriting
 import_numbers: number 12 is listed twice
-import_numbers: C:\Users\Louis\AppData\Local\Temp\tmpaf3x788s\empty.csv has no numbers
-usage: test_import_numbers.py [-h] --tag-prefix TAG_PREFIX
-                              numbers_csv out_entries_json
+import_numbers: C:\Users\Louis\AppData\Local\Temp\tmponi9gijj\empty.csv has no numbers
+usage: test_import_numbers.py [-h] numbers_csv out_entries_json
 test_import_numbers.py: error: unrecognized arguments: --order-weight 0.5
+usage: test_import_numbers.py [-h] numbers_csv out_entries_json
+test_import_numbers.py: error: unrecognized arguments: --tag-prefix R

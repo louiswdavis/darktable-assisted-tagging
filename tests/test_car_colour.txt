@@ -1,16 +1,40 @@
 ok   solid red is Red
 ok   red with 15% white is Red
-ok   55/45 red and white is Multi
-ok   mud grey is no colour
-ok   silver is White
-ok   dark navy is Blue or Black
+ok   55/45 red and white is Red
+ok   mud grey is Grey
+ok   silver is Grey
+ok   bright silver is White
+ok   dark navy is Blue
+ok   near black is Black
+ok   orange is Orange
+ok   dark orange is Brown
+ok   purple is Purple
+ok   pink is Pink
 ok   half grey, half red, masked is Red
-ok   half grey, half red, unmasked is no colour
-ok   sole colour with a minor second
-ok   sole-share colour with a part second is Multi
-ok   two parts reaching the sole share
-ok   three parts
+ok   half grey, half red, unmasked is Red
+ok   achromatic runner-up counts half
+ok   a colour beats a smaller achromatic share
+ok   a mostly black car is Black
+ok   runner-up at the ratio is Multi
+ok   runner-up under the ratio loses
+ok   a tiny single share still decides
+ok   all-zero shares
 ok   no shares
+ok   one mask per palette row
+ok   every HSV triple has exactly one colour
+ok   no HSV triple has two colours
+ok   Black takes some of the space
+ok   White takes some of the space
+ok   Grey takes some of the space
+ok   Brown takes some of the space
+ok   Red takes some of the space
+ok   Orange takes some of the space
+ok   Yellow takes some of the space
+ok   Green takes some of the space
+ok   Blue takes some of the space
+ok   Purple takes some of the space
+ok   Pink takes some of the space
+ok   the palette has 11 names
 ok   same colour agrees
 ok   different colours disagree
 ok   empty entry is neutral

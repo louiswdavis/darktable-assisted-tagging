@@ -1,7 +1,8 @@
 ok   rally's entries.json is in the canonical layout
 ok   f1-season's entries.json isn't one entry per line
-ok   f1-season is refused for layout
-ok   a refused f1-season file is unchanged
+ok   f1-season is written
+ok   a reflowed f1-season file is canonical with the colour set
+ok   the reflowed file's previous bytes are kept as .bak
 ok   adding a colour writes
 ok   only the coloured entry's line changes
 ok   the coloured line ends with the colour
@@ -10,13 +11,64 @@ ok   no temp file is left
 ok   an entry with a colour is never changed
 ok   an unchanged file keeps its bytes
 ok   an unchanged file gets no .bak
-ok   an entry split over two lines is refused for layout
-ok   a refused file keeps its bytes
+ok   an entry split over two lines is written
+ok   a split entry is reflowed onto one line
 ok   the panel's one-line rules layout writes
 ok   the one-line rules layout is kept
 ok   a bare list writes
 ok   a bare list stays a bare list
 ok   an empty colour is filled and moved to the last key
 ok   CRLF line endings are kept
+ok   add: a number is written
+ok   add: the new entry is appended as id and number strings
+ok   add: the previous file is kept as .bak
+ok   add: fields are written
+ok   add: a missing field is appended and an empty one filled
+ok   add: nothing to add writes nothing
+ok   add: a number that is an entry's number raises
+ok   add: a number that is an entry's number leaves the file and writes no .bak
+ok   add: a number that is an entry's id raises
+ok   add: a number that is an entry's id leaves the file and writes no .bak
+ok   add: the same number twice raises
+ok   add: the same number twice leaves the file and writes no .bak
+ok   add: a field already set raises
+ok   add: a field already set leaves the file and writes no .bak
+ok   add: a field of a missing entry raises
+ok   add: a field of a missing entry leaves the file and writes no .bak
+ok   add: a number that isn't 1-3 digits raises
+ok   add: a number that isn't 1-3 digits leaves the file and writes no .bak
+ok   add: a team holding a comma raises
+ok   add: a team holding a comma leaves the file and writes no .bak
+ok   add: a driver holding a quote raises
+ok   add: a driver holding a quote leaves the file and writes no .bak
+ok   add: a file that no longer parses raises
+ok   add: a file that no longer parses is left alone
+ok   add: two values for one field raise
+ok   add: two values for one field leave the file
+ok   add: a file saved with a BOM is read and written back without it
+ok   add: the one-line rules layout is kept
+ok   add: a bare list and CRLF line endings are kept
+added 1 entries and 1 fields to entries.json
+ok   add: the shell form writes and exits 0
+ok   add: the shell form reads quoted values
+entries.json was not changed: 115 is already an entry
+ok   add: the shell form exits 1 on stale rows
+ok   upgrade: three entries change
+ok   upgrade: fields replace the old tags, other tags kept
+ok   upgrade: the previous file is kept as .bak
+ok   upgrade: nothing to move returns 0
+ok   upgrade: nothing to move keeps the bytes
+ok   upgrade: nothing to move gets no .bak
+ok   upgrade: a file that doesn't parse returns 0
+ok   upgrade: a matching field just drops the tag
+ok   upgrade: a disagreeing field names the entry
+ok   upgrade: a disagreeing field leaves the file
+ok   upgrade: a disagreeing class names the entry
+ok   upgrade: two vehicle tags stop
+ok   upgrade: a vehicle tag deeper than make|model stops
+ok   upgrade: a class tag deeper than one level stops
+ok   upgrade: a deep class tag leaves the file
+ok   upgrade: CRLF kept, split entry reflowed
+ok   upgrade: a people collection is untouched
 
 all tests passed

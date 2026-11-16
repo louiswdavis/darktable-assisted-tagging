@@ -23,4 +23,10 @@ ok   PaddleOCR input is 1 x 3 x 48 x 320 for a short word
 ok   the word is scaled to 1, the padding is 0
 ok   a long word widens the input
 ok   a quad warps flat at its own size
+ok   a digit matrix trims sure blanks at either end
+ok   a digit matrix row is blank then 0-9
+ok   a digit's column holds its probability
+ok   a look-alike letter adds to its digit
+ok   an all-blank output gives no matrix
+ok   a PaddleOCR charset folds to digits
 all passed

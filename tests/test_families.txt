@@ -1,0 +1,35 @@
+ok   family order
+ok   family sources
+ok   setting keys
+ok   family_tag
+ok   schema defaults are the family defaults
+ok   resolve: defaults
+ok   resolve: family order
+ok   resolve: custom root
+ok   resolve: sibling roots are fine
+ok   resolve: off families left out
+ok   resolve: all off
+ok   resolve: a switched-off family's root is not checked
+ok   resolve: a switched-off family's root can overlap
+ok   empty root
+ok   root of spaces
+ok   root that is not text
+ok   root 'Cars,Team'
+ok   root 'Cars;Team'
+ok   root 'Cars"Team'
+ok   root '|Cars'
+ok   root 'Cars|'
+ok   root ' Cars'
+ok   root 'Cars '
+ok   root_problem: a good root
+ok   equal roots
+ok   later root under an earlier one
+ok   earlier root under a later one
+ok   colour root counts too
+ok   team_tags: distinct, first seen first
+ok   team_tags: team family off
+ok   team_tags: no entries
+ok   lua M.FAMILIES block found
+ok   lua M.FAMILIES rows
+
+0 failure(s)

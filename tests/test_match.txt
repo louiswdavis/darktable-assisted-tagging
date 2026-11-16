@@ -92,6 +92,11 @@ ok   decided_by: margin too small
 ok   already_tagged: a team tag alone is no one
 ok   already_tagged: a driver's whole chain
 ok   already_tagged: two drivers are no one
+ok   by_car keeps the best of a car, order kept
+ok   a livery near-tie between car-mates names the car
+ok   decided_by: car-mates don't eat the margin
+ok   already_tagged: a car's full tags name its first entry
+ok   already_tagged: a car plus another driver is no one
 ok   conflict: a solo shot sharing no tag
 ok   conflict: never in a pack
 ok   conflict: nothing protected
@@ -139,4 +144,19 @@ ok   match_camera: a livery result with an unknown pod is left alone
 ok   match_camera: number results never change
 ok   match_camera: two owners of a colour is a no-op
 ok   match_camera: owner outside the candidates is a no-op
+ok   ctc: a sure one-step digit spells it
+ok   ctc: a repeated digit needs a blank between, so two steps can't spell 11
+ok   list: a 144 read gives 14 when 144 isn't on the list
+ok   list: the result shows greedy, best and runner-up
+ok   list: a number not on the list never wins
+ok   list: a 1 read gives 14 when 1 isn't on the list
+ok   list: 1 and 14 both on the list and the 4 faint is a close call
+ok   list: 14 and 44 with an unclear first digit is a close call
+ok   list: a close call says so
+ok   list: a close call goes on to livery
+ok   list: a read far from every number is no list read
+ok   list: matrix none gives today's result
+ok   list: matrix missing for a read gives today's result
+ok   list: no matrix keeps the look-alike fallback
+ok   list: hinted_match passes the matrix on
 all tests passed
