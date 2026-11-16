@@ -539,7 +539,12 @@ First the four [tag families](#tag-families): a switch each, with its root besid
 - **Replace manual tags.** Lets runs replace tags you applied by hand; stays ticked until you untick it (see [Tags you apply by hand](#tags-you-apply-by-hand)).
 - **Tag each run.** Stamps every image a run writes with `Assisted Tagging|Run|YYYY-MM-DD HH:MM`.
 - **Verify selection.** Identifies the selection, fully tagged images included, and reports where the result differs from your tags. No tags change.
-- **Identify selection.** Identifies and tags the selection (see [Identifying](#identifying)). Click again to cancel.
+The page has three groups: **identify** (models; writes tags), **derive** (lookups only; adds tags) and **undo**.
+
+- **Identify selection.** Identifies and tags the selection (see [Identifying](#identifying)). Click again to cancel. When a box's colour is read and no number is, only entries whose colour can match are compared. The filter is dropped when a confident number names an entry of another colour, or when no remaining entry is similar enough, so colour alone never identifies a car. Writes darktable tags, the tag ledger, `boxes.json` and the report; never `entries.json`.
+- **Derive from number.** For each image whose number tag you applied names exactly one entry, adds that entry's tags. No models run; plugin-written number tags don't count. Writes darktable tags and the tag ledger only.
+- **Derive from colour.** For each image with one colour tag and no number tag, adds the tags of the one entry with that colour (your team tags narrow it). Skipped when several entries share the colour. Writes darktable tags and the tag ledger only.
+- Both Derive buttons only add tags, log why each skipped image was skipped, and add **Check colour** when your number tag's entry and the colour tag disagree. Each tag source is marked `Assisted Tagging|Derived|From number`, `From driver`, `From colour` or `From identification` (option **Derived from** in 4 tags written). A later Identify run replaces Derive's markers with its own.
 - **Clear tagging marks.** Removes every tag the ledger says the plugin attached to the selected images (entries, colours, diagnostics, unidentified), from any collection, and forgets those images in the ledger, so a later **Identify selection** treats them as fresh. The ledger alone decides: tags you applied by hand stay, even under the plugin's roots, and so do **Tag each run** stamps, which are not ledgered. Images with no ledger row are left alone.
 
 ### 6 references

@@ -234,6 +234,69 @@ local rally_entries = T.parse_entries_csv("12,Team,12,M|Number|12;M|Co-driver|Jo
 check("entries: a sixth field is the co-driver", rally_entries["12"].name .. "|" .. rally_entries["12"].co_driver, "Smith|Jones")
 check("entries: a parsed co-driver names its entry", (T.hand_entry({ ["M|Co-driver|Jones"] = true }, {}, rally_entries,
     { number = "M|Number", driver = "M|Driver", co_driver = "M|Co-driver" })), "12")
+check("entries: six fields leave the colour empty", rally_entries["12"].colour, "")
+local coloured_entries = T.parse_entries_csv("12,Team,12,M|Number|12,Smith,Jones,Red")
+check("entries: a seventh field is the colour", coloured_entries["12"].colour, "Red")
+
+-- colour_relation (mirror of car_colour.py) ---------------------------------
+check("colour_relation: equal agrees", T.colour_relation("Red", "Red"), 1)
+check("colour_relation: different colours differ", T.colour_relation("Red", "Blue"), -1)
+check("colour_relation: empty entry colour is 0", T.colour_relation("", "Red"), 0)
+check("colour_relation: Multi is 0", T.colour_relation("Multi", "Red"), 0)
+check("colour_relation: White/Grey near is 0", T.colour_relation("White", "Grey"), 0)
+check("colour_relation: Black/Grey near is 0", T.colour_relation("Black", "Grey"), 0)
+check("colour_relation: White/Black differ", T.colour_relation("White", "Black"), -1)
+
+-- derive_plan / hand_source --------------------------------------------------
+do
+    local de, dorder = T.parse_entries_csv(table.concat({
+        "1,Alpha,1,M|Number|1;M|Team|Alpha;M|Driver|Ann,Ann,,Red",
+        "2,Beta,2,M|Number|2;M|Team|Beta;M|Driver|Bob,Bob,,Blue",
+        "3,Gamma,3,M|Number|3;M|Team|Gamma;M|Driver|Cy,Cy,,Blue",
+        "4,Gamma,4,M|Number|4;M|Team|Gamma;M|Driver|Di,Di,,Green",
+    }, "\n"))
+    local roots = { number = "M|Number", driver = "M|Driver", team = "M|Team", colour = "M|Colour" }
+    local names = { derived = "AT|Derived", check_colour = "AT|Check colour" }
+    local function plan(have, mode, ledger_set)
+        local p = T.derive_plan(have, ledger_set, de, dorder, roots, mode, names)
+        return table.concat(p.attach, ";") .. " / " .. p.reason
+    end
+    check("derive number: hand number adds the entry's tags and From number",
+        plan({ ["M|Number|2"] = true }, "number"), "AT|Derived|From number;M|Driver|Bob;M|Team|Beta / ")
+    check("derive number: a ledgered (plugin) number tag is not the user's",
+        plan({ ["M|Number|2"] = true }, "number", { ["M|Number|2"] = true }), " / no number tag of yours names an entry")
+    check("derive number: colour that differs adds Check colour",
+        plan({ ["M|Number|1"] = true, ["M|Colour|Blue"] = true }, "number"),
+        "AT|Check colour;AT|Derived|From number;M|Driver|Ann;M|Team|Alpha / ")
+    check("derive number: entry already on the image is skipped",
+        plan({ ["M|Number|4"] = true, ["M|Team|Gamma"] = true, ["M|Driver|Di"] = true }, "number"),
+        " / it already has the entry's tags")
+    check("derive colour: one entry of that colour",
+        plan({ ["M|Colour|Green"] = true }, "colour"), "AT|Derived|From colour;M|Driver|Di;M|Number|4;M|Team|Gamma / ")
+    check("derive colour: two entries of that colour skip",
+        plan({ ["M|Colour|Blue"] = true }, "colour"), " / 2 entries are Blue")
+    check("derive colour: a hand team tag narrows to one",
+        plan({ ["M|Colour|Blue"] = true, ["M|Team|Beta"] = true }, "colour"),
+        "AT|Derived|From colour;M|Driver|Bob;M|Number|2 / ")
+    check("derive colour: no entry of that colour", plan({ ["M|Colour|Pink"] = true }, "colour"), " / no entry is Pink")
+    check("derive colour: no colour tag", plan({}, "colour"), " / it has no colour tag")
+    check("derive colour: a number tag defers to Derive from number, flagging the colour",
+        plan({ ["M|Number|1"] = true, ["M|Colour|Blue"] = true }, "colour"),
+        "AT|Check colour / it has a number tag: use Derive from number")
+    check("derive: markers off add no marker",
+        table.concat(T.derive_plan({ ["M|Number|2"] = true }, nil, de, dorder, roots, "number",
+            { derived = "", check_colour = "" }).attach, ";"), "M|Driver|Bob;M|Team|Beta")
+    check("hand_source: a number tag", T.hand_source({ ["M|Number|2"] = true }, nil, de, roots), "From number")
+    check("hand_source: a driver tag", T.hand_source({ ["M|Driver|Bob"] = true }, nil, de, roots), "From driver")
+    local mrules = T.default_rules()
+    mrules.diag.derived = "AT|Derived"
+    local _w, mdiag = T.wanted_tags({ { box = 0, method = "livery", entry_id = "1" } }, de, mrules)
+    check("wanted_tags: a model result marks From identification", mdiag["AT|Derived|From identification"], true)
+    local _w2, hdiag = T.wanted_tags({ { box = 0, method = "hand", entry_id = "1" } }, de, mrules, "From driver")
+    check("wanted_tags: a hand result marks its source", hdiag["AT|Derived|From driver"], true)
+    check("owned_prefixes: the Derived base is owned per value",
+        table.concat(T.owned_prefixes({ diag = { derived = "AT|Derived" }, families = {} }), ";"), "AT|Derived|")
+end
 
 local defaults = T.default_rules()
 check("default rules share team tags", defaults.team_only, "shared tags")
@@ -413,7 +476,7 @@ check("TAG_TOGGLES: every row has a kind in TAG_KINDS", table.concat(bad_kinds, 
 local ordered = {}
 for _, t in ipairs(T.tag_rows_in_order()) do ordered[#ordered + 1] = t.key end
 check("tag_rows_in_order: checks, then diagnostics", table.concat(ordered, ","),
-    "check_order,none,check_colour,shot,shot_crowded,number,livery,burst,pooled,neighbour,team,number_seen")
+    "check_order,none,check_colour,shot,shot_crowded,number,livery,burst,pooled,neighbour,team,number_seen,derived")
 local none_label
 for _, t in ipairs(T.TAG_TOGGLES) do if t.key == "none" then none_label = t.label end end
 check("TAG_TOGGLES: none is labelled Unidentified (check)", none_label, "Unidentified (check)")

@@ -223,14 +223,15 @@ local function split(s, sep)
     return out
 end
 
--- identify.py's entries.csv (id,team,number,tag;tag…,name,co_driver) → entries by id, and the ids in file order.
+-- identify.py's entries.csv (id,team,number,tag;tag…,name,co_driver,colour) → entries by id, and the ids in file order.
 function M.parse_entries_csv(text)
     local entries, order = {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 6) or M.parse_csv_line(line, 5) or M.parse_csv_line(line, 4)
+        local p = M.parse_csv_line(line, 7) or M.parse_csv_line(line, 6) or M.parse_csv_line(line, 5)
+            or M.parse_csv_line(line, 4)
         if p and p[1] ~= "" and p[4] ~= "" and not entries[p[1]] then
             entries[p[1]] = { id = p[1], team = p[2], number = p[3], tags = split(p[4], ";"), name = p[5] or "",
-                              co_driver = p[6] or "" }
+                              co_driver = p[6] or "", colour = p[7] or "" }
             order[#order + 1] = p[1]
         end
     end
@@ -279,8 +280,10 @@ end
 
 -- rows: one image's results ({ box, method, entry_id, alt_entry_id }). Returns the
 -- collection tags it should carry (name → true), its diagnostic tags, and whether
--- any vehicle was identified. What each outcome adds comes from `rules`.
-function M.wanted_tags(rows, entries, rules)
+-- any vehicle was identified. What each outcome adds comes from `rules`. A row that adds an
+-- entry's tags also adds a "Derived from" marker (rules.diag.derived|<leaf>): `hand_from`
+-- ("From number" or "From driver") for a hand row, "From identification" for the rest.
+function M.wanted_tags(rows, entries, rules, hand_from)
     rules = rules or M.default_rules()
     local wanted, diag, identified = {}, {}, false
     -- held: a box disagreed with tags the user applied by hand and was left as they had it.
@@ -290,6 +293,10 @@ function M.wanted_tags(rows, entries, rules)
         local name = rules.diag[outcome]
         if name and name ~= "" then diag[name] = true end
     end
+    local function mark(leaf)
+        local base = rules.diag.derived
+        if base and base ~= "" then diag[base .. "|" .. leaf] = true end
+    end
     for _, r in ipairs(rows) do
         local e = entries[r.entry_id]
         if r.shot and r.shot ~= "" then shot = r.shot end
@@ -298,6 +305,7 @@ function M.wanted_tags(rows, entries, rules)
         elseif e and (r.method == "number" or r.method == "livery" or r.method == "burst" or r.method == "pooled" or r.method == "neighbour" or r.method == "face" or r.method == "hand") then
             for _, t in ipairs(e.tags) do wanted[t] = true end
             note(r.method)
+            mark(r.method == "hand" and (hand_from or "From number") or "From identification")
             if r.order_flag then note("check_order") end
             identified = true
         elseif e and r.method == "team" then
@@ -308,6 +316,7 @@ function M.wanted_tags(rows, entries, rules)
                 for _, t in ipairs(e.tags) do
                     if shared[t] then wanted[t] = true end
                 end
+                mark("From identification")
             end
             note("team")
             identified = true
@@ -394,6 +403,8 @@ function M.named_rules(rules, s)
         diag[k] = leaf and (base .. "|" .. leaf:sub(1, 1):upper() .. leaf:sub(2))
             or s["tag_" .. k .. "_name"]
     end
+    -- not a DIAG_TAGS outcome (rules.csv never names it): the base of the "Derived from" markers
+    diag.derived = s.tag_derived_name
     named.diag = diag
     -- every family's root, on or off: a switched-off family's tags are still the plugin's
     local families = {}
@@ -415,11 +426,12 @@ function M.mask_diag(rules, off)
     return masked
 end
 
--- Prefixes of the tags written one per value: "...Number seen|<digits>" and the colour and
--- sponsor families' "<root>|<value>".
+-- Prefixes of the tags written one per value: "...Number seen|<digits>", "...Derived|From <source>"
+-- and the colour and sponsor families' "<root>|<value>".
 function M.owned_prefixes(rules)
     local out = {}
-    for _, base in ipairs({ rules.diag.number_seen or "", rules.families.colour or "", rules.families.sponsor or "" }) do
+    for _, base in ipairs({ rules.diag.number_seen or "", rules.diag.derived or "", rules.families.colour or "",
+                            rules.families.sponsor or "" }) do
         if base ~= "" then out[#out + 1] = base .. "|" end
     end
     return out
@@ -483,6 +495,98 @@ function M.hand_entry(have, ledger_set, entries, roots)
         if not among then return nil, "disagree" end
     end
     return id
+end
+
+-- The "Derived from" leaf for a hand row (M.wanted_tags' hand_from): "From number" when the
+-- user's number tags alone name the entry, else "From driver" (a driver or co-driver tag did).
+function M.hand_source(have, ledger_set, entries, roots)
+    return M.hand_entry(have, ledger_set, entries, { number = roots.number }) and "From number" or "From driver"
+end
+
+-- Mirror of python/car_colour.py NEAR_COLOURS and colour_relation: 1 when an entry's colour and a
+-- seen colour agree, -1 when they differ, 0 when either is empty, either is Multi, or the pair is near.
+local NEAR_COLOURS = { White = { Grey = true }, Grey = { White = true, Black = true }, Black = { Grey = true } }
+function M.colour_relation(entry_colour, seen)
+    if not entry_colour or entry_colour == "" or not seen or seen == "" then return 0 end
+    if entry_colour == seen then return 1 end
+    if entry_colour == "Multi" or seen == "Multi" or (NEAR_COLOURS[entry_colour] or {})[seen] then return 0 end
+    return -1
+end
+
+-- The values of the tags in `have` under `root` (hand or plugin), sorted. Empty for no root.
+local function values_under(have, root)
+    local out = {}
+    if not root or root == "" then return out end
+    local prefix = root .. "|"
+    for name in pairs(have) do
+        if name:sub(1, #prefix) == prefix then out[#out + 1] = name:sub(#prefix + 1) end
+    end
+    table.sort(out)
+    return out
+end
+
+-- What a Derive button adds to one image, by lookup only. `mode` "number": the entry the user's
+-- hand number tags name (M.hand_entry). `mode` "colour": the one entry whose colour equals the
+-- image's single colour tag, narrowed by hand team tags; an image whose hand number names an entry
+-- is left to Derive from number. `names`: { derived = marker base, check_colour = tag } ("" = off).
+-- Returns { entry_id, attach = sorted tag names, reason = why nothing was added ("" when added) };
+-- attach can hold only the Check colour tag when the number's entry and the colour tag differ.
+function M.derive_plan(have, ledger_set, entries, order, roots, mode, names)
+    local plan = { attach = {}, reason = "" }
+    local add = {}
+    local colours = values_under(have, roots.colour)
+    local number_id, why = M.hand_entry(have, ledger_set, entries, { number = roots.number })
+    if number_id and #colours == 1 and names.check_colour ~= ""
+        and M.colour_relation(entries[number_id].colour, colours[1]) == -1 then
+        add[names.check_colour] = true
+    end
+    local id, leaf
+    if mode == "number" then
+        if number_id then
+            id, leaf = number_id, "From number"
+        else
+            plan.reason = why == "ambiguous" and "its number fits several entries"
+                or why == "disagree" and "its number tags name different entries"
+                or "no number tag of yours names an entry"
+        end
+    elseif number_id then
+        plan.reason = "it has a number tag: use Derive from number"
+    elseif M.entry_for_tags(have, entries, order) then
+        plan.reason = "it already has an entry's tags"
+    elseif #colours ~= 1 then
+        plan.reason = #colours == 0 and "it has no colour tag" or "it has several colour tags"
+    else
+        local teams = M.hint_tags(have, ledger_set, entries, roots.team)
+        local found = {}
+        for _, entry_id in ipairs(order) do
+            local e = entries[entry_id]
+            if M.colour_relation(e.colour, colours[1]) == 1
+                and (not next(teams) or teams[roots.team .. "|" .. e.team]) then
+                found[#found + 1] = entry_id
+            end
+        end
+        if #found == 1 then
+            id, leaf = found[1], "From colour"
+        else
+            plan.reason = #found == 0 and ("no entry is " .. colours[1])
+                or string.format("%d entries are %s", #found, colours[1])
+        end
+    end
+    if id then
+        plan.entry_id = id
+        local added = false
+        for _, t in ipairs(entries[id].tags) do
+            if not have[t] then add[t], added = true, true end
+        end
+        if not added then
+            plan.reason = "it already has the entry's tags"
+        elseif names.derived ~= "" then
+            add[names.derived .. "|" .. leaf] = true
+        end
+    end
+    for name in pairs(add) do plan.attach[#plan.attach + 1] = name end
+    table.sort(plan.attach)
+    return plan
 end
 
 local CANDIDATE_KINDS = { number = 1, team = 2, driver = 3, co_driver = 4, split = 5 }
@@ -1138,6 +1242,8 @@ M.PRESET_SCHEMA = {
     { key = "tag_shot_name", kind = "string", default = "Assisted Tagging|Identification|Shot" },
     { key = "tag_shot_crowded", kind = "bool", default = true },
     { key = "tag_shot_crowded_name", kind = "string", default = "Assisted Tagging|Identification|Shot" },
+    { key = "tag_derived", kind = "bool", default = true },
+    { key = "tag_derived_name", kind = "string", default = "Assisted Tagging|Derived" },
 }
 
 -- Number ranges, as SETTINGS_SCHEMA's lo/hi (open = the bound itself is out) and whole numbers.
@@ -1337,6 +1443,8 @@ local TAG_TOGGLES = {
       when = "Solo: one vehicle found. Pack: two or three." },
     { key = "shot_crowded", kind = "check", label = "Shot crowded",
       when = "three or more cars were in frame, so the number read may belong to another car: check it by hand." },
+    { key = "derived", kind = "diag", label = "Derived from",
+      when = "an entry's tags were added. From identification: Identify's models picked the entry. From number / From driver: your hand tag named it. From colour: Derive from colour found one entry of that colour." },
 }
 M.TAG_TOGGLES = TAG_TOGGLES
 
@@ -1771,7 +1879,7 @@ local function tag_tooltip(t, named)
     local names = {}
     for _i, k in ipairs(keys) do
         local name = named.diag[k]
-        names[#names + 1] = k == "number_seen" and name .. "|<digits>" or name
+        names[#names + 1] = (k == "number_seen" and name .. "|<digits>") or (k == "derived" and name .. "|From <source>") or name
     end
     local writes = table.concat(names, ", ")
     return string.format(_("Writes: %s\nWhen: %s\nOff: stops writing it and removes it from images on the next run. Identification is unchanged."),
@@ -2268,7 +2376,7 @@ local function prepare_run(images, replace_manual)
         end
     end
 
-    local rows = {}
+    local rows, hand_from_of = {}, {}
     for _, img in ipairs(primaries) do
         -- a hand tag on any copy (e.g. only the RAW) counts for the shot
         local sent, hints, hand = {}, {}, {}
@@ -2278,6 +2386,7 @@ local function prepare_run(images, replace_manual)
             for name in pairs(hand_of[copy.id]) do hand[name] = true end
         end
         local hand_id, why = M.hand_entry(hand, nil, entries, naming_roots)
+        if hand_id then hand_from_of[img.id] = M.hand_source(hand, nil, entries, naming_roots) end
         if why then
             log(string.format("%s: the tags you applied (%s) %s; no car is taken from them", img.filename,
                 table.concat(sorted_names(hand), "; "),
@@ -2290,7 +2399,7 @@ local function prepare_run(images, replace_manual)
                             hand_id or "" }
     end
     return { primaries = primaries, group_of = group_of, protected_of = protected_of, ledger = ledger,
-             applying = false }, rows
+             hand_from_of = hand_from_of, applying = false }, rows
 end
 
 -- Whether image `id` is still in the library. A get_image error counts as gone, as does a
@@ -2398,6 +2507,86 @@ function M.clear_marks(images)
     run_next()
 end
 
+-- Derive from number (`mode` "number") or colour ("colour"): adds the entry tags M.derive_plan
+-- looks up for each selected image, plus its "Derived from" marker, and records them in the
+-- ledger. Lookups only: no model runs, and no tag is ever detached.
+function M.derive_images(images, mode)
+    local label = mode == "number" and _("Derive from number") or _("Derive from colour")
+    if queue_if_busy(label, images and #images > 0, function() M.derive_images(images, mode) end) then return end
+    if not can_start(images) or not take_settings() then return end
+    busy = true
+    M.cancel_requested = false
+    start_log("derive " .. mode, #images)
+    local job
+
+    local okr, err = pcall(function()
+        load_entries_csv()
+        if not next(entries) then
+            say(_("Assisted Tagging: no entries loaded; pick the collection (or Reload) first."))
+            return
+        end
+        local s = settings
+        local named = M.named_rules(rules, s)
+        local roots = M.family_roots(s)
+        local names = { derived = s.tag_derived and named.diag.derived or "",
+                        check_colour = s.tag_check_colour and named.diag.check_colour or "" }
+        local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
+        local n_derived, n_skipped, n_check, n_tags, writes, failed, stopped = 0, 0, 0, 0, 0, 0, false
+        job = dt.gui.create_job(_("Assisted Tagging: ") .. label, true, stop_job)
+        for i, img in ipairs(images) do
+            if M.cancel_requested or not job.valid then
+                stopped = true
+                break
+            end
+            job.percent = (i - 1) / #images
+            local have = tags_of(img)
+            local plan = M.derive_plan(have, ledger[tonumber(img.id)], entries, entry_order, roots, mode, names)
+            if plan.reason ~= "" then
+                n_skipped = n_skipped + 1
+                log(string.format("derive %s: %s skipped, %s", mode, img.filename, plan.reason))
+            else
+                n_derived = n_derived + 1
+                log(string.format("derive %s: %s -> %s", mode, img.filename, plan.entry_id))
+            end
+            if names.check_colour ~= "" and not have[names.check_colour] then
+                for _, name in ipairs(plan.attach) do
+                    if name == names.check_colour then n_check = n_check + 1 end
+                end
+            end
+            local mine = ledger[tonumber(img.id)] or {}
+            local okw, werr = pcall(function()
+                for _, name in ipairs(plan.attach) do
+                    tags.attach(tags.create(name), img)
+                    mine[name] = true
+                    n_tags = n_tags + 1
+                end
+            end)
+            ledger[tonumber(img.id)] = next(mine) and mine or nil
+            if not okw then
+                failed = failed + 1
+                log(string.format("derive %s: %s couldn't be tagged: %s", mode, img.filename, tostring(werr)))
+            end
+            writes = writes + #plan.attach
+            if writes >= WRITE_BUDGET then
+                writes = 0
+                dt.control.sleep(WRITE_SLEEP_MS)
+            end
+        end
+        write_ledger(ledger)
+        local msg = string.format(_("Assisted Tagging: %s%s: %d images derived, %d skipped (reasons in the log)"),
+            stopped and _("stopped; ") or "", label, n_derived, n_skipped)
+        if n_check > 0 then msg = msg .. string.format(_(", %d check colour"), n_check) end
+        if failed > 0 then msg = msg .. string.format(_(", %d couldn't be updated (see log)"), failed) end
+        say(msg .. ".")
+    end)
+    end_job(job)
+    busy = false
+    if not okr then notify_error(_("Assisted Tagging: couldn't derive tags. ") .. tostring(err)) end
+    log("derive finished")
+    flush_log()
+    run_next()
+end
+
 -- Syncs each image's tags to identify.py's results and reports the outcome. Sets run.applying
 -- before the first tag write and updates run.ledger as tags change, so the caller can save the
 -- ledger even when this stops or errors partway.
@@ -2451,7 +2640,7 @@ local function apply_results(run, job)
         elseif not results then
             n_missing = n_missing + 1
         else
-            local wanted, diag, identified = M.wanted_tags(results, entries, write_rules)
+            local wanted, diag, identified = M.wanted_tags(results, entries, write_rules, run.hand_from_of[img.id])
             if identified then n_tagged = n_tagged + 1 else n_unidentified = n_unidentified + 1 end
             for _, r in ipairs(results) do
                 if by_method[r.method] and entries[r.entry_id] then by_method[r.method] = by_method[r.method] + 1 end
@@ -3537,13 +3726,23 @@ local function install_panel()
     }
     identify_button = dt.new_widget("button") {
         label = _("Identify selection"),
-        tooltip = _("Identify the vehicles in the selected images and tag them with their entries' tags"),
+        tooltip = _("Identify the vehicles in the selected images with the models (number reading, livery, colour) and tag them with their entries' tags, plus Derived|From identification (or From number / From driver when your own tag named the car). Writes darktable tags, the tag ledger, boxes.json and report.md. Never writes entries.json."),
         clicked_callback = function() start_identify(true) end,
     }
     local clear_marks_button = dt.new_widget("button") {
         label = _("Clear tagging marks"),
         tooltip = _("Removes every tag this plugin attached to the selected images (entries, colours, diagnostics, unidentified) and forgets them in the ledger. Tags you applied by hand and run stamps stay."),
         clicked_callback = function() M.clear_marks(dt.gui.action_images) end,
+    }
+    local derive_number_button = dt.new_widget("button") {
+        label = _("Derive from number"),
+        tooltip = _("For each selected image whose number tag (added by you) names one entry, add that entry's tags and Derived|From number. Lookup only: no model runs, nothing is removed. Adds Check colour too when the image's colour tag differs from the entry's colour. Writes darktable tags and the tag ledger only."),
+        clicked_callback = function() M.derive_images(dt.gui.action_images, "number") end,
+    }
+    local derive_colour_button = dt.new_widget("button") {
+        label = _("Derive from colour"),
+        tooltip = _("For each selected image with one colour tag, add the tags of the one entry with that colour (narrowed by your team tags) and Derived|From colour. Skips the image when several entries or none have that colour, or when it has a number tag (use Derive from number). Lookup only: no model runs, nothing is removed. Needs entry colours in entries.json (Fill entry colours). Writes darktable tags and the tag ledger only."),
+        clicked_callback = function() M.derive_images(dt.gui.action_images, "colour") end,
     }
     replace_manual_check = dt.new_widget("check_button") {
         label = _("Replace manual tags"),
@@ -3808,7 +4007,12 @@ local function install_panel()
             partial_references_check,
         },
         tag_rows,
-        { replace_manual_check, run_tag_check, verify_button, identify_button, clear_marks_button },
+        { dt.new_widget("section_label") { label = _("identify (models; writes tags)") },
+          replace_manual_check, run_tag_check, verify_button, identify_button,
+          dt.new_widget("section_label") { label = _("derive (lookups only; adds tags)") },
+          derive_number_button, derive_colour_button,
+          dt.new_widget("section_label") { label = _("undo") },
+          clear_marks_button },
         { entry_combo, add_button, add_tagged_button, fill_colours_button, promote_button,
           suggest_crops_check, quarantine_check, audit_button },
     }

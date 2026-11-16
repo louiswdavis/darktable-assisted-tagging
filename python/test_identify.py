@@ -314,11 +314,11 @@ def run_tests():
     I.write_entries_csv(entries, os.path.join(out, "e.csv"))
     I.write_rules_csv(rules, _fe, os.path.join(out, "r.csv"))
     check("entries.csv rows", open(os.path.join(out, "e.csv"), encoding="utf-8").read().splitlines()[1],
-          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda,,")
+          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda,,,")
     name_entries = I.load_collection(collection([dict(VER, name="Max Verstappen", co_driver="Gianpiero Lambiase")]))[0]
     I.write_entries_csv(name_entries, os.path.join(out, "n.csv"))
     check("entries.csv ends with the name and co-driver", open(os.path.join(out, "n.csv"), encoding="utf-8").read().splitlines()[0],
-          "VER,Red Bull,1,F1|Red Bull;F1|Red Bull|Verstappen,Max Verstappen,Gianpiero Lambiase")
+          "VER,Red Bull,1,F1|Red Bull;F1|Red Bull|Verstappen,Max Verstappen,Gianpiero Lambiase,")
     check("rules.csv rows", open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()[:3],
           ["team_only,shared tags", "unidentified,F1|Check", "diag_number,Assisted Tagging|Identification|By number"])
     rows = open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()
@@ -937,6 +937,18 @@ def run_tests():
     check("a non-boolean partial_references in entries.json logs and keeps the default",
           (pr_rules.partial_references, "entries.json: rules.partial_references invalid, using False" in lines),
           (False, True))
+
+    # ticket 67: a box's colour softly narrows the entries; the number wins
+    cp = {"R": I.Entry("R", "1", "A", ("F1|A",), colour="Red"), "B": I.Entry("B", "2", "B", ("F1|B",), colour="Blue"),
+          "N": I.Entry("N", "3", "C", ("F1|C",))}
+    pool, note = I.colour_pool(cp, "Red", [], [("R", 0.99), ("B", 0.99)], 0.5)
+    check("colour_pool keeps the matching and unknown colours", (sorted(pool), note["kept"], note["dropped"]),
+          (["N", "R"], 2, False))
+    check("colour_pool: no colour keeps every entry", I.colour_pool(cp, "", [], [], 0.5), (cp, {}))
+    check("colour_pool: a confident read of a removed entry drops the filter",
+          I.colour_pool(cp, "Red", [("2", 0.9)], [("R", 0.99)], 0.5)[1]["reason"], "number_outside")
+    check("colour_pool: no kept similarity at the minimum drops the filter",
+          I.colour_pool(cp, "Red", [], [("R", 0.0), ("B", 0.99)], 0.5)[1]["reason"], "below_min_sim")
 
     # ticket 60: the progress line names its stage and how many were cached
     prog = os.path.join(tempfile.mkdtemp(), "progress.txt")

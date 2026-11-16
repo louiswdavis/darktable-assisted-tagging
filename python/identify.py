@@ -40,7 +40,7 @@ from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
 from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
-                   burst_consensus, colour_check, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
+                   burst_consensus, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
@@ -361,7 +361,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
 def write_entries_csv(entries: dict, path: str):
     with open(path, "w", newline="", encoding="utf-8") as f:
         for e in entries.values():
-            f.write(f"{e.id},{e.team},{e.number},{';'.join(e.tags)},{e.name},{e.co_driver}\n")
+            f.write(f"{e.id},{e.team},{e.number},{';'.join(e.tags)},{e.name},{e.co_driver},{e.colour}\n")
 
 
 def write_rules_csv(rules: Rules, from_entries: tuple, path: str):
@@ -1169,7 +1169,11 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
                                     sponsor_prefixes(trace, rules.sponsor_keywords))
         ctc = a["ocr_ctc"][i] if "ocr_ctc" in a else None
         reads = usable_reads([tuple(c) for c in ocr], ctc, rules.min_read)
-        r, hint = hinted_match(i, reads, sims, entries, prefixes, source, ctc, rules.min_read)
+        overlap = a.get("overlap", [""] * len(a["ocr"]))[i]
+        shares = a["car_colour"][i] if "car_colour" in a else {}
+        colour = car_colour.decide_colour(shares) if shares and overlap != HIDDEN else ""
+        pool, colour_note = colour_pool(entries, colour, reads, sims, rules.min_read)
+        r, hint = hinted_match(i, reads, [(k, s) for k, s in sims if k in pool], pool, prefixes, source, ctc, rules.min_read)
         if r.method == "number" and r.list_read and r.confidence < rules.min_read:
             r = replace(r, list_read=r.list_read + " (weak read)")
         read_entry = r.entry_id if r.method == "number" else ""
@@ -1179,24 +1183,24 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         r = match_camera(r, pod_colour(pod), entries)
         if r.entry_id != before and not quiet:
             log(f"{image_id}: pod {pod_colour(pod)} moved {before} -> {r.entry_id}")
-        overlap = a.get("overlap", [""] * len(a["ocr"]))[i]
-        shares = a["car_colour"][i] if "car_colour" in a else {}
         if overlap == HIDDEN:
             r = BoxResult(i, "none")
         elif shares:
-            r = replace(r, colour=car_colour.decide_colour(shares))
+            r = replace(r, colour=colour)
         if overlap != HIDDEN and "sponsor" in rules.families:
             r = replace(r, sponsor=";".join(sponsor_words(trace, rules.sponsor_keywords, dict(rules.sponsor_names))))
         if not quiet:
             log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
                 + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else "")
+                + (f" [colour {colour_note['colour']}: {colour_note['kept']} of {colour_note['kept'] + colour_note['removed']} entries"
+                   + (f", dropped: {colour_note['reason']}" if colour_note["dropped"] else "") + "]" if colour_note else "")
                 + (" [higher detail]" if a.get("hires", [])[i:i + 1] == [True] else "")
                 + (" [masked]" if a.get("masked", [])[i:i + 1] == [True] else ""))
         results.append(r)
         boxes_out.append({"bbox": [float(v) for v in a["boxes"][i][:4]], "score": float(a["boxes"][i][4]),
                           "ocr": ocr, "sims": sims, "ocr_trace": trace, "pod": pod, "pod_colour": pod_colour(pod), "hint": hint,
                           "overlap": overlap, "hires": a.get("hires", [])[i:i + 1] == [True], "masked": a.get("masked", [])[i:i + 1] == [True], "rescued": a.get("rescued", {}),
-                          "colour_shares": shares, "read_entry": read_entry})
+                          "colour_shares": shares, "colour_filter": colour_note, "read_entry": read_entry})
         if "ocr_regions" in a:
             boxes_out[-1].update(ocr_regions=a["ocr_regions"][i], ocr_ctc=ctc, all_sims=sims)
         if i == 0:

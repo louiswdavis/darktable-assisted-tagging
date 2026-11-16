@@ -101,6 +101,9 @@ def _schema() -> tuple:
         out.append(Setting(f"tag_{k}_name", "string", name))
     out.append(Setting("tag_shot_crowded", "bool", True))
     out.append(Setting("tag_shot_crowded_name", "string", _SHOT_BASE))
+    # the Lua panel's "Derived from" markers; identify.py doesn't read them
+    out.append(Setting("tag_derived", "bool", True))
+    out.append(Setting("tag_derived_name", "string", "Assisted Tagging|Derived"))
     return tuple(out)
 
 

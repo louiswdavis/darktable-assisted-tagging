@@ -405,6 +405,29 @@ def colour_check(frames: dict, entries: dict) -> dict:
     return {fid: [check(r) for r in rs] for fid, rs in frames.items()}
 
 
+def colour_pool(entries: dict, colour: str, reads: list, sims: list, min_read: float) -> tuple:
+    """(pool, note): the entries whose colour can be the box's `colour` (colour_relation not -1),
+    a soft prior like hinted_match's. `note` is {} when nothing was removed, else {colour, kept,
+    removed, dropped, reason}. Dropped (the full `entries` returned) when a read at `min_read` or
+    more names a removed entry (number wins), no entry is left, or no kept similarity reaches
+    MATCH_MIN_SIM (colour alone can't identify a car)."""
+    pool = {eid: e for eid, e in entries.items() if colour_relation(e.colour, colour) != -1}
+    if not colour or len(pool) == len(entries):
+        return entries, {}
+    note = {"colour": colour, "kept": len(pool), "removed": len(entries) - len(pool), "dropped": False, "reason": ""}
+    digits = {d for d, c in reads if c >= min_read}
+    if any(e.number and e.number in digits for eid, e in entries.items() if eid not in pool):
+        note["reason"] = "number_outside"
+    elif not pool:
+        note["reason"] = "no_entries"
+    elif not any(s >= MATCH_MIN_SIM for eid, s in sims if eid in pool):
+        note["reason"] = "below_min_sim"
+    if note["reason"]:
+        note["dropped"] = True
+        return entries, note
+    return pool, note
+
+
 def entries_under(entries: dict, prefixes: list) -> dict:
     """The entries with a tag equal to a prefix or below it (`prefix|…`), in file order."""
     return {eid: e for eid, e in entries.items()
