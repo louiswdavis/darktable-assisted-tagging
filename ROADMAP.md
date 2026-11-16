@@ -280,6 +280,26 @@ narrows it to one or two entries before any model runs:
 Circuit races need lap-by-lap passing times (transponder loops). Those are seldom published as
 files, so this is hillclimb/sprint first. Effort M; needs camera clock sync (below).
 
+## Registration plates
+
+Road rallies, targa events and club sprints often run road-registered cars, and some entry
+lists carry the registration. A plate is a second, very regular number per entry:
+- optional `registration` field in entries.json (importer column "Reg")
+- read plates with the same OCR, match against the list only (closed vocabulary), so spectator
+  and car-park plates never get tagged
+- UK format check (`AB12 CDE`) before matching, to drop half-reads
+Effort S–M. Only useful where lists carry plates; check a few real lists first.
+
+## Season library
+
+The same cars come back every round of a championship. Today each collection builds its
+references from scratch.
+- **Carry references forward**: import refs from an earlier collection's photos the user
+  marked "Checked", matched on entry number + driver
+- special one-off liveries stay per event (see "One-off special liveries")
+- a stale ref (car resprayed) is caught by the rank-pattern check and dropped
+Effort M. Biggest win for a shooter covering a whole season.
+
 ## Camera clock offset
 
 Everything time-based (timing data, double-driven cars, a second camera body) needs the camera
