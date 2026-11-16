@@ -17,6 +17,9 @@ vision_model.onnx, text_model.onnx, tokenizer.json.
 3. Count:
      python python/experiments/siglip2_colour_view.py score siglip2.csv
 
+Car or not: `cars --boxes ... --model-dir ...` crops every box and names it (rally car, person, shed,
+railing, spectators, trees, road); fill is_car with y or n, then `score` the CSV.
+
 Only boxes read on a plain crop are sampled (no overlap, no mask), so the crop here is the one the
 run measured and the test compares classifiers, not crops."""
 
@@ -37,6 +40,15 @@ VIEW_PROMPTS = {
     "rear": "a photo of a rally car seen from the rear.",
     "front-corner": "a photo of a rally car seen from the front three-quarter angle.",
     "rear-corner": "a photo of a rally car seen from the rear three-quarter angle.",
+}
+CAR_PROMPTS = {
+    "car": "a photo of a rally car.",
+    "person": "a photo of a person.",
+    "building": "a photo of a shed or a small building.",
+    "railing": "a photo of a metal railing or crash barrier along a road.",
+    "crowd": "a photo of spectators.",
+    "trees": "a photo of trees and bushes.",
+    "road": "a photo of an empty road.",
 }
 TEXT_LEN = 64  # SigLIP 2 was trained on text padded to 64 tokens
 IMAGE_SIZE = 224
@@ -176,7 +188,73 @@ def sample(args):
     print(f"{len(rows)} crops → {args.out}, images in {args.crops}. Fill colour_ok / view_ok with r, s, b or n.")
 
 
+CAR_FIELDS = ["image", "box", "crop", "det_score", "overlap", "siglip_is", "siglip_gap", "is_car"]
+
+
+def cars(args):
+    """Every box in the runs (any overlap state), cropped and named by SigLIP 2 as a car or one of
+    the things the detector mistakes for one. The user fills is_car with y or n."""
+    import json
+    from PIL import Image
+    from vehicle_detect import decode_rgb
+    from vehicles import crop_box
+
+    model = SigLIP(args.model_dir)
+    labels = list(CAR_PROMPTS)
+    vecs = model.embed_text([CAR_PROMPTS[k] for k in labels])
+    os.makedirs(args.crops, exist_ok=True)
+    rows = []
+    for boxes_json in args.boxes:
+        with open(boxes_json, encoding="utf-8") as f:
+            run = json.load(f)
+        for iid, rec in run["images"].items():
+            if rec.get("status") != "ok" or not rec.get("boxes"):
+                continue
+            rgb = decode_rgb(rec["file"])
+            if [rgb.shape[1], rgb.shape[0]] != rec["frame"]:
+                print(f"{iid}: frame size changed since the run, skipped")
+                continue
+            for b in rec["boxes"]:
+                crop = crop_box(rgb, b["bbox"])
+                name = f"{iid}_b{b['box']}.jpg"
+                Image.fromarray(crop).save(os.path.join(args.crops, name), quality=90)
+                what, gap = pick(model.embed_image(crop), vecs, labels)
+                rows.append({"image": iid, "box": b["box"], "crop": name, "det_score": b.get("score", ""),
+                             "overlap": b.get("overlap") or "-", "siglip_is": what, "siglip_gap": gap, "is_car": ""})
+                print(f"{name}: detector {b.get('score', 0):.2f}  siglip {what} ({gap})")
+    with open(args.out, "w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=CAR_FIELDS)
+        w.writeheader()
+        w.writerows(rows)
+    print(f"{len(rows)} crops → {args.out}, images in {args.crops}. Fill is_car with y or n.")
+
+
+def score_cars(path: str):
+    """SigLIP's car / not-car call against the user's is_car marks, next to the best single detector
+    score cut-off for comparison."""
+    marked = []
+    with open(path, encoding="utf-8") as f:
+        for row in csv.DictReader(f):
+            mark = row["is_car"].strip().lower()
+            if mark in ("y", "n"):
+                marked.append((mark == "y", row["siglip_is"] == "car", float(row["det_score"] or 0)))
+    cars_n = sum(1 for c, _, _ in marked if c)
+    print(f"{len(marked)} marked: {cars_n} cars, {len(marked) - cars_n} not cars")
+    kept = sum(1 for c, s, _ in marked if c and s)
+    dropped = sum(1 for c, s, _ in marked if not c and not s)
+    print(f"SigLIP 2: keeps {kept}/{cars_n} cars, drops {dropped}/{len(marked) - cars_n} non-cars")
+    best = max(((sum(1 for c, _, d in marked if c and d >= t) + sum(1 for c, _, d in marked if not c and d < t), t)
+                for t in sorted({d for _, _, d in marked})), default=(0, 0.0))
+    t = best[1]
+    print(f"detector score cut-off {t:.2f} (best single cut): keeps "
+          f"{sum(1 for c, _, d in marked if c and d >= t)}/{cars_n} cars, drops "
+          f"{sum(1 for c, _, d in marked if not c and d < t)}/{len(marked) - cars_n} non-cars")
+
+
 def score(args):
+    with open(args.csv, encoding="utf-8") as f:
+        if "is_car" in (csv.DictReader(f).fieldnames or []):
+            return score_cars(args.csv)
     counts = {k: {"rules": 0, "siglip": 0, "marked": 0} for k in ("colour", "view")}
     with open(args.csv, encoding="utf-8") as f:
         for row in csv.DictReader(f):
@@ -203,10 +281,15 @@ def main():
     s.add_argument("--out", default="siglip2.csv")
     s.add_argument("--crops", default="siglip2-crops")
     s.add_argument("--limit", type=int, default=50)
+    k = sub.add_parser("cars")
+    k.add_argument("--boxes", required=True, nargs="+", help="one or more runs' boxes.json")
+    k.add_argument("--model-dir", required=True)
+    k.add_argument("--out", default="siglip2-cars.csv")
+    k.add_argument("--crops", default="siglip2-cars-crops")
     c = sub.add_parser("score")
     c.add_argument("csv")
     args = parser.parse_args()
-    sample(args) if args.cmd == "sample" else score(args)
+    {"sample": sample, "cars": cars, "score": score}[args.cmd](args)
 
 
 if __name__ == "__main__":
