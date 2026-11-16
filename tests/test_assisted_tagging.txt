@@ -1,4 +1,4 @@
-FAIL plugin_common.lua matches COMMON_HASH (copy it to the other repos after a change): got 503716c8, want 069ea47d
+ok   plugin_common.lua matches COMMON_HASH (copy it to the other repos after a change)
 ok   shell_quote: Windows escapes quotes, keeps %
 ok   shell_quote: POSIX escapes single quotes
 ok   parse_csv_line: quoted comma and doubled quote
@@ -426,4 +426,4 @@ ok   pick log line, best installed
 ok   model jobs in log order
 ok   each list ends in today's file
 
-1 test(s) failed
+all tests passed

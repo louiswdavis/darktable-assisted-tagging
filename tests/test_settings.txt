@@ -2,7 +2,7 @@ ok   default min_read
 ok   default neighbour_tolerance
 ok   default tag_shot_name
 ok   default tag_burst
-ok   schema length
+FAIL schema length: got 52, want 50
 ok   family defaults
 ok   removed colour_tags in settings.json
 ok   removed tag_colour in settings.json
@@ -52,8 +52,11 @@ ok   shot base: from entries
 ok   shot mismatch: default base
 ok   shot mismatch: one log line
 ok   shot mismatch: log names all three
-ok   shot leaves
-ok   shot off
+ok   shot leaves, crowded under its own base
+ok   shot off leaves crowded on
+ok   crowded off
+ok   a file without the crowded keys takes tag_shot's
+ok   old shot paths fill the crowded base too, logged once
 ok   diagnostics_of keys
 ok   explicit path
 ok   invalid rules value: default
@@ -70,12 +73,12 @@ ok   zero from rules is not False
 ok   empty shot base rejected
 ok   file shot name silences mismatch log
 ok   lua PRESET_SCHEMA block found
-FAIL lua schema keys: got ['use_hints', 'group_support', 'group_node', 'run_tag', 'suggest_crops', 'quarantine', 'order_weight', 'neighbour_tolerance', 'min_read', 'colour_weight', 'partial_references', 'min_sim', 'margin', 'min_face_px', 'burst_livery_pooling', 'blur_references', 'family_colour', 'family_colour_root', 'family_number', 'family_number_root', 'family_team', 'family_team_root', 'family_driver', 'family_driver_root', 'family_extra', 'family_extra_root', 'family_vehicle', 'family_vehicle_root', 'tag_number', 'tag_number_name', 'tag_livery', 'tag_livery_name', 'tag_burst', 'tag_burst_name', 'tag_pooled', 'tag_pooled_name', 'tag_neighbour', 'tag_neighbour_name', 'tag_check_order', 'tag_check_order_name', 'tag_team', 'tag_team_name', 'tag_none', 'tag_none_name', 'tag_number_seen', 'tag_number_seen_name', 'tag_check_colour', 'tag_check_colour_name', 'tag_shot', 'tag_shot_name', 'tag_shot_crowded', 'tag_shot_crowded_name'], want ['use_hints', 'group_support', 'group_node', 'run_tag', 'suggest_crops', 'quarantine', 'order_weight', 'neighbour_tolerance', 'min_read', 'colour_weight', 'partial_references', 'min_sim', 'margin', 'min_face_px', 'burst_livery_pooling', 'blur_references', 'family_colour', 'family_colour_root', 'family_number', 'family_number_root', 'family_team', 'family_team_root', 'family_driver', 'family_driver_root', 'family_extra', 'family_extra_root', 'family_vehicle', 'family_vehicle_root', 'tag_number', 'tag_number_name', 'tag_livery', 'tag_livery_name', 'tag_burst', 'tag_burst_name', 'tag_pooled', 'tag_pooled_name', 'tag_neighbour', 'tag_neighbour_name', 'tag_check_order', 'tag_check_order_name', 'tag_team', 'tag_team_name', 'tag_none', 'tag_none_name', 'tag_number_seen', 'tag_number_seen_name', 'tag_check_colour', 'tag_check_colour_name', 'tag_shot', 'tag_shot_name']
-FAIL lua schema kinds: got ['bool', 'choice', 'string', 'bool', 'bool', 'bool', 'number', 'number', 'number', 'number', 'bool', 'number', 'number', 'number', 'bool', 'bool', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string'], want ['bool', 'choice', 'string', 'bool', 'bool', 'bool', 'number', 'number', 'number', 'number', 'bool', 'number', 'number', 'number', 'bool', 'bool', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string', 'bool', 'string']
-FAIL lua schema choices: got [(), ('native', 'tags', 'none'), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), ()], want [(), ('native', 'tags', 'none'), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), (), ()]
-FAIL lua schema defaults: got [True, 'native', '', False, False, False, 0, 5, 0.85, 0, False, 0.5, 0.05, 48, False, False, True, 'Assisted Tagging|Motorsport|Colour', True, 'Assisted Tagging|Motorsport|Number', True, 'Assisted Tagging|Motorsport|Team', True, 'Assisted Tagging|Motorsport|Driver', True, 'Assisted Tagging|Motorsport|Class', True, 'Assisted Tagging|Motorsport|Vehicle', True, 'Assisted Tagging|Identification|By number', True, 'Assisted Tagging|Identification|By livery', True, 'Assisted Tagging|Identification|By burst', True, 'Assisted Tagging|Identification|By pooled burst', True, 'Assisted Tagging|Identification|By neighbour', True, 'Assisted Tagging|Identification|Check order', True, 'Assisted Tagging|Identification|Team only', True, 'Assisted Tagging|Identification|Unidentified', True, 'Assisted Tagging|Identification|Number seen', True, 'Assisted Tagging|Identification|Check colour', True, 'Assisted Tagging|Identification|Shot', True, 'Assisted Tagging|Identification|Shot'], want [True, 'native', '', False, False, False, 0, 5, 0.85, 0, False, 0.5, 0.05, 48, False, False, True, 'Assisted Tagging|Motorsport|Colour', True, 'Assisted Tagging|Motorsport|Number', True, 'Assisted Tagging|Motorsport|Team', True, 'Assisted Tagging|Motorsport|Driver', True, 'Assisted Tagging|Motorsport|Class', True, 'Assisted Tagging|Motorsport|Vehicle', True, 'Assisted Tagging|Identification|By number', True, 'Assisted Tagging|Identification|By livery', True, 'Assisted Tagging|Identification|By burst', True, 'Assisted Tagging|Identification|By pooled burst', True, 'Assisted Tagging|Identification|By neighbour', True, 'Assisted Tagging|Identification|Check order', True, 'Assisted Tagging|Identification|Team only', True, 'Assisted Tagging|Identification|Unidentified', True, 'Assisted Tagging|Identification|Number seen', True, 'Assisted Tagging|Identification|Check colour', True, 'Assisted Tagging|Identification|Shot']
+ok   lua schema keys
+ok   lua schema kinds
+ok   lua schema choices
+ok   lua schema defaults
 ok   lua SETTING_RANGES block found
 ok   lua SETTING_RANGES match lo/hi/lo_open/hi_open/integer
 ok   lua SETTING_RANGES name only number settings
 
-4 failure(s)
+1 failure(s)
