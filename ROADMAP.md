@@ -50,7 +50,7 @@ is this field. Landmarks and animals are still open.
 
 ## Vehicle sub-kind: cars, bikes
 
-Ticket 28. A motorsport collection says nothing about its vehicles: the detector keeps COCO
+A motorsport collection says nothing about its vehicles: the detector keeps COCO
 car, motorcycle and truck (`vehicle_detect.py`, classes 2, 3, 7) for every shoot. A sub-kind
 next to `kind` (key and values decided in a brainstorm) would:
 
@@ -66,14 +66,14 @@ first. `kind: people` stays separate.
 
 ## More tag families
 
-- **Co-driver** (ticket 22, rally): co-drivers get their own tag instead of sharing the
+- **Co-driver** (rally): co-drivers get their own tag instead of sharing the
   driver's.
-- **Sponsor** (ticket 23): a sponsor word read on a car becomes a tag, e.g.
+- **Sponsor**: a sponsor word read on a car becomes a tag, e.g.
   `<sponsor root>|Castrol`.
-- **Learn colours from your tags** (ticket 24): colour tags you set by hand teach the plugin
+- **Learn colours from your tags**: colour tags you set by hand teach the plugin
   how your camera and light render each colour. Waits until wrong colour tags show up in real
   use.
-- **Start-list column mapping** (ticket 20, rest): map the columns in the import dialog
+- **Start-list column mapping** (the rest of start-list import): map the columns in the import dialog
   instead of typing a column spec.
 
 ## One-off special liveries
@@ -139,18 +139,18 @@ counts (Hulkenburg has 5 refs in total). Measure with `eval_matching.py` before 
 
 In order of payoff for effort:
 
-1. Larger embedder: built as the best-first model lists (`M.MODEL_LISTS`, ticket 25), which
+1. Larger embedder: built as the best-first model lists (`M.MODEL_LISTS`), which
    pick DINOv2 large/base, D-FINE and PP-OCRv5 server rec when installed. Still to confirm on
    Windows: (a) base models only, (b) add PP-OCRv5_server_rec → re-read, (c) add dinov2_base →
    re-embed. Measuring which model is better waits for a hand-fixed truth set.
-1a. SigLIP 2 for colour and orientation (ticket 27): a ~2-hour throwaway test of whether it
+1a. SigLIP 2 for colour and orientation: a ~2-hour throwaway test of whether it
    names a car's colour and facing well enough to replace the HSV colour rules and the
    aspect-ratio side-on guess.
 2. Fine-tune the embedder on the refs so teammates separate.
 3. A vision-language model as a tiebreaker on abstained or near-tie boxes. Per-image cost,
    latency, and photos leaving the machine: the user's decision.
 4. Stronger number reading (the `1`/`14`/`44` misreads), by a better OCR or a VLM.
-   Candidates from `../docs/superpowers/research/2026-11-15-model-candidates.md`:
+   Candidates (desk research, November 2026; no CPU timings measured):
    PP-OCRv6 first: released 2026-06-11 with PaddleOCR 3.7.0, tiny/small/medium tiers
    (1.5M/7.7M/34.5M params), English among its 50 languages. Medium is reported 5.2× faster than
    PP-OCRv5 server on CPU (vendor claim). Official ONNX exists for the detector; the recogniser
@@ -163,7 +163,7 @@ Licence-rejected: YOLO11/26 and YOLO-seg (AGPL), PaliGemma 2.
 
 ## Unknown cars and review
 
-Ideas from competitor tools (`../docs/superpowers/research/2026-11-15-competitors-and-ux.md`):
+Ideas from competitor tools (Aftershoot, Narrative Select, Lightroom, Photo Mechanic and similar; vendor descriptions, not tested):
 - **Cluster unknown cars, name later.** Boxes that match no entry are grouped by look, so the
   user names a cluster once instead of tagging each photo.
 - **Ignore state.** A photo or box marked "ignore" (marshal car, spectator car) gets no identity
@@ -179,8 +179,8 @@ Ideas from competitor tools (`../docs/superpowers/research/2026-11-15-competitor
 
 ## Number reading against the start list
 
-From `../docs/superpowers/research/2026-11-15-identification-techniques.md` (mostly from search
-snippets, nothing tested). Aimed at the `1`/`14`/`44` misreads:
+From desk research on bib, jersey-number and plate reading (mostly from search snippets,
+nothing tested). Aimed at the `1`/`14`/`44` misreads:
 - **Closed vocabulary.** Score every start-list number against the reader's per-position
   probabilities and pick the best entry; abstain when it doesn't beat the runner-up by a margin.
   Needs the PP-OCR per-character scores exposed. No source documents this for bibs or plates.
@@ -198,14 +198,16 @@ snippets, nothing tested). Aimed at the `1`/`14`/`44` misreads:
 
 ## The car the shooter aimed at
 
-From `../docs/superpowers/research/2026-11-15-how-culling-tools-work.md`:
+From how culling tools pick the subject (Aftershoot's "intended car" check is a vendor claim):
 - **AF-point priority.** Read the AF point from EXIF (maker notes, per maker) and tag the box
   nearest it as the photo's main car. Other identified cars go under an `Also seen` tag, so a
   per-driver export doesn't fill up with background cars. Fall back to the largest or most central
   box. Culling would use the same "targeted car" pick. Effort S once the EXIF read exists.
-  The read itself (Sony `FocusLocation` via exiv2 first, other makers behind one interface) is
-  in culling's ROADMAP and `../docs/superpowers/research/2026-11-16-af-point-metadata.md`; build
-  it once in a shared helper.
+  The read itself is set out in culling's ROADMAP ("Targeted car"): Sony maker-note
+  `FocusLocation` (width, height, X, Y in pixels; `Exif.Sony1.FocusLocation` via exiv2) first,
+  normalised and rotated by EXIF orientation; Panasonic `AFPointPosition` is already 0–1; Canon,
+  Nikon, Fuji and OM behind one interface, `exiftool -j -n` as fallback. Build it once in a
+  shared helper.
 - **Calibrate the embedding thresholds.** Livery-match cut-offs need numbers from ~100 labelled
   same-car / different-car pairs from a real shoot. SSCD's 0.75 is for edited copies, and DINOv2
   has no standard cut-off. Share the labelled set with grouping.
@@ -214,7 +216,7 @@ From `../docs/superpowers/research/2026-11-15-how-culling-tools-work.md`:
 
 - **Same view first.** Match against references of the same view (front, side, rear) first,
   other views at a penalty. A cheap form of viewpoint-aware re-ID; needs a view label per ref
-  (SigLIP 2, ticket 27).
+  (SigLIP 2 zero-shot, once its colour/orientation test passes).
 - **Rank-pattern rejection.** Accept a match only when the entry's other references also rank
   near the top, not on one distance threshold (arXiv 2508.06357). Teammates with near-identical
   liveries become Unsure instead of a guess.
@@ -224,7 +226,7 @@ From `../docs/superpowers/research/2026-11-15-how-culling-tools-work.md`:
 
 ## Better references
 
-From `../docs/superpowers/research/2026-11-15-unbuilt-ideas-harvest.md`:
+Ideas found in old specs, audits and plans that the code doesn't have yet:
 - **Refs from confident number reads.** A box whose number was read with high confidence adds
   its crop as a livery reference for that entry.
 - **Refs from the hi-res or masked crop**, not the downscaled detection crop.
@@ -262,7 +264,7 @@ checked here). The tagging plugin already knows the entry, so it can write the c
   the caption it last wrote and skips the photo when the text no longer matches
 - two cars → caption names the targeted car only (see "The car the shooter aimed at")
 
-Effort ~1 day. Builds on ticket 22 (separate co-driver field) for a correct `driver / co-driver`.
+Effort ~1 day. Builds on the co-driver tag family (a separate co-driver field) for a correct `driver / co-driver`.
 
 ## Timing data: which car was on track at that moment
 
