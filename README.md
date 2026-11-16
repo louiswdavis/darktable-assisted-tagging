@@ -300,6 +300,7 @@ A family is one kind of tag the plugin writes. Each has a switch and a root in t
 | Co-driver | the entry's `co_driver` | `family_co_driver` | `family_co_driver_root` | `Assisted Tagging\|Motorsport\|Co-driver` |
 | Class | the entry's `extra` | `family_extra` | `family_extra_root` | `Assisted Tagging\|Motorsport\|Class` |
 | Vehicle | the entry's `make` and `model`, as `<make>\|<model>` | `family_vehicle` | `family_vehicle_root` | `Assisted Tagging\|Motorsport\|Vehicle` |
+| Sponsor | each [`sponsor_keywords`](#rules) word read inside a vehicle box, title-cased (`castrol` → `Castrol`); words read on banners or not listed are never written. Off by default | `family_sponsor` | `family_sponsor_root` | `Assisted Tagging\|Motorsport\|Sponsor` |
 
 All six are on by default. An identified entry gets one tag per family that is on and that it has a value for, then its own `tags`. An entry that builds no tag at all stops the run.
 
@@ -353,8 +354,8 @@ Every other setting lives in the collection's `settings.json`, beside `entries.j
 | `min_face_px` | people collections: the smallest face, in pixels, that is used | whole number, 1 or more | `48` | no |
 | `burst_livery_pooling` | experimental: resolves a burst frame that didn't clear the threshold from the burst's pooled livery similarity (*By pooled burst*) | `true`, `false` | `false` | no |
 | `blur_references` | blurs reference crops before they are compared | `true`, `false` | `false` | no |
-| `family_colour`, `family_number`, `family_team`, `family_driver`, `family_co_driver`, `family_extra`, `family_vehicle` | write that [tag family](#tag-families); `family_colour` also reads each car's paintwork colour, and turning it on re-reads every photo once | `true`, `false` | `true` | yes |
-| `family_colour_root`, `family_number_root`, `family_team_root`, `family_driver_root`, `family_co_driver_root`, `family_extra_root`, `family_vehicle_root` | the root each family's tags sit under | a tag path | see [Tag families](#tag-families) | yes |
+| `family_colour`, `family_number`, `family_team`, `family_driver`, `family_co_driver`, `family_extra`, `family_vehicle`, `family_sponsor` | write that [tag family](#tag-families); `family_colour` also reads each car's paintwork colour, and turning it on re-reads every photo once | `true`, `false` | `true` (`family_sponsor`: `false`) | yes |
+| `family_colour_root`, `family_number_root`, `family_team_root`, `family_driver_root`, `family_co_driver_root`, `family_extra_root`, `family_vehicle_root`, `family_sponsor_root` | the root each family's tags sit under | a tag path | see [Tag families](#tag-families) | yes |
 | `tag_number`, `tag_number_name` | write the *By number* diagnostic; the tag it writes | `true`/`false`; a tag name | `true`; `Assisted Tagging\|Identification\|By number` | yes |
 | `tag_livery`, `tag_livery_name` | *By livery* | same | `true`; `Assisted Tagging\|Identification\|By livery` | yes |
 | `tag_burst`, `tag_burst_name` | *By burst* | same | `true`; `Assisted Tagging\|Identification\|By burst` | yes |
@@ -425,6 +426,7 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 | `Assisted Tagging\|Identification\|Team only` | two teammates were too close to call; only their shared tags were added |
 | `Assisted Tagging\|Identification\|Unidentified` | no vehicle, or no confident match |
 | `Assisted Tagging\|Identification\|Number seen\|<digits>` | OCR read these digits but they didn't resolve to one entry; added alongside the outcome tag |
+| `Assisted Tagging\|Motorsport\|Sponsor\|<Word>` | a listed sponsor word OCR read on the car (Sponsor family, off by default) |
 | `Assisted Tagging\|Motorsport\|Colour\|<name>` | the car's paintwork colour (`Red`, `Orange`, `Yellow`, `Green`, `Blue`, `Purple`, `Pink`, `Brown`, `White`, `Grey`, `Black`, or `Multi` for a two-tone car; silver reads as `Grey`; read by SigLIP 2 when it is installed, else by hue rules, see [Box check and colour reader](#box-check-and-colour-reader-optional-siglip-2)); the Colour family, under `family_colour_root`. Filter on it to hand-sort cars by colour |
 | `Assisted Tagging\|Identification\|Shot\|Solo` | one vehicle was found in the frame |
 | `Assisted Tagging\|Identification\|Shot\|Pack` | two or three vehicles were found |

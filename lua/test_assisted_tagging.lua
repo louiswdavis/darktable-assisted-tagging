@@ -965,11 +965,11 @@ require("test_preset_block")(T, check)
 
 do
     local d = T.preset_defaults(T.PRESET_SCHEMA)
-    check("tagging schema has 54 keys", #T.PRESET_SCHEMA, 54)
+    check("tagging schema has 56 keys", #T.PRESET_SCHEMA, 56)
     check("colour keys default on", tostring(d.family_colour) .. tostring(d.tag_check_colour), "truetrue")
     for _, f in ipairs(T.FAMILIES) do
         check("family " .. f.key .. " defaults", tostring(d["family_" .. f.key]) .. " " .. d["family_" .. f.key .. "_root"],
-            "true " .. f.default_root)
+            tostring(f.key ~= "sponsor") .. " " .. f.default_root)
     end
     check("tagging defaults", table.concat({ tostring(d.use_hints), d.group_support, d.group_node,
         tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine),
