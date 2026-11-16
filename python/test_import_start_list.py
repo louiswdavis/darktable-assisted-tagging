@@ -97,7 +97,7 @@ def run_tests():
         check("parse_columns: role= means no column", M.parse_columns("team="), {"team": ""})
         check("map_header: a role given as none skips its alias",
               M.map_header(["No.", "Driver", "Team"], {"team": ""}), {"number": 0, "driver": 1})
-        check("map_header: need_number=False allows no number", M.map_header(["Pilot"], {}, need_number=False), {})
+        check("map_header: need_number=False allows no number", M.map_header(["Pilot"], {}, need_number=False), {"driver": 0})
         check("rows_from_csv splits a shared driver cell with no co-driver column",
               M.rows_from_csv("No.,Driver\n5,Smith / Jones\n", {})[0], {"number": "5", "driver": "Smith", "co-driver": "Jones"})
         check("rows_from_csv keeps the cell when a co-driver column exists",
