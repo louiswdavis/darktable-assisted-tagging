@@ -126,61 +126,61 @@ ok   the caller's crop is left as it was
 
 FAIL crashed before finishing; later checks did not run
 Traceback (most recent call last):
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 973, in <module>
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 974, in <module>
     run_tests()
     ~~~~~~~~~^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 440, in run_tests
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 441, in run_tests
     read = I.hires_frame(("/x/1.cr3", two, [100, 66], [1]))
   File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 727, in hires_frame
     return _read_boxes(None, [tuple(b) for b in boxes], hi, frame=(w, h), wanted=set(wanted))
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 638, in _read_boxes
-    keep_regions = _W["reader"].keep_regions
-                   ^^^^^^^^^^^^^^^^^^^^^^^^^
-AttributeError: 'CountingReader' object has no attribute 'keep_regions'
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 658, in _read_boxes
+    for turn, n in _W["reader"].last_turns.items():
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'CountingReader' object has no attribute 'last_turns'
 
 
 --- stderr ---
-23:45:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
-23:45:57 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so the face thresholds use defaults
-23:45:57 py: rules.min_sim in entries.json is deprecated; move it to settings.json
-23:45:57 py: rules.margin in entries.json is deprecated; move it to settings.json
-23:45:57 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:57 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: entries.json: 1 entries upgraded (class, make/model → fields)
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: entries.json: 1 entries upgraded (class, make/model → fields)
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so the face thresholds use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:45:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:45:58 py: rules.order_weight in entries.json is deprecated; move it to settings.json
-23:45:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+23:58:11 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+23:58:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:11 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
+23:58:11 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
+23:58:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:11 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+23:58:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:11 py: warning: entries.json has no rules block, so the face thresholds use defaults
+23:58:11 py: rules.min_sim in entries.json is deprecated; move it to settings.json
+23:58:11 py: rules.margin in entries.json is deprecated; move it to settings.json
+23:58:11 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
+23:58:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: entries.json: 1 entries upgraded (class, make/model → fields)
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: entries.json: 1 entries upgraded (class, make/model → fields)
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so the face thresholds use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+23:58:12 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+23:58:12 py: rules.order_weight in entries.json is deprecated; move it to settings.json
+23:58:12 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU

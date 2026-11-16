@@ -25,7 +25,7 @@ ok   an entry with no team never gives team only
 ok   references for entries no longer in entries.json are ignored
 ok   no references and no number gives none
 ok   an agreeing burst fills an unidentified frame
-ok   an agreeing burst upgrades a team-only frame
+FAIL an agreeing burst upgrades a team-only frame: got ('team', 'VER', 'TSU'), want ('burst', 'VER', '')
 ok   burst confidence is the agreeing share of the burst
 ok   a frame with no vehicle under the confidence floor stays none
 ok   a frame with no vehicle takes its burst's entry
@@ -60,7 +60,7 @@ ok   a number is never overridden
 ok   consensus stays within its own burst
 ok   consensus fills only the largest box
 ok   a frame with one identified box isn't filled
-FAIL one hand-tagged pack frame fills its car's box 0 across the burst: got [[('none', '', ''), ('number', 'HAM', '')], [('none', '', ''), ('number', 'HAM', '')]], want [[('burst', 'VER', ''), ('number', 'HAM', '')], [('burst', 'VER', ''), ('number', 'HAM', '')]]
+ok   one hand-tagged pack frame fills its car's box 0 across the burst
 ok   an entry seen only on box 1 never fills box 0
 ok   a split run of one hand-tagged frame fills to the burst's edge
 ok   the gap between the two cars stays unfilled
@@ -98,6 +98,8 @@ ok   already_tagged: a driver's whole chain
 ok   already_tagged: two drivers are no one
 ok   by_car keeps the best of a car, order kept
 ok   a livery near-tie between car-mates names the car
+ok   a misread counts a double-driven car once, so it still names the car
+ok   car-mates take one top-3 slot, so a misread 4th by raw rank is reached
 ok   decided_by: car-mates don't eat the margin
 ok   already_tagged: a car's full tags name its first entry
 ok   already_tagged: a car plus another driver is no one

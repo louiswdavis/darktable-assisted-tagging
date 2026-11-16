@@ -28,7 +28,7 @@ ok   the dictionary keeps every entry a string
 ok   one class more adds the space
 ok   a dictionary that doesn't fit the model raises
 ok   a detector yml gives its DB settings
-FAIL a detector yml gives its mean and std: got ([0.48500001430511475, 0.4560000002384186, 0.4059999883174896], [0.2290000021457672, 0.2240000069141388, 0.22499999403953552]), want ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+ok   a detector yml gives its mean and std
 ok   a recogniser's yml is not a detector's
 ok   a PaddleOCR detector's yml joins the cache key
 ok   without it the key is the two models and the recogniser's yml
@@ -55,4 +55,4 @@ ok   read_turned: a sure read is not retried
 ok   read_turned: a weak wide quad is retried at 180° only
 ok   read_turned: a weak tall quad is retried at 180°, 90° and 270°
 ok   read_turned: no better read keeps the read as found
-1 failed
+all passed

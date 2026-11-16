@@ -334,19 +334,170 @@ ok   check_additions: a split and a co-driver
 ok   check_additions: a split and a driver
 ok   check_additions: a split alone passes
 ok   addition_rows: split and co_driver rows
+ok   parse_progress: a staged line
+ok   parse_progress: an old cur,tot line has no stage and nothing cached
+ok   parse_progress: no line yet
+ok   parse_progress: a two-word stage
+ok   open_command: Windows
+ok   open_command: macOS
+ok   open_command: Linux
+ok   hint: a user-applied team tag hints
+ok   hint: a tag under the team tag is not a hint
+ok   hint: a ledgered tag is the plugin's, not a hint
+ok   hint: a non-entry tag is ignored
+ok   hint: another root's team tag is not a hint
+ok   hint: team family off, no hints
+ok   a protected tag is never detached
+ok   owned_roots: entry roots
+ok   owned_roots: diagnostics root is not one
+ok   ledgered_owned: a stale tag under the collection's root
+ok   ledgered_owned: another collection's tag stays out
+ok   ledgered_owned: the run stamp stays out
+ok   ledgered_owned: no ledger is nothing
+ok   a renamed entry's ledgered tag is detached; others stay
+ok   a conflict-only image gets no unidentified tags
+ok   a conflict-only image gets no none diagnostic
+ok   a conflict is not identified
+ok   a pack still tags its other cars beside a conflict
+ok   a pack adds its shot diagnostic once
+ok   pythonw_of: venv python.exe
+ok   pythonw_of: case-insensitive
+ok   pythonw_of: bare python on PATH
+ok   pythonw_of: other launcher is refused
+ok   hierarchical_tags keeps only tags with a hierarchy
+ok   hierarchical_tags drops the plugin's own diagnostics
+ok   hierarchical_tags drops a tag entries.json can't hold
+ok   sanitize_id replaces folder-unsafe characters
+ok   sanitize_id trims whitespace
+ok   sanitize_id falls back on an empty name
+ok   entries need at least this many samples of their tag
+ok   one entry per distinct tag set with enough samples
+ok   derive_entries skips images with no hierarchical tag
+ok   a tag only one image carries doesn't become an entry
+ok   the deepest tag seeds the id
+ok   a tag shared by only some groups becomes the team
+ok   teammates share the same team
+ok   a non-numeric leaf sets no race number
+ok   entry_of maps each sampled image to its entry
+ok   a thin group's images aren't mapped to an entry
+ok   a numeric leaf becomes the race number
+ok   a numeric leaf also seeds the id
+ok   no shared tag between numbers means no team
+ok   a 4-digit leaf isn't mistaken for a race number
+ok   a colliding id gets a numeric suffix
+ok   entries_json emits the entries object
+ok   entries_json quotes every field
+ok   entries_json emits the number field
+ok   entries_json emits the tag array
+ok   entries_json writes no rules
+ok   preset decode string
+ok   preset decode true
+ok   preset decode float
+ok   preset decode false
+ok   preset decode negative
+ok   preset decode version
+ok   preset decode BOM
+ok   preset decode empty object
+ok   preset decode null drops key
+ok   preset decode \u escape
+ok   preset decode surrogate pair
+ok   preset decode escapes
+ok   preset decode rejects trailing comma
+ok   preset decode rejects nested object
+ok   preset decode rejects array
+ok   preset decode rejects trailing junk
+ok   preset decode rejects empty text
+ok   preset decode rejects missing colon
+ok   preset decode rejects unterminated string
+ok   preset decode rejects bare word
+ok   preset decode rejects not an object
+ok   preset encode version first
+ok   preset encode schema order
+ok   preset encode ends with newline
+ok   preset round trip string
+ok   preset round trip bool
+ok   preset round trip number
+ok   preset round trip choice
+ok   preset encode whole number
+ok   preset merge missing key uses default
+ok   preset merge keeps valid value
+ok   preset merge string for number falls back
+ok   preset merge label for choice falls back
+ok   preset merge drops unknown key
+ok   preset merge lists problems
+ok   preset merge missing keys are not problems
+ok   preset defaults
+ok   preset equal same values
+ok   preset equal bool flipped
+ok   preset name trimmed
+ok   preset name empty
+ok   preset name blank
+ok   preset name nil
+ok   preset name reserved
+ok   preset name slash
+ok   preset name colon
+ok   preset name quote
+ok   preset order
+ok   preset order empty
+ok   tagging schema: no key twice
+ok   colour keys default on
+ok   family colour defaults
+ok   family number defaults
+ok   family team defaults
+ok   family driver defaults
+ok   family co_driver defaults
+ok   family extra defaults
+ok   family vehicle defaults
+ok   family sponsor defaults
+ok   tagging defaults
+ok   every tag switch defaults on
+ok   tolerance 3 kept
+ok   stored blank order_weight is the default
+ok   stored blank order_weight is no problem
+ok   rules.csv: order_weight number
+ok   rules.csv: neighbour_tolerance number
+ok   rules.csv: blur_references boolean
+ok   rules.csv: from_entries_json keys
+ok   rules.csv: empty from_entries_json
+ok   run_settings_text_round_trips
+ok   backfill_adds_only_missing
+ok   backfill_adds_only_missing: text
+ok   backfill_noop_returns_nil
+ok   backfill_noop_returns_nil: nothing from entries.json
+ok   backfill: unreadable settings.json left alone
+ok   backfill_overwrites_blank
+ok   backfill: out-of-range stored value replaced
+ok   backfill: tag keys from the diagnostic names
+ok   run_settings_path
+ok   upgrade_settings_text: copies tag_shot into tag_shot_crowded
+ok   upgrade_settings_text: copies tag_shot_name into tag_shot_crowded_name
+ok   upgrade_settings_text: reports both keys
+ok   upgrade_settings_text: no-op when both present
+ok   upgrade_settings_text: no-op on text that is not JSON
+ok   pick first present
+ok   pick best present
+ok   none present
+ok   paddle reader without yml is skipped
+ok   paddle reader with yml is picked
+ok   v5 mobile wins over the v6 small trial reader
+ok   v3 text finder needs no yml
+ok   v6 text finder without yml is skipped
+ok   v6 text finder with yml is picked when v3 is moved aside
+ok   optional job with nothing installed picks nil
+ok   face detector is optional
+ok   required job with nothing installed is an error
+ok   missing reader names the base reader and its yml
+ok   missing text finder names its base
+ok   reader without yml is logged as missing its yml
+ok   SigLIP 2 siblings
+ok   other jobs have no siblings
+ok   SigLIP 2 with both siblings is present
+ok   SigLIP 2 without its tokenizer is not present
+ok   SigLIP 2 without its tokenizer is an error
+ok   box check is optional
+ok   pick log line
+ok   pick log line, best installed
+ok   model jobs in log order
+ok   each list ends in today's file or a model on trial
 
---- stderr ---
-Traceback (most recent call last):
-  File "<string>", line 1, in <module>
-    import lupa; L=lupa.LuaRuntime(); L.execute('arg={[0]=[[test_assisted_tagging.lua]]}; package.path=[[./?.lua;]]..package.path; dofile([[test_assisted_tagging.lua]])')
-                                      ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "lupa/lua55.pyx", line 466, in lupa.lua55.LuaRuntime.execute
-  File "lupa/lua55.pyx", line 1897, in lupa.lua55.run_lua
-  File "lupa/lua55.pyx", line 1911, in lupa.lua55.call_lua
-  File "lupa/lua55.pyx", line 1938, in lupa.lua55.execute_lua_call
-  File "lupa/lua55.pyx", line 1819, in lupa.lua55.raise_lua_error
-lupa.lua55.LuaError: test_assisted_tagging.lua:935: attempt to call a nil value (field 'parse_progress')
-stack traceback:
-	test_assisted_tagging.lua:935: in main chunk
-	[C]: in global 'dofile'
-	[string "<python>"]:1: in main chunk
+all tests passed
