@@ -30,6 +30,7 @@ ok   yolox family does not match a D-FINE export
 ok   detr keeps the vehicle box and drops the person
 ok   detr feeds images and orig_target_sizes
 ok   detr images input is 1x3x640x640
+ok   detr: a car boxed twice keeps only the stronger box
 ok   detr raw export: feeds pixel_values only
 ok   detr raw export: sigmoid over vehicle classes, cxcywh × canvas / scale → source xyxy
 ok   detection_fingerprint is 12 hex
