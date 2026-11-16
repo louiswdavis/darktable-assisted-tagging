@@ -393,7 +393,7 @@ def run_tests():
         return np.array([[0, 0, 32, 24, 0.1, 2]], dtype=np.float64).reshape(-1, 6)
 
     VD.FAMILIES["fake"] = {"match": lambda name: False, "load": None, "run": fake_run,
-                           "classes": frozenset({2, 3, 7}), "nms": True}
+                           "classes": frozenset({2, 3, 7})}
     fake_det = VD.Detector(id="fake:x:1:abc", family="fake", net=None, classes=frozenset({2, 3, 7}))
     saved_w = dict(I._W)
     I._W.clear()

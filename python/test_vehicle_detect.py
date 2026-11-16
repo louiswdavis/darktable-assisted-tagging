@@ -42,7 +42,7 @@ def fake_run(detector, canvas, scale, w, h):
 
 
 V.FAMILIES["fake"] = {"match": lambda name: False, "load": None, "run": fake_run,
-                      "classes": frozenset({2, 3, 7}), "nms": True}
+                      "classes": frozenset({2, 3, 7})}
 det = FakeDetector()
 
 # detection_key ---------------------------------------------------------------
@@ -188,6 +188,18 @@ e = V.detect(np.zeros((640, 640, 3), np.uint8), detr)
 check("detr keeps the vehicle box and drops the person", e["boxes"], [[10.0, 10.0, 50.0, 50.0, 0.75, 2]])
 check("detr feeds images and orig_target_sizes", sorted(stub.feeds), ["images", "orig_target_sizes"])
 check("detr images input is 1x3x640x640", tuple(stub.feeds["images"].shape), (1, 3, 640, 640))
+
+
+class TwiceStubSession(StubSession):
+    # the same car from two queries: a strong car box and a weak truck box almost on top of it
+    def run(self, names, feeds):
+        return [np.array([[7, 2]]), np.array([[[11, 10, 50, 50], [10, 10, 50, 50]]], np.float32),
+                np.array([[0.25, 0.75]], np.float32)]
+
+
+e = V.detect(np.zeros((640, 640, 3), np.uint8), V.Detector(id="detr:dfine_s_coco.onnx:1:abc", family="detr",
+                                                           net=TwiceStubSession(), classes=V.FAMILIES["detr"]["classes"]))
+check("detr: a car boxed twice keeps only the stronger box", e["boxes"], [[10.0, 10.0, 50.0, 50.0, 0.75, 2]])
 
 
 class RawStubSession:
