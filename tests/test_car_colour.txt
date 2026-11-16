@@ -18,6 +18,9 @@ ok   a mostly black car is Black
 ok   runner-up at the ratio is Multi
 ok   SigLIP scores: a white car is White, not weighted down
 ok   SigLIP scores: Multi wins only as the top prompt
+ok   SigLIP scores: a top score under the minimum gives no colour
+ok   SigLIP scores: a runner-up within the gap gives no colour
+ok   SigLIP scores: a runner-up exactly the gap behind still decides
 ok   runner-up under the ratio loses
 ok   a tiny single share still decides
 ok   all-zero shares

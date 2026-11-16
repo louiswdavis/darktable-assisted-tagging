@@ -213,6 +213,10 @@ ok   sponsor family writes each word
 ok   box -1 row gets no sponsor tag
 ok   sponsor family off writes no sponsor tag
 ok   owned_prefixes includes the sponsor base
+ok   parse_header_report: headers in order
+ok   parse_header_report: mapped roles
+ok   parse_header_report: empty output
+ok   columns_spec names every role, none as empty
 ok   ledger round-trips
 ok   ledger output is sorted
 ok   an empty ledger formats to nothing

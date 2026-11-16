@@ -14,6 +14,7 @@ ok   sponsor_words: a misread gives the listed spelling
 ok   sponsor_words: an unlisted word gives nothing
 ok   sponsor_words: each word once, in read order
 ok   sponsor_words: two teams' words are both kept
+ok   sponsor_words: a names spelling replaces title case
 ok   sponsor_words: confidence under 0.90 is ignored
 
 all tests passed
