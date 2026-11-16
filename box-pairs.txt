@@ -1,0 +1,189 @@
+203935 DSC09156.JPG: b0 0.21 [- masked] + b1 0.89 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 8.0% of frame
+203935 DSC09156.JPG: b0 0.21 [- masked] + b2 0.22 [hidden]  part inside  IoU 0.33 inside 0.98 smaller box 2.7% of frame
+203935 DSC09156.JPG: b0 0.21 [- masked] + b3 0.25 [hidden]  part inside  IoU 0.26 inside 1.00 smaller box 2.1% of frame
+203935 DSC09156.JPG: b1 0.89 [hidden] + b2 0.22 [hidden]  part inside  IoU 0.32 inside 0.95 smaller box 2.7% of frame
+203935 DSC09156.JPG: b1 0.89 [hidden] + b3 0.25 [hidden]  part inside  IoU 0.27 inside 1.00 smaller box 2.1% of frame
+203935 DSC09156.JPG: b2 0.22 [hidden] + b3 0.25 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 2.1% of frame
+203937 DSC09157.JPG: b0 0.67 [- masked] + b1 0.21 [hidden]  duplicate  IoU 0.78 inside 1.00 smaller box 6.3% of frame
+203937 DSC09157.JPG: b0 0.67 [- masked] + b2 0.50 [hidden]  part inside  IoU 0.35 inside 0.99 smaller box 2.9% of frame
+203937 DSC09157.JPG: b0 0.67 [- masked] + b3 0.20 [hidden]  part inside  IoU 0.21 inside 1.00 smaller box 1.7% of frame
+203937 DSC09157.JPG: b1 0.21 [hidden] + b2 0.50 [hidden]  touching  IoU 0.21 inside 0.55 smaller box 2.9% of frame
+203937 DSC09157.JPG: b1 0.21 [hidden] + b3 0.20 [hidden]  part inside  IoU 0.26 inside 0.98 smaller box 1.7% of frame
+203937 DSC09157.JPG: b2 0.50 [hidden] + b3 0.20 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 1.7% of frame
+203939 DSC09158.JPG: b0 0.41 [- masked] + b1 0.27 [hidden]  duplicate  IoU 0.63 inside 0.98 smaller box 5.5% of frame
+203939 DSC09158.JPG: b0 0.41 [- masked] + b2 0.27 [hidden]  part inside  IoU 0.45 inside 1.00 smaller box 3.9% of frame
+203939 DSC09158.JPG: b0 0.41 [- masked] + b3 0.27 [hidden]  part inside  IoU 0.43 inside 1.00 smaller box 3.7% of frame
+203939 DSC09158.JPG: b1 0.27 [hidden] + b2 0.27 [hidden]  duplicate  IoU 0.69 inside 0.99 smaller box 3.9% of frame
+203939 DSC09158.JPG: b1 0.27 [hidden] + b3 0.27 [hidden]  touching  IoU 0.14 inside 0.31 smaller box 3.7% of frame
+203939 DSC09158.JPG: b2 0.27 [hidden] + b3 0.27 [hidden]  touching  IoU 0.01 inside 0.01 smaller box 3.7% of frame
+203941 DSC09159.JPG: b0 0.21 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 7.0% of frame
+203943 DSC09160.JPG: b0 0.28 [- masked] + b1 0.93 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 6.2% of frame
+203945 DSC09161.JPG: b0 0.32 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 7.6% of frame
+203955 DSC09166.JPG: b0 0.95 [-] + b1 0.32 [-]  separate  IoU 0.00 inside 0.00 smaller box 3.3% of frame
+203957 DSC09167.JPG: b0 0.27 [- masked] + b1 0.95 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 20.1% of frame
+203959 DSC09168.JPG: b0 0.38 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 30.8% of frame
+203961 DSC09169.JPG: b0 0.30 [- masked] + b1 0.95 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 39.9% of frame
+203963 DSC09170.JPG: b0 0.37 [- masked] + b1 0.88 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 24.0% of frame
+203967 DSC09172.JPG: b0 0.22 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 6.0% of frame
+203969 DSC09173.JPG: b0 0.35 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 5.8% of frame
+203971 DSC09174.JPG: b0 0.37 [- masked] + b1 0.93 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 5.6% of frame
+203973 DSC09175.JPG: b0 0.44 [- masked] + b1 0.75 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 5.3% of frame
+203975 DSC09176.JPG: b0 0.36 [- masked] + b1 0.90 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 4.9% of frame
+203979 DSC09178.JPG: b0 0.21 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 5.2% of frame
+203981 DSC09179.JPG: b0 0.51 [- masked] + b1 0.89 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 6.3% of frame
+203983 DSC09180.JPG: b0 0.42 [- masked] + b1 0.93 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 7.3% of frame
+203985 DSC09181.JPG: b0 0.35 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 8.6% of frame
+203987 DSC09182.JPG: b0 0.32 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 9.9% of frame
+203989 DSC09183.JPG: b0 0.26 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 11.5% of frame
+203991 DSC09184.JPG: b0 0.25 [- masked] + b1 0.94 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 12.9% of frame
+203993 DSC09185.JPG: b0 0.30 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 13.8% of frame
+203995 DSC09186.JPG: b0 0.29 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 14.7% of frame
+203997 DSC09187.JPG: b0 0.28 [-] + b1 0.92 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 2.9% of frame
+203997 DSC09187.JPG: b0 0.28 [-] + b2 0.33 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 2.9% of frame
+203997 DSC09187.JPG: b1 0.92 [- masked] + b2 0.33 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 2.9% of frame
+203999 DSC09188.JPG: b0 0.24 [-] + b1 0.34 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 3.2% of frame
+203999 DSC09188.JPG: b0 0.24 [-] + b2 0.91 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 3.1% of frame
+203999 DSC09188.JPG: b1 0.34 [- masked] + b2 0.91 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 3.1% of frame
+204001 DSC09189.JPG: b0 0.50 [- masked] + b1 0.87 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 3.4% of frame
+204003 DSC09190.JPG: b0 0.40 [- masked] + b1 0.91 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 3.2% of frame
+204005 DSC09191.JPG: b0 0.25 [- masked] + b1 0.95 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 14.7% of frame
+204005 DSC09191.JPG: b0 0.25 [- masked] + b2 0.43 [-]  separate  IoU 0.00 inside 0.00 smaller box 2.7% of frame
+204005 DSC09191.JPG: b0 0.25 [- masked] + b3 0.21 [-]  separate  IoU 0.00 inside 0.00 smaller box 0.7% of frame
+204005 DSC09191.JPG: b1 0.95 [hidden] + b2 0.43 [-]  separate  IoU 0.00 inside 0.00 smaller box 2.7% of frame
+204005 DSC09191.JPG: b1 0.95 [hidden] + b3 0.21 [-]  separate  IoU 0.00 inside 0.00 smaller box 0.7% of frame
+204005 DSC09191.JPG: b2 0.43 [-] + b3 0.21 [-]  separate  IoU 0.00 inside 0.00 smaller box 0.7% of frame
+204007 DSC09192.JPG: b0 0.53 [- masked] + b1 0.93 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 20.6% of frame
+204011 DSC09194.JPG: b0 0.22 [- masked] + b1 0.95 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 46.3% of frame
+204013 DSC09195.JPG: b0 0.96 [- masked] + b1 0.21 [hidden]  part inside  IoU 0.05 inside 0.93 smaller box 3.0% of frame
+204015 DSC09196.JPG: b0 0.95 [- masked] + b1 0.21 [hidden]  part inside  IoU 0.08 inside 0.92 smaller box 4.6% of frame
+204017 DSC09197.JPG: b0 0.35 [- masked] + b1 0.34 [hidden]  part inside  IoU 0.30 inside 1.00 smaller box 13.4% of frame
+204017 DSC09197.JPG: b0 0.35 [- masked] + b2 0.81 [hidden]  part inside  IoU 0.29 inside 1.00 smaller box 13.3% of frame
+204017 DSC09197.JPG: b1 0.34 [hidden] + b2 0.81 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 13.3% of frame
+204025 DSC09201.JPG: b0 0.28 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 7.8% of frame
+204027 DSC09202.JPG: b0 0.39 [- masked] + b1 0.93 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 6.5% of frame
+204029 DSC09203.JPG: b0 0.59 [- masked] + b1 0.88 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 8.2% of frame
+204035 DSC09206.JPG: b0 0.35 [- masked] + b1 0.91 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 5.0% of frame
+204037 DSC09207.JPG: b0 0.92 [- masked] + b1 0.22 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 4.4% of frame
+204039 DSC09208.JPG: b0 0.20 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.97 inside 1.00 smaller box 10.9% of frame
+204041 DSC09209.JPG: b0 0.28 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 11.1% of frame
+204045 DSC09211.JPG: b0 0.23 [-] + b1 0.92 [-]  separate  IoU 0.00 inside 0.00 smaller box 0.6% of frame
+204047 DSC09212.JPG: b0 0.20 [-] + b1 0.88 [-]  separate  IoU 0.00 inside 0.00 smaller box 0.6% of frame
+204049 DSC09213.JPG: b0 0.95 [-] + b1 0.20 [-]  separate  IoU 0.00 inside 0.00 smaller box 8.6% of frame
+204053 DSC09215.JPG: b0 0.24 [- masked] + b1 0.95 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 26.4% of frame
+204059 DSC09218.JPG: b0 0.50 [- masked] + b1 0.90 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 10.7% of frame
+204061 DSC09219.JPG: b0 0.32 [- masked] + b1 0.94 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 10.3% of frame
+204063 DSC09220.JPG: b0 0.46 [- masked] + b1 0.21 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 10.3% of frame
+204063 DSC09220.JPG: b0 0.46 [- masked] + b2 0.91 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 10.2% of frame
+204063 DSC09220.JPG: b0 0.46 [- masked] + b3 0.20 [hidden]  part inside  IoU 0.13 inside 1.00 smaller box 1.4% of frame
+204063 DSC09220.JPG: b1 0.21 [hidden] + b2 0.91 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 10.2% of frame
+204063 DSC09220.JPG: b1 0.21 [hidden] + b3 0.20 [hidden]  part inside  IoU 0.13 inside 1.00 smaller box 1.4% of frame
+204063 DSC09220.JPG: b2 0.91 [hidden] + b3 0.20 [hidden]  part inside  IoU 0.13 inside 1.00 smaller box 1.4% of frame
+204065 DSC09221.JPG: b0 0.48 [- masked] + b1 0.82 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 8.6% of frame
+204065 DSC09221.JPG: b0 0.48 [- masked] + b2 0.20 [hidden]  part inside  IoU 0.15 inside 0.98 smaller box 1.3% of frame
+204065 DSC09221.JPG: b0 0.48 [- masked] + b3 0.22 [hidden]  part inside  IoU 0.09 inside 1.00 smaller box 0.8% of frame
+204065 DSC09221.JPG: b1 0.82 [hidden] + b2 0.20 [hidden]  part inside  IoU 0.15 inside 0.99 smaller box 1.3% of frame
+204065 DSC09221.JPG: b1 0.82 [hidden] + b3 0.22 [hidden]  part inside  IoU 0.09 inside 1.00 smaller box 0.8% of frame
+204065 DSC09221.JPG: b2 0.20 [hidden] + b3 0.22 [hidden]  part inside  IoU 0.42 inside 0.80 smaller box 0.8% of frame
+204067 DSC09222.JPG: b0 0.43 [- masked] + b1 0.34 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 6.9% of frame
+204067 DSC09222.JPG: b0 0.43 [- masked] + b2 0.90 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 6.9% of frame
+204067 DSC09222.JPG: b0 0.43 [- masked] + b3 0.43 [hidden]  part inside  IoU 0.13 inside 1.00 smaller box 0.9% of frame
+204067 DSC09222.JPG: b1 0.34 [hidden] + b2 0.90 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 6.9% of frame
+204067 DSC09222.JPG: b1 0.34 [hidden] + b3 0.43 [hidden]  part inside  IoU 0.13 inside 0.99 smaller box 0.9% of frame
+204067 DSC09222.JPG: b2 0.90 [hidden] + b3 0.43 [hidden]  part inside  IoU 0.13 inside 0.99 smaller box 0.9% of frame
+204069 DSC09223.JPG: b0 0.51 [- masked] + b1 0.89 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 8.0% of frame
+204069 DSC09223.JPG: b0 0.51 [- masked] + b2 0.23 [-]  separate  IoU 0.00 inside 0.00 smaller box 5.3% of frame
+204069 DSC09223.JPG: b0 0.51 [- masked] + b3 0.20 [hidden]  part inside  IoU 0.27 inside 1.00 smaller box 2.1% of frame
+204069 DSC09223.JPG: b1 0.89 [hidden] + b2 0.23 [-]  separate  IoU 0.00 inside 0.00 smaller box 5.3% of frame
+204069 DSC09223.JPG: b1 0.89 [hidden] + b3 0.20 [hidden]  part inside  IoU 0.27 inside 1.00 smaller box 2.1% of frame
+204069 DSC09223.JPG: b2 0.23 [-] + b3 0.20 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 2.1% of frame
+204071 DSC09224.JPG: b0 0.23 [- masked] + b1 0.92 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 2.9% of frame
+204073 DSC09225.JPG: b0 0.47 [- masked] + b1 0.84 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 2.9% of frame
+204073 DSC09225.JPG: b0 0.47 [- masked] + b2 0.21 [hidden]  part inside  IoU 0.42 inside 1.00 smaller box 1.2% of frame
+204073 DSC09225.JPG: b0 0.47 [- masked] + b3 0.43 [hidden]  part inside  IoU 0.42 inside 1.00 smaller box 1.2% of frame
+204073 DSC09225.JPG: b1 0.84 [hidden] + b2 0.21 [hidden]  part inside  IoU 0.42 inside 1.00 smaller box 1.2% of frame
+204073 DSC09225.JPG: b1 0.84 [hidden] + b3 0.43 [hidden]  part inside  IoU 0.42 inside 1.00 smaller box 1.2% of frame
+204073 DSC09225.JPG: b2 0.21 [hidden] + b3 0.43 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 1.2% of frame
+204075 DSC09226.JPG: b0 0.46 [- masked] + b1 0.87 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 3.3% of frame
+204077 DSC09227.JPG: b0 0.43 [- masked] + b1 0.75 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 21.1% of frame
+204079 DSC09228.JPG: b0 0.50 [- masked] + b1 0.77 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 33.1% of frame
+204081 DSC09229.JPG: b0 0.66 [- masked] + b1 0.39 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 41.9% of frame
+204083 DSC09230.JPG: b0 0.43 [- masked] + b1 0.92 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 23.6% of frame
+204085 DSC09231.JPG: b0 0.28 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 9.5% of frame
+204087 DSC09232.JPG: b0 0.60 [- masked] + b1 0.85 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 8.8% of frame
+204089 DSC09233.JPG: b0 0.46 [- masked] + b1 0.93 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 7.8% of frame
+204091 DSC09234.JPG: b0 0.32 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 7.0% of frame
+204093 DSC09235.JPG: b0 0.33 [- masked] + b1 0.93 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 7.4% of frame
+204095 DSC09236.JPG: b0 0.50 [- masked] + b1 0.92 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 9.4% of frame
+204097 DSC09237.JPG: b0 0.57 [- masked] + b1 0.92 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 11.6% of frame
+204099 DSC09238.JPG: b0 0.34 [- masked] + b1 0.95 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 20.3% of frame
+204101 DSC09239.JPG: b0 0.65 [- masked] + b1 0.82 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 6.2% of frame
+204103 DSC09240.JPG: b0 0.29 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 7.2% of frame
+204105 DSC09241.JPG: b0 0.93 [- masked] + b1 0.28 [hidden]  touching  IoU 0.18 inside 0.69 smaller box 2.4% of frame
+204105 DSC09241.JPG: b0 0.93 [- masked] + b2 0.24 [hidden]  touching  IoU 0.08 inside 0.50 smaller box 1.4% of frame
+204105 DSC09241.JPG: b1 0.28 [hidden] + b2 0.24 [hidden]  duplicate  IoU 0.58 inside 1.00 smaller box 1.4% of frame
+204109 DSC09243.JPG: b0 0.55 [- masked] + b1 0.82 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 9.8% of frame
+204109 DSC09243.JPG: b0 0.55 [- masked] + b2 0.40 [hidden]  duplicate  IoU 0.79 inside 1.00 smaller box 7.8% of frame
+204109 DSC09243.JPG: b1 0.82 [hidden] + b2 0.40 [hidden]  duplicate  IoU 0.79 inside 1.00 smaller box 7.8% of frame
+204111 DSC09244.JPG: b0 0.27 [-] + b1 0.42 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 13.4% of frame
+204111 DSC09244.JPG: b0 0.27 [-] + b2 0.87 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 10.7% of frame
+204111 DSC09244.JPG: b0 0.27 [-] + b3 0.49 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 10.5% of frame
+204111 DSC09244.JPG: b1 0.42 [- masked] + b2 0.87 [hidden]  duplicate  IoU 0.80 inside 1.00 smaller box 10.7% of frame
+204111 DSC09244.JPG: b1 0.42 [- masked] + b3 0.49 [hidden]  duplicate  IoU 0.79 inside 1.00 smaller box 10.5% of frame
+204111 DSC09244.JPG: b2 0.87 [hidden] + b3 0.49 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 10.5% of frame
+204113 DSC09245.JPG: b0 0.28 [-] + b1 0.32 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 10.3% of frame
+204113 DSC09245.JPG: b0 0.28 [-] + b2 0.91 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 10.1% of frame
+204113 DSC09245.JPG: b0 0.28 [-] + b3 0.26 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 4.0% of frame
+204113 DSC09245.JPG: b1 0.32 [- masked] + b2 0.91 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 10.1% of frame
+204113 DSC09245.JPG: b1 0.32 [- masked] + b3 0.26 [hidden]  part inside  IoU 0.39 inside 1.00 smaller box 4.0% of frame
+204113 DSC09245.JPG: b2 0.91 [hidden] + b3 0.26 [hidden]  part inside  IoU 0.39 inside 0.99 smaller box 4.0% of frame
+204115 DSC09246.JPG: b0 0.30 [-] + b1 0.58 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 4.8% of frame
+204115 DSC09246.JPG: b0 0.30 [-] + b2 0.79 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 4.8% of frame
+204115 DSC09246.JPG: b1 0.58 [- masked] + b2 0.79 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 4.8% of frame
+204117 DSC09247.JPG: b0 0.29 [-] + b1 0.80 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 4.8% of frame
+204117 DSC09247.JPG: b0 0.29 [-] + b2 0.49 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 4.7% of frame
+204117 DSC09247.JPG: b1 0.80 [- masked] + b2 0.49 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 4.7% of frame
+204119 DSC09248.JPG: b0 0.34 [-] + b1 0.88 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 5.0% of frame
+204119 DSC09248.JPG: b0 0.34 [-] + b2 0.41 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 4.9% of frame
+204119 DSC09248.JPG: b1 0.88 [- masked] + b2 0.41 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 4.9% of frame
+204121 DSC09249.JPG: b0 0.29 [-] + b1 0.93 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 5.7% of frame
+204121 DSC09249.JPG: b0 0.29 [-] + b2 0.35 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 5.7% of frame
+204121 DSC09249.JPG: b1 0.93 [- masked] + b2 0.35 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 5.7% of frame
+204123 DSC09250.JPG: b0 0.23 [-] + b1 0.53 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 6.4% of frame
+204123 DSC09250.JPG: b0 0.23 [-] + b2 0.68 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 6.1% of frame
+204123 DSC09250.JPG: b1 0.53 [- masked] + b2 0.68 [hidden]  duplicate  IoU 0.96 inside 1.00 smaller box 6.1% of frame
+204125 DSC09251.JPG: b0 0.49 [- masked] + b1 0.93 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 10.3% of frame
+204125 DSC09251.JPG: b0 0.49 [- masked] + b2 0.47 [hidden]  part inside  IoU 0.05 inside 1.00 smaller box 0.6% of frame
+204125 DSC09251.JPG: b1 0.93 [hidden] + b2 0.47 [hidden]  part inside  IoU 0.05 inside 1.00 smaller box 0.6% of frame
+204127 DSC09252.JPG: b0 0.26 [- masked] + b1 0.95 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 9.3% of frame
+204127 DSC09252.JPG: b0 0.26 [- masked] + b2 0.38 [trimmed masked]  touching  IoU 0.03 inside 0.33 smaller box 0.9% of frame
+204127 DSC09252.JPG: b1 0.95 [hidden] + b2 0.38 [trimmed masked]  touching  IoU 0.03 inside 0.32 smaller box 0.9% of frame
+204129 DSC09253.JPG: b0 0.63 [- masked] + b1 0.90 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 16.0% of frame
+204129 DSC09253.JPG: b0 0.63 [- masked] + b2 0.24 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 0.7% of frame
+204129 DSC09253.JPG: b0 0.63 [- masked] + b3 0.28 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 0.6% of frame
+204129 DSC09253.JPG: b1 0.90 [hidden] + b2 0.24 [- masked]  separate  IoU 0.00 inside 0.00 smaller box 0.7% of frame
+204129 DSC09253.JPG: b1 0.90 [hidden] + b3 0.28 [hidden]  separate  IoU 0.00 inside 0.00 smaller box 0.6% of frame
+204129 DSC09253.JPG: b2 0.24 [- masked] + b3 0.28 [hidden]  touching  IoU 0.25 inside 0.43 smaller box 0.6% of frame
+204131 DSC09254.JPG: b0 0.69 [- masked] + b1 0.86 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 21.2% of frame
+204133 DSC09255.JPG: b0 0.59 [- masked] + b1 0.91 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 29.9% of frame
+204135 DSC09256.JPG: b0 0.58 [- masked] + b1 0.84 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 45.2% of frame
+204137 DSC09257.JPG: b0 0.69 [- masked] + b1 0.51 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 44.2% of frame
+204139 DSC09258.JPG: b0 0.43 [- masked] + b1 0.89 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 1.8% of frame
+204141 DSC09259.JPG: b0 0.26 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 5.1% of frame
+204149 DSC09263.JPG: b0 0.64 [- masked] + b1 0.91 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 15.1% of frame
+204151 DSC09264.JPG: b0 0.58 [- masked] + b1 0.78 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 19.8% of frame
+204153 DSC09265.JPG: b0 0.43 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.98 inside 1.00 smaller box 27.4% of frame
+204155 DSC09266.JPG: b0 0.61 [- masked] + b1 0.89 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 38.7% of frame
+204157 DSC09267.JPG: b0 0.64 [- masked] + b1 0.79 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 53.8% of frame
+204161 DSC09269.JPG: b0 0.26 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 6.7% of frame
+204165 DSC09271.JPG: b0 0.59 [- masked] + b1 0.89 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 14.3% of frame
+204167 DSC09272.JPG: b0 0.49 [- masked] + b1 0.94 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 21.0% of frame
+204169 DSC09273.JPG: b0 0.66 [- masked] + b1 0.87 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 28.6% of frame
+204171 DSC09274.JPG: b0 0.94 [- masked] + b1 0.45 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 17.7% of frame
+204173 DSC09275.JPG: b0 0.94 [- masked] + b1 0.39 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 24.4% of frame
+204175 DSC09276.JPG: b0 0.45 [- masked] + b1 0.93 [hidden]  duplicate  IoU 0.99 inside 1.00 smaller box 35.0% of frame
+204177 DSC09277.JPG: b0 0.88 [- masked] + b1 0.57 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 46.2% of frame
+204177 DSC09277.JPG: b0 0.88 [- masked] + b2 0.23 [hidden]  part inside  IoU 0.03 inside 0.99 smaller box 1.6% of frame
+204177 DSC09277.JPG: b1 0.57 [hidden] + b2 0.23 [hidden]  part inside  IoU 0.03 inside 0.98 smaller box 1.6% of frame
+204179 DSC09278.JPG: b0 0.41 [- masked] + b1 0.71 [hidden]  duplicate  IoU 1.00 inside 1.00 smaller box 36.7% of frame
+
+101 of 122 frames have 2+ boxes. Pairs: duplicate 105, part inside 36, separate 38, touching 8
