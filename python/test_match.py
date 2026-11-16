@@ -327,6 +327,14 @@ def run_tests():
           [("30", .80), ("12", .50)])
     check("a livery near-tie between car-mates names the car",
           summary(Mt.match_livery(0, [("730", .80), ("30", .79), ("12", .50)], mates)), ("livery", "730", ""))
+    shared = ("F1|Shared|16",)
+    pair = {"D1": Entry("D1", "16", "", shared, car="D1"), "D2": Entry("D2", "16", "", shared, car="D1"),
+            "HAM": ENTRIES["HAM"]}
+    check("a misread counts a double-driven car once, so it still names the car",
+          summary(Mt.match_box(0, [("15", 0.9)], [("D1", .80), ("D2", .79), ("HAM", .70)], pair)), ("livery", "D1", ""))
+    check("car-mates take one top-3 slot, so a misread 4th by raw rank is reached",
+          summary(Mt.match_box(0, [("15", 0.9)], [("30", .80), ("730", .79), ("12", .78), ("LEC", .77)],
+                               mates)), ("livery", "LEC", ""))
     check("decided_by: car-mates don't eat the margin",
           [round(x, 3) if isinstance(x, float) else x
            for x in Mt.decided_by(Mt.BoxResult(0, "none"), [("30", .65), ("730", .64), ("12", .58)], mates)],

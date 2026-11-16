@@ -180,8 +180,9 @@ def _one_confusion_apart(read: str, number: str) -> bool:
 def _misread_number(ocr: list, sims: list, entries: dict):
     """(entry_id, similarity) when exactly one of the livery's top MISREAD_TOP_N entries, at or above
     MATCH_MIN_SIM, has a number one look-alike digit away from a number OCR read (a 5 read for a 6);
-    else None. Only called when the read matches no entry's number exactly."""
-    near = [(eid, s) for eid, s in sims[:MISREAD_TOP_N]
+    else None. Only called when the read matches no entry's number exactly. A double-driven car's
+    two entries take one slot (by_car)."""
+    near = [(eid, s) for eid, s in by_car(sims, entries)[:MISREAD_TOP_N]
             if s >= MATCH_MIN_SIM and eid in entries and entries[eid].number
             and any(_one_confusion_apart(d, entries[eid].number) for d, _ in ocr)]
     return near[0] if len(near) == 1 else None
