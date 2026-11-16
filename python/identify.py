@@ -1297,14 +1297,15 @@ def identify(args, models: dict):
         frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims)
 
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
-    # A hand-tagged image's box naming another entry is one too, whatever tags the two entries share.
+    # A hand-tagged image's box naming another entry is one too, whatever tags the two entries share;
+    # one naming the hand-tagged entry never is, though its built tags may not include the tag that named it.
     shots = {}
     for image_id, results in frames.items():
         n_boxes = sum(1 for r in results if r.box >= 0)
         shots[image_id] = shot_type(n_boxes, MAX_BOXES)
         frames[image_id] = [replace(r, method="conflict") if r.entry_id and (
             disagrees(r, already_tagged(protected_of[image_id], entries), n_boxes == 1) if verify and image_id in fully_tagged
-            else conflicts(r.entry_id, protected_of[image_id], entries, n_boxes == 1)
+            else r.entry_id != hand_of.get(image_id) and conflicts(r.entry_id, protected_of[image_id], entries, n_boxes == 1)
             or image_id in hand_of and disagrees(r, hand_of[image_id], n_boxes == 1)) else r for r in results]
 
     by_method = write_results(args.results, frames, shots)

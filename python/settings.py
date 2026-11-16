@@ -50,6 +50,8 @@ DIAG_DEFAULTS = {
 }
 
 SHOT_LEAVES = (("shot_solo", "Solo"), ("shot_pack", "Pack"), ("shot_crowded", "Crowded"))
+# shot_crowded's own switch and base; a file written before it existed takes tag_shot's (as the Lua panel does).
+CROWDED_FROM = (("tag_shot_crowded", "tag_shot"), ("tag_shot_crowded_name", "tag_shot_name"))
 
 TOGGLE_KEYS = ("number", "livery", "burst", "pooled", "neighbour", "check_order", "team", "none",
                "number_seen", "check_colour", "shot")
@@ -97,6 +99,8 @@ def _schema() -> tuple:
         out.append(Setting(f"tag_{k}", "bool", True))
         name = _SHOT_BASE if k == "shot" else DIAG_DEFAULTS[k]
         out.append(Setting(f"tag_{k}_name", "string", name))
+    out.append(Setting("tag_shot_crowded", "bool", True))
+    out.append(Setting("tag_shot_crowded_name", "string", _SHOT_BASE))
     return tuple(out)
 
 
@@ -227,8 +231,13 @@ def load_settings(collection_dir: str, rules_raw, log, path: str = "") -> tuple[
     shot = _shot_from_rules(diag, _blank(file_vals.get("tag_shot_name")), log)
     if shot is not None:
         old[shot[0]] = (shot[1], "rules.diagnostics.shot_*")
+    for crowded, src in CROWDED_FROM:
+        if src in old:
+            old[crowded] = old[src]
+        if crowded not in file_vals and src in file_vals:
+            file_vals[crowded] = file_vals[src]
     values = defaults()
-    from_entries = []
+    from_entries, deprecated = [], set()
     for s in SETTINGS_SCHEMA:
         fv = file_vals.get(s.key)
         file_bad = False
@@ -244,7 +253,8 @@ def load_settings(collection_dir: str, rules_raw, log, path: str = "") -> tuple[
             if ok:
                 values[s.key] = val
                 from_entries.append(s.key)
-                if not file_bad:
+                if not file_bad and label not in deprecated:  # shot_* also fills the crowded pair
+                    deprecated.add(label)
                     log(f"{label} in entries.json is deprecated; move it to settings.json")
             else:
                 log(f"entries.json: {label} invalid, using {s.default!r}")
@@ -260,7 +270,7 @@ def diagnostics_of(values: dict) -> tuple[tuple[str, str], ...]:
         if k.startswith("shot_"):
             continue
         out.append((k, values[f"tag_{k}_name"] if values[f"tag_{k}"] else ""))
-    shot_on = values["tag_shot"]
-    base = values["tag_shot_name"]
-    out.extend((k, f"{base}|{leaf}" if shot_on else "") for k, leaf in SHOT_LEAVES)
+    for k, leaf in SHOT_LEAVES:
+        pre = "tag_shot_crowded" if k == "shot_crowded" else "tag_shot"
+        out.append((k, f"{values[pre + '_name']}|{leaf}" if values[pre] else ""))
     return tuple(out)

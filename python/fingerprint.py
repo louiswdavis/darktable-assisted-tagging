@@ -27,7 +27,7 @@ CACHE_INPUTS = {
     vehicles: ("MIN_BOX_FRAC", "MAX_BOXES", "CROP_DIM", "BOX_MARGIN_TRIM", "DETECTOR_MIN_SCORE", "MAX_CANDIDATES"),
     vehicle_detect: ("DETECTOR_INPUT", "DETECTOR_STRIDES", "DETECTOR_NMS", "CANDIDATE_MIN_SCORE", "DETECT_VERSION"),
     ocr: ("OCR_MIN_SCORE", "NUMBER_MIN_HEIGHT", "DET_INPUT", "DET_MEAN", "REC_INPUT", "REC_CHARSET",
-          "PADDLE_REC_HEIGHT", "PADDLE_REC_MIN_WIDTH", "_DIGIT_LOOKALIKES"),
+          "PADDLE_REC_HEIGHT", "PADDLE_REC_MIN_WIDTH", "_DIGIT_LOOKALIKES", "CTC_TRIM_BLANK"),
     embed: ("EMBED_INPUT", "_MEAN", "_STD"),
     segment: ("SEGMENT_INPUT", "MAX_POINTS", "REGION_PAD", "MASK_MIN_SHARE", "GREY", "_INPUTS", "_OUTPUTS"),
     overlap: ("OVERLAP_MIN", "CONTAINED_MIN", "VISIBLE_MIN", "LEVEL_TOL"),
@@ -43,7 +43,7 @@ CACHE_NEUTRAL = {
     vehicles: (),  # RAW_EXTENSIONS is common.py's, not filed here
     # FAMILIES holds lambdas (unstable repr); its class sets are in vehicle_detect.detection_fingerprint()
     vehicle_detect: ("CACHE_MAX_AGE_DAYS", "CACHE_COMMIT_EVERY", "FAST_JPEG_DIM", "COCO_NAMES", "_RAW_FLIP_TURNS", "FAMILIES"),
-    ocr: ("REC_TARGET",),
+    ocr: ("REC_TARGET", "DIGIT_COLUMNS"),
     embed: ("DEGRADE_FACTOR",),
     segment: ("SEGMENTER_FILE", "SEGMENT_CACHE_TOKEN"),
     overlap: (),

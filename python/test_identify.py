@@ -98,8 +98,7 @@ def run_tests():
     check("a comma in a tag is rejected", load_error([dict(VER, tags=["a,b"])]),
           'entry "VER": tags: tag "a,b" can\'t contain , ; or "')
     check("a non-digit number is rejected", load_error([dict(VER, number="1a")]), 'entry "VER": number must be 1–3 digits')
-    check("empty tags are rejected", load_error([dict(VER, tags=[])]),
-          'entry "VER": tags must be a non-empty list of tag names')
+    check("empty tags load when families build tags", load_error([dict(VER, tags=[])]), "(no error)")
     check("a path character in an id is rejected", load_error([dict(VER, id="a/b")]).startswith('entry "a/b": id can\'t'),
           True)
     check("bad JSON is rejected", load_error("[{").startswith("not valid JSON"), True)
@@ -123,7 +122,7 @@ def run_tests():
     check("moved rules in entries.json still load", (moved_rules.order_weight, moved_rules.min_read), (0.5, 0.9))
     check("moved rules log the deprecation", "rules.order_weight in entries.json is deprecated; move it to settings.json" in lines, True)
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
-          'entry "VER": unknown field "tagz" (fields are id, number, team, name, tags, camera, colour)')
+          'entry "VER": unknown field "tagz" (fields are id, number, team, name, extra, make, model, tags, camera, colour, car)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
           'unknown key "entrys" (the file holds "kind", "rules" and "entries")')
     LH = {"id": "Lando Norris", "tags": ["People|Professions|F1 Drivers|Lando Norris"]}
@@ -283,15 +282,15 @@ def run_tests():
         {"hue": [80, 95], "sat": [60, 255], "val": [40, 255]}, {"hue": [96, 100]}]}}, "entries": [VER]}))
     check("bounds objects map to 6-tuples, missing sat/val is full range", custom.colour_palette,
           (("Teal", ((80, 95, 60, 255, 40, 255), (96, 100, 0, 255, 0, 255))),))
-    for bad_palette in ({"Multi": "Red"}, {"Red": "Pink"}, {"Red": [{"hue": [9, 3]}]}, {"Red": [{"hue": [0, 300]}]},
+    for bad_palette in ({"Multi": "Red"}, {"Red": "Teal"}, {"Red": [{"hue": [9, 3]}]}, {"Red": [{"hue": [0, 300]}]},
                         {"A|B": "Red"}, {}, {"Red": []}):
         check(f"colour_palette {bad_palette!r} is rejected",
               "colour_palette" in load_error({"rules": {"colour_palette": bad_palette}, "entries": [VER]}), True)
     entries, _, _fe = I.load_collection(collection([dict(VER, colour="Red"), dict(TSU, colour="Multi")]))
     check("entry colour is read", (entries["VER"].colour, entries["TSU"].colour), ("Red", "Multi"))
     check("entry colour defaults empty", I.load_collection(collection([VER]))[0]["VER"].colour, "")
-    msg = load_error([dict(VER, colour="Pink")])
-    check("unknown entry colour names the entry and colour", 'entry "VER"' in msg and "Pink" in msg, True)
+    msg = load_error([dict(VER, colour="Teal")])
+    check("unknown entry colour names the entry and colour", 'entry "VER"' in msg and "Teal" in msg, True)
     msg = load_error({"rules": {"colour_palette": {"Red": "Red"}}, "entries": [dict(VER, colour="Blue")]})
     check("entry colour outside the palette names the entry and colour", 'entry "VER"' in msg and "Blue" in msg, True)
     check("entries.json: removed rules.diagnostics.colour stops the load",

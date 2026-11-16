@@ -194,13 +194,22 @@ def shot_base_from_three_paths():
 
 def diagnostics_of_shot_leaves():
     v = S.defaults()
-    v["tag_shot_name"] = "A|B"
+    v["tag_shot_name"], v["tag_shot_crowded_name"] = "A|B", "C"
     d = dict(S.diagnostics_of(v))
-    check("shot leaves", (d["shot_solo"], d["shot_pack"], d["shot_crowded"]),
-          ("A|B|Solo", "A|B|Pack", "A|B|Crowded"))
+    check("shot leaves, crowded under its own base", (d["shot_solo"], d["shot_pack"], d["shot_crowded"]),
+          ("A|B|Solo", "A|B|Pack", "C|Crowded"))
     v["tag_shot"] = False
     d = dict(S.diagnostics_of(v))
-    check("shot off", (d["shot_solo"], d["shot_pack"], d["shot_crowded"]), ("", "", ""))
+    check("shot off leaves crowded on", (d["shot_solo"], d["shot_pack"], d["shot_crowded"]), ("", "", "C|Crowded"))
+    v["tag_shot_crowded"] = False
+    check("crowded off", dict(S.diagnostics_of(v))["shot_crowded"], "")
+    v, fe, lines = load({"tag_shot": False, "tag_shot_name": "F|G"})
+    check("a file without the crowded keys takes tag_shot's", (v["tag_shot_crowded"], v["tag_shot_crowded_name"]),
+          (False, "F|G"))
+    v, fe, lines = load(None, {"diagnostics": {
+        "shot_solo": "A|B|Solo", "shot_pack": "A|B|Pack", "shot_crowded": "A|B|Crowded"}})
+    check("old shot paths fill the crowded base too, logged once",
+          (v["tag_shot_crowded_name"], sum("shot_*" in line for line in lines)), ("A|B", 1))
     check("diagnostics_of keys", list(d), list(S.DIAG_DEFAULTS))
 
 
