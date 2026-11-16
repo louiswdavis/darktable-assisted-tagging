@@ -715,7 +715,7 @@ For each step that doesn't match, send back:
 
 ### Tests
 
-From the repo root. The Python tests use synthetic images and stub models, so they need no model files. `run_tests.py` runs every `python/test_*.py` (or only the ones named, e.g. `match neighbour`), prints one summary line each and writes each one's output to `tests/<name>.txt`:
+From the repo root. The Python tests use synthetic images and stub models, so they need no model files. `run_tests.py` runs every `python/test_*.py` and the Lua suite `lua/test_assisted_tagging.lua` (or only the ones named, e.g. `match neighbour assisted_tagging`), prints one summary line each and writes each one's output to `tests/<name>.txt`. The Lua suite uses a `lua` on PATH if there is one, else lupa: run `pip install lupa` in the venv once (Windows has no `lua` by default):
 
 ```
 # Linux / macOS
@@ -727,11 +727,7 @@ From the repo root. The Python tests use synthetic images and stub models, so th
 
 On a Mac or any machine without numpy and OpenCV, the standard-library tests still run (`python python/test_settings.py`, `python python/test_import_numbers.py`), as do the Lua suites; the rest need the venv.
 
-The pure-logic half of the plugin runs under any Lua 5.4 (`cd lua && lua test_assisted_tagging.lua`). No `lua` binary? `pip install lupa` in the venv, then:
-
-```
-.venv/bin/python -c "import lupa; L=lupa.LuaRuntime(); L.execute('package.path=\"./lua/?.lua;\"..package.path; dofile(\"lua/test_assisted_tagging.lua\")')"
-```
+The Lua suite alone: `.venv\Scripts\python python\run_tests.py assisted_tagging` (or `cd lua && lua test_assisted_tagging.lua` with Lua 5.4).
 
 ### Running the identifier on its own
 
