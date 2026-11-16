@@ -1322,17 +1322,17 @@ M.PANEL_PAGES = {
 -- settings.json only, no panel widget
 M.PANEL_OTHER_KEYS = { "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references" }
 
--- Model files per job, best first; the last file is the base install (README, "Models").
--- A run passes the first file present in models/ to identify.py. Listed in log order and
--- also indexed by job name.
+-- Model files per job, best first. `base` is the base install (README, "Models"), the last
+-- file when unset; files after it are older fallbacks. A run passes the first file present in
+-- models/ to identify.py. Listed in log order and also indexed by job name.
 M.MODEL_LISTS = {
     { job = "vehicles", flag = "--detector", files = { "dfine_x_coco.onnx", "dfine_l_coco.onnx",
         "rtdetr_v2_r50vd.onnx", "dfine_m_coco.onnx", "dfine_s_coco.onnx", "object_detection_yolox_2022nov.onnx" } },
     { job = "segmenter", flag = "--segmenter", optional = true, files = {
         "image_segmentation_efficientsam_ti_2025april.onnx" } },
     { job = "text finder", flag = "--ocr-det", files = { "text_detection_en_ppocrv3_2023may.onnx" } },
-    { job = "number reader", flag = "--ocr-rec", files = { "PP-OCRv5_server_rec.onnx", "en_PP-OCRv5_mobile_rec.onnx",
-        "text_recognition_CRNN_EN_2021sep.onnx" } },
+    { job = "number reader", flag = "--ocr-rec", base = "en_PP-OCRv5_mobile_rec.onnx and its .yml",
+        files = { "PP-OCRv5_server_rec.onnx", "en_PP-OCRv5_mobile_rec.onnx", "text_recognition_CRNN_EN_2021sep.onnx" } },
     { job = "livery embedder", flag = "--embedder", files = { "dinov2_large.onnx", "dinov2_base.onnx", "dinov2_small.onnx" } },
     { job = "face detector", flag = "--face-detector", optional = true, files = { "face_detection_yunet_2023mar.onnx" } },
     { job = "face recognizer", flag = "--face-recognizer", optional = true, files = { "face_recognition_sface_2021dec.onnx" } },
@@ -1358,23 +1358,37 @@ function M.pick_model(files, present)
     return nil, missing
 end
 
-function M.pick_log_line(job, picked, missing_better)
+-- `no_yml`: set of files in `missing_better` that are on disk but lack their .yml.
+function M.pick_log_line(job, picked, missing_better, no_yml)
+    local absent, partial = {}, {}
+    for _, file in ipairs(missing_better) do
+        if no_yml and no_yml[file] then partial[#partial + 1] = file else absent[#absent + 1] = file end
+    end
     local line = job .. ": " .. picked
-    if #missing_better > 0 then line = line .. " (better, not installed: " .. table.concat(missing_better, ", ") .. ")" end
+    if #absent > 0 then line = line .. " (better, not installed: " .. table.concat(absent, ", ") .. ")" end
+    if #partial > 0 then line = line .. " (better, no .yml beside it: " .. table.concat(partial, ", ") .. ")" end
     return line
 end
 
-function M.missing_model_message(job, files)
-    return string.format('Assisted Tagging: no %s model in models/. Install %s (README, "Models").', job, files[#files])
+function M.missing_model_message(item)
+    return string.format('Assisted Tagging: no %s model in models/. Install %s (README, "Models").',
+        item.job, item.base or item.files[#item.files])
 end
 
 -- One MODEL_LISTS item → { file = picked or nil, line = run-log line, err = message when a
--- required job has nothing installed }.
-function M.model_choice(item, present)
+-- required job has nothing installed }. `on_disk(file)`, optional, says a file exists even
+-- when `present` rejects it (a reader without its .yml).
+function M.model_choice(item, present, on_disk)
     local file, missing = M.pick_model(item.files, present)
-    if file then return { file = file, line = M.pick_log_line(item.job, file, missing) } end
+    if file then
+        local no_yml = {}
+        for _, f in ipairs(missing) do
+            if on_disk and on_disk(f) then no_yml[f] = true end
+        end
+        return { file = file, line = M.pick_log_line(item.job, file, missing, no_yml) }
+    end
     if item.optional then return { line = item.job .. ": none installed" } end
-    return { line = item.job .. ": none installed", err = M.missing_model_message(item.job, item.files) }
+    return { line = item.job .. ": none installed", err = M.missing_model_message(item) }
 end
 
 local ok, dt = pcall(require, "darktable")
@@ -1753,7 +1767,8 @@ local function model_args(script)
     local dir = plugin_root(script) .. "/models/"
     local args = { "--detections", C.detections_path(dt) }
     for _, item in ipairs(M.MODEL_LISTS) do
-        local choice = M.model_choice(item, function(file) return M.model_present(dir .. file, item.job, file_exists) end)
+        local choice = M.model_choice(item, function(file) return M.model_present(dir .. file, item.job, file_exists) end,
+            function(file) return file_exists(dir .. file) end)
         log(choice.line)
         if choice.err then error(choice.err, 0) end
         if choice.file then

@@ -211,7 +211,7 @@ def load_settings(collection_dir: str, rules_raw, log, path: str = "") -> tuple[
         v = file_vals.get(k)
         if not _blank(v.strip() if isinstance(v, str) else v):
             raise SettingsError(f'settings.json: {k} was removed; the plugin picks the model now (README, "Models")')
-    diag =rules_raw.get("diagnostics") if isinstance(rules_raw, dict) else None
+    diag = rules_raw.get("diagnostics") if isinstance(rules_raw, dict) else None
     if isinstance(rules_raw, dict) and "colour_tags" in rules_raw:
         raise _removed("entries.json", "rules.colour_tags", REMOVED_KEYS["colour_tags"])
     if isinstance(diag, dict) and "colour" in diag:

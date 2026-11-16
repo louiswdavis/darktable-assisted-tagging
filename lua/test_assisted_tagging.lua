@@ -1009,9 +1009,18 @@ do -- model auto-pick: first installed file on each job's best-first list
     choice = T.model_choice(T.MODEL_LISTS["face detector"], present_of({}))
     check("face detector is optional", tostring(choice.file) .. " " .. tostring(choice.err), "nil nil")
     choice = T.model_choice(reader, present_of({}))
-    check("required job with nothing installed is an error", choice.err, T.missing_model_message("number reader", reader.files))
-    check("missing base names the base file", T.missing_model_message("number reader", reader.files),
-        'Assisted Tagging: no number reader model in models/. Install text_recognition_CRNN_EN_2021sep.onnx (README, "Models").')
+    check("required job with nothing installed is an error", choice.err, T.missing_model_message(reader))
+    check("missing reader names the base reader and its yml", T.missing_model_message(reader),
+        'Assisted Tagging: no number reader model in models/. Install en_PP-OCRv5_mobile_rec.onnx and its .yml (README, "Models").')
+    check("missing base without base field names the last file", T.missing_model_message(T.MODEL_LISTS["text finder"]),
+        'Assisted Tagging: no text finder model in models/. Install text_detection_en_ppocrv3_2023may.onnx (README, "Models").')
+
+    on_disk = present_of({ "m/en_PP-OCRv5_mobile_rec.onnx", "m/text_recognition_CRNN_EN_2021sep.onnx" })
+    choice = T.model_choice(reader, function(file) return T.model_present("m/" .. file, reader.job, on_disk) end,
+        function(file) return on_disk("m/" .. file) end)
+    check("reader without yml is logged as missing its yml", choice.line,
+        "number reader: text_recognition_CRNN_EN_2021sep.onnx (better, not installed: PP-OCRv5_server_rec.onnx)"
+        .. " (better, no .yml beside it: en_PP-OCRv5_mobile_rec.onnx)")
 
     check("pick log line", T.pick_log_line("livery embedder", "dinov2_base.onnx", { "dinov2_large.onnx" }),
         "livery embedder: dinov2_base.onnx (better, not installed: dinov2_large.onnx)")

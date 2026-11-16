@@ -95,7 +95,15 @@ To compare two vehicle finders on your own photos (frames with a car, cars misse
 python python/compare_detectors.py --detector models/object_detection_yolox_2022nov.onnx --detector models/dfine_s_coco.onnx --truth results.csv --manifest manifest.csv --out compare_detectors.csv --disagree disagree.csv <a folder of photos>
 ```
 
-`--truth` is a tagging run's `results.csv` and `--manifest` its `id,filepath` manifest (both optional, both together): a frame with a box there counts as a frame with a car, and a detector that finds no box on it at a threshold has missed it. The markdown table it prints goes into `<plugins folder>/docs/superpowers/specs/backlog/darktable-plugins-tickets/13-detector-comparison.md`.
+`--truth` is a tagging run's `results.csv` and `--manifest` its `id,filepath` manifest (both optional, both together): a frame with a box there counts as a frame with a car, and a detector that finds no box on it at a threshold has missed it. It also prints the summary as a markdown table, ready to paste into notes or an issue.
+
+#### Segmenter (optional)
+
+For pack shots with overlapping cars. With it in `models`, a box that overlaps another is read through a car-shaped mask, with the background and the neighbouring car painted grey. The plugin works without it.
+
+| File | Size | Download | Source, licence |
+|---|---|---|---|
+| `image_segmentation_efficientsam_ti_2025april.onnx` | | `https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx` | OpenCV model zoo (EfficientSAM), Apache-2.0 |
 
 #### Text finder
 
@@ -128,14 +136,6 @@ python python/compare_ocr.py --rec models/text_recognition_CRNN_EN_2021sep.onnx 
 | `dinov2_small.onnx` (base) | 89 MB | base install above | DINOv2 ViT-S/14 via onnx-community, Apache-2.0 |
 
 Compare a larger embedder before installing it with `python python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx --fresh-embed` (re-embeds the refs with that model in memory; `index.npz` is untouched).
-
-#### Segmenter (optional)
-
-For pack shots with overlapping cars. With it in `models`, a box that overlaps another is read through a car-shaped mask, with the background and the neighbouring car painted grey. The plugin works without it.
-
-| File | Size | Download | Source, licence |
-|---|---|---|---|
-| `image_segmentation_efficientsam_ti_2025april.onnx` | | `https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx` | OpenCV model zoo (EfficientSAM), Apache-2.0 |
 
 #### Face detector and face recognizer (people collections only)
 
