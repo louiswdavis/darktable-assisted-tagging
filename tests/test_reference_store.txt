@@ -30,15 +30,21 @@ ok   all_sims gives one raw cosine per reference
 ok   all_sims on an empty index
 ok   a new embedder size re-embeds every reference
 ok   an empty index takes the embedder's size
+ok   a small collection with no run centre scores two cars raw
+ok   too few run boxes keeps raw similarity
+ok   raw similarity leaves no centre
+ok   enough run boxes centre the collection
+ok   centring drops another car's score well below raw
+ok   centring keeps the identical car at 1
 
 all tests passed
 
 --- stderr ---
-20:43:54 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:43:54 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:43:54 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:43:54 py: references: stopped after 1 of 2; the rest are embedded next time
-20:43:54 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:43:54 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:43:54 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
-20:43:55 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+23:46:01 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+23:46:01 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+23:46:01 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+23:46:01 py: references: stopped after 1 of 2; the rest are embedded next time
+23:46:01 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+23:46:01 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+23:46:01 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
+23:46:02 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)

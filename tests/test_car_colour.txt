@@ -44,7 +44,12 @@ ok   same colour agrees
 ok   different colours disagree
 ok   empty entry is neutral
 ok   empty seen is neutral
-ok   Multi entry vs a colour disagrees
+ok   Multi entry vs a colour is neutral
+ok   a colour vs Multi seen is neutral
+ok   White vs Grey is neutral
+ok   Grey vs Black is neutral
+ok   White vs Black still disagrees
+ok   Grey vs Red still disagrees
 ok   Multi agrees with Multi
 ok   digest is stable
 ok   digest changes with a bound

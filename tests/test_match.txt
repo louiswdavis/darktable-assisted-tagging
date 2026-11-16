@@ -60,6 +60,10 @@ ok   a number is never overridden
 ok   consensus stays within its own burst
 ok   consensus fills only the largest box
 ok   a frame with one identified box isn't filled
+FAIL one hand-tagged pack frame fills its car's box 0 across the burst: got [[('none', '', ''), ('number', 'HAM', '')], [('none', '', ''), ('number', 'HAM', '')]], want [[('burst', 'VER', ''), ('number', 'HAM', '')], [('burst', 'VER', ''), ('number', 'HAM', '')]]
+ok   an entry seen only on box 1 never fills box 0
+ok   a split run of one hand-tagged frame fills to the burst's edge
+ok   the gap between the two cars stays unfilled
 ok   burst doesn't override a team-only result for another team
 ok   burst does upgrade a team-only result for its own team
 ok   two frames' weak reads agree: number
@@ -159,4 +163,16 @@ ok   list: matrix none gives today's result
 ok   list: matrix missing for a read gives today's result
 ok   list: no matrix keeps the look-alike fallback
 ok   list: hinted_match passes the matrix on
-all tests passed
+ok   usable: a weak read with a matrix joins the sure ones
+ok   usable: no matrix keeps only the sure ones
+ok   burst: box a alone is no read
+ok   burst: box b alone is no read
+ok   burst: the two boxes' totals give 14
+ok   burst: list_read gives the totals
+ok   burst: different groups don't sum
+ok   burst: a sure read of another number keeps its frame and the group
+ok   burst: a sure read of the winner leaves the fusion on
+ok   burst: one frame with matrices falls back to string agreement
+ok   burst: a colour clash drops the number
+ok   hinted: a weak read outside the tag set doesn't drop the hint
+1 test(s) failed
