@@ -462,17 +462,19 @@ def run_tests():
           (first["boxes"], first["candidates"]), ([], [[0.0, 0.0, 32.0, 24.0, 0.1, 2]]))
 
     # ---- results rows
-    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,,,")
+    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,,,,")
     check("a team row carries the runner-up", I.format_row("7", BoxResult(0, "team", "VER", "TSU", 0.71234)),
-          "7,0,team,VER,TSU,0.712,,,,,")
+          "7,0,team,VER,TSU,0.712,,,,,,")
     check("a row has the shot type before the order flag", I.format_row("7", BoxResult(0, "number", "VER", "", 0.9), "pack"),
-          "7,0,number,VER,,0.900,,pack,,,")
+          "7,0,number,VER,,0.900,,pack,,,,")
     check("a flagged row has 1 in the order flag", I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, order_flag=True), "solo"),
-          "7,0,number,VER,,0.850,,solo,1,,")
+          "7,0,number,VER,,0.850,,solo,1,,,")
     check("a row ends with the colour and its flag",
-          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, colour="Red", colour_flag=True), "solo").endswith(",Red,1"), True)
-    check("a row with no colour ends with two empty fields", I.format_row("7", BoxResult(0, "none"), "solo").endswith(",,"), True)
-    check("a row has eleven fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 11)
+          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, colour="Red", colour_flag=True), "solo").endswith(",Red,1,"), True)
+    check("a row with no colour or sponsor ends with three empty fields", I.format_row("7", BoxResult(0, "none"), "solo").endswith(",,,"), True)
+    check("a row ends with its sponsor words",
+          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, sponsor="Castrol;Shell"), "solo").endswith(",,,Castrol;Shell"), True)
+    check("a row has twelve fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 12)
 
     # ---- Review Focus 2: EXIF-rotated frames
     rotated = os.path.join(img, "portrait.jpg")
@@ -805,6 +807,9 @@ def run_tests():
     check("sponsor_keywords naming a prefix with no entries is rejected",
           load_error({"rules": {"sponsor_keywords": {"petronas": "F1|Mercedes"}}, "entries": [VER]}).startswith(
               "rules.sponsor_keywords.petronas: no entry has a tag under"), True)
+    check("sponsor_keywords can't hold | (a keyword becomes a sponsor tag value)", load_error(
+          {"rules": {"sponsor_keywords": {"red|bull": "F1"}}, "entries": [VER]}),
+          "rules.sponsor_keywords must map lowercase keywords to tag prefixes")
     check("sponsor_keywords must be lowercase", load_error(
           {"rules": {"sponsor_keywords": {"Petronas": "F1"}}, "entries": [VER]}),
           "rules.sponsor_keywords must map lowercase keywords to tag prefixes")

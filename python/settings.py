@@ -93,7 +93,7 @@ def _schema() -> tuple:
         Setting("blur_references", "bool", False),
     ]
     for fam in FAMILIES:
-        out.append(Setting(switch_key(fam.key), "bool", True))
+        out.append(Setting(switch_key(fam.key), "bool", fam.default_on))
         out.append(Setting(root_key(fam.key), "string", fam.default_root))
     for k in TOGGLE_KEYS:
         out.append(Setting(f"tag_{k}", "bool", True))

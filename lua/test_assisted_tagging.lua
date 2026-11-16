@@ -555,6 +555,31 @@ do
     end
 end
 
+-- sponsor column ----------------------------------------------------------------
+do
+    local ro = T.read_results(table.concat({
+        "30,0,number,VER,,0.950,,solo,,Red,,Castrol;Shell",
+        "31,0,number,VER,,0.950,,solo,,Red,1",
+    }, "\n"))
+    check("12-column row carries the sponsor", ro[30][1].sponsor, "Castrol;Shell")
+    check("11-column row has no sponsor", ro[31][1].sponsor, "")
+    local SB = "Assisted Tagging|Motorsport|Sponsor"
+    local sp, none_box = row("number", "VER"), row("none")
+    sp.sponsor, none_box.sponsor = "Castrol;Shell", "Castrol"
+    none_box.box = -1
+    local srules = T.default_rules()
+    srules.families = { sponsor = SB }
+    local _w, dd = T.wanted_tags({ sp }, entries, srules)
+    check("sponsor family writes each word", tostring(dd[SB .. "|Castrol"]) .. tostring(dd[SB .. "|Shell"]), "truetrue")
+    _w, dd = T.wanted_tags({ none_box }, entries, srules)
+    check("box -1 row gets no sponsor tag", dd[SB .. "|Castrol"], nil)
+    _w, dd = T.wanted_tags({ sp }, entries, T.default_rules())
+    check("sponsor family off writes no sponsor tag", dd[SB .. "|Castrol"], nil)
+    local has = false
+    for _, p in ipairs(T.owned_prefixes(srules)) do if p == SB .. "|" then has = true end end
+    check("owned_prefixes includes the sponsor base", has, true)
+end
+
 -- ledger / protected tags / shot + conflict handling ---------------------------
 local led = T.ledger_parse(T.ledger_format({ [3] = { b = true, a = true }, [1] = { z = true } }))
 check("ledger round-trips", led[3].a and led[3].b and led[1].z, true)

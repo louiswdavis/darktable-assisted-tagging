@@ -73,6 +73,7 @@ M.FAMILIES = {
     { key = "co_driver", sources = { "co_driver" }, default_root = "Assisted Tagging|Motorsport|Co-driver" },
     { key = "extra", sources = { "extra" }, default_root = "Assisted Tagging|Motorsport|Class" },
     { key = "vehicle", sources = { "make", "model" }, default_root = "Assisted Tagging|Motorsport|Vehicle" },
+    { key = "sponsor", sources = {}, default_root = "Assisted Tagging|Motorsport|Sponsor" },
 }
 
 -- Family key → root for each family switched on in settings `s`.
@@ -327,6 +328,13 @@ function M.wanted_tags(rows, entries, rules)
             if base and base ~= "" then diag[base .. "|" .. r.colour] = true end
             if r.colour_flag then note("check_colour") end
         end
+        -- Listed sponsor words read inside this vehicle box, one tag each.
+        if r.box >= 0 and r.sponsor and r.sponsor ~= "" then
+            local base = rules.families.sponsor
+            if base and base ~= "" then
+                for _, word in ipairs(split(r.sponsor, ";")) do diag[base .. "|" .. word] = true end
+            end
+        end
     end
     if shot then note("shot_" .. shot) end
     if not identified and not held then
@@ -406,11 +414,11 @@ function M.mask_diag(rules, off)
     return masked
 end
 
--- Prefixes of the tags written one per value: "...Number seen|<digits>" and the colour
--- family's "<root>|<colour>".
+-- Prefixes of the tags written one per value: "...Number seen|<digits>" and the colour and
+-- sponsor families' "<root>|<value>".
 function M.owned_prefixes(rules)
     local out = {}
-    for _, base in ipairs({ rules.diag.number_seen or "", rules.families.colour or "" }) do
+    for _, base in ipairs({ rules.diag.number_seen or "", rules.families.colour or "", rules.families.sponsor or "" }) do
         if base ~= "" then out[#out + 1] = base .. "|" end
     end
     return out
@@ -883,7 +891,7 @@ end
 function M.read_results(text)
     local rows_of, errored, skipped = {}, {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 11) or M.parse_csv_line(line, 10) or M.parse_csv_line(line, 9)
+        local p = M.parse_csv_line(line, 12) or M.parse_csv_line(line, 11) or M.parse_csv_line(line, 10) or M.parse_csv_line(line, 9)
         local id = p and tonumber(p[1])
         if id and p[3] == "error" then
             errored[id] = true
@@ -893,7 +901,7 @@ function M.read_results(text)
             rows_of[id] = rows_of[id] or {}
             table.insert(rows_of[id], { box = tonumber(p[2]), method = p[3], entry_id = p[4],
                                          alt_entry_id = p[5], unmatched_number = p[7], shot = p[8], order_flag = p[9] == "1",
-                                         colour = p[10] or "", colour_flag = p[11] == "1" })
+                                         colour = p[10] or "", colour_flag = p[11] == "1", sponsor = p[12] or "" })
         end
     end
     return rows_of, errored, skipped
@@ -1078,6 +1086,8 @@ M.PRESET_SCHEMA = {
     { key = "family_extra_root", kind = "string", default = "Assisted Tagging|Motorsport|Class" },
     { key = "family_vehicle", kind = "bool", default = true },
     { key = "family_vehicle_root", kind = "string", default = "Assisted Tagging|Motorsport|Vehicle" },
+    { key = "family_sponsor", kind = "bool", default = false },
+    { key = "family_sponsor_root", kind = "string", default = "Assisted Tagging|Motorsport|Sponsor" },
     { key = "tag_number", kind = "bool", default = true },
     { key = "tag_number_name", kind = "string", default = "Assisted Tagging|Identification|By number" },
     { key = "tag_livery", kind = "bool", default = true },
@@ -3537,6 +3547,7 @@ local function install_panel()
         co_driver = { _("Co-driver"), _("Write an identified entry's co-driver as <root>|<co-driver>. Entries without a co-driver get no tag.") },
         extra = { _("Class"), _("Write an identified entry's class (start-list Class column) as <root>|<class>.") },
         vehicle = { _("Vehicle"), _("Write an identified entry's make and model as <root>|<make>|<model>.") },
+        sponsor = { _("Sponsor"), _("Write each rules.sponsor_keywords word read on a car as <root>|<Word>. Words read outside a vehicle box (banners) and words not listed are never written.\nDefault: off.") },
     }
     tag_rows[#tag_rows + 1] = dt.new_widget("section_label") { label = _("tag families") }
     for _i, f in ipairs(M.FAMILIES) do

@@ -3,7 +3,7 @@ write one result row per vehicle for assisted_tagging.lua.
 
 Modes:
   identify.py MANIFEST RESULTS ...            id,filepath,burst_id[,protected tags,hint prefixes,capture epoch] →
-                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot,order_flag,colour,colour_flag
+                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot,order_flag,colour,colour_flag,sponsor
                                               (+ --boxes-out: the per-vehicle boxes.json)
   identify.py MANIFEST RESULTS --add-reference id,filepath,entry_id → id,status
   identify.py MANIFEST RESULTS --promote-boxes --boxes-in F   id,filepath,"" → id,status
@@ -48,7 +48,7 @@ from segment import SEGMENT_CACHE_TOKEN, Segmenter, needs_mask, segmenter_path
 from siglip import CAR, SigLIP, siglip_key
 from pod import pod_colour, pod_reading
 from rescue import RESCUE_MIN_SIM, plan_burst
-from sponsors import sponsor_prefixes
+from sponsors import sponsor_prefixes, sponsor_words
 from report import write_report
 from kinds import DEFAULT_KIND, check_entry_fields, check_kind
 from settings import DIAG_DEFAULTS, MOVED_RULES, SettingsError, diagnostics_of, load_settings
@@ -196,7 +196,8 @@ def _load_rules(raw, bad) -> dict:
     colour_palette = _load_palette(raw["colour_palette"], bad) if "colour_palette" in raw else defaults.colour_palette
     sponsors = raw.get("sponsor_keywords", {})
     if not isinstance(sponsors, dict) or not all(
-            isinstance(k, str) and k.strip() and k == k.lower() and isinstance(v, str) and v.strip()
+            isinstance(k, str) and k.strip() and k == k.lower() and not _BAD_TAG.search(k) and "|" not in k
+            and isinstance(v, str) and v.strip()
             and not _BAD_TAG.search(v) for k, v in sponsors.items()):
         raise bad("rules.sponsor_keywords must map lowercase keywords to tag prefixes")
     team_only = raw.get("team_only", "shared tags")
@@ -719,7 +720,7 @@ def box_hint(tag_prefixes: list, sponsor: list) -> tuple:
 def format_row(image_id: str, r: BoxResult, shot: str = "") -> str:
     return (f"{image_id},{r.box},{r.method},{r.entry_id},{r.alt_entry_id},"
             f"{r.confidence:.3f},{r.unmatched_number},{shot},{'1' if r.order_flag else ''},"
-            f"{r.colour},{'1' if r.colour_flag else ''}")
+            f"{r.colour},{'1' if r.colour_flag else ''},{r.sponsor}")
 
 
 def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) -> str:
@@ -730,6 +731,7 @@ def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) ->
     fw, fh = frame
     frac = f"; box {bw:.0f}x{bh:.0f} ({bw * bh / max(fw * fh, 1):.1%} of frame)"
     colour = f"; colour {r.colour}" if r.colour else ""
+    colour += f"; sponsor {r.sponsor}" if r.sponsor else ""
     listed = f"; list {r.list_read}" if r.list_read else ""
     return f"box {r.box}: {r.method} {r.entry_id or '-'} (OCR {seen}{listed}; livery {top}{unmatched}{colour}{frac})"
 
@@ -1066,6 +1068,8 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
             r = BoxResult(i, "none")
         elif shares:
             r = replace(r, colour=car_colour.decide_colour(shares))
+        if overlap != HIDDEN and "sponsor" in rules.families:
+            r = replace(r, sponsor=";".join(sponsor_words(trace, rules.sponsor_keywords)))
         if not quiet:
             log(f"{image_id}: {describe_box(r, ocr, sims, a['boxes'][i], a['frame'])}"
                 + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else "")

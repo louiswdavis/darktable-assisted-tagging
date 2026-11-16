@@ -76,6 +76,9 @@ class BoxResult:
     colour_flag: bool = False
     # ListRead.text() when the box's reads were scored against the start list; "" on the fallback path.
     list_read: str = ""
+    # The rules.sponsor_keywords words read on the box as tag values, ";"-joined, when the sponsor
+    # family is on; "" otherwise. Carried through every later rewrite like `colour`.
+    sponsor: str = ""
 
 
 @dataclass(frozen=True)

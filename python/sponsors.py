@@ -21,12 +21,24 @@ def _within_one(a: str, b: str) -> bool:
 def sponsor_prefixes(ocr_trace: list, keywords: tuple) -> list:
     """ocr_trace: [[confidence, text, height share], …]; keywords: ((word, tag prefix), …). The one prefix
     all matched sponsor words agree on, as a one-item list; [] when none match or two prefixes do."""
-    found = set()
+    found = {prefix for _, prefix in _matches(ocr_trace, keywords)}
+    return list(found) if len(found) == 1 else []
+
+
+def _matches(ocr_trace: list, keywords: tuple) -> list:
+    """The (keyword, tag prefix) pairs a confident OCR word in `ocr_trace` reads as, in read order."""
+    out = []
     for conf, text, *_ in ocr_trace:
         text = text.lower()
         if conf < SPONSOR_MIN_CONF:
             continue
         for word, prefix in keywords:
             if text == word or (len(word) >= FUZZY_MIN_LEN and _within_one(text, word)):
-                found.add(prefix)
-    return list(found) if len(found) == 1 else []
+                out.append((word, prefix))
+    return out
+
+
+def sponsor_words(ocr_trace: list, keywords: tuple) -> list:
+    """The listed keywords read in `ocr_trace`, each once in read order, as tag values ("castrol" ->
+    "Castrol"). Only listed words: free OCR text is never returned."""
+    return list(dict.fromkeys(word.title() for word, _ in _matches(ocr_trace, keywords)))

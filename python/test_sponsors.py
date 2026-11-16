@@ -34,6 +34,14 @@ def run_tests():
     check("two words of one team collapse", S.sponsor_prefixes([[0.99, "oracle"], [0.95, "redbull"]], KW), ["F1|Red Bull"])
     check("sponsors of two teams give no hint", S.sponsor_prefixes([[0.99, "oracle"], [0.99, "petronas"]], KW), [])
     check("no trace, no hint", S.sponsor_prefixes([], KW), [])
+    check("sponsor_words: a listed word is a tag value", S.sponsor_words([[0.99, "petronas"]], KW), ["Petronas"])
+    check("sponsor_words: a misread gives the listed spelling", S.sponsor_words([[0.99, "petronis"]], KW), ["Petronas"])
+    check("sponsor_words: an unlisted word gives nothing", S.sponsor_words([[0.99, "castrol"]], KW), [])
+    check("sponsor_words: each word once, in read order",
+          S.sponsor_words([[0.99, "oracle"], [0.95, "petronas"], [0.99, "oracle"]], KW), ["Oracle", "Petronas"])
+    check("sponsor_words: two teams' words are both kept", S.sponsor_words([[0.99, "oracle"], [0.99, "petronas"]], KW),
+          ["Oracle", "Petronas"])
+    check("sponsor_words: confidence under 0.90 is ignored", S.sponsor_words([[0.89, "petronas"]], KW), [])
 
     print("")
     if failures == 0:
