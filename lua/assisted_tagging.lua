@@ -1377,15 +1377,27 @@ M.MODEL_LISTS = {
     { job = "number reader", flag = "--ocr-rec", base = "en_PP-OCRv5_mobile_rec.onnx and its .yml",
         files = { "PP-OCRv5_server_rec.onnx", "en_PP-OCRv5_mobile_rec.onnx", "text_recognition_CRNN_EN_2021sep.onnx" } },
     { job = "livery embedder", flag = "--embedder", files = { "dinov2_large.onnx", "dinov2_base.onnx", "dinov2_small.onnx" } },
+    { job = "box check", flag = "--siglip", optional = true, files = { "siglip2_base_vision.onnx" } },
     { job = "face detector", flag = "--face-detector", optional = true, files = { "face_detection_yunet_2023mar.onnx" } },
     { job = "face recognizer", flag = "--face-recognizer", optional = true, files = { "face_recognition_sface_2021dec.onnx" } },
 }
 for _, item in ipairs(M.MODEL_LISTS) do M.MODEL_LISTS[item.job] = item end
 
+-- Files that must sit beside model file `path` for `job`: SigLIP 2's text model and tokenizer,
+-- named after its vision file. Empty for every other job.
+function M.model_siblings(path, job)
+    if job ~= "box check" then return {} end
+    return { (path:gsub("vision%.onnx$", "text.onnx")), (path:gsub("vision%.onnx$", "tokenizer.json")) }
+end
+
 -- Whether model file `path` for `job` can be used, `exists(path)` saying what is on disk.
--- A PaddleOCR reader (any number reader but the CRNN) also needs its .yml beside it.
+-- A PaddleOCR reader (any number reader but the CRNN) also needs its .yml beside it, and the
+-- box check its M.model_siblings.
 function M.model_present(path, job, exists)
     if not exists(path) then return false end
+    for _, sibling in ipairs(M.model_siblings(path, job)) do
+        if not exists(sibling) then return false end
+    end
     if job ~= "number reader" or path:match("text_recognition_CRNN[^/\\]*$") then return true end
     return exists((path:gsub("%.onnx$", ".yml")))
 end
@@ -1419,8 +1431,9 @@ function M.missing_model_message(item)
 end
 
 -- One MODEL_LISTS item → { file = picked or nil, line = run-log line, err = message when a
--- required job has nothing installed }. `on_disk(file)`, optional, says a file exists even
--- when `present` rejects it (a reader without its .yml).
+-- required job has nothing installed, or a model is on disk without its M.model_siblings }.
+-- `on_disk(file)`, optional, says a file exists even when `present` rejects it (a reader
+-- without its .yml).
 function M.model_choice(item, present, on_disk)
     local file, missing = M.pick_model(item.files, present)
     if file then
@@ -1429,6 +1442,17 @@ function M.model_choice(item, present, on_disk)
             if on_disk and on_disk(f) then no_yml[f] = true end
         end
         return { file = file, line = M.pick_log_line(item.job, file, missing, no_yml) }
+    end
+    for _, f in ipairs(missing) do
+        local siblings = M.model_siblings(f, item.job)
+        if #siblings > 0 and on_disk and on_disk(f) then
+            local absent = {}
+            for _, sibling in ipairs(siblings) do
+                if not on_disk(sibling) then absent[#absent + 1] = sibling end
+            end
+            return { line = item.job .. ": " .. f .. " is missing files", err = string.format(
+                'Assisted Tagging: %s needs %s beside it in models/ (README, "Models").', f, table.concat(absent, " and ")) }
+        end
     end
     if item.optional then return { line = item.job .. ": none installed" } end
     return { line = item.job .. ": none installed", err = M.missing_model_message(item) }

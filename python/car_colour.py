@@ -89,7 +89,10 @@ def colour_shares(crop_rgb, palette=PALETTE, masked: bool = False) -> dict:
 
 def decide_colour(shares: dict) -> str:
     """The colour with the highest weighted share, MULTI when the runner-up is at least MULTI_RATIO
-    of it, or "" when every share is 0. Names in ACHROMATIC count at ACHROMATIC_WEIGHT."""
+    of it, or "" when every share is 0. Names in ACHROMATIC count at ACHROMATIC_WEIGHT. SigLIP 2
+    scores (siglip.colour_scores, the only shares with a MULTI key) skip both: the top score wins."""
+    if MULTI in shares:
+        return max(shares, key=shares.get)
     ranked = sorted(((s * (ACHROMATIC_WEIGHT if n in ACHROMATIC else 1.0), n) for n, s in shares.items() if s > 0),
                     key=lambda p: -p[0])
     if not ranked:

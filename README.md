@@ -137,6 +137,18 @@ python python/compare_ocr.py --rec models/text_recognition_CRNN_EN_2021sep.onnx 
 
 Compare a larger embedder before installing it with `python python/eval_matching.py COLLECTION_DIR --embedder models/dinov2_base.onnx --fresh-embed` (re-embeds the refs with that model in memory; `index.npz` is untouched).
 
+#### Box check and colour reader (optional, SigLIP 2)
+
+The vehicle detector also boxes marshals, sheds and railings. With SigLIP 2 in `models`, each box is checked before it is read: a box that looks more like a person, a building, a railing, spectators, trees or an empty road than a rally car is dropped, and the log counts what was dropped (`box check: dropped 4 boxes: person 3, railing 1`). The same model reads each car's paintwork colour for the [Colour family](#tag-families) in place of the built-in hue rules, comparing the car with "a photo of a red rally car." and so on for each palette name, plus "multicoloured". Without it, every box is read and colour comes from the hue rules. Adding or removing it re-reads every photo once. People collections don't use it.
+
+Download the three files and rename them; the plugin finds the text model and tokenizer beside the vision file by name, and stops with a message naming any that is missing. Python also needs the `tokenizers` package (in `requirements.txt`).
+
+| File | Download (rename to the file name) | Source, licence |
+|---|---|---|
+| `siglip2_base_vision.onnx` | `https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/onnx/vision_model.onnx` | SigLIP 2 base (Google, Apache-2.0) via onnx-community; the export states no licence |
+| `siglip2_base_text.onnx` | `…/resolve/main/onnx/text_model.onnx` | same |
+| `siglip2_base_tokenizer.json` | `…/resolve/main/tokenizer.json` | same |
+
 #### Face detector and face recognizer (people collections only)
 
 People collections (`"kind": "people"` in entries.json) need these two. Motorsport collections don't:
@@ -312,7 +324,7 @@ Every key is optional; leave one out for its default.
 |---|---|---|
 | `team_only` | `"shared tags"` | when two teammates are too close to call: `"shared tags"` adds the tags both entries carry, `"none"` adds no collection tags (only the *Team only* diagnostic) |
 | `unidentified` | `[]` | tags added to an image where no vehicle was identified, e.g. a "check me" tag for the shoot |
-| `colour_palette` | the 11 built-in colours | an object mapping each tag name to a built-in colour (`"Red"`, `"Orange"`, `"Yellow"`, `"Green"`, `"Blue"`, `"Purple"`, `"Pink"`, `"Brown"`, `"White"`, `"Grey"`, `"Black"`) or to a list of bounds in OpenCV HSV, e.g. `{"Red": "Red", "Teal": [{"hue": [80, 95], "sat": [90, 255]}], "Silver": "Grey"}`. Each bounds object needs `hue` (0–179) and may have `sat` and `val` (0–255); a missing one is the full range. A pixel goes to the first colour that matches. A name can't be `Multi` or contain `\|`. Entry colours must be in the palette. Unlisted built-ins are dropped |
+| `colour_palette` | the 11 built-in colours | an object mapping each tag name to a built-in colour (`"Red"`, `"Orange"`, `"Yellow"`, `"Green"`, `"Blue"`, `"Purple"`, `"Pink"`, `"Brown"`, `"White"`, `"Grey"`, `"Black"`) or to a list of bounds in OpenCV HSV, e.g. `{"Red": "Red", "Teal": [{"hue": [80, 95], "sat": [90, 255]}], "Silver": "Grey"}`. Each bounds object needs `hue` (0–179) and may have `sat` and `val` (0–255); a missing one is the full range. A pixel goes to the first colour that matches. A name can't be `Multi` or contain `\|`. Entry colours must be in the palette. Unlisted built-ins are dropped. With SigLIP 2 installed only the names count: each becomes a prompt and the bounds are not used |
 | `sponsor_keywords` | `{}` | maps a lowercase sponsor word to its team's tag, e.g. `{"petronas": "Assisted Tagging\|Motorsport\|Team\|Mercedes"}`. A word read on a car (OCR confidence 0.90+; one typo allowed in words of 6+ letters) narrows matching to that team. Sponsors of two teams on one car give no hint. A prefix no entry sits under stops the run. |
 
 Behaviour settings moved to settings.json on 2026-11-11; an old entries.json still loads, each old rule is copied into settings.json once and logged.
@@ -413,7 +425,7 @@ Every vehicle that gets an entry adds that entry's tags to the image, so a photo
 | `Assisted Tagging\|Identification\|Team only` | two teammates were too close to call; only their shared tags were added |
 | `Assisted Tagging\|Identification\|Unidentified` | no vehicle, or no confident match |
 | `Assisted Tagging\|Identification\|Number seen\|<digits>` | OCR read these digits but they didn't resolve to one entry; added alongside the outcome tag |
-| `Assisted Tagging\|Motorsport\|Colour\|<name>` | the car's paintwork colour (`Red`, `Orange`, `Yellow`, `Green`, `Blue`, `Purple`, `Pink`, `Brown`, `White`, `Grey`, `Black`, or `Multi` for a two-tone car; silver reads as `Grey`); the Colour family, under `family_colour_root`. Filter on it to hand-sort cars by colour |
+| `Assisted Tagging\|Motorsport\|Colour\|<name>` | the car's paintwork colour (`Red`, `Orange`, `Yellow`, `Green`, `Blue`, `Purple`, `Pink`, `Brown`, `White`, `Grey`, `Black`, or `Multi` for a two-tone car; silver reads as `Grey`; read by SigLIP 2 when it is installed, else by hue rules, see [Box check and colour reader](#box-check-and-colour-reader-optional-siglip-2)); the Colour family, under `family_colour_root`. Filter on it to hand-sort cars by colour |
 | `Assisted Tagging\|Identification\|Shot\|Solo` | one vehicle was found in the frame |
 | `Assisted Tagging\|Identification\|Shot\|Pack` | two or three vehicles were found |
 | `Assisted Tagging\|Identification\|Shot\|Crowded` | the detector's limit (`MAX_BOXES`) was reached, so there may be more cars than were identified |

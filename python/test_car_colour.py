@@ -63,6 +63,8 @@ check("achromatic runner-up counts half", C.decide_colour({"Black": 0.6, "Red": 
 check("a colour beats a smaller achromatic share", C.decide_colour({"Black": 0.3, "Red": 0.5}), "Red")
 check("a mostly black car is Black", C.decide_colour({"Black": 0.9, "Red": 0.1}), "Black")
 check("runner-up at the ratio is Multi", C.decide_colour({"Red": 0.5, "Blue": 0.3}), "Multi")
+check("SigLIP scores: a white car is White, not weighted down", C.decide_colour({"White": 0.6, "Red": 0.39, "Multi": 0.01}), "White")
+check("SigLIP scores: Multi wins only as the top prompt", C.decide_colour({"Red": 0.3, "Blue": 0.3, "Multi": 0.4}), "Multi")
 check("runner-up under the ratio loses", C.decide_colour({"Red": 0.5, "Blue": 0.29}), "Red")
 check("a tiny single share still decides", C.decide_colour({"Red": 0.001, "Blue": 0.0}), "Red")
 check("all-zero shares", C.decide_colour({n: 0.0 for n, _ in C.PALETTE}), "")

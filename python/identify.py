@@ -45,6 +45,7 @@ from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, REFERENCE_MIN_MARGIN, 
 from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
 from segment import SEGMENT_CACHE_TOKEN, Segmenter, needs_mask, segmenter_path
+from siglip import CAR, SigLIP, siglip_key
 from pod import pod_colour, pod_reading
 from rescue import RESCUE_MIN_SIM, plan_burst
 from sponsors import sponsor_prefixes
@@ -499,7 +500,8 @@ def frame_key(filepath: str, models: dict) -> list:
             embedder_key(models["embedder"]), analysis_fingerprint(),
             "ocr-trace-2", "read-conf-1", "ctc-1", "pod-2", "cand-1", "overlap-2", *(["colour-1"] if models.get("colour") else []),
             *(["car-colour-1", car_colour.palette_digest(models["car_colour"])] if models.get("car_colour") else []),
-            *([SEGMENT_CACHE_TOKEN, file_key(models["segmenter"])] if models.get("segmenter") else [])]
+            *([SEGMENT_CACHE_TOKEN, file_key(models["segmenter"])] if models.get("segmenter") else []),
+            *(siglip_key(models["siglip"]) if models.get("siglip") else [])]
 
 
 # ---------------------------------------------------------------- progress
@@ -556,6 +558,14 @@ def _init_worker(models: dict):
     _W["embedder"] = Embedder(models["embedder"])
     _W["segmenter"] = Segmenter(models["segmenter"]) if models.get("segmenter") else None
     _detection_tools(models)
+    _siglip(models)
+
+
+def _siglip(models: dict):
+    """This process's SigLIP 2, loaded on first use, or None without one."""
+    if "siglip" not in _W:
+        _W["siglip"] = SigLIP(models["siglip"]) if models.get("siglip") else None
+    return _W["siglip"]
 
 
 def analyse_frame(filepath: str) -> dict:
@@ -572,7 +582,11 @@ def analyse_frame(filepath: str) -> dict:
         rgb = decode_rgb(filepath)
         h, w = rgb.shape[:2]
         boxes, weak, note = detect(rgb, entry)
-        out = _read_boxes(rgb, boxes)
+        boxes, vecs, dropped = check_boxes(rgb, boxes)
+        if dropped and not boxes:
+            note = f"no car: the box check dropped {sum(dropped.values())} boxes"
+        out = _read_boxes(rgb, boxes, vecs=vecs)
+        out["dropped"] = dropped
     else:
         sh, sw = small.shape[:2]
         weak = boxes_in({"frame": [sw, sh], "boxes": weak}, w, h)
@@ -581,10 +595,29 @@ def analyse_frame(filepath: str) -> dict:
     return out
 
 
-def _read_boxes(rgb, boxes: list, hi=None) -> dict:
+def check_boxes(rgb, boxes: list) -> tuple:
+    """The box check: (kept boxes, their SigLIP 2 image vectors or None, {answer: count} of the
+    dropped ones). A box SigLIP 2 calls anything but a car is dropped; without SigLIP all are kept."""
+    siglip = _W.get("siglip")
+    if not siglip or not boxes:
+        return boxes, None, {}
+    kept, vecs, dropped = [], [], {}
+    for b in boxes:
+        vec = siglip.embed_image(crop_box(rgb, b))
+        what = siglip.is_what(vec)
+        if what == CAR:
+            kept.append(b)
+            vecs.append(vec)
+        else:
+            dropped[what] = dropped.get(what, 0) + 1
+    return kept, vecs, dropped
+
+
+def _read_boxes(rgb, boxes: list, hi=None, vecs=None) -> dict:
     """OCR candidates, pod reading and embedding of each box, in the analysis shape. With `hi`, a
     sharper decode of the same frame, the crops (OCR, embedding, colour) come from it; boxes stay in
-    `rgb`'s pixels."""
+    `rgb`'s pixels. `vecs`, the box check's SigLIP 2 vectors of the plain box crops, are reused for
+    colour where the crop read is that same plain crop."""
     ocr, trace, ctc, emb, pod, hist, overlap, masked, shares = [], [], [], [], [], [], [], [], []
     palette = _W["models"].get("car_colour")
     scale = hi.shape[1] / rgb.shape[1] if hi is not None else 1.0
@@ -607,13 +640,24 @@ def _read_boxes(rgb, boxes: list, hi=None) -> dict:
         if _W["models"].get("colour"):
             hist.append(encode(colour_hist(crop)))
         if palette:
-            shares.append({} if state == HIDDEN else car_colour.colour_shares(crop, palette, masked=cut is not None))
+            plain = vecs and hi is None and cut is None and tuple(seen[:4]) == tuple(b[:4])
+            shares.append({} if state == HIDDEN else colour_read(crop, palette, masked=cut is not None,
+                                                                 vec=vecs[i] if plain else None))
     out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "ocr_ctc": ctc, "pod": pod, "emb": emb, "overlap": overlap, "masked": masked}
     if hist:
         out["hist"] = hist
     if palette:
         out["car_colour"] = shares
     return out
+
+
+def colour_read(crop, palette, masked: bool = False, vec=None) -> dict:
+    """The crop's colour shares: SigLIP 2 scores when this process has SigLIP 2 (`vec`, the crop's
+    image vector when already worked out), else HSV shares."""
+    siglip = _W.get("siglip")
+    if siglip:
+        return siglip.colour_scores(vec if vec is not None else siglip.embed_image(crop), palette)
+    return car_colour.colour_shares(crop, palette, masked=masked)
 
 
 def rescue_frame(job: tuple):
@@ -625,8 +669,11 @@ def rescue_frame(job: tuple):
     sim = float((_W["embedder"].embed(crop_box(rgb, box)) * decode(mate_emb)).sum())
     if sim < RESCUE_MIN_SIM:
         return None
+    boxes, vecs, _ = check_boxes(rgb, [box])
+    if not boxes:
+        return None
     h, w = rgb.shape[:2]
-    out = _read_boxes(rgb, [box])
+    out = _read_boxes(rgb, boxes, vecs=vecs)
     out.update(note="", frame=[w, h], candidates=[], rescued={"from": os.path.basename(mate_path), "sim": round(sim, 4)})
     return out
 
@@ -707,7 +754,8 @@ def check_models(models: dict):
     loaders = (("object detector", "detector", lambda: load_detector(models["detector"])),
                ("OCR", "ocr_det", lambda: NumberReader(models["ocr_det"], models["ocr_rec"])),
                ("embedder", "embedder", lambda: Embedder(models["embedder"])),
-               *([("segmenter", "segmenter", lambda: Segmenter(models["segmenter"]))] if models.get("segmenter") else []))
+               *([("segmenter", "segmenter", lambda: Segmenter(models["segmenter"]))] if models.get("segmenter") else []),
+               *([("SigLIP 2", "siglip", lambda: SigLIP(models["siglip"]))] if models.get("siglip") else []))
     loaded = {}
     for label, key, load in loaders:
         try:
@@ -716,6 +764,10 @@ def check_models(models: dict):
             raise InputError(f"{label} model can't be loaded ({models[key]}): {type(e).__name__}: {e}. "
                              f"Download it again (see the README).") from e
     log(f"number reader: {loaded['ocr_det'].rec.name} ({os.path.basename(models['ocr_rec'])})")
+    if models.get("siglip"):
+        log("box check: on (SigLIP 2)" + ("; colour reader: SigLIP 2" if models.get("car_colour") else ""))
+    else:
+        log("box check: off (no SigLIP 2 model)" + ("; colour reader: HSV rules" if models.get("car_colour") else ""))
     return loaded["embedder"]
 
 
@@ -737,6 +789,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
     log(f"analysing: {total} frames, {done} from cache, {len(todo)} to decode")
     write_progress(progress, done, total)
     if not todo:
+        log_box_check(out, models)
         return out
     workers = worker_count(os.cpu_count() or 2)
     hits, detected, started = 0, 0, time.time()
@@ -769,7 +822,20 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str) -
     log(f"analysis: {len(todo)} frames in {elapsed:.0f}s, {len(todo) * 60 / max(elapsed, 0.001):.0f} frames/min ({workers} workers)")
     if models["kind"] != "people":
         log(f"detections: {hits} cached, {detected} detected")
+    log_box_check(out, models)
     return out
+
+
+def log_box_check(analyses: dict, models: dict):
+    """One run-log line counting the boxes the box check dropped, per answer."""
+    if models["kind"] == "people" or not models.get("siglip"):
+        return
+    dropped: dict = {}
+    for a in analyses.values():
+        for what, n in ((a or {}).get("dropped") or {}).items():
+            dropped[what] = dropped.get(what, 0) + n
+    counts = ", ".join(f"{what} {n}" for what, n in sorted(dropped.items(), key=lambda p: -p[1]))
+    log(f"box check: dropped {sum(dropped.values())} boxes" + (f": {counts}" if counts else ""))
 
 
 def rescue_frames(rows: list, analyses: dict, models: dict, progress: str = "") -> dict:
@@ -1410,6 +1476,8 @@ def run_reference_job(args, models: dict, handle_row, screen: str = ""):
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     embedder = check_models(models)
+    if rules.kind != "people":
+        _siglip(models)
     index = open_index(collection, models, rules, embedder, args.progress)
     rows = read_manifest(args.manifest, 3, optional=1)
     done = []  # (image id, status, refs the row saved)
@@ -1482,8 +1550,11 @@ def add_references(args, models: dict):
             rgb = decode_rgb(filepath)
             entry, _ = frame_entry(filepath, rgb, models)
             boxes, note = detect_vehicles(rgb, entry)
+            boxes, _, dropped = check_boxes(rgb, boxes)
+            if dropped and not boxes:
+                note = f"the box check dropped {sum(dropped.values())} boxes"
             if colours_only:
-                colour = hand_colour or (car_colour.decide_colour(car_colour.colour_shares(crop_box(rgb, boxes[0]), rules.colour_palette))
+                colour = hand_colour or (car_colour.decide_colour(colour_read(crop_box(rgb, boxes[0]), rules.colour_palette))
                                          if boxes else "")
                 if not colour:
                     log(f"{image_id}: " + (f"no vehicle found ({note})" if not boxes else "couldn't tell the car's colour") + "; colour unread")
@@ -1498,7 +1569,7 @@ def add_references(args, models: dict):
             log(f"{image_id}: reference {rel}" + ("" if boxes else f" (whole frame; {note})"))
             proposals = []
             if "colour" in rules.families and not is_team:
-                colour = hand_colour or (car_colour.decide_colour(car_colour.colour_shares(crop, rules.colour_palette))
+                colour = hand_colour or (car_colour.decide_colour(colour_read(crop, rules.colour_palette))
                                          if boxes else "")
                 proposals = [(entry_id, colour)] if colour else []
             return ("added" if boxes else "no_vehicle_whole_frame"), proposals
@@ -1631,6 +1702,8 @@ def main(argv=None):
     parser.add_argument("--ocr-det", default="", help="PP-OCRv3 text detection .onnx")
     parser.add_argument("--ocr-rec", default="", help="text recognition .onnx: PP-OCRv5 (its .yml beside it) or CRNN")
     parser.add_argument("--embedder", default="", help="DINOv2 .onnx")
+    parser.add_argument("--siglip", default="",
+                        help="SigLIP 2 vision .onnx (text model and tokenizer beside it): box check and colour reader")
     parser.add_argument("--face-detector", default="", help="YuNet .onnx (people collections)")
     parser.add_argument("--face-recognizer", default="", help="SFace .onnx (people collections)")
     parser.add_argument("--entries-out", default="", help="Write the collection's entries.csv here")
@@ -1662,7 +1735,7 @@ def main(argv=None):
     args = parser.parse_args(argv)
     models = {"detector": args.detector, "ocr_det": args.ocr_det, "ocr_rec": args.ocr_rec,
               "embedder": args.embedder, "face_det": args.face_detector, "face_rec": args.face_recognizer,
-              "segmenter": args.segmenter, "detections": args.detections, "kind": DEFAULT_KIND}
+              "segmenter": args.segmenter, "siglip": args.siglip, "detections": args.detections, "kind": DEFAULT_KIND}
     try:
         if args.list:
             list_mode(args)

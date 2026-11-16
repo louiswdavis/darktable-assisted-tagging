@@ -1074,6 +1074,23 @@ do -- model auto-pick: first installed file on each job's best-first list
         "number reader: text_recognition_CRNN_EN_2021sep.onnx (better, not installed: PP-OCRv5_server_rec.onnx)"
         .. " (better, no .yml beside it: en_PP-OCRv5_mobile_rec.onnx)")
 
+    local box_check = T.MODEL_LISTS["box check"]
+    check("SigLIP 2 siblings", table.concat(T.model_siblings("m/siglip2_base_vision.onnx", box_check.job), ","),
+        "m/siglip2_base_text.onnx,m/siglip2_base_tokenizer.json")
+    check("other jobs have no siblings", #T.model_siblings("m/dinov2_base.onnx", "livery embedder"), 0)
+    on_disk = present_of({ "m/siglip2_base_vision.onnx", "m/siglip2_base_text.onnx", "m/siglip2_base_tokenizer.json" })
+    check("SigLIP 2 with both siblings is present",
+        T.model_present("m/siglip2_base_vision.onnx", box_check.job, on_disk), true)
+    on_disk = present_of({ "m/siglip2_base_vision.onnx", "m/siglip2_base_text.onnx" })
+    check("SigLIP 2 without its tokenizer is not present",
+        T.model_present("m/siglip2_base_vision.onnx", box_check.job, on_disk), false)
+    choice = T.model_choice(box_check, function(file) return T.model_present("m/" .. file, box_check.job, on_disk) end,
+        function(file) return on_disk("m/" .. file) end)
+    check("SigLIP 2 without its tokenizer is an error", choice.err,
+        'Assisted Tagging: siglip2_base_vision.onnx needs siglip2_base_tokenizer.json beside it in models/ (README, "Models").')
+    choice = T.model_choice(box_check, present_of({}), present_of({}))
+    check("box check is optional", tostring(choice.file) .. " " .. tostring(choice.err), "nil nil")
+
     check("pick log line", T.pick_log_line("livery embedder", "dinov2_base.onnx", { "dinov2_large.onnx" }),
         "livery embedder: dinov2_base.onnx (better, not installed: dinov2_large.onnx)")
     check("pick log line, best installed", T.pick_log_line("livery embedder", "dinov2_large.onnx", {}),
@@ -1082,13 +1099,13 @@ do -- model auto-pick: first installed file on each job's best-first list
     local jobs = {}
     for _, item in ipairs(T.MODEL_LISTS) do jobs[#jobs + 1] = item.job end
     check("model jobs in log order", table.concat(jobs, ","),
-        "vehicles,segmenter,text finder,number reader,livery embedder,face detector,face recognizer")
+        "vehicles,segmenter,text finder,number reader,livery embedder,box check,face detector,face recognizer")
     local bases = {}
     for _, item in ipairs(T.MODEL_LISTS) do bases[#bases + 1] = item.files[#item.files] end
     check("each list ends in today's file", table.concat(bases, ","),
         "object_detection_yolox_2022nov.onnx,image_segmentation_efficientsam_ti_2025april.onnx,"
         .. "text_detection_en_ppocrv3_2023may.onnx,text_recognition_CRNN_EN_2021sep.onnx,dinov2_small.onnx,"
-        .. "face_detection_yunet_2023mar.onnx,face_recognition_sface_2021dec.onnx")
+        .. "siglip2_base_vision.onnx,face_detection_yunet_2023mar.onnx,face_recognition_sface_2021dec.onnx")
 end
 
 print("")

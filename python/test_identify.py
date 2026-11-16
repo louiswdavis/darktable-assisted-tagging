@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import car_colour as C
 import fingerprint as FP
 import identify as I
+import siglip as S
 import ocr as O
 import vehicle_detect as VD
 import vehicles as V
@@ -371,17 +372,64 @@ def run_tests():
     models["segmenter"] = frame
     check("the segmenter model file joins the cache key", I.frame_key(frame, models)[-2:], ["mask-1", VD.file_key(frame)])
     del models["segmenter"]
+    plain_key = I.frame_key(frame, models)
+    models["siglip"] = frame
+    check("SigLIP 2 joins the cache key with its three files", I.frame_key(frame, models)[len(plain_key):],
+          S.siglip_key(frame))
+    check("the SigLIP key names the token and every file", (S.siglip_key(frame)[0], len(S.siglip_key(frame))),
+          (S.SIGLIP_CACHE_TOKEN, 5))
+    del models["siglip"]
+    check("no SigLIP leaves the cache key as it was", I.frame_key(frame, models), plain_key)
+    check("SigLIP files sit beside the vision file", S.siglip_files("m/siglip2_base_vision.onnx"),
+          ("m/siglip2_base_vision.onnx", "m/siglip2_base_text.onnx", "m/siglip2_base_tokenizer.json"))
+    check("custom palette names are the colour prompts", S.colour_prompts((("Teal", ()),)),
+          {"Teal": "a photo of a teal rally car.", C.MULTI: S.MULTI_PROMPT})
+
+    # ---- the box check: non-car boxes are dropped and counted; no SigLIP keeps every box
+    class FakeSigLIP:
+        """Answers one label per crop, in call order; a crop's vector is its call number."""
+        def __init__(self, answers):
+            self.answers, self.calls = answers, 0
+
+        def embed_image(self, crop):
+            self.calls += 1
+            return self.calls - 1
+
+        def is_what(self, vec):
+            return self.answers[vec]
+
+    boxes = [(0, 0, 10, 10), (0, 0, 20, 10), (0, 0, 30, 10), (0, 0, 20, 5)]
+    canvas = np.zeros((40, 40, 3), dtype=np.uint8)
+    old_siglip = I._W.get("siglip")
+    I._W["siglip"] = None
+    check("no SigLIP keeps every box", I.check_boxes(canvas, boxes), (boxes, None, {}))
+    I._W["siglip"] = FakeSigLIP(["person", "car", "railing", "person"])
+    kept, vecs, dropped = I.check_boxes(canvas, boxes)
+    I._W["siglip"] = old_siglip
+    check("the box check keeps the car with its vector", (kept, vecs), ([(0, 0, 20, 10)], [1]))
+    check("the box check counts dropped boxes per answer", dropped, {"person": 2, "railing": 1})
+    lines = []
+    real_log, I.log = I.log, lines.append
+    try:
+        I.log_box_check({"a": {"dropped": {"person": 2}}, "b": {"dropped": {"person": 1, "railing": 1}}, "c": None},
+                        {"kind": "vehicles", "siglip": frame})
+        I.log_box_check({"a": {"dropped": {"person": 2}}}, {"kind": "vehicles", "siglip": ""})
+    finally:
+        I.log = real_log
+    check("the drop log counts per answer, and is silent without SigLIP", lines,
+          ["box check: dropped 4 boxes: person 3, railing 1"])
     people = {"kind": "people", "face_det": frame, "face_rec": frame}
     check("the people key carries the fingerprint", FP.analysis_fingerprint() in I.frame_key(frame, people), True)
     check("the cache key carries no stray version", "1" not in I.IdentifyCache._key(["x"]), True)
 
     # ---- every per-frame constant is filed as a cache input or neutral
-    for mod in FP.CACHE_INPUTS:
+    # (siglip is neutral only: its constants are in siglip_key, so the fingerprint stays as it was)
+    for mod in {**FP.CACHE_INPUTS, **FP.CACHE_NEUTRAL}:
         tree = ast.parse(open(mod.__file__, encoding="utf-8").read())
         names = [t.id for node in tree.body if isinstance(node, (ast.Assign, ast.AnnAssign))
                  for t in (node.targets if isinstance(node, ast.Assign) else [node.target])
                  if isinstance(t, ast.Name) and t.id.lstrip("_").isupper() and t.id != "__all__"]
-        filed = FP.CACHE_INPUTS[mod] + FP.CACHE_NEUTRAL[mod]
+        filed = FP.CACHE_INPUTS.get(mod, ()) + FP.CACHE_NEUTRAL[mod]
         check(f"{mod.__name__}: every constant is filed once", sorted(n for n in names if filed.count(n) != 1), [])
         check(f"{mod.__name__}: nothing filed that does not exist", sorted(set(filed) - set(names)), [])
 

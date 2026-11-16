@@ -19,6 +19,7 @@ import overlap
 import people
 import pod
 import segment
+import siglip
 import vehicle_detect
 import vehicles
 
@@ -52,6 +53,7 @@ CACHE_NEUTRAL = {
     car_colour: ("PALETTE", "MULTI", "COLOUR_NAMES", "ACHROMATIC", "ACHROMATIC_WEIGHT", "MULTI_RATIO",
                  "_SAT", "_VAL"),
     people: (),
+    siglip: ("TEXT_LEN", "IMAGE_SIZE", "SCALE", "SIGLIP_CACHE_TOKEN", "CAR", "CAR_PROMPTS", "MULTI_PROMPT"),  # siglip_key
 }
 _FINGERPRINT = ""
 
