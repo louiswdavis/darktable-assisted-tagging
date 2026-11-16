@@ -531,14 +531,18 @@ All under **preferences → lua options**. Everything else is a collection setti
 assisted_tagging.lua groups the selection by Grouping support (native, tags or none), writes manifest.csv, runs identify.py
         |
         v
-identify.py, per frame:  decode at full resolution → YOLOX vehicle boxes (up to 4)
+identify.py, per frame:  fast small decode → YOLOX vehicle boxes (up to 4)
+        |                → full-resolution decode, only when a box passes
         |                → per box: crop (EfficientSAM mask when boxes overlap)
         |                → read numbers → DINOv2 embedding         (all cached)
         |                no vehicle found → a weaker candidate box that looks like a
         |                group mate's car is kept (rescue)
         v
 match, pass 1, per box:  sponsor words on the car (or a team tag you applied) narrow the candidates to one team, then
-           one number matches one entry                 → number
+           every start-list number scored against the reader's digit
+           probabilities; a clear winner matching one entry → number
+           (a close call skips straight to livery; a reader with no
+           probabilities: one number read matches one entry → number)
            else best livery match clear of the next one → livery
            else best two are teammates                  → team (shared tags only)
            else                                         → none
