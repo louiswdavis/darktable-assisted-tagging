@@ -99,6 +99,41 @@ with tempfile.TemporaryDirectory() as tmp:
     except ValueError:
         check("a dictionary that doesn't fit the model raises", True, True)
 
+    det_yml = os.path.join(tmp, "det.yml")
+    with open(det_yml, "w", encoding="utf-8") as f:
+        f.write("PostProcess:\n  box_thresh: 0.45\n  max_candidates: 3000\n  name: DBPostProcess\n  thresh: 0.2\n"
+                "  unclip_ratio: 1.4\nPreProcess:\n  transform_ops:\n  - DecodeImage:\n      img_mode: BGR\n"
+                "  - DetResizeForTest: null\n  - NormalizeImage:\n      mean: [0.485, 0.456, 0.406]\n"
+                "      order: hwc\n      scale: 1./255.\n      std: [0.229, 0.224, 0.225]\n")
+    det_config = O.paddle_det_config(det_yml)
+    check("a detector yml gives its DB settings", (det_config["thresh"], det_config["box_thresh"],
+          det_config["unclip_ratio"], det_config["max_candidates"]), (0.2, 0.45, 1.4, 3000))
+    check("a detector yml gives its mean and std", (det_config["mean"].round(3).tolist(), det_config["std"].round(3).tolist()),
+          ([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]))
+    try:
+        O.paddle_det_config(yml)
+        check("a recogniser's yml is not a detector's", False, True)
+    except KeyError:
+        check("a recogniser's yml is not a detector's", True, True)
+    for name in ("det.onnx", "rec.onnx"):
+        open(os.path.join(tmp, name), "wb").close()
+    check("a PaddleOCR detector's yml joins the cache key", len(O.ocr_key(os.path.join(tmp, "det.onnx"), os.path.join(tmp, "rec.onnx"))), 4)
+    os.remove(det_yml)
+    check("without it the key is the two models and the recogniser's yml", len(O.ocr_key(os.path.join(tmp, "det.onnx"), os.path.join(tmp, "rec.onnx"))), 3)
+
+    # db_boxes: a sure word 100 x 20, a faint blob and a speck
+    prob = np.zeros((100, 200), np.float32)
+    prob[40:60, 50:150] = 0.9
+    prob[80:90, 10:30] = 0.3
+    prob[5:7, 5:7] = 0.9
+    db_quads, db_scores = O.db_boxes(prob, det_config)
+    check("db_boxes keeps the sure word only", (len(db_quads), round(db_scores[0], 2)), (1, 0.9))
+    q = db_quads[0]
+    check("db_boxes corners run bottom-left, top-left, top-right, bottom-right",
+          (q[0][0] < q[2][0], q[0][1] > q[1][1], q[3][0] > q[1][0], q[3][1] > q[2][1]), (True, True, True, True))
+    check("db_boxes grows the box by area x unclip / perimeter (~11 px a side)",
+          (round(float(q[1][0])), round(float(q[1][1])), round(float(q[3][0])), round(float(q[3][1]))), (39, 29, 160, 70))
+
 word = np.full((20, 40, 3), 255, np.uint8)
 blob = O.paddle_rec_input(word)
 check("PaddleOCR input is 1 x 3 x 48 x 320 for a short word", blob.shape, (1, 3, 48, 320))

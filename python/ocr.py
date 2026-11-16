@@ -1,6 +1,7 @@
-"""Race numbers from a vehicle crop: opencv_zoo's PP-OCRv3 text detector finds text quads, a
-recogniser reads each one. The recogniser is opencv_zoo's CRNN, or a PaddleOCR one (e.g.
-en_PP-OCRv5_mobile_rec) when its inference.yml sits beside the model as <model name>.yml."""
+"""Race numbers from a vehicle crop: a text detector finds text quads, a recogniser reads each one.
+The detector is opencv_zoo's PP-OCRv3, or a PaddleOCR one (e.g. PP-OCRv6_small_det); the recogniser
+is opencv_zoo's CRNN, or a PaddleOCR one (e.g. en_PP-OCRv5_mobile_rec). A model is PaddleOCR when its
+inference.yml sits beside it as <model name>.yml."""
 
 import math
 import os
@@ -19,7 +20,7 @@ OCR_MIN_SCORE = 0.80
 # report's "ocr saw" line prints each region's share (h0.12) to tune it from
 NUMBER_MIN_HEIGHT = 0.07
 
-DET_INPUT = 736  # PP-OCRv3 DB takes sides that are multiples of 32
+DET_INPUT = 736  # DB detectors take sides that are multiples of 32
 # the long-side cap of the crop the reader gets: text is found on its DET_INPUT letterbox, then
 # each quad is read from this crop, so a small number keeps the pixels the letterbox threw away
 OCR_CROP_DIM = 1600
@@ -43,6 +44,7 @@ NUMBER_MAX_DIGITS = 3  # a longer run (a year, a phone number on a sticker) is n
 _TOKEN_BREAK = re.compile("[\\s" + re.escape(string.punctuation.replace("|", "").replace("!", "")) + "]+")
 DIGIT_COLUMNS = 11  # a digit matrix's columns: blank, then 0-9
 CTC_TRIM_BLANK = 0.995  # leading and trailing steps this sure of blank carry no digit evidence
+DB_MIN_SIDE = 3  # PaddleOCR DBPostProcess min_size: a text box's shorter side, in letterbox pixels
 
 
 def digit_runs(text: str) -> list:
@@ -58,15 +60,15 @@ def digit_runs(text: str) -> list:
     return out
 
 
-def paddle_dict_path(rec_path: str) -> str:
-    """The PaddleOCR inference.yml that marks a recogniser as PaddleOCR: <model without .onnx>.yml."""
-    return os.path.splitext(rec_path)[0] + ".yml"
+def paddle_dict_path(model_path: str) -> str:
+    """The PaddleOCR inference.yml that marks a detector or recogniser as PaddleOCR: <model without .onnx>.yml."""
+    return os.path.splitext(model_path)[0] + ".yml"
 
 
 def ocr_key(det_path: str, rec_path: str):
+    """The models' cache key: both files, then the recogniser's and detector's .yml where present."""
     key = [file_key(det_path), file_key(rec_path)]
-    dict_path = paddle_dict_path(rec_path)
-    return key + [file_key(dict_path)] if os.path.isfile(dict_path) else key
+    return key + [file_key(p) for p in (paddle_dict_path(rec_path), paddle_dict_path(det_path)) if os.path.isfile(p)]
 
 
 def _letterbox(rgb: np.ndarray, size: int) -> np.ndarray:
@@ -178,6 +180,89 @@ def _quad_size(q: np.ndarray) -> tuple:
     return w, h
 
 
+def paddle_det_config(yml_path: str) -> dict:
+    """A PaddleOCR detector's inference.yml as {thresh, box_thresh, unclip_ratio, max_candidates,
+    mean, std}: DBPostProcess's settings and NormalizeImage's per-channel mean and std. A missing
+    key raises, so a yml that isn't a DB detector's fails at load."""
+    import yaml  # only PaddleOCR models need it
+    with open(yml_path, encoding="utf-8") as f:
+        doc = yaml.safe_load(f)
+    post = doc["PostProcess"]
+    norm = next(op["NormalizeImage"] for op in doc["PreProcess"]["transform_ops"]
+                if isinstance(op, dict) and "NormalizeImage" in op)
+    return {"thresh": float(post["thresh"]), "box_thresh": float(post["box_thresh"]),
+            "unclip_ratio": float(post["unclip_ratio"]), "max_candidates": int(post["max_candidates"]),
+            "mean": np.array(norm["mean"], np.float32), "std": np.array(norm["std"], np.float32)}
+
+
+def db_boxes(prob: np.ndarray, config: dict) -> tuple:
+    """([quad], [score]) from a DB probability map (H × W), as PaddleOCR's DBPostProcess: each blob
+    over thresh gives its rotated box, scored by the map's mean inside it, kept at box_thresh or
+    above, then grown by area × unclip_ratio / perimeter on each side. The box is grown as a
+    rectangle, not as the blob's polygon. Quads are clipped to the map, corners bottom-left,
+    top-left, top-right, bottom-right (OpenCV's TextDetectionModel order)."""
+    h, w = prob.shape
+    contours, _ = cv2.findContours((prob > config["thresh"]).astype(np.uint8), cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    quads, scores = [], []
+    for contour in contours[:config["max_candidates"]]:
+        (cx, cy), (rw, rh), angle = cv2.minAreaRect(contour)
+        if min(rw, rh) < DB_MIN_SIDE:
+            continue
+        mask = np.zeros((h, w), np.uint8)
+        cv2.fillPoly(mask, [np.round(cv2.boxPoints(((cx, cy), (rw, rh), angle))).astype(np.int32)], 1)
+        score = float(cv2.mean(prob, mask)[0])
+        if score < config["box_thresh"]:
+            continue
+        grow = rw * rh * config["unclip_ratio"] / (2 * (rw + rh))
+        if min(rw, rh) + 2 * grow < DB_MIN_SIDE + 2:
+            continue
+        points = np.clip(cv2.boxPoints(((cx, cy), (rw + 2 * grow, rh + 2 * grow), angle)), 0, [w - 1, h - 1])
+        by_x = points[np.argsort(points[:, 0], kind="stable")]
+        top_left, bottom_left = by_x[:2][np.argsort(by_x[:2, 1], kind="stable")]
+        top_right, bottom_right = by_x[2:][np.argsort(by_x[2:, 1], kind="stable")]
+        quads.append(np.array([bottom_left, top_left, top_right, bottom_right], np.float32))
+        scores.append(score)
+    return quads, scores
+
+
+def _onnx_session(path: str):
+    """(onnxruntime session on one thread, its input name)."""
+    import onnxruntime as ort
+    opts = ort.SessionOptions()
+    opts.intra_op_num_threads = 1  # the worker pool supplies the parallelism
+    with open(path, "rb") as f:  # bytes, so a non-ASCII path can't trip a narrow-path API
+        session = ort.InferenceSession(f.read(), opts, providers=["CPUExecutionProvider"])
+    return session, session.get_inputs()[0].name
+
+
+class PaddleDetector:
+    """A PaddleOCR DB text detector (e.g. PP-OCRv6_small_det) on onnxruntime, with its yml's settings."""
+    name = "PaddleOCR"
+
+    def __init__(self, det_path: str, yml_path: str):
+        self.config = paddle_det_config(yml_path)
+        self.session, self.input = _onnx_session(det_path)
+
+    def detect(self, bgr: np.ndarray) -> tuple:
+        x = ((bgr.astype(np.float32) / 255.0 - self.config["mean"]) / self.config["std"]).transpose(2, 0, 1)
+        return db_boxes(self.session.run(None, {self.input: x[np.newaxis]})[0][0, 0], self.config)
+
+
+def text_detector(det_path: str):
+    """PaddleDetector when <model>.yml sits beside the model, else opencv_zoo's PP-OCRv3 DB through
+    OpenCV. Either gives detect(bgr letterbox) → (quads, scores)."""
+    yml_path = paddle_dict_path(det_path)
+    if os.path.isfile(yml_path):
+        return PaddleDetector(det_path, yml_path)
+    det = cv2.dnn_TextDetectionModel_DB(read_onnx(det_path))
+    det.setBinaryThreshold(0.3)
+    det.setPolygonThreshold(0.5)
+    det.setMaxCandidates(200)
+    det.setUnclipRatio(2.0)
+    det.setInputParams(1.0 / 255.0, (DET_INPUT, DET_INPUT), DET_MEAN)
+    return det
+
+
 class CrnnRecogniser:
     """opencv_zoo's CRNN: grey 100 × 32, digits and lowercase letters."""
     name = "CRNN"
@@ -197,12 +282,7 @@ class PaddleRecogniser:
     name = "PaddleOCR"
 
     def __init__(self, rec_path: str, dict_path: str):
-        import onnxruntime as ort
-        opts = ort.SessionOptions()
-        opts.intra_op_num_threads = 1  # the worker pool supplies the parallelism
-        with open(rec_path, "rb") as f:  # bytes, so a non-ASCII path can't trip a narrow-path API
-            self.session = ort.InferenceSession(f.read(), opts, providers=["CPUExecutionProvider"])
-        self.input = self.session.get_inputs()[0].name
+        self.session, self.input = _onnx_session(rec_path)
         # one blank word gives the class count, so a dictionary that doesn't fit fails at load
         blank = np.zeros((1, 3, PADDLE_REC_HEIGHT, PADDLE_REC_MIN_WIDTH), np.float32)
         self.charset = paddle_charset(dict_path, self.session.run(None, {self.input: blank})[0].shape[-1])
@@ -258,12 +338,7 @@ class NumberReader:
         for label, p in (("OCR text detection", det_path), ("OCR text recognition", rec_path)):
             if not os.path.isfile(p):
                 raise FileNotFoundError(f"{label} model not found: {p}")
-        self.det = cv2.dnn_TextDetectionModel_DB(read_onnx(det_path))
-        self.det.setBinaryThreshold(0.3)
-        self.det.setPolygonThreshold(0.5)
-        self.det.setMaxCandidates(200)
-        self.det.setUnclipRatio(2.0)
-        self.det.setInputParams(1.0 / 255.0, (DET_INPUT, DET_INPUT), DET_MEAN)
+        self.det = text_detector(det_path)
         self.rec = recogniser(rec_path)
 
     def read(self, crop_rgb: np.ndarray) -> list:

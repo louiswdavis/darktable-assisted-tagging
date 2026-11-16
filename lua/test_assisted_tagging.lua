@@ -1125,6 +1125,18 @@ do -- model auto-pick: first installed file on each job's best-first list
     on_disk = present_of({ "m/en_PP-OCRv5_mobile_rec.onnx", "m/en_PP-OCRv5_mobile_rec.yml" })
     picked = T.pick_model(reader.files, function(file) return T.model_present("m/" .. file, reader.job, on_disk) end)
     check("paddle reader with yml is picked", picked, "en_PP-OCRv5_mobile_rec.onnx")
+    on_disk = present_of({ "m/PP-OCRv6_small_rec.onnx", "m/PP-OCRv6_small_rec.yml", "m/en_PP-OCRv5_mobile_rec.onnx",
+        "m/en_PP-OCRv5_mobile_rec.yml" })
+    picked = T.pick_model(reader.files, function(file) return T.model_present("m/" .. file, reader.job, on_disk) end)
+    check("v5 mobile wins over the v6 small trial reader", picked, "en_PP-OCRv5_mobile_rec.onnx")
+    local finder = T.MODEL_LISTS["text finder"]
+    check("v3 text finder needs no yml", T.model_present("m/text_detection_en_ppocrv3_2023may.onnx", finder.job,
+        present_of({ "m/text_detection_en_ppocrv3_2023may.onnx" })), true)
+    check("v6 text finder without yml is skipped", T.model_present("m/PP-OCRv6_small_det.onnx", finder.job,
+        present_of({ "m/PP-OCRv6_small_det.onnx" })), false)
+    picked = T.pick_model(finder.files, function(file) return T.model_present("m/" .. file, finder.job,
+        present_of({ "m/PP-OCRv6_small_det.onnx", "m/PP-OCRv6_small_det.yml" })) end)
+    check("v6 text finder with yml is picked when v3 is moved aside", picked, "PP-OCRv6_small_det.onnx")
 
     local choice = T.model_choice(T.MODEL_LISTS["segmenter"], present_of({}))
     check("optional job with nothing installed picks nil",
@@ -1135,7 +1147,7 @@ do -- model auto-pick: first installed file on each job's best-first list
     check("required job with nothing installed is an error", choice.err, T.missing_model_message(reader))
     check("missing reader names the base reader and its yml", T.missing_model_message(reader),
         'Assisted Tagging: no number reader model in models/. Install en_PP-OCRv5_mobile_rec.onnx and its .yml (README, "Models").')
-    check("missing base without base field names the last file", T.missing_model_message(T.MODEL_LISTS["text finder"]),
+    check("missing text finder names its base", T.missing_model_message(T.MODEL_LISTS["text finder"]),
         'Assisted Tagging: no text finder model in models/. Install text_detection_en_ppocrv3_2023may.onnx (README, "Models").')
 
     on_disk = present_of({ "m/en_PP-OCRv5_mobile_rec.onnx", "m/text_recognition_CRNN_EN_2021sep.onnx" })
@@ -1173,9 +1185,9 @@ do -- model auto-pick: first installed file on each job's best-first list
         "vehicles,segmenter,text finder,number reader,livery embedder,box check,face detector,face recognizer")
     local bases = {}
     for _, item in ipairs(T.MODEL_LISTS) do bases[#bases + 1] = item.files[#item.files] end
-    check("each list ends in today's file", table.concat(bases, ","),
+    check("each list ends in today's file or a model on trial", table.concat(bases, ","),
         "object_detection_yolox_2022nov.onnx,image_segmentation_efficientsam_ti_2025april.onnx,"
-        .. "text_detection_en_ppocrv3_2023may.onnx,text_recognition_CRNN_EN_2021sep.onnx,dinov2_small.onnx,"
+        .. "PP-OCRv6_small_det.onnx,PP-OCRv6_small_rec.onnx,dinov2_small.onnx,"
         .. "siglip2_base_vision.onnx,face_detection_yunet_2023mar.onnx,face_recognition_sface_2021dec.onnx")
 end
 

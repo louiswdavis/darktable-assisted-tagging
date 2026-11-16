@@ -797,7 +797,8 @@ def check_models(models: dict, siglip: bool = True):
         except Exception as e:
             raise InputError(f"{label} model can't be loaded ({models[key]}): {type(e).__name__}: {e}. "
                              f"Download it again (see the README).") from e
-    log(f"number reader: {loaded['ocr_det'].rec.name} ({os.path.basename(models['ocr_rec'])})")
+    log(f"number reader: {loaded['ocr_det'].rec.name} ({os.path.basename(models['ocr_rec'])}); "
+        f"text finder: {os.path.basename(models['ocr_det'])}")
     if not siglip:
         return loaded["embedder"]
     _W["siglip"] = loaded.get("siglip")
@@ -1828,7 +1829,7 @@ def main(argv=None):
     parser.add_argument("--detections", default="",
                         help="SQLite cache of per-frame detections shared with culling (empty = off)")
     parser.add_argument("--segmenter", default="", help="EfficientSAM .onnx (default: next to the detector, if present)")
-    parser.add_argument("--ocr-det", default="", help="PP-OCRv3 text detection .onnx")
+    parser.add_argument("--ocr-det", default="", help="text detection .onnx: PP-OCRv3 (opencv_zoo) or PaddleOCR (its .yml beside it)")
     parser.add_argument("--ocr-rec", default="", help="text recognition .onnx: PP-OCRv5 (its .yml beside it) or CRNN")
     parser.add_argument("--embedder", default="", help="DINOv2 .onnx")
     parser.add_argument("--siglip", default="",

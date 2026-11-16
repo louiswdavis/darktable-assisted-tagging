@@ -32,7 +32,7 @@ Forked from [darktable-assisted-culling](https://github.com/louiswdavis/darktabl
 ## Requirements
 
 - darktable 5.6, built with Lua (the official builds are).
-- Python 3.10+ with the packages in `python/requirements.txt`: `opencv-python-headless` (4.x, pinned `<5`), `numpy`, `Pillow`, `rawpy`, `onnxruntime` and `PyYAML` (only the PP-OCRv5 number reader uses it).
+- Python 3.10+ with the packages in `python/requirements.txt`: `opencv-python-headless` (4.x, pinned `<5`), `numpy`, `Pillow`, `rawpy`, `onnxruntime` and `PyYAML` (only the PaddleOCR text finder and readers use it).
 - About 160 MB of models, listed below.
 
 `rawpy` needs `libraw`. The Windows and macOS wheels bundle it; on Linux install `libraw-dev` first, or skip `rawpy` if you only shoot JPEG.
@@ -110,6 +110,9 @@ For pack shots with overlapping cars. With it in `models`, a box that overlaps a
 | File | Size | Download | Source, licence |
 |---|---|---|---|
 | `text_detection_en_ppocrv3_2023may.onnx` (base) | 2.4 MB | base install above | OpenCV model zoo (PP-OCRv3), Apache-2.0 |
+| `PP-OCRv6_small_det.onnx` + `.yml` (on trial) | 9.9 MB | `https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det_onnx/resolve/main/inference.onnx` and `…/inference.yml` | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
+
+A PaddleOCR text finder runs on onnxruntime with the thresholds and normalisation from its `.yml`, which must sit beside it under the same name. It is on trial (see [Trying PP-OCRv6 small](#trying-pp-ocrv6-small)): the plugin uses it only when the PP-OCRv3 file is not in `models/`.
 
 #### Number reader
 
@@ -119,6 +122,7 @@ A PaddleOCR reader needs its `.yml` (its dictionary) beside it under the same na
 |---|---|---|---|
 | `PP-OCRv5_server_rec.onnx` + `.yml` | 84.5 MB | `https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.onnx` and `…/inference.yml` | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
 | `en_PP-OCRv5_mobile_rec.onnx` + `.yml` (base) | 7.9 MB | base install above | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
+| `PP-OCRv6_small_rec.onnx` + `.yml` (on trial) | 21.2 MB | `https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx/resolve/main/inference.onnx` and `…/inference.yml` | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
 | `text_recognition_CRNN_EN_2021sep.onnx` | 34 MB | `https://github.com/opencv/opencv_zoo/raw/main/models/text_recognition_crnn/text_recognition_CRNN_EN_2021sep.onnx` | OpenCV model zoo (CRNN), Apache-2.0 |
 
 The CRNN is the plugin's first reader. It reads grey crops at a smaller size and misses more numbers (on 202 rally photos it read a number on 45 vehicles where PP-OCRv5 read 76), so the plugin uses it only when no v5 reader is installed. To compare readers on your own photos, print each vehicle's reads from both, with the ones that differ marked and a count of how many vehicles each got a number on:
@@ -126,6 +130,17 @@ The CRNN is the plugin's first reader. It reads grey crops at a smaller size and
 ```
 python python/compare_ocr.py --rec models/text_recognition_CRNN_EN_2021sep.onnx --rec models/en_PP-OCRv5_mobile_rec.onnx --out compare.csv <a folder of photos>
 ```
+
+#### Trying PP-OCRv6 small
+
+PP-OCRv6 small (text finder and reader, 31 MB together) may read angled numbers better than PP-OCRv3 + PP-OCRv5 mobile. Paddle's own benchmark puts its detection on rotated text at 93.7 against 64.7 and its reading at 81.3 against 73.7; those are the publisher's figures, not measured here. It stays on trial until a measured run on your photos beats today's models. To measure it:
+
+1. Download both v6 files and their `.yml` into `models/`, named as in the tables above.
+2. Select hand-tagged photos and run **Verify selection**. Copy the run's `boxes.json` aside (the next run overwrites it) and run `python python/eval_numbers.py COPY.json`. Note *read right* and *wrong entry*, and the run log's `analysis: … frames/min` line.
+3. Move `text_detection_en_ppocrv3_2023may.onnx`, `en_PP-OCRv5_mobile_rec.onnx` (+ `.yml`), and `PP-OCRv5_server_rec.onnx` and the CRNN if you have them, out of `models/`. The run log should now say `text finder: PP-OCRv6_small_det.onnx` and `number reader: PP-OCRv6_small_rec.onnx`.
+4. Repeat step 2 (changing models re-reads every photo once), then move the files back.
+
+v6 small is worth making the default if it reads more numbers right without more wrong entries, at a speed you can live with (Paddle reports ~0.6 s per image on CPU). Its detection scores come from a different model, so `OCR_MIN_SCORE` may need tuning: `eval_numbers.py --set OCR_MIN_SCORE=0.7` replays the run at another threshold.
 
 #### Livery embedder
 
@@ -461,7 +476,7 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 - A **solo shot** whose result disagrees with the tags you applied is left as you had it: nothing is added, it doesn't get the *Unidentified* tags, and the done message counts it. Packs aren't checked, since you may have tagged just one of the cars.
 - A **team tag** you applied (an entry's Team family tag, such as `Assisted Tagging|Motorsport|Team|Red Bull`; needs the Team family on) is a **hint** on a solo shot: matching is limited to the entries under it. If none of them looks similar enough, or the number read belongs to a car outside it, the hint is dropped and the normal match runs. The report lists each hint and any that were dropped. Packs get no tag hints, since the tag may describe only one car. Untick **Use team tags as hints** in the panel to ignore team tags instead: matching isn't narrowed, and a differing result is not held back as a conflict, so the run can override your team tag. The tag itself stays on the image beside whatever the run adds (tick **Replace manual tags** too to have the run overwrite it). Driver-level tags still protect their images either way.
 - An image already carrying all of one entry's tags is **skipped** without being analysed.
-- To let a run replace your tags, tick **Replace manual tags** under **Identify selection**. It applies to the next run only and clears itself.
+- To let a run replace your tags, tick **Replace manual tags** under **Identify selection**. It stays ticked across runs and restarts until you untick it.
 - If you remove a tag the plugin attached and later apply it again by hand, it counts as yours.
 - After you rename or remove an entry, the next run over those images takes off the old tags the plugin attached. This covers tags under the collection's own top-level tags (e.g. `Motorsport|…`), so tags another collection attached stay.
 - Images tagged by an older version have no ledger, so all their entry tags count as yours.
@@ -521,7 +536,7 @@ First the four [tag families](#tag-families): a switch each, with its root besid
 
 ### 5 run
 
-- **Replace manual tags.** Lets the next run replace tags you applied by hand; clears itself after the run (see [Tags you apply by hand](#tags-you-apply-by-hand)).
+- **Replace manual tags.** Lets runs replace tags you applied by hand; stays ticked until you untick it (see [Tags you apply by hand](#tags-you-apply-by-hand)).
 - **Tag each run.** Stamps every image a run writes with `Assisted Tagging|Run|YYYY-MM-DD HH:MM`.
 - **Verify selection.** Identifies the selection, fully tagged images included, and reports where the result differs from your tags. No tags change.
 - **Identify selection.** Identifies and tags the selection (see [Identifying](#identifying)). Click again to cancel.
@@ -533,7 +548,7 @@ First the four [tag families](#tag-families): a switch each, with its root besid
 - **Add as reference**, **Add tagged images**, **Fill entry colours**, **Add from last run.** See [Building references](#building-references). The three add actions also fill the entry's colour in `entries.json` when **read car colour** is on.
 - **Audit: suggest re-crops**, **Audit: quarantine poor refs** (both off by default), **Audit references.** See **Audit references** under [Building references](#building-references).
 
-Everything in pages 2 to 6 except **Replace manual tags** is saved with the collection by **update preset**. **Replace manual tags** applies to the next run only.
+Everything in pages 2 to 6 except **Replace manual tags** is saved with the collection by **update preset**. **Replace manual tags** is saved in darktable's preferences instead, so it carries across collections and restarts.
 
 ## Preferences
 

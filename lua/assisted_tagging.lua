@@ -1079,7 +1079,7 @@ end
 
 
 -- A collection's settings (settings.json beside entries.json). The built-in "template"
--- holds these defaults. replace_manual is a one-off choice per run, not a setting.
+-- holds these defaults. replace_manual is a panel preference (darktable prefs), not a collection setting.
 -- Mirrors SETTINGS_SCHEMA in python/settings.py (test_settings.py checks keys and defaults).
 M.PRESET_SCHEMA = {
     { key = "use_hints", kind = "bool", default = true },
@@ -1402,16 +1402,19 @@ M.PANEL_PAGES = {
 M.PANEL_OTHER_KEYS = { "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references" }
 
 -- Model files per job, best first. `base` is the base install (README, "Models"), the last
--- file when unset; files after it are older fallbacks. A run passes the first file present in
--- models/ to identify.py. Listed in log order and also indexed by job name.
+-- file when unset; files after it are older fallbacks, then models on trial (PP-OCRv6 small,
+-- used only when nothing listed before it is installed). A run passes the first file present
+-- in models/ to identify.py. Listed in log order and also indexed by job name.
 M.MODEL_LISTS = {
     { job = "vehicles", flag = "--detector", files = { "dfine_x_coco.onnx", "dfine_l_coco.onnx",
         "rtdetr_v2_r50vd.onnx", "dfine_m_coco.onnx", "dfine_s_coco.onnx", "object_detection_yolox_2022nov.onnx" } },
     { job = "segmenter", flag = "--segmenter", optional = true, files = {
         "image_segmentation_efficientsam_ti_2025april.onnx" } },
-    { job = "text finder", flag = "--ocr-det", files = { "text_detection_en_ppocrv3_2023may.onnx" } },
+    { job = "text finder", flag = "--ocr-det", base = "text_detection_en_ppocrv3_2023may.onnx",
+        files = { "text_detection_en_ppocrv3_2023may.onnx", "PP-OCRv6_small_det.onnx" } },
     { job = "number reader", flag = "--ocr-rec", base = "en_PP-OCRv5_mobile_rec.onnx and its .yml",
-        files = { "PP-OCRv5_server_rec.onnx", "en_PP-OCRv5_mobile_rec.onnx", "text_recognition_CRNN_EN_2021sep.onnx" } },
+        files = { "PP-OCRv5_server_rec.onnx", "en_PP-OCRv5_mobile_rec.onnx", "text_recognition_CRNN_EN_2021sep.onnx",
+            "PP-OCRv6_small_rec.onnx" } },
     { job = "livery embedder", flag = "--embedder", files = { "dinov2_large.onnx", "dinov2_base.onnx", "dinov2_small.onnx" } },
     { job = "box check", flag = "--siglip", optional = true, files = { "siglip2_base_vision.onnx" } },
     { job = "face detector", flag = "--face-detector", optional = true, files = { "face_detection_yunet_2023mar.onnx" } },
@@ -1427,15 +1430,16 @@ function M.model_siblings(path, job)
 end
 
 -- Whether model file `path` for `job` can be used, `exists(path)` saying what is on disk.
--- A PaddleOCR reader (any number reader but the CRNN) also needs its .yml beside it, and the
--- box check its M.model_siblings.
+-- A PaddleOCR model (any number reader but the CRNN, any text finder but opencv_zoo's PP-OCRv3)
+-- also needs its .yml beside it, and the box check its M.model_siblings.
 function M.model_present(path, job, exists)
     if not exists(path) then return false end
     for _, sibling in ipairs(M.model_siblings(path, job)) do
         if not exists(sibling) then return false end
     end
-    if job ~= "number reader" or path:match("text_recognition_CRNN[^/\\]*$") then return true end
-    return exists((path:gsub("%.onnx$", ".yml")))
+    local paddle = job == "number reader" and not path:match("text_recognition_CRNN[^/\\]*$")
+        or job == "text finder" and not path:match("text_detection_en_ppocrv3[^/\\]*$")
+    return not paddle or exists((path:gsub("%.onnx$", ".yml")))
 end
 
 -- The first file of `files` for which `present(file)` holds, or nil; and the files before it
@@ -2509,7 +2513,7 @@ local function apply_results(run, job)
     if first_error then log("first tag write error: " .. first_error) end
 end
 
--- replace_manual: lift the protection of tags the user applied by hand, for this run only.
+-- replace_manual: lift the protection of tags the user applied by hand.
 -- verify_only: analyse fully tagged images too and report disagreements, changing no tags.
 -- Unselected photos in the selection's film rolls, shot near it and already tagged with an entry:
 -- rows { id, epoch, entry id } that neighbour aid reads for support only. They are never tagged.
@@ -2549,17 +2553,11 @@ end
 
 function M.identify_images(images, replace_manual, verify_only)
     local label = verify_only and _("Verify") or _("Identify")
-    -- the replace box covers one run: it clears once this run is queued or started, not when refused
-    local function used_replace_box()
-        if replace_manual and replace_manual_check then replace_manual_check.value = false end
-    end
     if queue_if_busy(label, images and #images > 0, function() M.identify_images(images, replace_manual, verify_only) end) then
-        used_replace_box()
         return
     end
     if not can_start(images) then return end
     if not take_settings() then return end
-    used_replace_box()
     busy = true
     M.cancel_requested = false
     identify_cancellable = true
@@ -3549,8 +3547,9 @@ local function install_panel()
     }
     replace_manual_check = dt.new_widget("check_button") {
         label = _("Replace manual tags"),
-        tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let the next run replace them. It clears itself after the run."),
-        value = false,
+        tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let runs replace them. It stays ticked until you untick it."),
+        value = dt.preferences.read("assisted_tagging", "replace_manual", "bool"),
+        changed_callback = function(w) dt.preferences.write("assisted_tagging", "replace_manual", "bool", w.value) end,
     }
     verify_button = dt.new_widget("button") {
         label = _("Verify selection"),
