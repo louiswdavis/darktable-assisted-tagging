@@ -33,6 +33,8 @@ VIEW_PROMPTS = {
     "side": "a photo of a rally car seen from the side.",
     "front": "a photo of a rally car seen from the front.",
     "rear": "a photo of a rally car seen from the rear.",
+    "front-corner": "a photo of a rally car seen from the front three-quarter angle.",
+    "rear-corner": "a photo of a rally car seen from the rear three-quarter angle.",
 }
 TEXT_LEN = 64  # SigLIP 2 was trained on text padded to 64 tokens
 IMAGE_SIZE = 224

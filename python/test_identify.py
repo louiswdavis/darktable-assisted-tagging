@@ -39,10 +39,10 @@ TSU = {"id": "TSU", "number": 22, "team": "Red Bull", "tags": ["F1|Red Bull", "F
 
 
 # Only the team family is on, rooted at F1: VER and TSU build exactly the tags they list.
-FIXTURE_SETTINGS = {"family_colour": False, "family_number": False, "family_driver": False, "family_extra": False,
+FIXTURE_SETTINGS = {"family_colour": False, "family_number": False, "family_driver": False, "family_co_driver": False, "family_extra": False,
                     "family_vehicle": False, "family_team_root": "F1"}
 ALL_FAMILIES = {"colour": "Assisted Tagging|Motorsport|Colour", "number": "Assisted Tagging|Motorsport|Number", "team": "Assisted Tagging|Motorsport|Team",
-                "driver": "Assisted Tagging|Motorsport|Driver", "extra": "Assisted Tagging|Motorsport|Class", "vehicle": "Assisted Tagging|Motorsport|Vehicle"}
+                "driver": "Assisted Tagging|Motorsport|Driver", "co_driver": "Assisted Tagging|Motorsport|Co-driver", "extra": "Assisted Tagging|Motorsport|Class", "vehicle": "Assisted Tagging|Motorsport|Vehicle"}
 
 
 def collection(data, root=None, settings=FIXTURE_SETTINGS) -> str:

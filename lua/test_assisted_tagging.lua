@@ -240,7 +240,7 @@ check("rules: an off family has no line and no root", fam_rules.families.number,
 do
     local keys_in_order = {}
     for _, f in ipairs(T.FAMILIES) do keys_in_order[#keys_in_order + 1] = f.key end
-    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver,extra,vehicle")
+    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver,co_driver,extra,vehicle")
     local fs = T.preset_defaults(T.PRESET_SCHEMA)
     local roots = T.family_roots(fs)
     check("family_roots: every family on by default", roots.colour .. " " .. roots.number .. " " .. roots.team .. " " .. roots.driver,
@@ -940,7 +940,7 @@ require("test_preset_block")(T, check)
 
 do
     local d = T.preset_defaults(T.PRESET_SCHEMA)
-    check("tagging schema has 52 keys", #T.PRESET_SCHEMA, 52)
+    check("tagging schema has 54 keys", #T.PRESET_SCHEMA, 54)
     check("colour keys default on", tostring(d.family_colour) .. tostring(d.tag_check_colour), "truetrue")
     for _, f in ipairs(T.FAMILIES) do
         check("family " .. f.key .. " defaults", tostring(d["family_" .. f.key]) .. " " .. d["family_" .. f.key .. "_root"],
