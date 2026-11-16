@@ -42,7 +42,7 @@ CACHE_INPUTS = {
 CACHE_NEUTRAL = {
     vehicles: (),  # RAW_EXTENSIONS is common.py's, not filed here
     # FAMILIES holds lambdas (unstable repr); its class sets are in vehicle_detect.detection_fingerprint()
-    vehicle_detect: ("CACHE_MAX_AGE_DAYS", "CACHE_COMMIT_EVERY", "FAST_JPEG_DIM", "COCO_NAMES", "_RAW_FLIP_TURNS", "FAMILIES"),
+    vehicle_detect: ("CACHE_MAX_AGE_DAYS", "FAST_JPEG_DIM", "COCO_NAMES", "_RAW_FLIP_TURNS", "FAMILIES"),
     ocr: ("REC_TARGET", "DIGIT_COLUMNS"),
     embed: ("DEGRADE_FACTOR",),
     segment: ("SEGMENTER_FILE", "SEGMENT_CACHE_TOKEN"),
