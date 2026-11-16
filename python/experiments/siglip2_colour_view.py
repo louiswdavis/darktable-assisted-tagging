@@ -105,14 +105,26 @@ def sample_boxes(boxes_jsons: list, limit: int, seed, skip_csvs: list) -> list:
         with open(path, encoding="utf-8") as f:
             skip.update((row["image"], str(row["box"])) for row in csv.DictReader(f))
     plain = []
+    left_out = {"image skipped (already tagged)": 0, "image not ok": 0, "overlap": 0, "masked": 0,
+                "rescued": 0, "already tested": 0}
     for boxes_json in boxes_jsons:
         with open(boxes_json, encoding="utf-8") as f:
             run = json.load(f)
-        plain += [(iid, rec, b) for iid, rec in run["images"].items() if rec.get("status") == "ok"
-                  for b in rec.get("boxes", [])
-                  if not b.get("overlap") and not b.get("masked") and not b.get("rescued")
-                  and (iid, str(b["box"])) not in skip]
-    print(f"{len(plain)} plain-crop boxes to pick from ({len(skip)} skipped as already tested)")
+        left_out["image skipped (already tagged)"] += len(run.get("skipped", []))
+        for iid, rec in run["images"].items():
+            if rec.get("status") != "ok":
+                left_out["image not ok"] += 1
+                continue
+            for b in rec.get("boxes", []):
+                reason = ("overlap" if b.get("overlap") else "masked" if b.get("masked")
+                          else "rescued" if b.get("rescued")
+                          else "already tested" if (iid, str(b["box"])) in skip else None)
+                if reason:
+                    left_out[reason] += 1
+                else:
+                    plain.append((iid, rec, b))
+    print(f"{len(plain)} plain-crop boxes to pick from; left out: "
+          + ", ".join(f"{k} {v}" for k, v in left_out.items()))
     if len(plain) <= limit:
         return plain
     if seed is not None:
