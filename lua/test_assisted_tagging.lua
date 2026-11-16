@@ -209,6 +209,11 @@ check("entries: four fields leave the name empty", entries.VER.name, "")
 local named_entries = T.parse_entries_csv("NOR,McLaren,4,Assisted Tagging|Motorsport|Number|4;Assisted Tagging|Motorsport|Driver|Norris,Norris")
 check("entries: a fifth field is the name", named_entries.NOR.name, "Norris")
 check("entries: five fields still split the tags", named_entries.NOR.tags[2], "Assisted Tagging|Motorsport|Driver|Norris")
+check("entries: five fields leave the co-driver empty", named_entries.NOR.co_driver, "")
+local rally_entries = T.parse_entries_csv("12,Team,12,M|Number|12;M|Co-driver|Jones,Smith,Jones")
+check("entries: a sixth field is the co-driver", rally_entries["12"].name .. "|" .. rally_entries["12"].co_driver, "Smith|Jones")
+check("entries: a parsed co-driver names its entry", (T.hand_entry({ ["M|Co-driver|Jones"] = true }, {}, rally_entries,
+    { number = "M|Number", driver = "M|Driver", co_driver = "M|Co-driver" })), "12")
 
 local defaults = T.default_rules()
 check("default rules share team tags", defaults.team_only, "shared tags")
@@ -686,6 +691,21 @@ do
     check("a hand result wants the entry's tags", keys(hw), "M|Driver|Norris + M|Number|4 + M|Team|McLaren")
     check("a hand result adds no diagnostic", keys(hd), "")
     check("a hand result counts as identified", hok, true)
+    -- test_hand_entry_co_driver
+    local rally = {
+        ["12"] = { number = "12", name = "Smith", co_driver = "Jones" },
+        ["14"] = { number = "14", name = "Lee", co_driver = "Kim" },
+        ["15"] = { number = "15", name = "Ray", co_driver = "Kim" },
+    }
+    local rally_roots = { number = "M|Number", driver = "M|Driver", co_driver = "M|Co-driver" }
+    local function co_hand(have)
+        local id, why = T.hand_entry(have, {}, rally, rally_roots)
+        return tostring(id) .. "," .. tostring(why)
+    end
+    check("hand_entry: a co-driver tag names its entry", co_hand({ ["M|Co-driver|Jones"] = true }), "12,nil")
+    check("hand_entry: a shared co-driver names no entry", co_hand({ ["M|Co-driver|Kim"] = true }), "nil,ambiguous")
+    check("hand_entry: a number settles a shared co-driver", co_hand({ ["M|Co-driver|Kim"] = true, ["M|Number|15"] = true }), "15,nil")
+    check("hand_entry: a co-driver of another entry disagrees", co_hand({ ["M|Co-driver|Jones"] = true, ["M|Number|14"] = true }), "nil,disagree")
 end
 
 -- Find new entries ----------------------------------------------------------
@@ -758,6 +778,38 @@ do
     check("addition_rows: number and field rows", T.csv_line(T.addition_rows({ { kind = "number", number = "115" } })[1]) .. " / "
         .. T.csv_line(T.addition_rows({ { kind = "driver", entry = "12", value = "Smith" } })[1]),
         '"number","115" / "field","12","name","Smith"')
+    -- test_new_entries_split
+    local co_roots = { number = NR, team = "M|Team", driver = "M|Driver", co_driver = "M|Co-driver" }
+    local rally = {
+        ["21"] = { number = "21", name = "Smith / Jones" },
+        ["22"] = { number = "22", name = "A / B / C" },
+        ["23"] = { number = "23", name = "Smith / " },
+        ["24"] = { number = "24", name = "Lee / Kim", co_driver = "Kim" },
+        ["25"] = { number = "25", name = "Ray" },
+    }
+    local split = T.new_entry_candidates({ img(1, { [NR .. "|21"] = true }) }, rally, co_roots, SEEN)
+    check("new entries: an entry named \"A / B\" makes a split row", shape(split), "split:21:Smith / Jones r1 h")
+    check("new entries: a split row carries both halves", split[1].driver .. "|" .. split[1].co_driver, "Smith|Jones")
+    check("new entries: three names, an empty half or a co-driver already set make no split row",
+        shape(T.new_entry_candidates({ img(1, { [NR .. "|22"] = true }), img(2, { [NR .. "|23"] = true }),
+            img(3, { [NR .. "|24"] = true }) }, rally, co_roots, SEEN)), "")
+    check("new entries: a hand co-driver tag makes a co_driver row", shape(T.new_entry_candidates({
+        img(1, { [NR .. "|25"] = true, ["M|Co-driver|Moss"] = true }) }, rally, co_roots, SEEN)), "co_driver:25:Moss r h1")
+    check("candidate_label: split", T.candidate_label(split[1]),
+        '21: split "Smith / Jones" → driver Smith, co-driver Jones    read on 1 photo')
+    check("candidate_label: co-driver", T.candidate_label({ kind = "co_driver", entry = "25", number = "25", value = "Moss", read = {}, hand = { 1 } }),
+        "25: co-driver Moss    hand-tagged on 1 photo")
+    local s21 = split[1]
+    check("check_additions: a split and a co-driver", T.check_additions({ s21,
+        { kind = "co_driver", entry = "21", number = "21", value = "Jones" } }, co_roots),
+        "Entry 21 has a split and a co-driver ticked. Tick one.")
+    check("check_additions: a split and a driver", T.check_additions({ s21,
+        { kind = "driver", entry = "21", number = "21", value = "Smith" } }, co_roots),
+        "Entry 21 has a split and a driver ticked. Tick one.")
+    check("check_additions: a split alone passes", tostring(T.check_additions({ s21 }, co_roots)), "nil")
+    check("addition_rows: split and co_driver rows", T.csv_line(T.addition_rows({ s21 })[1]) .. " / "
+        .. T.csv_line(T.addition_rows({ { kind = "co_driver", entry = "25", value = "Moss" } })[1]),
+        '"split","21" / "field","25","co_driver","Moss"')
 end
 
 -- test_open_command

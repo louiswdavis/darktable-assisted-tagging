@@ -118,6 +118,41 @@ def test_add_entries():
     check("add: the shell form reads quoted values", json.loads(read(path))["entries"][0]["team"], "AF Corse")
     check("add: the shell form exits 1 on stale rows", F.main(["add", path, rows]), 1)
 
+    # test_add_split
+    rally = '{\n  "entries": [\n    { "id": "12", "number": "12", "name": "Smith / Jones", "team": "M-Sport" },\n' \
+            '    { "id": "14", "number": "14", "name": "Lee", "co_driver": "Kim" },\n' \
+            '    { "id": "15", "number": "15", "name": "A / B / C" },\n' \
+            '    { "id": "16", "number": "16", "name": "Smith / " },\n' \
+            '    { "id": "17", "number": "17", "name": "Ray", "team": "Works" }\n  ]\n}\n'
+    path = write(rally)
+    check("add: a split is written", F.add_entries(path, [], [], ["12"]), 1)
+    check("add: a split sets name and co_driver, co_driver right after name", list(json.loads(read(path))["entries"][0].items()),
+          [("id", "12"), ("number", "12"), ("name", "Smith"), ("co_driver", "Jones"), ("team", "M-Sport")])
+    path = write(rally)
+    F.add_entries(path, [], [("17", "co_driver", "Moss")])
+    check("add: a co_driver field goes right after name", list(json.loads(read(path))["entries"][4]),
+          ["id", "number", "name", "co_driver", "team"])
+    for name, fields, splits, want in (
+            ("a split of three names", [], ["15"], 'entry 15: "A / B / C" is not two names split by " / "'),
+            ("a split with an empty half", [], ["16"], 'entry 16: "Smith / " is not two names split by " / "'),
+            ("a split of a name without \" / \"", [], ["17"], 'entry 17: "Ray" is not two names split by " / "'),
+            ("a split of an entry with a co-driver", [], ["14"], "entry 14 already has a co-driver: Kim"),
+            ("a split of a missing entry", [], ["99"], "entry 99 is not in entries.json"),
+            ("the same split twice", [], ["12", "12"], "entry 12 is given two splits"),
+            ("a split and a driver", [("12", "name", "Smith")], ["12"], "entry 12 is given a split and a driver"),
+            ("a split and a co-driver", [("12", "co_driver", "Jones")], ["12"], "entry 12 is given a split and a co-driver"),
+            ("a co-driver holding a semicolon", [("17", "co_driver", "Moss; S")], [],
+             'entry 17: the co-driver "Moss; S" can\'t contain , ; or "')):
+        path = write(rally)
+        check(f"add: {name} raises", raised(lambda: F.add_entries(path, [], fields, splits)), want)
+        check(f"add: {name} leaves the file and writes no .bak", (read(path), os.path.exists(path + ".bak")), (rally, False))
+    path = write(rally)
+    with open(rows, "w", encoding="utf-8", newline="") as f:
+        f.write("split,12\n")
+    check("add: the shell form reads a split row", (F.main(["add", path, rows]), json.loads(read(path))["entries"][0]["co_driver"]),
+          (0, "Jones"))
+    check("add: read_additions returns the splits", F.read_additions(rows), ([], [], ["12"]))
+
 
 def test_upgrade():
     path = write('{\n  "rules": {},\n  "entries": [\n'

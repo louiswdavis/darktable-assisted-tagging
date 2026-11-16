@@ -36,6 +36,7 @@ def run_tests():
     item = {"id": "a", "tags": [], "number": "3"}
     check("people rejects number", K.check_entry_fields("people", item), "number")
     check("motorsport allows number", K.check_entry_fields("motorsport", item), None)
+    check("motorsport allows co_driver", K.check_entry_fields("motorsport", {"id": "a", "co_driver": "Jones"}), None)
     check("people allows id and tags", K.check_entry_fields("people", {"id": "a", "tags": []}), None)
     check("motorsport rejects an unknown field", K.check_entry_fields("motorsport", {"id": "a", "face": 1}), "face")
 

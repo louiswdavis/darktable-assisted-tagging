@@ -70,6 +70,7 @@ M.FAMILIES = {
     { key = "number", sources = { "number" }, default_root = "Assisted Tagging|Motorsport|Number" },
     { key = "team", sources = { "team" }, default_root = "Assisted Tagging|Motorsport|Team" },
     { key = "driver", sources = { "name" }, default_root = "Assisted Tagging|Motorsport|Driver" },
+    { key = "co_driver", sources = { "co_driver" }, default_root = "Assisted Tagging|Motorsport|Co-driver" },
     { key = "extra", sources = { "extra" }, default_root = "Assisted Tagging|Motorsport|Class" },
     { key = "vehicle", sources = { "make", "model" }, default_root = "Assisted Tagging|Motorsport|Vehicle" },
 }
@@ -220,13 +221,14 @@ local function split(s, sep)
     return out
 end
 
--- identify.py's entries.csv (id,team,number,tag;tag…,name) → entries by id, and the ids in file order.
+-- identify.py's entries.csv (id,team,number,tag;tag…,name,co_driver) → entries by id, and the ids in file order.
 function M.parse_entries_csv(text)
     local entries, order = {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 5) or M.parse_csv_line(line, 4)
+        local p = M.parse_csv_line(line, 6) or M.parse_csv_line(line, 5) or M.parse_csv_line(line, 4)
         if p and p[1] ~= "" and p[4] ~= "" and not entries[p[1]] then
-            entries[p[1]] = { id = p[1], team = p[2], number = p[3], tags = split(p[4], ";"), name = p[5] or "" }
+            entries[p[1]] = { id = p[1], team = p[2], number = p[3], tags = split(p[4], ";"), name = p[5] or "",
+                              co_driver = p[6] or "" }
             order[#order + 1] = p[1]
         end
     end
@@ -446,13 +448,15 @@ function M.hand_value(have, ledger_set, root)
 end
 
 -- The entry the user's hand tags name: a number tag (`roots.number`|<n>) names the entry with that
--- number, a driver tag (`roots.driver`|<name>) the entry with that name. A value two or more entries
--- share names none of them by itself. Returns the id; or nil, "ambiguous" when the tags only
+-- number, a driver tag (`roots.driver`|<name>) the entry with that name, a co-driver tag
+-- (`roots.co_driver`|<name>) the entry with that co_driver. A value two or more entries share names
+-- none of them by itself. Returns the id; or nil, "ambiguous" when the tags only
 -- narrow it to several entries; or nil, "disagree" when they name different entries. Team and
 -- colour tags never name an entry. `roots`: family key → root of the families switched on.
 function M.hand_entry(have, ledger_set, entries, roots)
     local named, shared = {}, {}
-    for _, f in ipairs({ { root = roots.number, field = "number" }, { root = roots.driver, field = "name" } }) do
+    for _, f in ipairs({ { root = roots.number, field = "number" }, { root = roots.driver, field = "name" },
+                         { root = roots.co_driver, field = "co_driver" } }) do
         for _, value in ipairs(hand_values(have, ledger_set, f.root)) do
             local ids = {}
             for id, e in pairs(entries) do
@@ -472,8 +476,17 @@ function M.hand_entry(have, ledger_set, entries, roots)
     return id
 end
 
-local CANDIDATE_KINDS = { number = 1, team = 2, driver = 3 }
-local CANDIDATE_FIELDS = { team = "team", driver = "name" }
+local CANDIDATE_KINDS = { number = 1, team = 2, driver = 3, co_driver = 4, split = 5 }
+local CANDIDATE_FIELDS = { team = "team", driver = "name", co_driver = "co_driver" }
+
+-- "Smith / Jones" → "Smith", "Jones"; nil unless the name is exactly two non-empty halves around one " / ".
+local function split_name(name)
+    local first, rest = (name or ""):match("^(.-) / (.*)$")
+    if not first or rest:find(" / ", 1, true) then return nil end
+    first, rest = first:match("^%s*(.-)%s*$"), rest:match("^%s*(.-)%s*$")
+    if first == "" or rest == "" then return nil end
+    return first, rest
+end
 
 local function by_number_first(a, b)
     local na, nb = tonumber(a), tonumber(b)
@@ -485,10 +498,13 @@ end
 -- { id, have, ledger_set }. A `<seen_base>|<digits>` tag whose digits are no entry's number makes a
 -- `number` row (image in `read`); a hand tag `<number root>|<n>` with n unlisted makes one too
 -- (image in `hand`, never also in `read`). Unlisted means no entry has n as its number or id, and n
--- is 1-3 digits. A hand team or driver tag on an image whose number tags,
--- hand or plugin-written, name exactly one entry with that field empty makes a `team`/`driver` row
--- (`entry` = its id). One row per number or per (entry, field, value); values holding `|` are
--- skipped, and team or driver values holding , ; or " (identify.py rejects them). Rows come most photos first, then by number.
+-- is 1-3 digits. A hand team, driver or co-driver tag on an image whose number tags,
+-- hand or plugin-written, name exactly one entry with that field empty makes a `team`/`driver`/
+-- `co_driver` row (`entry` = its id). That one entry, when its name is two names around one " / "
+-- and its co_driver is empty, also makes a `split` row (image in `read`; `value` = the name,
+-- `driver`/`co_driver` = the halves). One row per number, per split entry or per (entry, field,
+-- value); values holding `|` are skipped, and team, driver or co-driver values holding , ; or "
+-- (identify.py rejects them). Rows come most photos first, then by number.
 function M.new_entry_candidates(images, entries, roots, seen_base)
     local listed, taken = {}, {}
     for id, e in pairs(entries) do
@@ -543,7 +559,12 @@ function M.new_entry_candidates(images, entries, roots, seen_base)
             local eid = next(ids)
             if eid and not next(ids, eid) then
                 local e = entries[eid]
-                for _, kind in ipairs({ "team", "driver" }) do
+                local driver, co_driver = split_name(e.name)
+                if driver and (e.co_driver or "") == "" then
+                    add("split\0" .. eid, { kind = "split", entry = eid, number = e.number, value = e.name,
+                                            driver = driver, co_driver = co_driver }, "read", img.id)
+                end
+                for _, kind in ipairs({ "team", "driver", "co_driver" }) do
                     local field = CANDIDATE_FIELDS[kind]
                     if (e[field] or "") == "" then
                         for _, value in ipairs(hand_values(img.have, img.ledger_set, roots[kind])) do
@@ -578,7 +599,14 @@ function M.candidate_label(row)
     else
         seen = "hand-tagged on " .. photos(#row.hand)
     end
-    local what = row.kind == "number" and row.number or (row.number .. ": " .. row.kind .. " " .. row.value)
+    local what
+    if row.kind == "number" then
+        what = row.number
+    elseif row.kind == "split" then
+        what = string.format('%s: split "%s" → driver %s, co-driver %s', row.number, row.value, row.driver, row.co_driver)
+    else
+        what = row.number .. ": " .. (row.kind == "co_driver" and "co-driver" or row.kind) .. " " .. row.value
+    end
     return what .. "    " .. seen
 end
 
@@ -604,17 +632,30 @@ function M.check_additions(ticked, roots)
     for _, o in ipairs(order) do
         if #values[o.key] > 1 then
             return string.format("Entry %s has two ticked %ss: %s. Tick one.",
-                o.row.number, o.row.kind, table.concat(values[o.key], ", "))
+                o.row.number, o.row.kind == "co_driver" and "co-driver" or o.row.kind, table.concat(values[o.key], ", "))
+        end
+    end
+    for _, o in ipairs(order) do
+        if o.row.kind == "split" then
+            for _, kind in ipairs({ "driver", "co_driver" }) do
+                if values[o.row.entry .. "\0" .. kind] then
+                    return string.format("Entry %s has a split and a %s ticked. Tick one.",
+                        o.row.number, kind == "co_driver" and "co-driver" or kind)
+                end
+            end
         end
     end
     return nil
 end
 
--- The additions CSV rows entries_file.py reads: `number,<n>` and `field,<entry id>,<team|name>,<value>`.
+-- The additions CSV rows entries_file.py reads: `number,<n>`, `split,<entry id>` and
+-- `field,<entry id>,<team|name|co_driver>,<value>`.
 function M.addition_rows(ticked)
     local out = {}
     for _, r in ipairs(ticked) do
-        out[#out + 1] = r.kind == "number" and { "number", r.number } or { "field", r.entry, CANDIDATE_FIELDS[r.kind], r.value }
+        out[#out + 1] = r.kind == "number" and { "number", r.number }
+            or r.kind == "split" and { "split", r.entry }
+            or { "field", r.entry, CANDIDATE_FIELDS[r.kind], r.value }
     end
     return out
 end
@@ -1031,6 +1072,8 @@ M.PRESET_SCHEMA = {
     { key = "family_team_root", kind = "string", default = "Assisted Tagging|Motorsport|Team" },
     { key = "family_driver", kind = "bool", default = true },
     { key = "family_driver_root", kind = "string", default = "Assisted Tagging|Motorsport|Driver" },
+    { key = "family_co_driver", kind = "bool", default = true },
+    { key = "family_co_driver_root", kind = "string", default = "Assisted Tagging|Motorsport|Co-driver" },
     { key = "family_extra", kind = "bool", default = true },
     { key = "family_extra_root", kind = "string", default = "Assisted Tagging|Motorsport|Class" },
     { key = "family_vehicle", kind = "bool", default = true },
@@ -2105,7 +2148,7 @@ local function prepare_run(images, replace_manual)
     local on_roots = M.family_roots(settings)
     local team_root = on_roots.team
     -- the families whose hand tags name a car (M.hand_entry)
-    local naming_roots = { number = on_roots.number, driver = on_roots.driver }
+    local naming_roots = { number = on_roots.number, driver = on_roots.driver, co_driver = on_roots.co_driver }
     for _, copies in pairs(group_of) do
         for _, copy in ipairs(copies) do
             local have = tags_of(copy)
@@ -2122,7 +2165,7 @@ local function prepare_run(images, replace_manual)
             for name in pairs(protected_of[copy.id]) do
                 if use_hints or not hints_of[copy.id][name] then sent[name] = true end
             end
-            -- a hand number or driver tag is sent too, listed or not: a different reading is a conflict
+            -- a hand number, driver or co-driver tag is sent too, listed or not: a different reading is a conflict
             hand_of[copy.id] = replace_manual and {} or M.hand_family_tags(have, kept, naming_roots)
             for name in pairs(hand_of[copy.id]) do sent[name] = true end
             sent_protected_of[copy.id] = sent
@@ -2409,7 +2452,7 @@ local function library_neighbour_rows(images)
     local rows = {}
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
     local on_roots = M.family_roots(settings)
-    local naming_roots = { number = on_roots.number, driver = on_roots.driver }
+    local naming_roots = { number = on_roots.number, driver = on_roots.driver, co_driver = on_roots.co_driver }
     for _, c in ipairs(M.near_in_time(times, pool, M.NEIGHBOUR_MAX_GAP_S)) do
         local have = tags_of(c.img)
         -- a photo carrying all of an entry's tags, or one the user's hand tag names
@@ -3339,7 +3382,7 @@ local function install_panel()
     local found_box = dt.new_widget("box") { orientation = "vertical" }
     local add_found_button = dt.new_widget("button") {
         label = _("Add ticked to entries.json"),
-        tooltip = _("Add the ticked numbers as new entries and the ticked teams and drivers to their entries. The previous file is saved as entries.json.bak. Photos that read an added number get its number tag."),
+        tooltip = _("Add the ticked numbers as new entries and the ticked teams, drivers and co-drivers to their entries; a ticked split turns a \"Driver / Co-driver\" name into a driver and a co-driver. The previous file is saved as entries.json.bak. Photos that read an added number get its number tag."),
         visible = false,
         clicked_callback = function() end,
     }
@@ -3363,7 +3406,7 @@ local function install_panel()
     end
     local find_button = dt.new_widget("button") {
         label = _("Find new entries"),
-        tooltip = _("List the numbers the selected photos read or carry by hand that entries.json lacks, and the teams and drivers you tagged by hand on entries that have none. Nothing is added until you tick it."),
+        tooltip = _("List the numbers the selected photos read or carry by hand that entries.json lacks, the teams, drivers and co-drivers you tagged by hand on entries that have none, and entries whose name still holds \"Driver / Co-driver\" to split. Nothing is added until you tick it."),
         clicked_callback = function()
             local images = dt.gui.action_images
             local rows, image_of = M.find_new_entries(images)
@@ -3467,6 +3510,7 @@ local function install_panel()
         number = { _("Number"), _("Write an identified entry's race number as <root>|<number>.") },
         team = { _("Team"), _("Write an identified entry's team as <root>|<team>. A team tag you applied by hand is also the hint that narrows matching.") },
         driver = { _("Driver"), _("Write an identified entry's name as <root>|<name>.") },
+        co_driver = { _("Co-driver"), _("Write an identified entry's co-driver as <root>|<co-driver>. Entries without a co-driver get no tag.") },
         extra = { _("Class"), _("Write an identified entry's class (start-list Class column) as <root>|<class>.") },
         vehicle = { _("Vehicle"), _("Write an identified entry's make and model as <root>|<make>|<model>.") },
     }

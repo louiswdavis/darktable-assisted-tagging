@@ -7,8 +7,8 @@ A CSV has a header row; MAP says which header holds which role, as `role=header`
 by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car). A role left out of MAP is found by its
 usual names (ALIASES); only `number` is required. Pasted text (an entry list copied from a PDF)
 has one entry per line, number first, then "driver / co-driver"; lines without a leading number
-are skipped and counted. Each entry becomes {"id": number, "number": number, "name": "driver /
-co-driver", "team": team, "extra": class, "make": make, "model": model}, with the empty fields
+are skipped and counted. Each entry becomes {"id": number, "number": number, "name": driver,
+"co_driver": co-driver, "team": team, "extra": class, "make": make, "model": model}, with the empty fields
 left out; a model needs a make. The Class and Vehicle tag families build the tags from them. A `shares-car` column names the other entry
 driving the same car; both rows must name each other, and the higher number gets `"car": "<lower id>"`.
 Numbers already in entries.json are skipped and listed, never overwritten. The previous file is
@@ -112,7 +112,7 @@ def rows_from_text(text: str) -> tuple:
 
 
 def entries_from(rows: list) -> tuple:
-    """Rows → (entries, cleaned names): numbers are checked, names and teams lose , ; and ". Class
+    """Rows → (entries, cleaned names): numbers are checked, drivers, co-drivers and teams lose , ; and ". Class
     (as `extra`), make and model lose , ; " and |."""
     entries, cleaned, seen = [], [], set()
     for n, row in enumerate(rows, 1):
@@ -123,14 +123,15 @@ def entries_from(rows: list) -> tuple:
         if number in seen:
             raise BadInput(f"number {number} is listed twice")
         seen.add(number)
-        name = " / ".join(filter(None, (row.get("driver", ""), row.get("co-driver", ""))))
-        team = row.get("team", "")
-        if _BAD.search(name + team):
+        name, co_driver, team = (row.get(k, "").strip() for k in ("driver", "co-driver", "team"))
+        if _BAD.search(name + co_driver + team):
             cleaned.append(number)
-            name, team = _BAD.sub("", name).strip(), _BAD.sub("", team).strip()
+            name, co_driver, team = (_BAD.sub("", v).strip() for v in (name, co_driver, team))
         entry = {"id": number, "number": number}
         if name:
             entry["name"] = name
+        if co_driver:
+            entry["co_driver"] = co_driver
         if team:
             entry["team"] = team
         klass, make, model = (_BAD_TAG.sub("", row.get(k, "")).strip() for k in ("class", "make", "model"))

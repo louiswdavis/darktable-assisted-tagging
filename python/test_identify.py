@@ -122,7 +122,7 @@ def run_tests():
     check("moved rules in entries.json still load", (moved_rules.order_weight, moved_rules.min_read), (0.5, 0.9))
     check("moved rules log the deprecation", "rules.order_weight in entries.json is deprecated; move it to settings.json" in lines, True)
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
-          'entry "VER": unknown field "tagz" (fields are id, number, team, name, extra, make, model, tags, camera, colour, car)')
+          'entry "VER": unknown field "tagz" (fields are id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
           'unknown key "entrys" (the file holds "kind", "rules" and "entries")')
     LH = {"id": "Lando Norris", "tags": ["People|Professions|F1 Drivers|Lando Norris"]}
@@ -198,6 +198,15 @@ def run_tests():
     check("families: a switched-off family's root isn't checked", I.load_collection(collection(
         [LEC], settings={"family_number_root": "Cars", "family_team_root": "Cars|Team", "family_team": False}))[0]["12"].tags,
         ("Cars|12", "Assisted Tagging|Motorsport|Driver|Leclerc"))
+    RALLY = {"id": "7", "number": "7", "name": "Smith", "co_driver": "Jones"}
+    check("co-driver: own tag after the driver's", I.load_collection(collection([RALLY], settings=None))[0]["7"].tags,
+          ("Assisted Tagging|Motorsport|Number|7", "Assisted Tagging|Motorsport|Driver|Smith",
+           "Assisted Tagging|Motorsport|Co-driver|Jones"))
+    check("co-driver: family off, no tag", I.load_collection(collection(
+        [RALLY], settings={"family_co_driver": False}))[0]["7"].tags,
+          ("Assisted Tagging|Motorsport|Number|7", "Assisted Tagging|Motorsport|Driver|Smith"))
+    check("co-driver: ; rejected", load_error([dict(RALLY, co_driver="Jo;nes")], None),
+          'entry "7": co_driver must be text without , ; or "')
     ESC = {"id": "7", "number": "7", "extra": "A1", "make": "Ford", "model": "Escort"}
     check("vehicle: make+model, extra: class", I.load_collection(collection([ESC], settings=None))[0]["7"].tags,
           ("Assisted Tagging|Motorsport|Number|7", "Assisted Tagging|Motorsport|Class|A1", "Assisted Tagging|Motorsport|Vehicle|Ford|Escort"))
@@ -304,11 +313,11 @@ def run_tests():
     I.write_entries_csv(entries, os.path.join(out, "e.csv"))
     I.write_rules_csv(rules, _fe, os.path.join(out, "r.csv"))
     check("entries.csv rows", open(os.path.join(out, "e.csv"), encoding="utf-8").read().splitlines()[1],
-          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda,")
-    name_entries = I.load_collection(collection([dict(VER, name="Max Verstappen")]))[0]
+          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda,,")
+    name_entries = I.load_collection(collection([dict(VER, name="Max Verstappen", co_driver="Gianpiero Lambiase")]))[0]
     I.write_entries_csv(name_entries, os.path.join(out, "n.csv"))
-    check("entries.csv ends with the name", open(os.path.join(out, "n.csv"), encoding="utf-8").read().splitlines()[0],
-          "VER,Red Bull,1,F1|Red Bull;F1|Red Bull|Verstappen,Max Verstappen")
+    check("entries.csv ends with the name and co-driver", open(os.path.join(out, "n.csv"), encoding="utf-8").read().splitlines()[0],
+          "VER,Red Bull,1,F1|Red Bull;F1|Red Bull|Verstappen,Max Verstappen,Gianpiero Lambiase")
     check("rules.csv rows", open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()[:3],
           ["team_only,shared tags", "unidentified,F1|Check", "diag_number,Assisted Tagging|Identification|By number"])
     rows = open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()

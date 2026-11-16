@@ -163,16 +163,19 @@ def upgrade(path: str) -> int:
     return n
 
 
-FIELD_NOUNS = {"team": "team", "name": "driver"}
-_BAD_TEXT = re.compile(r'[,;"]')  # identify.py rejects these in a team or name
+FIELD_NOUNS = {"team": "team", "name": "driver", "co_driver": "co-driver"}
+_BAD_TEXT = re.compile(r'[,;"]')  # identify.py rejects these in a team, name or co_driver
 
 
-def add_entries(path: str, numbers: list, fields: list) -> int:
-    """Appends an entry `{"id": n, "number": n}` for each of `numbers` and sets each of `fields`
-    ((entry id, "team" | "name", value)) on its entry. Returns the number of changes written.
-    Raises ValueError, writing nothing, when the file does not parse, a number is already an
-    entry's id or number or not 1-3 digits, a value holds , ; or ", a field's entry is missing or already has a value, or two rows set the
-    same field of one entry. Layout, line endings and the .bak are as in set_colours."""
+def add_entries(path: str, numbers: list, fields: list, splits=()) -> int:
+    """Appends an entry `{"id": n, "number": n}` for each of `numbers`, sets each of `fields`
+    ((entry id, "team" | "name" | "co_driver", value)) on its entry, and splits the name of each
+    entry id in `splits` at its one " / " into name and co_driver. A new co_driver goes right after
+    name. Returns the number of changes written. Raises ValueError, writing nothing, when the file
+    does not parse, a number is already an entry's id or number or not 1-3 digits, a value holds
+    , ; or ", a field's or split's entry is missing or already has the value, two rows set the same
+    field of one entry, a name is not two non-empty halves around one " / ", or a split shares an
+    entry with a driver or co-driver row. Layout, line endings and the .bak are as in set_colours."""
     with open(path, encoding="utf-8-sig", newline="") as f:
         raw = f.read()
     eol = "\r\n" if "\r\n" in raw else "\n"
@@ -197,7 +200,7 @@ def add_entries(path: str, numbers: list, fields: list) -> int:
     seen = set()
     for entry_id, key, value in fields:
         if key not in FIELD_NOUNS:
-            raise ValueError(f"{key} is not a field this adds (team or name)")
+            raise ValueError(f"{key} is not a field this adds (team, name or co_driver)")
         if not value:
             raise ValueError(f"entry {entry_id}: the {FIELD_NOUNS[key]} to add is empty")
         if _BAD_TEXT.search(value):
@@ -205,33 +208,67 @@ def add_entries(path: str, numbers: list, fields: list) -> int:
         entry = by_id.get(entry_id)
         if entry is None:
             raise ValueError(f"entry {entry_id} is not in entries.json")
+        if entry_id in splits and key in ("name", "co_driver"):
+            raise ValueError(f"entry {entry_id} is given a split and a {FIELD_NOUNS[key]}")
         if entry.get(key):
             raise ValueError(f"entry {entry_id} already has a {FIELD_NOUNS[key]}: {entry[key]}")
         if (entry_id, key) in seen:
             raise ValueError(f"entry {entry_id} is given two {FIELD_NOUNS[key]}s")
         seen.add((entry_id, key))
-    if not numbers and not fields:
+    halves = {}
+    for entry_id in splits:
+        entry = by_id.get(entry_id)
+        if entry is None:
+            raise ValueError(f"entry {entry_id} is not in entries.json")
+        if entry_id in halves:
+            raise ValueError(f"entry {entry_id} is given two splits")
+        if entry.get("co_driver"):
+            raise ValueError(f"entry {entry_id} already has a co-driver: {entry['co_driver']}")
+        name = str(entry.get("name") or "")
+        parts = [p.strip() for p in name.split(" / ")]
+        if len(parts) != 2 or not all(parts):
+            raise ValueError(f'entry {entry_id}: "{name}" is not two names split by " / "')
+        halves[entry_id] = parts
+    if not numbers and not fields and not halves:
         return 0
     for n in numbers:
         entries.append({"id": n, "number": n})
     for entry_id, key, value in fields:
-        by_id[entry_id][key] = value
+        _set_field(by_id[entry_id], key, value)
+    for entry_id, (driver, co_driver) in halves.items():
+        _set_field(by_id[entry_id], "name", driver)
+        _set_field(by_id[entry_id], "co_driver", co_driver)
     _write(path, text, data, eol)
-    return len(numbers) + len(fields)
+    return len(numbers) + len(fields) + len(halves)
+
+
+def _set_field(entry: dict, key: str, value: str):
+    """Sets entry[key]; a new co_driver goes right after name, any other new key at the end."""
+    if key != "co_driver" or key in entry or "name" not in entry:
+        entry[key] = value
+        return
+    items = list(entry.items())
+    entry.clear()
+    for k, v in items:
+        entry[k] = v
+        if k == "name":
+            entry[key] = value
 
 
 def read_additions(path: str) -> tuple:
-    """(numbers, fields) from an additions CSV. Raises ValueError on any other row."""
-    numbers, fields = [], []
+    """(numbers, fields, splits) from an additions CSV. Raises ValueError on any other row."""
+    numbers, fields, splits = [], [], []
     with open(path, encoding="utf-8", newline="") as f:
         for row in csv.reader(f):
             if len(row) == 2 and row[0] == "number":
                 numbers.append(row[1])
+            elif len(row) == 2 and row[0] == "split":
+                splits.append(row[1])
             elif len(row) == 4 and row[0] == "field":
                 fields.append((row[1], row[2], row[3]))
             elif row:
                 raise ValueError(f"additions: unreadable row {row}")
-    return numbers, fields
+    return numbers, fields, splits
 
 
 def main(argv) -> int:
@@ -239,12 +276,12 @@ def main(argv) -> int:
         print("usage: entries_file.py add <entries.json> <additions.csv>")
         return 2
     try:
-        numbers, fields = read_additions(argv[2])
-        add_entries(argv[1], numbers, fields)
+        numbers, fields, splits = read_additions(argv[2])
+        add_entries(argv[1], numbers, fields, splits)
     except (ValueError, OSError) as e:
         print(f"entries.json was not changed: {e}")
         return 1
-    print(f"added {len(numbers)} entries and {len(fields)} fields to entries.json")
+    print(f"added {len(numbers)} entries, {len(fields)} fields and {len(splits)} splits to entries.json")
     return 0
 
 

@@ -292,7 +292,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
             raise bad(f'entry "{eid}" appears twice')
         unknown = check_entry_fields(kind, item)
         if unknown:
-            fields = "id, tags" if kind == "people" else "id, number, team, name, extra, make, model, tags, camera, colour, car"
+            fields = "id, tags" if kind == "people" else "id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car"
             raise bad(f'entry "{eid}": unknown field "{unknown}" (fields are {fields})')
         if kind == "people":
             _check_tags(item.get("tags"), f'entry "{eid}": tags', bad)
@@ -308,6 +308,9 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         name = item.get("name", "")
         if not isinstance(name, str) or _BAD_TAG.search(name):
             raise bad(f'entry "{eid}": name must be text without , ; or "')
+        co_driver = item.get("co_driver", "")
+        if not isinstance(co_driver, str) or _BAD_TAG.search(co_driver):
+            raise bad(f'entry "{eid}": co_driver must be text without , ; or "')
         for key in ("extra", "make", "model"):
             value = item.get(key, "")
             if not isinstance(value, str) or _BAD_TAG.search(value) or "|" in value:
@@ -324,7 +327,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         car = item.get("car", "")
         if not isinstance(car, str):
             raise bad(f'entry "{eid}": car must be the id of the entry sharing the car')
-        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, rules.families, bad), camera, colour, name, car)
+        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, rules.families, bad), camera, colour, name, car, co_driver)
     if kind == "people":
         if rules_raw is None:
             log("warning: entries.json has no rules block, so the face thresholds use defaults")
@@ -348,7 +351,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
 def write_entries_csv(entries: dict, path: str):
     with open(path, "w", newline="", encoding="utf-8") as f:
         for e in entries.values():
-            f.write(f"{e.id},{e.team},{e.number},{';'.join(e.tags)},{e.name}\n")
+            f.write(f"{e.id},{e.team},{e.number},{';'.join(e.tags)},{e.name},{e.co_driver}\n")
 
 
 def write_rules_csv(rules: Rules, from_entries: tuple, path: str):

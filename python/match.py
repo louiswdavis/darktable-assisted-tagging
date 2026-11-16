@@ -47,6 +47,7 @@ class Entry:
     colour: str = ""  # body colour (a palette name or "Multi"), a doubtful-decision tie-break; "" when unknown
     name: str = ""  # the driver, the value of the driver tag family; "" when unknown
     car: str = ""  # a double-driven car's id (the lower entry's id), set on both entries; "" when unshared
+    co_driver: str = ""  # a rally co-driver, the value of the co-driver tag family; "" when none
 
 
 @dataclass(frozen=True)

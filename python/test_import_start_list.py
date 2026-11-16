@@ -52,9 +52,9 @@ def run_tests():
         data = json.load(open(os.path.join(cdir, "entries.json"), encoding="utf-8"))
         check("a CSV creates entries.json with no rules", list(data), ["entries"])
         check("header aliases map the columns; class becomes a tag; commas are cleaned", data["entries"], [
-            {"id": "1", "number": "1", "name": "Smith / Jones", "team": "Team A", "extra": "RC1"},
+            {"id": "1", "number": "1", "name": "Smith", "co_driver": "Jones", "team": "Team A", "extra": "RC1"},
             {"id": "12", "number": "12", "name": "Doe J"},
-            {"id": "7", "number": "7", "name": "Lee / Kim", "team": "Team B", "extra": "RC2"},
+            {"id": "7", "number": "7", "name": "Lee", "co_driver": "Kim", "team": "Team B", "extra": "RC2"},
         ])
         check("the file is in the canonical layout", open(os.path.join(cdir, "entries.json"), encoding="utf-8").read(),
               dump(data))
@@ -67,7 +67,9 @@ def run_tests():
         write(pasted, "Entry list\n7. Lee / Kim\n21 - Brown / Green\n#105 Solo\nnot an entry\n")
         M.main([cdir, "--text", pasted])
         check("pasted lines add only the new numbers", [e["id"] for e in entries_of(cdir)], ["1", "12", "7", "21", "105"])
-        check("a pasted line splits driver / co-driver", entries_of(cdir)[3], {"id": "21", "number": "21", "name": "Brown / Green"})
+        check("a pasted line splits driver / co-driver", entries_of(cdir)[3],
+              {"id": "21", "number": "21", "name": "Brown", "co_driver": "Green"})
+        check("a pasted line without a co-driver has no co_driver", entries_of(cdir)[4], {"id": "105", "number": "105", "name": "Solo"})
         check("the previous file is kept as .bak",
               [e["id"] for e in json.load(open(os.path.join(cdir, "entries.json.bak"), encoding="utf-8"))["entries"]], ["1", "12", "7"])
 
@@ -92,6 +94,14 @@ def run_tests():
             check("parse_columns rejects an unknown role", None, "BadInput")
         except M.BadInput:
             check("parse_columns rejects an unknown role", "BadInput", "BadInput")
+
+        codir = os.path.join(tmp, "codrivers")
+        os.makedirs(codir)
+        cocsv = os.path.join(tmp, "codrivers.csv")
+        write(cocsv, 'No.,Driver,Co-Driver\n5,,"Ray, J"\n')
+        M.main([codir, "--csv", cocsv])
+        check("a co-driver alone gets co_driver, cleaned of , ; and \"", entries_of(codir),
+              [{"id": "5", "number": "5", "co_driver": "Ray J"}])
 
         vdir = os.path.join(tmp, "vehicles")
         os.makedirs(vdir)
