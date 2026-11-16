@@ -16,6 +16,8 @@ ok   achromatic runner-up counts half
 ok   a colour beats a smaller achromatic share
 ok   a mostly black car is Black
 ok   runner-up at the ratio is Multi
+ok   SigLIP scores: a white car is White, not weighted down
+ok   SigLIP scores: Multi wins only as the top prompt
 ok   runner-up under the ratio loses
 ok   a tiny single share still decides
 ok   all-zero shares
