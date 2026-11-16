@@ -5,7 +5,7 @@ __pycache__/
 # tests/
 /docs/superpowers
 .superpowers/
-*.onnx
+/models/
 *.yml
 *.jpg
 /runs/
