@@ -25,7 +25,7 @@ ok   an entry with no team never gives team only
 ok   references for entries no longer in entries.json are ignored
 ok   no references and no number gives none
 ok   an agreeing burst fills an unidentified frame
-FAIL an agreeing burst upgrades a team-only frame: got ('team', 'VER', 'TSU'), want ('burst', 'VER', '')
+ok   an agreeing burst upgrades a team-only frame
 ok   burst confidence is the agreeing share of the burst
 ok   a frame with no vehicle under the confidence floor stays none
 ok   a frame with no vehicle takes its burst's entry
@@ -177,4 +177,4 @@ ok   burst: a sure read of the winner leaves the fusion on
 ok   burst: one frame with matrices falls back to string agreement
 ok   burst: a colour clash drops the number
 ok   hinted: a weak read outside the tag set doesn't drop the hint
-1 test(s) failed
+all tests passed
