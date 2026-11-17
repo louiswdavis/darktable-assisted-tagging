@@ -1189,7 +1189,7 @@ M.PRESET_SCHEMA = {
     { key = "use_hints", kind = "bool", default = true },
     { key = "group_support", kind = "choice", choices = { "native", "tags", "none" }, default = "native" },
     { key = "group_node", kind = "string", default = "" },
-    { key = "run_tag", kind = "bool", default = false },
+    { key = "run_tag", kind = "choice", choices = { "none", "changed", "all" }, default = "none" },
     { key = "suggest_crops", kind = "bool", default = false },
     { key = "quarantine", kind = "bool", default = false },
     { key = "order_weight", kind = "number", default = 0 },
@@ -1396,12 +1396,17 @@ function M.backfill_settings(stored_text, rules)
 end
 
 -- Old settings.json text predates the Shot crowded switch: copies tag_shot and tag_shot_name into
--- the missing tag_shot_crowded and tag_shot_crowded_name. Returns the new text and the keys
--- copied, or the text unchanged and nil when nothing changed (or the text isn't JSON).
+-- the missing tag_shot_crowded and tag_shot_crowded_name. It may also hold run_tag as true/false,
+-- from before the choice: true becomes "all", false "none". Returns the new text and the keys
+-- changed, or the text unchanged and nil when nothing changed (or the text isn't JSON).
 function M.upgrade_settings_text(text)
     local decoded = text and M.preset_decode(text)
     if not decoded then return text, nil end
     local copied = {}
+    if type(decoded.run_tag) == "boolean" then
+        decoded.run_tag = decoded.run_tag and "all" or "none"
+        copied[#copied + 1] = "run_tag"
+    end
     for _i, pair in ipairs({ { "tag_shot_crowded", "tag_shot" }, { "tag_shot_crowded_name", "tag_shot_name" } }) do
         if decoded[pair[1]] == nil and decoded[pair[2]] ~= nil then
             decoded[pair[1]] = decoded[pair[2]]
@@ -2666,8 +2671,10 @@ local function apply_results(run, job)
     local write_rules = M.mask_diag(named, diag_off)
     -- likewise named.families holds every root; only the families that are on get written
     write_rules.families = M.family_roots(settings)
-    -- one stamp per run; never owned, so later runs leave earlier stamps in place
-    local run_tag = settings.run_tag
+    -- one stamp per run; never owned, so later runs leave earlier stamps in place. "changed"
+    -- stamps only copies this run adds or removes tags on; "all" stamps every copy it processes
+    local stamp_all = settings.run_tag == "all"
+    local run_tag = settings.run_tag ~= "none"
         and os.date("Assisted Tagging|Run|%Y-%m-%d %H:%M") or nil
     local tag_objs, writes, failed, first_error = {}, 0, 0, nil
     local n_tagged, n_unidentified, n_missing = 0, 0, 0
@@ -2703,10 +2710,13 @@ local function apply_results(run, job)
                 if r.method == "conflict" then n_conflict = n_conflict + 1 end
             end
             for name in pairs(diag) do wanted[name] = true end
-            if run_tag then wanted[run_tag] = true end
+            if run_tag and stamp_all then wanted[run_tag] = true end
             for _, copy in ipairs(group_of[img.id]) do
                 local attach, detach = M.tag_changes(tags_of(copy), wanted, owned, owned_prefixes,
                     protected_of[copy.id], M.ledgered_owned(ledger[copy.id], owned_roots))
+                if run_tag and not stamp_all and (#attach > 0 or #detach > 0) then
+                    attach[#attach + 1] = run_tag
+                end
                 -- what the plugin owns on this copy: its earlier tags minus the detached, plus the
                 -- attached; recorded per tag so a failure partway still keeps the ledger true
                 local mine = ledger[copy.id] or {}
@@ -3899,8 +3909,6 @@ local function install_panel()
 
     local use_hints_check = check("use_hints", _("Use team tags as hints"),
         _("On: a team tag you applied by hand to a solo shot limits matching to that team's entries. Off: team tags are ignored, so the run can override them; a team tag you applied stays on the image next to whatever the run adds. Driver tags still protect their images either way.\nDefault: on. Turn off when your team tags are unreliable and the run should overrule them."))
-    local run_tag_check = check("run_tag", _("Tag each run"),
-        _("Add a timestamp tag (Assisted Tagging|Run|YYYY-MM-DD HH:MM) to every image a run writes, so the latest run's photos can be filtered apart from earlier ones. Stamps accumulate; remove old ones in darktable's tag manager.\nDefault: off. Turn on when re-running a shoot and you want to review only what changed."))
     local suggest_crops_check = check("suggest_crops", _("Audit: suggest re-crops"),
         _("Also write re-cut copies of wide references (one car found) into ref-audit-crops in the collection folder, for you to review. Nothing in refs/ is changed. The first audit with this ticked is slow (about 8 minutes for 2000 refs); later ones are fast.\nDefault: off. Turn on when the audit flags wide refs you want re-cut."))
     local quarantine_check = check("quarantine", _("Audit: quarantine poor refs"),
@@ -3976,6 +3984,24 @@ local function install_panel()
         _(GROUP_SUPPORT_LABELS[support_keys[1]]), _(GROUP_SUPPORT_LABELS[support_keys[2]]),
         _(GROUP_SUPPORT_LABELS[support_keys[3]]),
     }
+    local run_tag_keys
+    for _i, f in ipairs(M.PRESET_SCHEMA) do
+        if f.key == "run_tag" then run_tag_keys = f.choices end
+    end
+    local RUN_TAG_LABELS = { none = "no images", changed = "changed images", all = "all images" }
+    local shown_run_tag = "none" -- last shown or picked: the combo's callback acts only on a change
+    local run_tag_combo = new_widget("combobox") {
+        label = _("tag each run"),
+        tooltip = _("Add a timestamp tag (Assisted Tagging|Run|YYYY-MM-DD HH:MM) so the latest run's photos can be filtered apart from earlier ones. Changed images: only copies whose tags this run added or removed. All images: every copy the run processes, which writes to every copy each run and can stall darktable for minutes on a large shoot. Stamps accumulate; remove old ones in darktable's tag manager.\nDefault: no images. Pick changed images when re-running a shoot and you want to review only what changed."),
+        changed_callback = function(self)
+            local key = run_tag_keys[self.selected]
+            if not key or key == shown_run_tag then return end
+            shown_run_tag = key
+            changed()
+        end,
+        _(RUN_TAG_LABELS[run_tag_keys[1]]), _(RUN_TAG_LABELS[run_tag_keys[2]]),
+        _(RUN_TAG_LABELS[run_tag_keys[3]]),
+    }
     local group_node_entry = new_widget("entry") {
         placeholder = _("Grouping tag node (blank = latest run per photo)"),
         tooltip = _("Grouping tags only: the tag node whose children are the groups, e.g. Assisted Grouping|2026-01-01 12:00:00|Group. Blank uses each photo's own latest Assisted Grouping run, so photos regrouped by a later run and photos left on an earlier run both keep their groups.\nDefault: blank. Set it to pin one run."),
@@ -4019,6 +4045,7 @@ local function install_panel()
     read_panel = function()
         local s = {
             group_support = support_keys[group_support_combo.selected] or shown_support,
+            run_tag = run_tag_keys[run_tag_combo.selected] or shown_run_tag,
             group_node = trim(group_node_entry.text),
         }
         for _i, list in ipairs({ number_entries, name_entries }) do
@@ -4044,6 +4071,10 @@ local function install_panel()
         shown_support = s.group_support
         for i, key in ipairs(support_keys) do
             if key == s.group_support and group_support_combo.selected ~= i then group_support_combo.selected = i end
+        end
+        shown_run_tag = s.run_tag
+        for i, key in ipairs(run_tag_keys) do
+            if key == s.run_tag and run_tag_combo.selected ~= i then run_tag_combo.selected = i end
         end
         group_node_entry.text = s.group_node
         for _i, n in ipairs(number_entries) do n.entry.text = tostring(s[n.key]) end
@@ -4098,7 +4129,7 @@ local function install_panel()
         },
         tag_rows,
         { new_widget("section_label") { label = _("identify (models; writes tags)") },
-          replace_manual_check, run_tag_check, verify_button, identify_button,
+          replace_manual_check, run_tag_combo, verify_button, identify_button,
           new_widget("section_label") { label = _("derive (lookups only; adds tags)") },
           derive_number_button, derive_colour_button,
           new_widget("section_label") { label = _("undo") },

@@ -359,7 +359,7 @@ Every other setting lives in the collection's `settings.json`, beside `entries.j
 | `use_hints` | a team tag you applied narrows matching on a solo shot | `true`, `false` | `true` | yes |
 | `group_support` | which groups the burst step borrows answers from, see [Grouping support](#grouping-support) | `"native"`, `"tags"`, `"none"` | `"native"` | yes |
 | `group_node` | the grouping tag node used when `group_support` is `"tags"`; blank is the newest Assisted Grouping run | text | `""` | yes |
-| `run_tag` | stamps every image a run writes with `Assisted Tagging\|Run\|YYYY-MM-DD HH:MM` | `true`, `false` | `false` | yes |
+| `run_tag` | stamps images with `Assisted Tagging\|Run\|YYYY-MM-DD HH:MM`: `changed` only copies whose tags the run added or removed, `all` every copy it processes (slow on large shoots). Old `true`/`false` files read as `all`/`none` | `none`, `changed`, `all` | `none` | yes |
 | `suggest_crops` | **Audit references** suggests re-crops | `true`, `false` | `false` | yes |
 | `quarantine` | **Audit references** quarantines poor references | `true`, `false` | `false` | yes |
 | `order_weight` | how far the cars pass in number order: `0` is random (the neighbour aid is off), `1` is strictly in order. Above 0, groups shot just before and after a doubtful read help identify it, including unselected photos in the same film rolls already tagged with an entry; from `0.5` up an unsupported doubtful read is flagged *Check order*; see [How it works](#how-it-works) | number, 0 to 1 | `0` | yes |

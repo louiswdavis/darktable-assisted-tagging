@@ -3,7 +3,7 @@
   "use_hints": true,
   "group_support": "tags",
   "group_node": "",
-  "run_tag": false,
+  "run_tag": "none",
   "suggest_crops": false,
   "quarantine": false,
   "order_weight": 0.5,

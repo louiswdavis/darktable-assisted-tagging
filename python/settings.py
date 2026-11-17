@@ -78,7 +78,7 @@ def _schema() -> tuple:
         Setting("use_hints", "bool", True),
         Setting("group_support", "choice", "native", choices=("native", "tags", "none")),
         Setting("group_node", "string", ""),
-        Setting("run_tag", "bool", False),
+        Setting("run_tag", "choice", "none", choices=("none", "changed", "all")),
         Setting("suggest_crops", "bool", False),
         Setting("quarantine", "bool", False),
         Setting("order_weight", "number", 0, lo=0, hi=1),
@@ -211,6 +211,9 @@ def load_settings(collection_dir: str, rules_raw, log, path: str = "") -> tuple[
     in settings.json or as the old rules.colour_tags / rules.diagnostics.colour, and for a non-blank
     key in MODEL_KEYS_GONE."""
     file_vals = _read_file(path or os.path.join(collection_dir, "settings.json"), log)
+    # run_tag was true/false before it became a choice
+    if isinstance(file_vals.get("run_tag"), bool):
+        file_vals["run_tag"] = "all" if file_vals["run_tag"] else "none"
     for k, replacement in REMOVED_KEYS.items():
         if k in file_vals:
             raise _removed("settings.json", k, replacement)
