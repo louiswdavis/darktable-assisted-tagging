@@ -2643,13 +2643,11 @@ local function apply_results(run, job)
     for _, img in ipairs(primaries) do n_copies = n_copies + #group_of[img.id] end
     log(string.format("apply: writing tags to %d images (%d copies)", #primaries, n_copies))
     flush_log()
-    local apply_start = os.time()
+    local apply_start, total_writes = os.time(), 0
     for i, img in ipairs(primaries) do
-        if i % 100 == 0 then
-            log(string.format("apply: %d / %d images, image id %s, %ds", i, #primaries,
-                tostring(img.id), os.time() - apply_start))
-            flush_log()
-        end
+        log(string.format("apply: %d / %d images, image id %s, %s, %d writes so far, %ds", i, #primaries,
+            tostring(img.id), tostring(img.filename), total_writes, os.time() - apply_start))
+        flush_log()
         local results = rows_of[tonumber(img.id)]
         if skipped[tonumber(img.id)] then
             n_skipped = n_skipped + 1
@@ -2686,6 +2684,7 @@ local function apply_results(run, job)
                     first_error = first_error or tostring(werr)
                 end
                 writes = writes + #attach + #detach
+                total_writes = total_writes + #attach + #detach
                 if writes >= WRITE_BUDGET then
                     writes = 0
                     dt.control.sleep(WRITE_SLEEP_MS)
