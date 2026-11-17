@@ -1,4 +1,91 @@
-17:00:46 lua: clear: darktable 5.6.2, 7366 images, collection Rallye
-17:00:48 lua: selection: 7366 images deselected while tags are written
-17:08:33 lua: Assisted Tagging: couldn't clear tagging marks. Accessing an invalid job
-17:08:33 lua: clear finished
+17:10:29 lua: identify started: darktable 5.6.2, 7366 images, collection Rallye
+17:10:29 lua: settings: replace manual false, team hints true, tag each run none, grouping support native, node (blank), neighbour tolerance 3, order weight 0.7
+17:10:29 lua: stage: preparing
+17:10:29 lua: prepare: reading tags of the selection
+17:10:32 lua: group support native: 3502 of 3686 photos in groups of 2+
+17:10:37 lua: DSC08299.JPG: the tags you applied (Motorsport|Driver|David Smith; Motorsport|Number|52) name different entries; no car is taken from them
+17:10:37 lua: DSC08300.JPG: the tags you applied (Motorsport|Driver|David Smith; Motorsport|Number|52) name different entries; no car is taken from them
+17:10:37 lua: DSC08301.JPG: the tags you applied (Motorsport|Driver|David Smith; Motorsport|Number|52) name different entries; no car is taken from them
+17:10:37 lua: DSC08341.JPG: the tags you applied (Motorsport|Driver|Christopher Dowell; Motorsport|Driver|Philippa Dowell; Motorsport|Number|60; Motorsport|Number|760) name different entries; no car is taken from them
+17:10:37 lua: DSC08344.JPG: the tags you applied (Motorsport|Driver|Christopher Dowell; Motorsport|Driver|Philippa Dowell; Motorsport|Number|60; Motorsport|Number|760) name different entries; no car is taken from them
+17:10:40 lua: prepare: done, 3686 rows, 11s
+17:10:40 lua: stage: neighbours
+17:10:40 lua: neighbour: reading the film rolls of the selection
+17:10:48 lua: neighbour: 0 unselected tagged photos shot near the selection, 8s
+17:10:48 lua: vehicles: dfine_x_coco.onnx
+17:10:48 lua: segmenter: image_segmentation_efficientsam_ti_2025april.onnx
+17:10:48 lua: text finder: text_detection_en_ppocrv3_2023may.onnx
+17:10:48 lua: number reader: PP-OCRv5_server_rec.onnx
+17:10:48 lua: livery embedder: dinov2_base.onnx (better, not installed: dinov2_large.onnx)
+17:10:48 lua: box check: siglip2_base_vision.onnx
+17:10:48 lua: face detector: face_detection_yunet_2023mar.onnx
+17:10:48 lua: face recognizer: face_recognition_sface_2021dec.onnx
+17:10:48 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1794934790_1_manifest.csv" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1794934790_1_results.csv" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "Rallye" "--settings" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1794934790_1_settings.run.json" "--detections" "C:/Users/Louis/AppData/Local/darktable/assisted_plugins/detections.sqlite" "--detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dfine_x_coco.onnx" "--segmenter" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/image_segmentation_efficientsam_ti_2025april.onnx" "--ocr-det" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/text_detection_en_ppocrv3_2023may.onnx" "--ocr-rec" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/PP-OCRv5_server_rec.onnx" "--embedder" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dinov2_base.onnx" "--siglip" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/siglip2_base_vision.onnx" "--face-detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_detection_yunet_2023mar.onnx" "--face-recognizer" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_recognition_sface_2021dec.onnx" "--cache" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/cache.sqlite" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1794934790_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1794934790_1_rules.csv" "--boxes-out" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/last-run/Rallye.boxes.json" "--report-out" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/last-run/Rallye.report" "--archive-dir" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/runs" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1794934790_1_progress.txt"
+17:10:49 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+17:11:00 py: number reader: PaddleOCR (PP-OCRv5_server_rec.onnx); text finder: text_detection_en_ppocrv3_2023may.onnx
+17:11:00 py: box check: on (SigLIP 2); colour reader: SigLIP 2
+17:11:00 py: references: 22 44, 24 4, 25 6, 26 67, 27 6, 28 15, 30 29, 31 51, 32 4, 33 6, 34 12, 35 60, 36 0, 37 0, 38 0, 39 54, 40 35, 41 21, 42 34, 43 23, 44 30, 45 9, 46 26, 47 23, 48 0, 49 13, 50 5, 51 10, 52 14, 53 8, 54 11, 55 27, 730 0, 731 0, 732 0, 733 0, 734 0, 60 22, 61 12, 62 70, 63 22, 64 19, 65 8, 66 8, 67 9, 68 11, 69 4, 70 5, 71 0, 72 0, 73 0, 74 29, 75 39, 76 38, 77 0, 78 22, 79 19, 80 15, 760 0, 761 0, 82 10, 83 25, 84 1, 85 37, 86 28, 87 14, 90 9, 91 0, 790 0, 94 34, 95 9, 96 2, 97 27, 98 58, 796 0, 100 10, 101 25, 102 17, 103 25, 104 38, 105 3, 107 14, 108 27, 109 14, 110 0, 807 0, 808 0, 809 0, 112 27, 113 47, 114 0, 115 18, 116 9, 813 0, 118 0, 119 5, 120 13, 121 52, 820 0, 122 3, 1 0, 2 0, 3 63, 4 0, 5 39, 6 0, 7 0, 8 5, 9 0, 10 2, 11 31, 12 0, 13 0, 14 0, 15 0, 16 4, 17 0, 18 0, 19 0, 20 3, 21 41
+17:11:02 py: analysing: 3659 frames, 0 from cache, 3659 to decode
+17:11:02 py: worker pool: 4 workers, models load once per worker for the whole run
+19:03:22 py: analysis: 3659 frames in 6739s, 33 frames/min (4 workers)
+19:03:22 py: detections: 0 cached, 3659 detected
+19:03:22 py: box check: dropped 1093 boxes: person 577, trees 218, crowd 146, building 56, road 49, railing 47; kept 293 on vehicle share, 13 on detector score
+19:03:22 py: analysis: turned reads won 847 regions (180° 818, 90° 12, 270° 17)
+19:03:22 py: rescue: 70 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 70 to decode
+concurrent.futures.process._RemoteTraceback: 
+"""
+Traceback (most recent call last):
+  File "C:\Python313\Lib\concurrent\futures\process.py", line 254, in _process_worker
+    r = call_item.fn(*call_item.args, **call_item.kwargs)
+  File "C:\Python313\Lib\concurrent\futures\process.py", line 203, in _process_chunk
+    return [fn(*args) for args in chunk]
+            ~~^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 717, in rescue_frame
+    boxes, vecs, _ = check_boxes(rgb, [box])
+    ^^^^^^^^^^^^^^
+ValueError: too many values to unpack (expected 3)
+"""
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py", line 1939, in <module>
+    main()
+    ~~~~^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py", line 1931, in main
+    identify(args, models)
+    ~~~~~~~~^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py", line 1429, in identify
+    analyses = rescue_frames(rows, analyses, models, cache, pool, args.progress)
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py", line 976, in rescue_frames
+    for n, (job, result) in enumerate(zip(todo, executor.map(rescue_frame, todo)), 1):
+                            ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\concurrent\futures\process.py", line 617, in _chain_from_iterable_of_lists
+    for element in iterable:
+                   ^^^^^^^^
+  File "C:\Python313\Lib\concurrent\futures\_base.py", line 619, in result_iterator
+    yield _result_or_cancel(fs.pop())
+          ~~~~~~~~~~~~~~~~~^^^^^^^^^^
+  File "C:\Python313\Lib\concurrent\futures\_base.py", line 317, in _result_or_cancel
+    return fut.result(timeout)
+           ~~~~~~~~~~^^^^^^^^^
+  File "C:\Python313\Lib\concurrent\futures\_base.py", line 456, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+ValueError: too many values to unpack (expected 3)
+17:10:48 lua: stage: starting Python
+17:10:49 lua: stage: loading models
+17:11:00 lua: stage: references
+17:11:00 lua: stage: checking cache
+17:11:02 lua: stage: starting workers
+17:11:45 lua: stage: analysing
+19:03:22 lua: stage: rescue
+19:03:35 lua: identify.py exit 1
+19:03:35 lua: Assisted Tagging: identify.py stopped with exit code 1. Details are in assisted_tagging.log in darktable's config folder.
+19:03:35 lua: finish: ending the job
+19:03:35 lua: finish: job ended, 0s; resetting the button
+19:03:35 lua: finish: button reset, 0s; removing temp files
+19:03:35 lua: finish: temp files removed, 0s
+19:03:35 lua: run finished
