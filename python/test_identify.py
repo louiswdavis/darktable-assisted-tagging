@@ -423,7 +423,7 @@ def run_tests():
     class CountingReader:
         """Counts crops read; every read is empty."""
         last_trace, last_ctc, calls = [], [], 0
-        keep_regions, last_regions = False, []
+        keep_regions, last_regions, last_turns = False, [], {}
 
         def read(self, crop):
             self.calls += 1

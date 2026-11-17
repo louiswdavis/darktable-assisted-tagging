@@ -620,12 +620,12 @@ def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, bo
                 solo: bool = False) -> list:
     """The frame's rows with box 0 set to the burst's entry, or the rows unchanged when the frame is
     already identified on box 0 or as a whole (a car on box 1 alone is another car in a pack), already
-    names the entry on another box, has no box 0, shows a team-only result for another team (a different car), the
+    identifies the entry on another box (a team-only result naming it is upgraded), has no box 0, shows a team-only result for another team (a different car), the
     confidence is under BURST_MIN_CONFIDENCE (waived when `solo`: a SOLO_ANCHOR_CONF read anchors the
     burst), or (with `box0_sims`) box 0's own similarities don't back the entry. A frame where no
     vehicle was found (a lone box -1 `none` row) takes the entry on that row: nothing in it contradicts the burst."""
     rows = frames[fid]
-    if _anchor_rows(rows) or any(r.entry_id == eid for r in rows):
+    if _anchor_rows(rows) or any(r.entry_id == eid and r.method in BURST_ANCHORS for r in rows):
         return rows
     if confidence < BURST_MIN_CONFIDENCE and not solo:
         return rows
