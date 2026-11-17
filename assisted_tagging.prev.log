@@ -1,5 +1,3 @@
-10:58:12 lua: clear: darktable 5.6.2, 352 images, collection Rallye
-11:00:26 lua: clear: darktable finished 4671 tag writes, 133s
-11:00:26 lua: ledger: prune took 0s
-11:00:27 lua: Assisted Tagging: cleared 4671 tags from 352 images.
-11:00:27 lua: clear finished
+11:31:17 lua: clear: darktable 5.6.2, 352 images, collection Rallye
+11:31:17 lua: Assisted Tagging: nothing to clear; the selection has no tagging marks.
+11:31:17 lua: clear finished
