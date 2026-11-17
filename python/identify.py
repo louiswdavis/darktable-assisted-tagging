@@ -714,7 +714,7 @@ def rescue_frame(job: tuple):
     sim = float((_W["embedder"].embed(crop_box(rgb, box)) * decode(mate_emb)).sum())
     if sim < RESCUE_MIN_SIM:
         return None
-    boxes, vecs, _ = check_boxes(rgb, [box])
+    boxes, vecs = check_boxes(rgb, [box])[:2]
     if not boxes:
         return None
     h, w = rgb.shape[:2]
