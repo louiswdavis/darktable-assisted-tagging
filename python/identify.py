@@ -778,8 +778,8 @@ def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) ->
 def check_models(models: dict, siglip: bool = True):
     """Every model exists and loads, so a bad one fails the run here, not per frame. Returns the
     loaded embedder (a FaceModel for people collections) for the run's reference index. With
-    `siglip`, the loaded SigLIP 2 (or None) becomes this process's, so _siglip doesn't load it again;
-    jobs that read no crops pass False and skip it."""
+    `siglip`, the loaded number reader and SigLIP 2 (or None) become this process's, so reference_box
+    and _siglip don't load them again; jobs that read no crops pass False and skip SigLIP 2."""
     if models["kind"] == "people":
         for label, key in (("face detector", "face_det"), ("face recognizer", "face_rec")):
             if not models[key] or not os.path.isfile(models[key]):
@@ -810,6 +810,7 @@ def check_models(models: dict, siglip: bool = True):
         f"text finder: {os.path.basename(models['ocr_det'])}")
     if not siglip:
         return loaded["embedder"]
+    _W["reader"] = loaded["ocr_det"]
     _W["siglip"] = loaded.get("siglip")
     if models.get("siglip"):
         log("box check: on (SigLIP 2)" + ("; colour reader: SigLIP 2" if models.get("car_colour") else ""))
@@ -1623,6 +1624,20 @@ def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: l
     return notes
 
 
+def reference_box(rgb, boxes: list, number: str) -> tuple:
+    """(the box a hand-tagged frame's reference is cut from, why). `boxes` come largest first. The
+    first box whose number reads as `number` wins ("number read"), so a pack shot saves the tagged car;
+    else the largest the box check keeps ("largest car"), so a marshal or shed isn't saved; else the
+    largest ("largest box", also every pick without SigLIP 2)."""
+    reader = _W.get("reader")
+    if number and reader and len(boxes) > 1:
+        for b in boxes:
+            if any(d == number for d, _ in reader.read(crop_box(rgb, b, OCR_CROP_DIM))):
+                return b, "number read"
+    kept = check_boxes(rgb, boxes)[0] if _W.get("siglip") else []
+    return (kept[0], "largest car") if kept else (boxes[0], "largest box")
+
+
 def run_reference_job(args, models: dict, handle_row, screen: str = "", siglip: bool = True):
     """Runs `handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour) -> (status,
     proposals[, row_entry])` over the manifest rows (an optional 4th column is the image's hand-applied
@@ -1710,7 +1725,7 @@ def add_references(args, models: dict):
         try:
             rgb = decode_rgb(filepath)
             entry, _ = frame_entry(filepath, rgb, models)
-            boxes, note = detect_vehicles(rgb, entry)  # no box check: the user picked this frame for the car
+            boxes, note = detect_vehicles(rgb, entry)
             if colours_only:
                 colour = hand_colour or (car_colour.decide_colour(colour_read(crop_box(rgb, boxes[0]), rules.colour_palette))
                                          if boxes else "")
@@ -1721,16 +1736,18 @@ def add_references(args, models: dict):
             if is_team and len(boxes) != 1:
                 log(f"{image_id}: {len(boxes)} vehicles found; only a solo shot can be a team reference")
                 return "team_not_solo", []
-            box = boxes[0] if boxes else (0, 0, rgb.shape[1], rgb.shape[0])
+            if not boxes:
+                log(f"{image_id}: no vehicle found ({note}); no reference saved")
+                return "no_vehicle", []
+            box, how = reference_box(rgb, boxes, "" if is_team else entries[entry_id].number)
             crop = crop_box(rgb, box)
             rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop)
-            log(f"{image_id}: reference {rel}" + ("" if boxes else f" (whole frame; {note})"))
+            log(f"{image_id}: reference {rel} ({how})")
             proposals = []
             if "colour" in rules.families and not is_team:
-                colour = hand_colour or (car_colour.decide_colour(colour_read(crop, rules.colour_palette))
-                                         if boxes else "")
+                colour = hand_colour or car_colour.decide_colour(colour_read(crop, rules.colour_palette))
                 proposals = [(entry_id, colour)] if colour else []
-            return ("added" if boxes else "no_vehicle_whole_frame"), proposals
+            return "added", proposals
         except Exception as e:
             log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
             return "failed", []

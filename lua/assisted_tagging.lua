@@ -3130,18 +3130,18 @@ function M.add_references(images, entry_id)
         end
         local results = run_reference_job(state, rows, { "--add-reference" }, "adding references")
         if not results then return end
-        local added, whole, failed, no_face, multi, team_rule = 0, 0, 0, 0, 0, 0
+        local added, no_car, failed, no_face, multi, team_rule = 0, 0, 0, 0, 0, 0
         local parsed, notes = M.parse_reference_results(results)
         for _, p in ipairs(parsed) do
             if p[2] == "added" then added = added + 1
             elseif p[2] == "team_refs_off" or p[2] == "team_not_solo" then team_rule = team_rule + 1
             elseif p[2] == "no_face" then no_face = no_face + 1
             elseif p[2] == "multiple_faces" then multi = multi + 1
-            elseif p[2] == "no_vehicle_whole_frame" then added = added + 1; whole = whole + 1
+            elseif p[2] == "no_vehicle" then no_car = no_car + 1
             else failed = failed + 1 end
         end
         local extra = M.colour_note_extras(notes)
-        if whole > 0 then extra[#extra + 1] = string.format("%d used the whole frame", whole) end
+        if no_car > 0 then extra[#extra + 1] = string.format("%d had no vehicle found, not saved", no_car) end
         if no_face > 0 then extra[#extra + 1] = string.format("%d had no face", no_face) end
         if multi > 0 then extra[#extra + 1] = string.format("%d had several faces, so can't name one person", multi) end
         if team_rule > 0 then extra[#extra + 1] = string.format("%d tagged only to team level, not saved (the team-reference rule is off or the shot isn't solo)", team_rule) end

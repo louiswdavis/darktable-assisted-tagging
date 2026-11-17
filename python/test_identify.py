@@ -522,6 +522,39 @@ def run_tests():
     check("contested boxes carry answer, share, score and why kept", contested[-1],
           {"answer": "person", "share": 0.1, "score": 0.84, "kept": "score"})
     check("a clear car is not contested", len(contested), 4)
+
+    # ---- Add references' box: the entry's number read, else the largest car, else the largest box
+    class ListReader:
+        """Answers one list of reads per crop, in call order."""
+        def __init__(self, answers):
+            self.answers, self.calls = answers, 0
+
+        def read(self, crop):
+            self.calls += 1
+            return self.answers[self.calls - 1]
+
+    pack = [(0, 0, 30, 10, 0.5), (0, 0, 20, 10, 0.5), (0, 0, 10, 10, 0.5)]
+    old_reader = I._W.get("reader")
+    I._W["siglip"] = None
+    I._W["reader"] = ListReader([[("12", 0.9)], [("7", 0.9)], []])
+    check("reference_box: the box reading the entry's number wins over a larger car",
+          I.reference_box(canvas, pack, "7"), (pack[1], "number read"))
+    I._W["reader"] = ListReader([[], [], []])
+    I._W["siglip"] = FakeSigLIP([("person", 0.1), ("car", 0.9), ("car", 0.9)])
+    check("reference_box: no number read, a larger marshal is passed over for the largest car",
+          I.reference_box(canvas, pack, "7"), (pack[1], "largest car"))
+    I._W["siglip"] = FakeSigLIP([("person", 0.1)])
+    I._W["reader"] = ListReader([])
+    check("reference_box: one box is never read and stays the pick when the check fails it",
+          I.reference_box(canvas, pack[:1], "7"), (pack[0], "largest box"))
+    I._W["siglip"] = None
+    I._W["reader"] = ListReader([[], [], []])
+    check("reference_box: without SigLIP 2 and no number read, the largest box",
+          I.reference_box(canvas, pack, "7"), (pack[0], "largest box"))
+    I._W["reader"] = ListReader([])
+    check("reference_box: a team reference (no number) reads nothing",
+          (I.reference_box(canvas, pack, ""), I._W["reader"].calls), ((pack[0], "largest box"), 0))
+    I._W["siglip"], I._W["reader"] = old_siglip, old_reader
     import siglip as SG
     real = SG.SigLIP.__new__(SG.SigLIP)
     labels = list(SG.CAR_PROMPTS)
