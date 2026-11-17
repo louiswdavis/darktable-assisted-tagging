@@ -121,18 +121,11 @@ with tempfile.TemporaryDirectory() as d:
     with open(frame, "wb") as f:
         f.write(b"x")
     cache = V.DetectionCache(os.path.join(d, "detections.sqlite"))
-    saved_decode = V.decode_rgb
-
-    def bad_decode(path, fast_jpeg=False):
-        raise OSError("cannot identify image file")
-
-    V.decode_rgb = bad_decode
     try:
         V.detect_cached(frame, det, cache)
         check("detect_cached raises on decode failure", "no error", "OSError")
     except OSError:
         check("detect_cached raises on decode failure", True, True)
-    V.decode_rgb = saved_decode
     check("decode failure writes nothing", cache.get(V.detection_key(frame, det)), None)
     FAKE_OUT[:] = [[10, 10, 20, 20, 0.7, 2]]
     RUNS.clear()
