@@ -436,6 +436,7 @@ def run_tests():
     saved_w, real_hires = dict(I._W), I.load_hires
     I._W.clear()
     I._W.update(reader=CountingReader(), embedder=OneEmbedder(), models={"kind": "motorsport"})
+    # load_hires is the RAW decoder (rawpy needs a real camera file); hires_frame around it runs for real
     I.load_hires = lambda path: np.zeros((200, 300, 3), dtype=np.uint8)
     two = [[0, 0, 40, 40, 0.9, 2], [60, 0, 100, 40, 0.9, 2]]
     read = I.hires_frame(("/x/1.cr3", two, [100, 66], [1]))
@@ -461,26 +462,33 @@ def run_tests():
             self.jobs += len(jobs)
             return [fn(j) for j in jobs]
 
-    real_rescue = (I.plan_burst, I.rescue_frame, I.frame_key, I.file_key)
-    mate = {"/x/2.jpg": "/x/1.jpg"}
-    I.plan_burst = lambda ordered: {"/x/2.jpg": ([1, 2, 3, 4, 0.1, 2], mate["/x/2.jpg"])}
-    I.rescue_frame = lambda job: {"boxes": [job[1]], "rescued": {"from": job[2], "sim": 0.9}}
-    I.frame_key = lambda p, m: [p]
-    I.file_key = lambda p: p
-    rescue_rows = [["1", "/x/1.jpg", "b", "", "", "1", ""], ["2", "/x/2.jpg", "b", "", "", "2", ""],
-                   ["3", "/x/3.jpg", "b", "", "", "3", ""]]
-    rescue_an = {p: {"boxes": [], "emb": [encode(np.ones(4, dtype=np.float32))]} for p in ("/x/1.jpg", "/x/2.jpg", "/x/3.jpg")}
+    # real plan_burst, rescue_frame and cache keys over real files; only the models are stand-ins
+    burst_dir = tempfile.mkdtemp()
+    shots = [os.path.join(burst_dir, f"{n}.jpg") for n in (1, 2, 3)]
+    for p in shots:
+        Image.new("RGB", (64, 48), (90, 90, 90)).save(p)
+    car_box = [2, 2, 50, 40, 0.9, 2]
+    one = encode(np.ones(4, dtype=np.float32))
+    rescue_rows = [[str(n), p, "b", "", "", str(n), ""] for n, p in enumerate(shots, 1)]
+    saved_w = dict(I._W)
+    I._W.clear()
+    I._W.update(models={"kind": "motorsport"}, reader=CountingReader(), embedder=OneEmbedder(), siglip=None)
     rescue_db = os.path.join(tempfile.mkdtemp(), "cache.sqlite")
     counts = []
-    for new_mate in ("/x/1.jpg", "/x/1.jpg", "/x/3.jpg"):
-        mate["/x/2.jpg"] = new_mate
-        pool, cache = CountingPool(), I.IdentifyCache(rescue_db)
-        got = I.rescue_frames(rescue_rows, rescue_an, {}, cache, pool)
-        cache.close()
-        counts.append((pool.jobs, got["/x/2.jpg"]["rescued"]["from"]))
+    try:
+        for mate_has_car in ([True, True], [True, True], [False, True]):  # the last run loses shot 1's car → mate is 3
+            rescue_an = {shots[1]: {"boxes": [], "candidates": [[3, 3, 49, 39, 0.1, 2]], "emb": []}}
+            for p, has_car in zip((shots[0], shots[2]), mate_has_car):
+                rescue_an[p] = {"boxes": [car_box] if has_car else [], "emb": [one] if has_car else []}
+            pool, cache = CountingPool(), I.IdentifyCache(rescue_db)
+            got = I.rescue_frames(rescue_rows, rescue_an, models, cache, pool)
+            cache.close()
+            counts.append((pool.jobs, got[shots[1]]["rescued"]["from"], len(got[shots[1]]["boxes"])))
+    finally:
+        I._W.clear()
+        I._W.update(saved_w)
     check("rescue: first run decodes, an unchanged re-run reads the cache, a new mate re-runs", counts,
-          [(1, "/x/1.jpg"), (0, "/x/1.jpg"), (1, "/x/3.jpg")])
-    I.plan_burst, I.rescue_frame, I.frame_key, I.file_key = real_rescue
+          [(1, "1.jpg", 1), (0, "1.jpg", 1), (1, "3.jpg", 1)])
 
     # ---- cancel stops a worker mid-frame instead of waiting for it
     import concurrent.futures
@@ -694,26 +702,39 @@ def run_tests():
           bad.startswith("object detector model can't be loaded"), True)
     check("the worker pool is capped", I.worker_count(64) <= I.MAX_WORKERS and I.worker_count(2) == 1, True)
 
-    # ---- the identify run, with the analysis stubbed (no models)
+    # ---- the identify run: the real analysis, rescue and re-read over real image files; only the
+    # models are stand-ins, and the worker pool runs in this process so they reach the workers
     root = tempfile.mkdtemp(prefix="collections_")
     coll = collection([VER, TSU], root=root)
     manifest = os.path.join(img, "manifest.csv")
+    X = tempfile.mkdtemp(prefix="frames_")
     with open(manifest, "w", encoding="utf-8") as f:
-        f.write('"1","/x/1.jpg","5"\n"2","/x/2.jpg","5"\n"3","/x/3.jpg","5"\n"4","/x/4.jpg","9"\n"5","/x/5.jpg","9"\n')
-    vec = encode(np.eye(384, dtype=np.float32)[0])
-    car = [[0, 0, 100, 50, 0.9, 2]]
-    fr = [100, 50]
-    stub = {
-        "/x/1.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
-        "/x/2.jpg": {"boxes": car, "ocr": [[["1", 0.90]]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
-        "/x/3.jpg": {"boxes": car, "ocr": [[]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
-        "/x/4.jpg": {"boxes": [], "ocr": [], "emb": [], "note": "no vehicle"},
-        "/x/5.jpg": None,
-        "/x/6.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
-        "/x/7.jpg": {"boxes": car, "ocr": [[["1", 0.95]]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
-        "/x/8.jpg": {"boxes": car, "ocr": [[]], "ocr_trace": [[]], "pod": [{}], "emb": [vec], "note": "", "frame": fr},
-        "/x/9.jpg": {"boxes": car * 2, "ocr": [[["1", 0.95]], []], "ocr_trace": [[], []], "pod": [{}, {}], "emb": [vec, vec], "note": "", "frame": fr},
-    }
+        f.write(f'"1","{X}/1.jpg","5"\n"2","{X}/2.jpg","5"\n"3","{X}/3.jpg","5"\n"4","{X}/4.jpg","9"\n"5","{X}/5.jpg","9"\n')
+    # a frame's grey shade is its scene: 10 car reading 1 at 0.95, 20 at 0.90, 30 a car with no read,
+    # 40 no vehicle; frame 9 is two cars (left 10, right 30). Frame 5 is missing: a decode error.
+    for n, shade in {1: 10, 2: 20, 3: 30, 4: 40, 6: 10, 7: 10, 8: 30}.items():
+        Image.new("RGB", (100, 50), (shade,) * 3).save(f"{X}/{n}.jpg", format="PNG")
+    pack_img = Image.new("RGB", (100, 50), (30,) * 3)
+    pack_img.paste((10, 10, 10), (0, 0, 50, 50))
+    pack_img.save(f"{X}/9.jpg", format="PNG")
+    scene_reads = {10: [("1", 0.95)], 20: [("1", 0.90)], 30: [], 40: []}
+
+    def scene_shade(pixel):
+        return min(scene_reads, key=lambda s: abs(s - float(pixel)))
+
+    def scene_run(detector, canvas, scale, w, h):
+        left, right = scene_shade(canvas[1, 1, 0]), scene_shade(canvas[1, int(w * scale) - 2, 0])
+        if left == 40:
+            return np.zeros((0, 6), dtype=np.float64)
+        if left != right:
+            return np.array([[0, 0, w / 2, h, 0.9, 2], [w / 2, 0, w, h, 0.85, 2]], dtype=np.float64)
+        return np.array([[0, 0, w, h, 0.9, 2]], dtype=np.float64)
+
+    VD.FAMILIES["scene"] = {"match": lambda name: False, "load": None, "run": scene_run, "classes": frozenset({2, 3, 7})}
+
+    class SceneReader(CountingReader):
+        def read(self, crop):
+            return list(scene_reads[scene_shade(crop[crop.shape[0] // 2, crop.shape[1] // 2, 0])])
 
     class FakeEmbedder:
         dim = 384
@@ -724,15 +745,28 @@ def run_tests():
         def embed(self, crop):
             return np.eye(384, dtype=np.float32)[0]
 
-    real = (I.check_models, I.Embedder, I.run_frames, I.refine_frames)
-    I.check_models, I.Embedder = (lambda m, siglip=True: FakeEmbedder("fake")), FakeEmbedder
-    I.run_frames = lambda paths, models, cache, progress, pool: stub
-    I.refine_frames = lambda wanted, analyses, models, cache, pool, progress="": analyses  # the re-read needs real files
+    class InlinePool(I.WorkerPool):
+        """The real WorkerPool's stages, run on one thread here: its workers get the stand-in models
+        as _init_worker would give them the loaded ones."""
+        def get(self):
+            if self.executor is None:
+                import concurrent.futures
+                I._W.update(models=self.models, reader=SceneReader(), embedder=FakeEmbedder(""), segmenter=None, siglip=None,
+                            detector=VD.Detector(id="scene:x:1:abc", family="scene", net=None, classes=frozenset({2, 3, 7})),
+                            detections=VD.DetectionCache(""))
+                self.size, self.executor = 1, concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            return self.executor
+
+    fake_models = {k: frame for k in ("detector", "ocr_det", "ocr_rec", "embedder")}
+    identify_w = dict(I._W)
+    real = (I.check_models, I.Embedder, I.WorkerPool)
+    # check_models loads every model file; these are stand-ins
+    I.check_models, I.Embedder, I.WorkerPool = (lambda m, siglip=True: FakeEmbedder("fake")), FakeEmbedder, InlinePool
     results = os.path.join(img, "results.csv")
     args = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "progress.txt"), cache="",
                      collections_root=root, collection=os.path.basename(coll), settings="", entries_out=os.path.join(img, "e.csv"),
                      rules_out=os.path.join(img, "r.csv"), boxes_out="", boxes_in="", report_out="", report_top=20, archive_dir="")
-    I.identify(args, {"embedder": "fake"})
+    I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("number reads, burst consensus and no-vehicle rows come out in manifest order (3-column manifest)", rows,
           ["1,0,number,VER,,0.950,,solo,,,,", "2,0,number,VER,,0.900,,solo,,,,", "3,0,burst,VER,,0.667,,solo,,,,",
@@ -762,13 +796,13 @@ def run_tests():
 
     # ---- hand-applied tags: skipped, conflict (also after burst fill), packs; and boxes.json
     with open(manifest, "w", encoding="utf-8") as f:
-        f.write('"1","/x/1.jpg","5","F1|Red Bull;F1|Red Bull|Tsunoda"\n'
-                '"2","/x/2.jpg","5","F1|Red Bull|Tsunoda"\n'
-                '"6","/x/6.jpg","8",""\n"7","/x/7.jpg","8",""\n'
-                '"8","/x/8.jpg","8","F1|Red Bull|Tsunoda"\n'
-                '"9","/x/9.jpg","9","F1|Red Bull|Tsunoda"\n')
+        f.write(f'"1","{X}/1.jpg","5","F1|Red Bull;F1|Red Bull|Tsunoda"\n'
+                f'"2","{X}/2.jpg","5","F1|Red Bull|Tsunoda"\n'
+                f'"6","{X}/6.jpg","8",""\n"7","{X}/7.jpg","8",""\n'
+                f'"8","{X}/8.jpg","8","F1|Red Bull|Tsunoda"\n'
+                f'"9","{X}/9.jpg","9","F1|Red Bull|Tsunoda"\n')
     args.boxes_out = os.path.join(img, "last-run", "c.boxes.json")
-    I.identify(args, {"embedder": "fake"})
+    I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a fully tagged image is skipped; solo disagreement is a conflict, also when burst-filled; packs aren't", rows,
           ["1,-1,skipped,,,0.000,,,,,,", "2,0,conflict,VER,,0.900,,solo,,,,", "6,0,number,VER,,0.950,,solo,,,,",
@@ -792,20 +826,20 @@ def run_tests():
             "ocr_min_score", "reference_margin", "weak_read_min"],
            ["camera", "car", "colour", "number", "refs", "tags", "team"]))
     args.report_out = os.path.join(img, "last-run", "c.report")
-    I.identify(args, {"embedder": "fake"})
+    I.identify(args, dict(fake_models))
     check("--report-out writes report.md and report.json", (os.path.isfile(args.report_out + ".md"),
           json.load(open(args.report_out + ".json", encoding="utf-8"))["summary"]["counts"]["already-tagged"]), (True, 1))
     args.report_out = ""
 
     # ---- the 7th manifest field: the entry the user's own number or driver tag names
     with open(manifest, "w", encoding="utf-8") as f:
-        f.write('"2","/x/2.jpg","5","F1|Red Bull","","","TSU"\n'
-                '"3","/x/3.jpg","7","","","",""\n'
-                '"8","/x/8.jpg","7","Assisted Tagging|Motorsport|Number|22","","","TSU"\n'
-                '"4","/x/4.jpg","9","Assisted Tagging|Motorsport|Number|22","","","TSU"\n'
-                '"9","/x/9.jpg","6","Assisted Tagging|Motorsport|Number|22","","","TSU"\n')
+        f.write(f'"2","{X}/2.jpg","5","F1|Red Bull","","","TSU"\n'
+                f'"3","{X}/3.jpg","7","","","",""\n'
+                f'"8","{X}/8.jpg","7","Assisted Tagging|Motorsport|Number|22","","","TSU"\n'
+                f'"4","{X}/4.jpg","9","Assisted Tagging|Motorsport|Number|22","","","TSU"\n'
+                f'"9","{X}/9.jpg","6","Assisted Tagging|Motorsport|Number|22","","","TSU"\n')
     args.boxes_out = ""
-    I.identify(args, {"embedder": "fake"})
+    I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a hand-tagged solo shot read as another car is a conflict, though the two share a team tag", rows[0],
           "2,0,conflict,VER,,0.900,,solo,,,,")
@@ -815,11 +849,11 @@ def run_tests():
     check("a pack keeps its boxes and gains the hand-tagged entry", rows[4:],
           ["9,0,number,VER,,0.950,,pack,,,,", "9,1,none,,,0.000,,pack,,,,", "9,-1,hand,TSU,,1.000,,pack,,,,"])
     with open(manifest, "w", encoding="utf-8") as f:
-        f.write('"4","/x/4.jpg","9","Assisted Tagging|Motorsport|Number|5","","","GONE"\n')
+        f.write(f'"4","{X}/4.jpg","9","Assisted Tagging|Motorsport|Number|5","","","GONE"\n')
     lines = []
     real_log, I.log = I.log, lines.append
     try:
-        I.identify(args, {"embedder": "fake"})
+        I.identify(args, dict(fake_models))
     finally:
         I.log = real_log
     check("a hand entry that isn't in entries.json is logged and its image identified without it",
@@ -883,9 +917,13 @@ def run_tests():
 
     # ---- reference actions fill an entry's colour (the colour family)
     import entries_file
-    real_detect, real_entry = I.detect_vehicles, I.frame_entry
-    I.detect_vehicles = lambda rgb, entry: ([(0, 0, 50, 50)], "")
-    I.frame_entry = lambda filepath, rgb, models: ({"frame": [rgb.shape[1], rgb.shape[0]], "boxes": []}, False)
+    # the real frame_entry and detect_vehicles run; the detector is a stand-in that finds one car, or none
+    VD.FAMILIES["fakenone"] = {"match": lambda name: False, "load": None, "classes": frozenset({2, 3, 7}),
+                              "run": lambda detector, canvas, scale, w, h: np.zeros((0, 6), dtype=np.float64)}
+    one_car = VD.Detector(id="fakecar:x:1:abc", family="fakecar", net=None, classes=frozenset({2, 3, 7}))
+    no_car = VD.Detector(id="fakenone:x:1:abc", family="fakenone", net=None, classes=frozenset({2, 3, 7}))
+    ref_w = dict(I._W)
+    I._W.update(detector=one_car, detections=VD.DetectionCache(os.path.join(tempfile.mkdtemp(), "detections.sqlite")))
     # refs cut from one crop pile up here; screening them is the block above's subject
     audit_refs.screen_refs = lambda collection, rels: {}
     vmodels = {"embedder": "fake", "detector": ""}
@@ -937,11 +975,11 @@ def run_tests():
         check("colours-only: an entry with that colour is already",
               (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","VER","Red"', colours_only=True),
                open(oentries, "rb").read() == before, os.path.exists(oentries + ".bak")), ("1,read,already,VER", True, False))
-        I.detect_vehicles = lambda rgb, entry: ([], "no vehicle")
+        I._W["detector"] = no_car
         check("colours-only: no vehicle is unread and saves nothing",
               (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","TSU",""', colours_only=True),
                os.path.exists(os.path.join(ocoll, "refs", "TSU"))), ("1,unread,,TSU", False))
-        I.detect_vehicles = lambda rgb, entry: ([(0, 0, 50, 50)], "")
+        I._W["detector"] = one_car
         try:
             ref_job(I.add_references, coll, f'"1","{real_jpg}","VER","Red"', colours_only=True)
             off = "(no error)"
@@ -957,21 +995,25 @@ def run_tests():
         check("colours-only refuses a people collection", people, "Fill entry colours is for vehicle collections")
         check("colours-only saves no face reference", os.path.isdir(os.path.join(pcoll, "refs", "Lando Norris")), False)
     finally:
-        I.detect_vehicles, I.frame_entry = real_detect, real_entry
+        I._W["detections"].close()
+        I._W.clear()
+        I._W.update(ref_w)
         audit_refs.screen_refs = real_screen
 
     # ---- Review Focus 4: cancel leaves no results
     os.remove(results)
     open(args.progress + ".cancel", "w").close()
     try:
-        I.identify(args, {"embedder": "fake"})
+        I.identify(args, dict(fake_models))
         code = 0
     except SystemExit as e:
         code = e.code
     check("a cancelled run exits 130", code, 130)
     check("a cancelled run writes no results (nor leaves a temp file)",
           [n for n in os.listdir(os.path.dirname(results)) if n.startswith(os.path.basename(results))], [])
-    I.check_models, I.Embedder, I.run_frames, I.refine_frames = real
+    I.check_models, I.Embedder, I.WorkerPool = real
+    I._W.clear()
+    I._W.update(identify_w)
 
     # ---- Stage B: hints
     mf = os.path.join(tempfile.mkdtemp(), "m.csv")
