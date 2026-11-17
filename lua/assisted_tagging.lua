@@ -3706,15 +3706,13 @@ local function install_panel()
         add_found_button.visible = #rows > 0
     end
     local function clear_found() show_found({}, "") end
-    add_found_button.clicked_callback = function()
-        guard("button Add found entries", function()
-            local ticked = {}
-            for i, check in ipairs(found.checks) do
-                if check.value then ticked[#ticked + 1] = found.rows[i] end
-            end
-            if M.add_found_entries(ticked, found.image_of) then clear_found() end
-        end)
-    end
+    add_found_button.clicked_callback = C.guarded_callback(guard, "button add found entries", function()
+        local ticked = {}
+        for i, check in ipairs(found.checks) do
+            if check.value then ticked[#ticked + 1] = found.rows[i] end
+        end
+        if M.add_found_entries(ticked, found.image_of) then clear_found() end
+    end)
     local find_button = new_widget("button") {
         label = _("Find new entries"),
         tooltip = _("List the numbers the selected photos read or carry by hand that entries.json lacks, the teams, drivers and co-drivers you tagged by hand on entries that have none, and entries whose name still holds \"Driver / Co-driver\" to split. Nothing is added until you tick it."),
