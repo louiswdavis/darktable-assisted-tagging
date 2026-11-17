@@ -61,6 +61,34 @@ do -- temp_base / sweep_temp: leftovers older than max_age go, newer ones and ot
     for _, n in ipairs(PC.list_dir(dir)) do os.remove(dir .. "/" .. n) end
     os.remove(dir)
 end
+do -- Lua error log: guard logs + toasts errors, passes results through; log trims to its newer half
+    local log_path = os.tmpname()
+    os.remove(log_path)
+    local toasts, made = {}, {}
+    local fake_dt = {
+        print = function(msg) toasts[#toasts + 1] = msg end,
+        new_widget = function(kind) return function(props) made[#made + 1] = props; return props end end,
+    }
+    local guard = PC.error_guard(fake_dt, log_path, "Assisted Tagging")
+    check("error_guard: results pass through", select(2, guard("ok", function(a, b) return a, b end, 1, 2)), 2)
+    check("error_guard: error returns nil", guard("panel install", function() error("boom") end), nil)
+    local text = PC.read_file(log_path) or ""
+    check("error_guard: log has label and traceback", text:match("%] panel install\n.-boom.-traceback") ~= nil, true)
+    check("error_guard: toast names the log file", toasts[1], "Assisted Tagging: Lua error, see " .. log_path:match("[^/\\]+$"))
+    local widget = PC.guarded_widget_maker(fake_dt, guard)("button") {
+        label = "Derive", clicked_callback = function() error("cb") end, tooltip = "t" }
+    widget.clicked_callback()
+    check("guarded_widget_maker: callback errors are logged with kind + label",
+        (PC.read_file(log_path) or ""):match("%] button Derive\n") ~= nil, true)
+    check("guarded_widget_maker: other props untouched", made[1].tooltip, "t")
+    os.remove(log_path)
+    PC.write_file_atomic(log_path, string.rep("old line\n", 30) .. string.rep("new line\n", 30))
+    PC.append_error_log(log_path, "x", "y", 300, "T")
+    text = PC.read_file(log_path)
+    check("append_error_log: older half dropped at a line start", text:sub(1, 9), "new line\n")
+    check("append_error_log: entry appended", text:sub(-9), "[T] x\ny\n\n")
+    os.remove(log_path)
+end
 do -- shared preferences: assisted_plugins key first, old per-plugin key logged once
     local prefs, logged = {}, {}
     local fake_dt = { preferences = { read = function(group, name) return prefs[group .. "/" .. name] or "" end } }
