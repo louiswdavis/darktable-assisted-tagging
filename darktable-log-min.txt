@@ -81,3 +81,852 @@ INFO: Could not find files for the given pattern(s).
    638.4132 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
    638.4133 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
    638.4133 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+
+
+
+
+  3391.1464 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-43-21 DSC09012.'
+  3391.1957 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-56-39 DSC09254.'
+  3391.2449 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-04-33 DSC09333.'
+  3391.2892 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-06-29 DSC09346.'
+  3391.3357 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-10-54 DSC09448.'
+  3391.3836 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-13-38 DSC09506.'
+  3391.4558 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-15-07 DSC09526.'
+  3391.5056 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-32-34 DSC09701.'
+  3391.5549 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-34-04 DSC09727.'
+  3391.6015 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-43-36 DSC09806.'
+  3391.6480 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-47-03 DSC09837.'
+  3391.6943 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-50-09 DSC09877.'
+  3391.7425 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 14-05-36 DSC09946.'
+  3391.7890 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 14-06-53 DSC09964.'
+  3391.8329 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 14-14-10 DSC00048.'
+  3391.8796 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 14-19-35 DSC00086.'
+  3391.9249 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 14-24-44 DSC00152.'
+  3391.9655 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-03-50 DSC00878.'
+  3392.0124 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-07-17 DSC01003.'
+  3392.0516 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-12-43 DSC01125.'
+  3392.0976 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-14-54 DSC01160.'
+  3392.1467 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-15-33 DSC01166.'
+  3392.1860 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-16-39 DSC01193.'
+  3392.2230 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-16-45 DSC01194.'
+  3392.2618 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-17-38 DSC01240.'
+  3392.3120 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-18-27 DSC01253.'
+  3392.3489 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-20-31 DSC01292.'
+  3392.3832 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-21-26 DSC01321.'
+  3392.4225 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-39-25 DSC01566.'
+  3392.4560 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 18-34-56 DSC01773.'
+  3392.4929 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 19-16-26 DSC01811.'
+  3392.5219 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 19-17-14 DSC01812.'
+  3392.5523 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 19-58-40 DSC01886.'
+  3392.5948 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 20-09-12 DSC01890.'
+  3412.0427 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 11-59-32 DSC08334.jpg'
+  3430.9413 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-00-43 DSC08361.jpg'
+  3447.9885 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-07-15 DSC08420.jpg'
+  3465.0847 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-09-20 DSC08464.jpg'
+  3481.7936 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-13-44 DSC08561.jpg'
+  3498.2552 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-17-55 DSC08626.jpg'
+  3514.3755 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-31-22 DSC08772.jpg'
+  3530.8714 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-36-45 DSC08877.jpg'
+  3547.7305 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-39-52 DSC08928.jpg'
+  3564.1899 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-41-52 DSC08970.jpg'
+  3580.8293 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-42-35 DSC08994.jpg'
+  3596.3630 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-45-15 DSC09035.jpg'
+  3612.8841 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-48-37 DSC09085.jpg'
+  3629.6896 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-50-20 DSC09110.jpg'
+  3644.8749 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-53-44 DSC09182.jpg'
+  3660.1907 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-53-59 DSC09192.jpg'
+  3676.7339 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-00-21 DSC09265.jpg'
+  3696.8416 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-02-07 DSC09296.jpg'
+  3714.4531 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-10-06 DSC09416.jpg'
+  3731.9398 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-10-32 DSC09438.jpg'
+  3748.6039 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-11-36 DSC09465.jpg'
+  3765.5062 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-14-32 DSC09517.jpg'
+  3782.0350 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-15-00 DSC09525.jpg'
+  3798.9594 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-25-28 DSC09587.jpg'
+  3815.8226 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-28-44 DSC09620.jpg'
+  3831.4792 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-29-30 DSC09637.jpg'
+  3833.7602 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-34-58 DSC09739.jpg'
+  3851.1442 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-49-39 DSC09875.jpg'
+  3868.7600 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 14-20-38 DSC00102.jpg'
+  3885.6752 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 14-41-54 DSC00349.jpg'
+  3902.0826 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 14-46-08 DSC00369.jpg'
+  3919.3421 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 14-51-53 DSC00483.jpg'
+  3935.8440 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 15-05-07 DSC00601.jpg'
+  3953.5837 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 15-49-57 DSC00791.jpg'
+  3970.1119 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 17-04-28 DSC00909.jpg'
+  3970.1697 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 11-59-32 DSC08334.'
+  3970.2507 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-00-43 DSC08361.'
+  3970.3066 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-07-15 DSC08420.'
+  3970.3582 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-09-20 DSC08464.'
+  3970.4274 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-13-44 DSC08561.'
+  3970.4710 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-17-55 DSC08626.'
+  3970.5176 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-31-22 DSC08772.'
+  3970.5638 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-36-45 DSC08877.'
+  3970.6072 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-39-52 DSC08928.'
+  3970.6517 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-41-52 DSC08970.'
+  3970.6947 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-42-35 DSC08994.'
+  3970.7380 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-45-15 DSC09035.'
+  3970.7808 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-48-37 DSC09085.'
+  3970.8275 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-50-20 DSC09110.'
+  3970.8726 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-53-44 DSC09182.'
+  3970.9229 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-53-59 DSC09192.'
+  3970.9647 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-00-21 DSC09265.'
+  3971.0280 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-02-07 DSC09296.'
+  3971.0693 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-10-06 DSC09416.'
+  3971.1166 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-10-32 DSC09438.'
+  3971.1629 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-11-36 DSC09465.'
+  3971.2052 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-14-32 DSC09517.'
+  3971.2499 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-15-00 DSC09525.'
+  3971.2948 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-25-28 DSC09587.'
+  3971.3418 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-28-44 DSC09620.'
+  3971.3877 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-29-30 DSC09637.'
+  3971.4281 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-34-58 DSC09739.'
+  3971.4741 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-49-39 DSC09875.'
+  3971.5260 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 14-20-38 DSC00102.'
+  3971.5774 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 14-41-54 DSC00349.'
+  3971.6245 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 14-46-08 DSC00369.'
+  3971.6643 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 14-51-53 DSC00483.'
+  3971.7005 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 15-05-07 DSC00601.'
+  3971.7487 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 15-49-57 DSC00791.'
+  3971.7936 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 17-04-28 DSC00909.'
+
+end:   2026-11-13 15:11:16
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-14 17:27:00
+
+  1241.1532 Trouble: [lens correction] camera/lens not found (DSC01919.ARW 205696)
+  1242.8517 Trouble: [lens correction] camera/lens not found (DSC01919.ARW 205696)
+  1242.8644 Trouble: [lens correction] camera/lens not found (DSC01919.ARW 205696)
+========================================
+version: darktable 5.6.2
+start: 2026-11-14 22:50:40
+
+     1.1411 [init] the database lock file contains a pid that seems to be alive in your system: 39372
+     1.1413 [init] database is locked, probably another process is already using it
+    14.1463 ERROR: can't acquire database lock, aborting.
+========================================
+version: darktable 5.6.2
+start: 2026-11-14 22:50:58
+
+sqlite3 error: D:/a/darktable/darktable/src/src/gui/presets.c:86, function dt_gui_presets_init(), query "DELETE FROM data.presets WHERE writeprotect = 1": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+   141.6921 Trouble: [lens correction] camera/lens not found (DSC01919.ARW 205696)
+   142.8453 Trouble: [lens correction] camera/lens not found (DSC01919.ARW 205696)
+   159.0822 Trouble: [lens correction] camera/lens not found (DSC01919.ARW 205696)
+   203.3401 Trouble: [lens correction] camera/lens not found (DSC01919.ARW 205696)
+   237.6406 Trouble: [lens correction] camera/lens not found (DSC01919.ARW 205696)
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT 
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": not an error
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": cannot commit transaction - SQL statements in progress
+ 63169.2761 [image_cache_write_release] from `dt_image_set_aspect_ratio_to' sqlite3 error 5 (database is locked) for imgid 205800
+ 63169.2834 [image_cache_write_release] from `update final size' sqlite3 error 5 (database is locked) for imgid 205800
+ 63170.1652 [image_cache_write_release] from `(NULL)' sqlite3 error 5 (database is locked) for imgid 205800
+ 63170.1857 [image_cache_write_release] from `(NULL)' sqlite3 error 5 (database is locked) for imgid 205800
+ 63172.9645 [image_cache_write_release] from `(NULL)' sqlite3 error 5 (database is locked) for imgid 205800
+ 63172.9710 [image_cache_write_release] from `(NULL)' sqlite3 error 5 (database is locked) for imgid 205800
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:254, function dt_selection_select_single(), query "DELETE FROM main.selected_images": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 205659 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63930211200000000) AND (datetime_taken <= 63930297599999000)) AND ((filename LIKE '%arw%') OR (filename LIKE '%dng%') OR (filename LIKE '%rw2%'))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 205659 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63930211200000000) AND (datetime_taken <= 63930297599999000)) AND ((filename LIKE '%arw%') OR (filename LIKE '%dng%') OR (filename LIKE '%rw2%'))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 205667 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63930211200000000) AND (datetime_taken <= 63930297599999000)) AND ((filename LIKE '%arw%') OR (filename LIKE '%dng%') OR (filename LIKE '%rw2%'))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:254, function dt_selection_select_single(), query "DELETE FROM main.selected_images": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 205673 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63930211200000000) AND (datetime_taken <= 63930297599999000)) AND ((filename LIKE '%arw%') OR (filename LIKE '%dng%') OR (filename LIKE '%rw2%'))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 205667 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63930211200000000) AND (datetime_taken <= 63930297599999000)) AND ((filename LIKE '%arw%') OR (filename LIKE '%dng%') OR (filename LIKE '%rw2%'))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:254, function dt_selection_select_single(), query "DELETE FROM main.selected_images": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 205659 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63930211200000000) AND (datetime_taken <= 63930297599999000)) AND ((filename LIKE '%arw%') OR (filename LIKE '%dng%') OR (filename LIKE '%rw2%'))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:254, function dt_selection_select_single(), query "DELETE FROM main.selected_images": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 205659 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63930211200000000) AND (datetime_taken <= 63930297599999000)) AND ((filename LIKE '%arw%') OR (filename LIKE '%dng%') OR (filename LIKE '%rw2%'))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:254, function dt_selection_select_single(), query "DELETE FROM main.selected_images": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 202916 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:254, function dt_selection_select_single(), query "DELETE FROM main.selected_images": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 202916 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+ 63387.0920 [image_cache_write_release] from `(NULL)' sqlite3 error 5 (database is locked) for imgid 202916
+ 63387.0948 [image_cache_write_release] from `(NULL)' sqlite3 error 5 (database is locked) for imgid 202916
+ 63387.1092 [image_cache_write_release] from `(NULL)' sqlite3 error 5 (database is locked) for imgid 202916
+ 63388.3105 [image_cache_write_release] from `(NULL)' sqlite3 error 5 (database is locked) for imgid 202916
+ 63392.7754 [image_cache_write_release] from `update final size' sqlite3 error 5 (database is locked) for imgid 202916
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5852, function dt_database_start_transaction(), query "BEGIN TRANSACTION": cannot start a transaction within a transaction
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5885, function dt_database_release_transaction(), query "COMMIT TRANSACTION": cannot commit transaction - SQL statements in progress
+ 63402.7669 [image_cache_write_release] from `dt_image_set_aspect_ratio_to' sqlite3 error 5 (database is locked) for imgid 202916
+ 63402.7719 [image_cache_write_release] from `update final size' sqlite3 error 5 (database is locked) for imgid 202916
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:254, function dt_selection_select_single(), query "DELETE FROM main.selected_images": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 203078 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:254, function dt_selection_select_single(), query "DELETE FROM main.selected_images": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 203168 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 203102 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 203156 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 203054 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 203050 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 203064 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 202948 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/selection.c:91, function _selection_select(), query "INSERT OR IGNORE INTO main.selected_images (imgid)  SELECT id  FROM main.images   WHERE group_id = 202932 AND id IN (SELECT DISTINCT sel.id  FROM (SELECT mi.id, filename, version, group_id, datetime_taken        FROM main.images AS mi                WHERE   (flags & 256) != 256  AND  (( ((datetime_taken >= 63929606400000000) AND (datetime_taken <= 63929692799999000))) AND ( (1=1) AND (flags & 8 == 0 AND flags & 7 >= 0)))) AS sel ORDER BY datetime_taken, group_id, sel.id-group_id != 0, sel.id, filename, version ASC)": database is locked
+sqlite3 error: D:/a/darktable/darktable/src/src/common/database.c:5119, function dt_database_optimize(), query "PRAGMA optimize": database is locked
+
+end:   2026-11-14 17:27:00
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-15 11:05:40
+
+     1.8159 [init] database `C:\Users\Louis\AppData\Local\darktable\data.db' couldn't be opened. aborting
+     1.8171 ERROR : cannot open database
+========================================
+version: darktable 5.6.2
+start: 2026-11-15 11:06:43
+
+     1.7108 [init] database `C:\Users\Louis\AppData\Local\darktable\data.db' couldn't be opened. aborting
+     1.7122 ERROR : cannot open database
+========================================
+version: darktable 5.6.2
+start: 2026-11-15 11:22:06
+
+From https://github.com/darktable-org/lua-scripts
+   3e9cac0..6a0f1c7  master     -> origin/master
+    63.6213 [xmp_import] creating tag: Assisted Tagging|Run|2026-11-14 23:35
+    64.6946 [xmp_import] creating tag: Assisted Tagging|Run|2026-11-14 23:42
+    72.2547 [xmp_import] creating tag: darktable|style|LD|E10|Animals|Dogs - Sunbeam
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-1094b7.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-bdbbab.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-b1e87a.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-102a3c.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-15811b.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-660a4c.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-3595ef.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-2aff22.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-763a54.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-80bc36.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-daf63f.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-26d5b1.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-c7d80f.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-c89713.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-a566ad.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-04bfa7.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-3144d5.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-a8ebb5.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-d2457f.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-b4d6e8.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-5af303.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-79d5df.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-877e9f.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-e64a91.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-56f22c.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-6cdd4c.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-26daae.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-7a04ac.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-b8211e.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-27d0da.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-ed9783.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-7401f6.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-895f79.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-e21a94.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-adc9f2.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-0ed2e3.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-387003.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-13e6dd.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-c84773.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-1484d3.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-a20f37.d
+Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-604f6a.d
+
+end:   2026-11-15 11:22:06
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-15 13:07:08
+
+fatal: unable to access 'https://github.com/darktable-org/lua-scripts.git/': Could not resolve host: github.com
+ 10748.7197 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-33-23 DSC08800.jpg'
+ 10748.8120 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-33-23 DSC08800.'
+ 12168.4541 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-43-18 DSC09011.jpg'
+ 12168.5166 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-43-18 DSC09011.'
+
+(org.darktable.darktable:19160): GLib-GObject-CRITICAL **: 16:35:38.009: g_object_set_data: assertion 'G_IS_OBJECT (object)' failed
+
+(org.darktable.darktable:19160): GLib-GObject-CRITICAL **: 16:35:38.014: g_object_set_data: assertion 'G_IS_OBJECT (object)' failed
+
+(org.darktable.darktable:19160): Gtk-CRITICAL **: 16:35:38.014: gtk_tree_model_foreach: assertion 'GTK_IS_TREE_MODEL (model)' failed
+ 13154.5024 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-28-39 DSC09616.jpg'
+ 13154.6054 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-28-39 DSC09616.'
+ 13157.5218 [export_job] skipping (not modified since export) `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-43-36 DSC09806.jpg'
+ 13158.6694 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-43-36 DSC09806.'
+========================================
+version: darktable 5.6.2
+start: 2026-11-15 17:43:15
+
+   452.9269 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-31-22 DSC08772.jpg'
+   453.0722 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-31-22 DSC08772.'
+   728.0819 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-32-48 DSC08795.jpg'
+   728.1864 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-32-48 DSC08795.'
+  3695.3074 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-00-21 DSC09265.jpg'
+  3695.4278 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-00-21 DSC09265.'
+  4263.6088 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 14-20-38 DSC00102.jpg'
+  4263.9155 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 14-20-38 DSC00102.'
+  4573.0652 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-56-39 DSC09254.jpg'
+  4573.1793 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-56-39 DSC09254.'
+  4605.1820 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-48-37 DSC09085.jpg'
+  4605.2796 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-48-37 DSC09085.'
+  4623.9828 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-43-21 DSC09012.jpg'
+  4624.0672 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-43-21 DSC09012.'
+  4653.1000 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-34-13 DSC08810.jpg'
+  4653.1126 [export_job] skipping (not modified since export) `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 12-34-13 DSC08810.jpg'
+  4653.2252 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 12-34-13 DSC08810.'
+  4677.7228 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\Full\2026-11-07\2026-11-07 13-06-29 DSC09346.jpg'
+  4677.7965 [export_job] exported to `C:\Users\Louis\Pictures\DarkTable\Export\RAW\2026-11-07\2026-11-07 13-06-29 DSC09346.'
+========================================
+version: darktable 5.6.2
+start: 2026-11-15 19:32:13
+
+
+end:   2026-11-15 17:43:15
+========================================
+
+
+end:   2026-11-15 19:32:13
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-15 19:34:00
+
+
+end:   2026-11-15 19:34:00
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-15 22:38:56
+
+From https://github.com/darktable-org/lua-scripts
+   6a0f1c7..4b019d9  master     -> origin/master
+
+end:   2026-11-15 22:38:56
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-15 22:42:50
+
+
+end:   2026-11-15 22:42:50
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-16 15:53:51
+
+
+end:   2026-11-16 15:53:51
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-16 17:11:54
+
+
+end:   2026-11-16 17:11:54
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-16 17:25:38
+
+
+end:   2026-11-16 17:25:38
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-16 18:23:25
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-16 18:47:39
+
+     1.9345 [init] the database lock file contains a pid that seems to be alive in your system: 35404
+     1.9360 [init] database is locked, probably another process is already using it
+
+end:   2026-11-16 18:23:25
+========================================
+
+     5.7440 ERROR: can't acquire database lock, aborting.
+========================================
+version: darktable 5.6.2
+start: 2026-11-16 18:48:24
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-16 19:33:09
+
+     1.3278 [init] the database lock file contains a pid that seems to be alive in your system: 19288
+     1.3281 [init] database is locked, probably another process is already using it
+
+end:   2026-11-16 18:48:24
+========================================
+
+     9.5638 ERROR: can't acquire database lock, aborting.
+========================================
+version: darktable 5.6.2
+start: 2026-11-16 19:33:38
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-16 20:21:37
+
+
+end:   2026-11-16 20:21:37
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 00:14:25
+
+
+end:   2026-11-17 00:14:25
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 00:25:21
+
+Assisted Grouping check_button Apply darktable groups: ...ppData\Local\darktable/lua/contrib/assisted_grouping.lua:1911: attempt to call a nil value (upvalue 'refresh_notice')
+stack traceback:
+	...ppData\Local\darktable/lua/contrib/assisted_grouping.lua:1911: in function <...ppData\Local\darktable/lua/contrib/assisted_grouping.lua:1911>
+	[C]: in function 'xpcall'
+	...lugins/darktable-assisted-grouping/lua/plugin_common.lua:267: in function <...lugins/darktable-assisted-grouping/lua/plugin_common.lua:266>
+	(...tail calls...)
+	[C]: in ?
+Assisted Tagging panel install: field "changed_callback" can't be written for type lua_check_button
+
+stack traceback:
+	[C]: in ?
+	[C]: in ?
+	...Plugins/darktable-assisted-tagging/lua/plugin_common.lua:291: in function <...Plugins/darktable-assisted-tagging/lua/plugin_common.lua:285>
+	...AppData\Local\darktable/lua/contrib/assisted_tagging.lua:3751: in upvalue 'install_panel'
+	...AppData\Local\darktable/lua/contrib/assisted_tagging.lua:4128: in function <...AppData\Local\darktable/lua/contrib/assisted_tagging.lua:4127>
+	[C]: in function 'xpcall'
+	...Plugins/darktable-assisted-tagging/lua/plugin_common.lua:267: in local 'guard'
+	...AppData\Local\darktable/lua/contrib/assisted_tagging.lua:4127: in main chunk
+	[C]: in function 'require'
+	[C]: in function 'pcall'
+	C:\Users\Louis\AppData\Local\darktable\luarc:5: in local 'luarc'
+	...uis\AppData\Local\darktable/lua/tools/script_manager.lua:1396: in main chunk
+	[C]: in function 'require'
+	C:\Program Files\darktable\share\darktable\luarc:76: in main chunk
+	[C]: in ?
+
+end:   2026-11-17 00:25:21
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 00:29:41
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 07:40:41
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 07:44:18
+
+Exception Code: 0xC0000005
+0x00007FF8C9DC5852, C:\Program Files\darktable\bin\libpixman-1-0.dll(0x00007FF8C9D70000) + 0x55852 byte(s), pixman_region_set_static_pointers() + 0x1382 byte(s)
+0x00007FF8C9DC75A6, C:\Program Files\darktable\bin\libpixman-1-0.dll(0x00007FF8C9D70000) + 0x575A6 byte(s), pixman_region32_union() + 0x96 byte(s)
+0x00007FF9113B9C03, C:\Program Files\darktable\bin\libcairo-2.dll(0x00007FF911360000) + 0x59C03 byte(s), cairo_region_union() + 0x33 byte(s)
+0x00007FF8C9E59D55, C:\Program Files\darktable\bin\libgdk-3-0.dll(0x00007FF8C9E30000) + 0x29D55 byte(s), gdk_window_get_frame_clock() + 0x455 byte(s)
+0x00007FF8917DB272, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8914F0000) + 0x2EB272 byte(s), gtk_widget_queue_draw_area() + 0xB2 byte(s)
+0x00007FF8917E33D1, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8914F0000) + 0x2F33D1 byte(s), gtk_widget_queue_draw() + 0xB1 byte(s)
+0x00007FF8917E3840, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8914F0000) + 0x2F3840 byte(s), gtk_widget_queue_resize() + 0x80 byte(s)
+0x00007FF89165D958, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8914F0000) + 0x16D958 byte(s), gtk_label_set_text() + 0xA8 byte(s)
+0x00007FF89A5897A6, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF89A370000) + 0x2197A6 byte(s), dtgtk_build_style_menu_hierarchy() + 0x6A56 byte(s)
+0x00007FF89A591825, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF89A370000) + 0x221825 byte(s), dt_thumbtable_event_dnd_received() + 0x11F5 byte(s)
+0x00007FF913B5889A, C:\Program Files\darktable\bin\libgobject-2.0-0.dll(0x00007FF913B50000) + 0x889A byte(s), g_closure_invoke() + 0x18A byte(s)
+0x00007FF913B6D804, C:\Program Files\darktable\bin\libgobject-2.0-0.dll(0x00007FF913B50000) + 0x1D804 byte(s), g_param_spec_variant() + 0x2324 byte(s)
+0x00007FF913B73DEC, C:\Program Files\darktable\bin\libgobject-2.0-0.dll(0x00007FF913B50000) + 0x23DEC byte(s), g_signal_emitv() + 0x2DC byte(s)
+0x00007FF89A4958F1, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF89A370000) + 0x1258F1 byte(s), dt_control_progress_cancellable() + 0xD1 byte(s)
+0x00007FF8CA563897, C:\Program Files\darktable\bin\libglib-2.0-0.dll(0x00007FF8CA520000) + 0x43897 byte(s), g_clear_list() + 0x1497 byte(s)
+0x00007FF8CA566FCD, C:\Program Files\darktable\bin\libglib-2.0-0.dll(0x00007FF8CA520000) + 0x46FCD byte(s), g_get_monotonic_time_ns() + 0xABD byte(s)
+0x00007FF8CA567D60, C:\Program Files\darktable\bin\libglib-2.0-0.dll(0x00007FF8CA520000) + 0x47D60 byte(s), g_main_loop_run() + 0x130 byte(s)
+0x00007FF891673A9E, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8914F0000) + 0x183A9E byte(s), gtk_main() + 0x7E byte(s)
+0x00007FF89A5B0700, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF89A370000) + 0x240700 byte(s), dt_gui_gtk_run() + 0x90 byte(s)
+0x00007FF725222862, C:\Program Files\darktable\bin\darktable.exe(0x00007FF725220000) + 0x2862 byte(s)
+0x00007FF725221582, C:\Program Files\darktable\bin\darktable.exe(0x00007FF725220000) + 0x1582 byte(s)
+0x00007FF725221157, C:\Program Files\darktable\bin\darktable.exe(0x00007FF725220000) + 0x1157 byte(s)
+0x00007FF96FF3DDA7, C:\WINDOWS\System32\KERNEL32.DLL(0x00007FF96FF10000) + 0x2DDA7 byte(s), BaseThreadInitThunk() + 0x17 byte(s)
+0x00007FF971879C5C, C:\WINDOWS\SYSTEM32\ntdll.dll(0x00007FF9717B0000) + 0xC9C5C byte(s), RtlUserThreadStart() + 0x2C byte(s)
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 07:58:14
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+Exception Code: 0xC0000005
+Exception Code: 0xC0000005
+0x00007FF9718062CA, C:\WINDOWS\SYSTEM32\ntdll.dll(0x00007FF9717B0000) + 0x562CA byte(s), RtlSizeHeap() + 0x2C7A byte(s)
+0x00007FF9718054AF, C:\WINDOWS\SYSTEM32\ntdll.dll(0x00007FF9717B0000) + 0x554AF byte(s), RtlSizeHeap() + 0x1E5F byte(s)
+0x00007FF9717E1CFB, C:\WINDOWS\SYSTEM32\ntdll.dll(0x00007FF9717B0000) + 0x31CFB byte(s), RtlAllocateHeap() + 0xABB byte(s)
+0x00007FF96F0350D9, C:\WINDOWS\System32\ucrtbase.dll(0x00007FF96F030000) + 0x50D9 byte(s), _malloc_base() + 0x39 byte(s)
+0x00007FF88E648C10, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0x68C10 byte(s), sqlite3_create_collation16() + 0x3B70 byte(s)
+0x00007FF88E5F11D6, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0x111D6 byte(s), sqlite3_keyword_name() + 0x4586 byte(s)
+0x00007FF88E61FC70, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0x3FC70 byte(s), sqlite3_result_error_nomem() + 0x230 byte(s)
+0x00007FF88E62024B, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0x4024B byte(s), sqlite3_result_error_nomem() + 0x80B byte(s)
+0x00007FF88E63E2CC, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0x5E2CC byte(s), sqlite3_unlock_notify() + 0x8AC byte(s)
+0x00007FF88E6967DB, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0xB67DB byte(s), sqlite3_backup_step() + 0x2B4B byte(s)
+0x00007FF88E6D641E, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0xF641E byte(s), sqlite3_exec() + 0x1453E byte(s)
+0x00007FF88E6D900D, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0xF900D byte(s), sqlite3_exec() + 0x1712D byte(s)
+0x00007FF88E6D9998, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0xF9998 byte(s), sqlite3_exec() + 0x17AB8 byte(s)
+0x00007FF88E6D9E3A, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0xF9E3A byte(s), sqlite3_exec() + 0x17F5A byte(s)
+0x00007FF88E6DA207, C:\Program Files\darktable\bin\libsqlite3-0.dll(0x00007FF88E5E0000) + 0xFA207 byte(s), sqlite3_prepare_v2() + 0x27 byte(s)
+0x00007FF88C5C2FB2, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF88C550000) + 0x72FB2 byte(s), dt_exif_read() + 0x3742 byte(s)
+0x00007FF88C5C9919, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF88C550000) + 0x79919 byte(s), _Z19getRegionNormalizedRN5Exiv27XmpDataERKNSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEE10RegionTypeii() + 0x43D9 byte(s)
+0x00007FF88C5CBDBA, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF88C550000) + 0x7BDBA byte(s), dt_exif_xmp_write() + 0x14A byte(s)
+0x00007FF88C5F51AE, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF88C550000) + 0xA51AE byte(s), dt_image_path_append_version() + 0x44E byte(s)
+0x00007FF88C674CC5, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF88C550000) + 0x124CC5 byte(s), dt_image_import_job_create() + 0x185 byte(s)
+0x00007FF88C668B72, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF88C550000) + 0x118B72 byte(s), dt_update_thumbs_thread() + 0xAC2 byte(s)
+0x00007FF88C669288, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF88C550000) + 0x119288 byte(s), dt_update_thumbs_thread() + 0x11D8 byte(s)
+0x00007FF92C60766D, C:\Program Files\darktable\bin\libwinpthread-1.dll(0x00007FF92C600000) + 0x766D byte(s), pthread_create_wrapper() + 0x12D byte(s)
+0x00007FF96F05CD30, C:\WINDOWS\System32\ucrtbase.dll(0x00007FF96F030000) + 0x2CD30 byte(s), wcsrchr() + 0x150 byte(s)
+0x00007FF96FF3DDA7, C:\WINDOWS\System32\KERNEL32.DLL(0x00007FF96FF10000) + 0x2DDA7 byte(s), BaseThreadInitThunk() + 0x17 byte(s)
+0x00007FF971879C5C, C:\WINDOWS\SYSTEM32\ntdll.dll(0x00007FF9717B0000) + 0xC9C5C byte(s), RtlUserThreadStart() + 0x2C byte(s)
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 08:28:42
+
+Exception Code: 0xC0000005
+0x00007FF8C9DC5626, C:\Program Files\darktable\bin\libpixman-1-0.dll(0x00007FF8C9D70000) + 0x55626 byte(s), pixman_region_set_static_pointers() + 0x1156 byte(s)
+0x00007FF8C9DC75A6, C:\Program Files\darktable\bin\libpixman-1-0.dll(0x00007FF8C9D70000) + 0x575A6 byte(s), pixman_region32_union() + 0x96 byte(s)
+0x00007FF9113B9C03, C:\Program Files\darktable\bin\libcairo-2.dll(0x00007FF911360000) + 0x59C03 byte(s), cairo_region_union() + 0x33 byte(s)
+0x00007FF8C9E59D55, C:\Program Files\darktable\bin\libgdk-3-0.dll(0x00007FF8C9E30000) + 0x29D55 byte(s), gdk_window_get_frame_clock() + 0x455 byte(s)
+0x00007FF89099B272, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8906B0000) + 0x2EB272 byte(s), gtk_widget_queue_draw_area() + 0xB2 byte(s)
+0x00007FF8909A33D1, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8906B0000) + 0x2F33D1 byte(s), gtk_widget_queue_draw() + 0xB1 byte(s)
+0x00007FF8909A3840, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8906B0000) + 0x2F3840 byte(s), gtk_widget_queue_resize() + 0x80 byte(s)
+0x00007FF89081DBA8, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8906B0000) + 0x16DBA8 byte(s), gtk_label_set_markup() + 0xA8 byte(s)
+0x00007FF89281F2AA, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF892530000) + 0x2EF2AA byte(s), dt_lua_init_preferences() + 0x3DA byte(s)
+0x00007FF932589ED9, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x9ED9 byte(s), lua_getinfo() + 0x1E59 byte(s)
+0x00007FF93259B57D, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x1B57D byte(s), lua_close() + 0x529D byte(s)
+0x00007FF93258A2C6, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0xA2C6 byte(s), lua_getinfo() + 0x2246 byte(s)
+0x00007FF932588E5F, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x8E5F byte(s), lua_getinfo() + 0xDDF byte(s)
+0x00007FF93258A6A5, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0xA6A5 byte(s), lua_yieldk() + 0x125 byte(s)
+0x00007FF932583957, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x3957 byte(s), lua_pcallk() + 0x87 byte(s)
+0x00007FF9325A1BE3, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x21BE3 byte(s), luaL_checkversion_() + 0x1113 byte(s)
+0x00007FF932589ED9, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x9ED9 byte(s), lua_getinfo() + 0x1E59 byte(s)
+0x00007FF93259B57D, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x1B57D byte(s), lua_close() + 0x529D byte(s)
+0x00007FF93258A2C6, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0xA2C6 byte(s), lua_getinfo() + 0x2246 byte(s)
+0x00007FF932588E5F, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x8E5F byte(s), lua_getinfo() + 0xDDF byte(s)
+0x00007FF93258A6A5, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0xA6A5 byte(s), lua_yieldk() + 0x125 byte(s)
+0x00007FF932583957, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x3957 byte(s), lua_pcallk() + 0x87 byte(s)
+0x00007FF9325A1C9C, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x21C9C byte(s), luaL_checkversion_() + 0x11CC byte(s)
+0x00007FF932589ED9, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x9ED9 byte(s), lua_getinfo() + 0x1E59 byte(s)
+0x00007FF93259B57D, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x1B57D byte(s), lua_close() + 0x529D byte(s)
+0x00007FF93258A2C6, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0xA2C6 byte(s), lua_getinfo() + 0x2246 byte(s)
+0x00007FF932588E5F, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x8E5F byte(s), lua_getinfo() + 0xDDF byte(s)
+0x00007FF93258A6A5, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0xA6A5 byte(s), lua_yieldk() + 0x125 byte(s)
+0x00007FF932583957, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x3957 byte(s), lua_pcallk() + 0x87 byte(s)
+0x00007FF89280F566, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF892530000) + 0x2DF566 byte(s), dt_lua_treated_pcall() + 0x56 byte(s)
+0x00007FF89282B88F, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF892530000) + 0x2FB88F byte(s), dt_lua_widget_trigger_callback() + 0xCF byte(s)
+0x00007FF932589ED9, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x9ED9 byte(s), lua_getinfo() + 0x1E59 byte(s)
+0x00007FF93258A2AD, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0xA2AD byte(s), lua_getinfo() + 0x222D byte(s)
+0x00007FF932588E5F, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x8E5F byte(s), lua_getinfo() + 0xDDF byte(s)
+0x00007FF93258A6A5, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0xA6A5 byte(s), lua_yieldk() + 0x125 byte(s)
+0x00007FF932583957, C:\Program Files\darktable\bin\lua54.dll(0x00007FF932580000) + 0x3957 byte(s), lua_pcallk() + 0x87 byte(s)
+0x00007FF89280F3A5, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF892530000) + 0x2DF3A5 byte(s), dt_lua_gtk_wrap_callback() + 0xCC5 byte(s)
+0x00007FF8CA59DF12, C:\Program Files\darktable\bin\libglib-2.0-0.dll(0x00007FF8CA520000) + 0x7DF12 byte(s), g_thread_yield() + 0x562 byte(s)
+0x00007FF8CA59D01F, C:\Program Files\darktable\bin\libglib-2.0-0.dll(0x00007FF8CA520000) + 0x7D01F byte(s), g_once_init_leave() + 0x24F byte(s)
+0x00007FF8CA59C867, C:\Program Files\darktable\bin\libglib-2.0-0.dll(0x00007FF8CA520000) + 0x7C867 byte(s), g_test_get_path() + 0x367 byte(s)
+0x00007FF96F05CD30, C:\WINDOWS\System32\ucrtbase.dll(0x00007FF96F030000) + 0x2CD30 byte(s), wcsrchr() + 0x150 byte(s)
+0x00007FF96FF3DDA7, C:\WINDOWS\System32\KERNEL32.DLL(0x00007FF96FF10000) + 0x2DDA7 byte(s), BaseThreadInitThunk() + 0x17 byte(s)
+0x00007FF971879C5C, C:\WINDOWS\SYSTEM32\ntdll.dll(0x00007FF9717B0000) + 0xC9C5C byte(s), RtlUserThreadStart() + 0x2C byte(s)
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 08:34:36
+
+
+end:   2026-11-17 08:34:36
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 08:54:21
+
+
+end:   2026-11-17 08:54:21
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 09:03:30
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 09:10:11
+
+     0.8002 [init] the database lock file contains a pid that seems to be alive in your system: 32724
+     0.8003 [init] database is locked, probably another process is already using it
+
+end:   2026-11-17 09:03:30
+========================================
+
+    12.6681 ERROR: can't acquire database lock, aborting.
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 09:10:27
+
+
+end:   2026-11-17 09:10:27
+========================================
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 09:28:11
+
+========================================
+version: darktable 5.6.2
+start: 2026-11-17 10:33:10
+
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 10:34:31.184: pango_layout_is_wrapped: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 10:34:31.229: pango_layout_is_ellipsized: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): GLib-GObject-CRITICAL **: 10:34:31.229: g_object_ref: assertion 'G_IS_OBJECT (object)' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 10:34:31.229: pango_layout_get_extents: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 11:01:39.981: pango_layout_is_wrapped: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 11:01:39.981: pango_layout_is_ellipsized: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): GLib-GObject-CRITICAL **: 11:01:39.982: g_object_ref: assertion 'G_IS_OBJECT (object)' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 11:01:39.982: pango_layout_get_extents: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 11:01:39.998: pango_layout_copy: assertion 'PANGO_IS_LAYOUT (src)' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 11:01:39.998: pango_layout_set_width: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 11:01:39.998: pango_layout_get_extents: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): GLib-GObject-CRITICAL **: 11:01:39.998: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 11:01:40.032: pango_layout_get_line_count: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): Gtk-CRITICAL **: 11:01:40.035: gtk_render_layout: assertion 'PANGO_IS_LAYOUT (layout)' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 11:01:40.103: pango_layout_get_line_count: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): Gtk-CRITICAL **: 11:01:40.103: gtk_render_layout: assertion 'PANGO_IS_LAYOUT (layout)' failed
+
+(org.darktable.darktable:22400): Pango-CRITICAL **: 11:01:40.114: pango_layout_get_line_count: assertion 'layout != NULL' failed
+
+(org.darktable.darktable:22400): Gtk-CRITICAL **: 11:01:40.114: gtk_render_layout: assertion 'PANGO_IS_LAYOUT (layout)' failed
+*** BUG ***
+In pixman_op: The expression r1 != r1_end was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_op: The expression r1 != r1_end was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression y1 < y2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+*** BUG ***
+In pixman_region_append_non_o: The expression r->x1 < r->x2 was false
+Set a breakpoint on '_pixman_log_error' to debug
+
+Exception Code: 0xC0000005
+0x00007FF96F11E5EC, C:\WINDOWS\System32\ucrtbase.dll(0x00007FF96F030000) + 0xEE5EC byte(s), memcpy() + 0x31C byte(s)
+0x00007FF8C9D95846, C:\Program Files\darktable\bin\libpixman-1-0.dll(0x00007FF8C9D40000) + 0x55846 byte(s), pixman_region_set_static_pointers() + 0x1376 byte(s)
+0x00007FF8C9D975A6, C:\Program Files\darktable\bin\libpixman-1-0.dll(0x00007FF8C9D40000) + 0x575A6 byte(s), pixman_region32_union() + 0x96 byte(s)
+0x00007FF9113B9C03, C:\Program Files\darktable\bin\libcairo-2.dll(0x00007FF911360000) + 0x59C03 byte(s), cairo_region_union() + 0x33 byte(s)
+0x00007FF8CA349D55, C:\Program Files\darktable\bin\libgdk-3-0.dll(0x00007FF8CA320000) + 0x29D55 byte(s), gdk_window_get_frame_clock() + 0x455 byte(s)
+0x00007FF8A8DFB272, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8A8B10000) + 0x2EB272 byte(s), gtk_widget_queue_draw_area() + 0xB2 byte(s)
+0x00007FF8A8E033D1, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8A8B10000) + 0x2F33D1 byte(s), gtk_widget_queue_draw() + 0xB1 byte(s)
+0x00007FF8A8E03840, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8A8B10000) + 0x2F3840 byte(s), gtk_widget_queue_resize() + 0x80 byte(s)
+0x00007FF8A8C7DBA8, C:\Program Files\darktable\bin\libgtk-3-0.dll(0x00007FF8A8B10000) + 0x16DBA8 byte(s), gtk_label_set_markup() + 0xA8 byte(s)
+0x00007FF891C7F2AA, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF891990000) + 0x2EF2AA byte(s), dt_lua_init_preferences() + 0x3DA byte(s)
+0x00007FF92C659ED9, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x9ED9 byte(s), lua_getinfo() + 0x1E59 byte(s)
+0x00007FF92C66B57D, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x1B57D byte(s), lua_close() + 0x529D byte(s)
+0x00007FF92C65A2C6, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0xA2C6 byte(s), lua_getinfo() + 0x2246 byte(s)
+0x00007FF92C658E5F, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x8E5F byte(s), lua_getinfo() + 0xDDF byte(s)
+0x00007FF92C65A6A5, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0xA6A5 byte(s), lua_yieldk() + 0x125 byte(s)
+0x00007FF92C653957, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x3957 byte(s), lua_pcallk() + 0x87 byte(s)
+0x00007FF92C671BE3, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x21BE3 byte(s), luaL_checkversion_() + 0x1113 byte(s)
+0x00007FF92C659ED9, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x9ED9 byte(s), lua_getinfo() + 0x1E59 byte(s)
+0x00007FF92C66B57D, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x1B57D byte(s), lua_close() + 0x529D byte(s)
+0x00007FF92C65A2C6, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0xA2C6 byte(s), lua_getinfo() + 0x2246 byte(s)
+0x00007FF92C658E5F, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x8E5F byte(s), lua_getinfo() + 0xDDF byte(s)
+0x00007FF92C65A6A5, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0xA6A5 byte(s), lua_yieldk() + 0x125 byte(s)
+0x00007FF92C653957, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x3957 byte(s), lua_pcallk() + 0x87 byte(s)
+0x00007FF92C671C9C, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x21C9C byte(s), luaL_checkversion_() + 0x11CC byte(s)
+0x00007FF92C659ED9, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x9ED9 byte(s), lua_getinfo() + 0x1E59 byte(s)
+0x00007FF92C66B57D, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x1B57D byte(s), lua_close() + 0x529D byte(s)
+0x00007FF92C65A2C6, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0xA2C6 byte(s), lua_getinfo() + 0x2246 byte(s)
+0x00007FF92C658E5F, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x8E5F byte(s), lua_getinfo() + 0xDDF byte(s)
+0x00007FF92C65A6A5, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0xA6A5 byte(s), lua_yieldk() + 0x125 byte(s)
+0x00007FF92C653957, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x3957 byte(s), lua_pcallk() + 0x87 byte(s)
+0x00007FF891C6F566, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF891990000) + 0x2DF566 byte(s), dt_lua_treated_pcall() + 0x56 byte(s)
+0x00007FF891C8B88F, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF891990000) + 0x2FB88F byte(s), dt_lua_widget_trigger_callback() + 0xCF byte(s)
+0x00007FF92C659ED9, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x9ED9 byte(s), lua_getinfo() + 0x1E59 byte(s)
+0x00007FF92C65A2AD, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0xA2AD byte(s), lua_getinfo() + 0x222D byte(s)
+0x00007FF92C658E5F, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x8E5F byte(s), lua_getinfo() + 0xDDF byte(s)
+0x00007FF92C65A6A5, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0xA6A5 byte(s), lua_yieldk() + 0x125 byte(s)
+0x00007FF92C653957, C:\Program Files\darktable\bin\lua54.dll(0x00007FF92C650000) + 0x3957 byte(s), lua_pcallk() + 0x87 byte(s)
+0x00007FF891C6F3A5, C:\Program Files\darktable\bin\libdarktable.dll(0x00007FF891990000) + 0x2DF3A5 byte(s), dt_lua_gtk_wrap_callback() + 0xCC5 byte(s)
+0x00007FF8CA16DF12, C:\Program Files\darktable\bin\libglib-2.0-0.dll(0x00007FF8CA0F0000) + 0x7DF12 byte(s), g_thread_yield() + 0x562 byte(s)
+0x00007FF8CA16D01F, C:\Program Files\darktable\bin\libglib-2.0-0.dll(0x00007FF8CA0F0000) + 0x7D01F byte(s), g_once_init_leave() + 0x24F byte(s)
+0x00007FF8CA16C867, C:\Program Files\darktable\bin\libglib-2.0-0.dll(0x00007FF8CA0F0000) + 0x7C867 byte(s), g_test_get_path() + 0x367 byte(s)
+0x00007FF96F05CD30, C:\WINDOWS\System32\ucrtbase.dll(0x00007FF96F030000) + 0x2CD30 byte(s), wcsrchr() + 0x150 byte(s)
+0x00007FF96FF3DDA7, C:\WINDOWS\System32\KERNEL32.DLL(0x00007FF96FF10000) + 0x2DDA7 byte(s), BaseThreadInitThunk() + 0x17 byte(s)
+0x00007FF971879C5C, C:\WINDOWS\SYSTEM32\ntdll.dll(0x00007FF9717B0000) + 0xC9C5C byte(s), RtlUserThreadStart() + 0x2C byte(s)
+========================================
+version: darktable 5.6.2
