@@ -273,6 +273,22 @@ function C.error_guard(dt, log_path, title)
     end
 end
 
+-- Returns new_widget(kind)(props): dt.new_widget(kind)(props) with every *_callback
+-- function in `props` run through `guard` (from error_guard), labelled by kind and label.
+function C.guarded_widget_maker(dt, guard)
+    return function(kind)
+        return function(props)
+            for key, fn in pairs(props) do
+                if type(key) == "string" and key:match("_callback$") and type(fn) == "function" then
+                    local label = kind .. " " .. tostring(props.label or key)
+                    props[key] = function(...) return guard(label, fn, ...) end
+                end
+            end
+            return dt.new_widget(kind)(props)
+        end
+    end
+end
+
 -- Names in `dir` (files and folders, no dots), or an empty list when it can't be listed.
 function C.list_dir(dir, windows)
     if windows == nil then windows = C.IS_WINDOWS end
