@@ -2637,7 +2637,19 @@ local function apply_results(run, job)
     end
 
     run.applying = true
+    -- identify.py has exited, so the log can be flushed as the writes go: a crash mid-apply
+    -- then leaves the last image reached in the log
+    local n_copies = 0
+    for _, img in ipairs(primaries) do n_copies = n_copies + #group_of[img.id] end
+    log(string.format("apply: writing tags to %d images (%d copies)", #primaries, n_copies))
+    flush_log()
+    local apply_start = os.time()
     for i, img in ipairs(primaries) do
+        if i % 100 == 0 then
+            log(string.format("apply: %d / %d images, image id %s, %ds", i, #primaries,
+                tostring(img.id), os.time() - apply_start))
+            flush_log()
+        end
         local results = rows_of[tonumber(img.id)]
         if skipped[tonumber(img.id)] then
             n_skipped = n_skipped + 1
@@ -2816,7 +2828,11 @@ function M.identify_images(images, replace_manual, verify_only)
 
     -- Saved once tags may have changed, even if the apply stopped or errored partway, so the tags
     -- this run attached aren't mistaken for the user's next time. Earlier stages leave it as it was.
-    if run and run.applying then write_ledger(run.ledger) end
+    if run and run.applying then
+        log("apply: saving the ledger")
+        flush_log()
+        write_ledger(run.ledger)
+    end
     end_job(job)
     busy = false
     set_idle_label()
