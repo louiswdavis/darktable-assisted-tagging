@@ -40,11 +40,11 @@ ok   centring keeps the identical car at 1
 all tests passed
 
 --- stderr ---
-19:26:47 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-19:26:47 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-19:26:47 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-19:26:47 py: references: stopped after 1 of 2; the rest are embedded next time
-19:26:47 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-19:26:47 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-19:26:47 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
-19:26:47 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+19:32:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+19:32:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+19:32:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+19:32:16 py: references: stopped after 1 of 2; the rest are embedded next time
+19:32:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+19:32:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+19:32:17 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
+19:32:17 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)

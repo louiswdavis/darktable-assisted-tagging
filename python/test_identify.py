@@ -892,28 +892,35 @@ def run_tests():
     check("a file that no longer matches the run is stale", open(results, encoding="utf-8").read().strip(), "1,stale,,")
 
     # ---- add-time screening: refs flagged by 2+ audit checks are refused (skip) or kept with a log line (warn)
-    import audit_refs
+    # the real screen_refs runs: wide 160x80 seed refs make the near-square red crop fail the crop
+    # check, and blue seeds also fail the colour check; the stand-in embedder trips no embedding check
+    seeds = [os.path.join(coll, "refs", "VER", f"{n}.jpg") for n in range(2, 6)] + [os.path.join(coll, "refs", "TSU", f"{n}.jpg") for n in (6, 7)]
+
+    def seed_refs(rgb):
+        for p in seeds:
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            Image.new("RGB", (160, 80), rgb).save(p)
+
     write_promo([100, 50])
-    real_screen = audit_refs.screen_refs
-    audit_refs.screen_refs = lambda collection, rels: {r: ["outlier", "colour"] for r in rels}
+    seed_refs((30, 30, 200))
     try:
         I.promote_boxes(pargs, {"embedder": "fake"})
         check("a promoted box the audit checks flag is not saved", open(results, encoding="utf-8").read().strip(), "1,flagged,,VER")
         check("a flagged box's crop is replaced by the sample it overwrote",
-              os.listdir(os.path.join(coll, "refs", "VER")), ["1_b0.jpg"])
-        audit_refs.screen_refs = lambda collection, rels: {r: ["outlier"] for r in rels}
+              sorted(os.listdir(os.path.join(coll, "refs", "VER"))), ["1_b0.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg"])
+        seed_refs((200, 30, 30))
         I.promote_boxes(pargs, {"embedder": "fake"})
         check("one flag alone does not refuse a box", open(results, encoding="utf-8").read().strip(), "1,added,,VER")
-        kept = os.listdir(os.path.join(coll, "refs", "VER"))
-        with open(os.path.join(coll, "refs", "VER", kept[0]), "rb") as f:
+        with open(os.path.join(coll, "refs", "VER", "1_b0.jpg"), "rb") as f:
             before = f.read()
         write_promo([100, 50])
-        audit_refs.screen_refs = lambda collection, rels: {r: ["outlier", "colour"] for r in rels}
+        seed_refs((30, 30, 200))
         I.promote_boxes(pargs, {"embedder": "fake"})
-        with open(os.path.join(coll, "refs", "VER", kept[0]), "rb") as f:
+        with open(os.path.join(coll, "refs", "VER", "1_b0.jpg"), "rb") as f:
             check("a refused re-promote puts the earlier sample back", f.read() == before, True)
     finally:
-        audit_refs.screen_refs = real_screen
+        for p in seeds:
+            os.remove(p)
 
     # ---- reference actions fill an entry's colour (the colour family)
     import entries_file
@@ -924,8 +931,6 @@ def run_tests():
     no_car = VD.Detector(id="fakenone:x:1:abc", family="fakenone", net=None, classes=frozenset({2, 3, 7}))
     ref_w = dict(I._W)
     I._W.update(detector=one_car, detections=VD.DetectionCache(os.path.join(tempfile.mkdtemp(), "detections.sqlite")))
-    # refs cut from one crop pile up here; screening them is the block above's subject
-    audit_refs.screen_refs = lambda collection, rels: {}
     vmodels = {"embedder": "fake", "detector": ""}
     colour_on = dict(FIXTURE_SETTINGS, family_colour=True)
     ccoll = collection(entries_file.dump({"rules": {"partial_references": True}, "entries": [VER, TSU]}), root=root, settings=colour_on)
@@ -998,7 +1003,6 @@ def run_tests():
         I._W["detections"].close()
         I._W.clear()
         I._W.update(ref_w)
-        audit_refs.screen_refs = real_screen
 
     # ---- Review Focus 4: cancel leaves no results
     os.remove(results)
