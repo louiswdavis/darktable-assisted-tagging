@@ -4,27 +4,27 @@ thresholds: min_sim 0.6, min_margin 0.1, reference_margin 0.1
 
 ## Summary
 
-5021 vehicles/images, identified rate 48%
+5021 vehicles/images, identified rate 50%
 
-- identified: 2400 (48%)
+- identified: 2529 (50%)
 - team-obvious: 0 (0%)
-- weak-match: 1384 (28%)
+- weak-match: 1261 (25%)
 - no-references: 0 (0%)
-- number-unmatched: 76 (2%)
+- number-unmatched: 70 (1%)
 - conflict: 13 (0%)
 - overlapped: 867 (17%)
 - already-tagged: 27 (1%)
 - no-vehicle: 254 (5%)
-- median weak-match: top-1 0.597, margin 0.031
-- colours: no colour 1575, Red 466, Black 425, Multi 97, Grey 198, Purple 118, Green 375, Pink 206, Yellow 135, White 471, Blue 530, Brown 99, Orange 45
+- median weak-match: top-1 0.588, margin 0.030
+- colours: no colour 1562, Red 467, Black 423, Multi 96, Grey 199, Purple 120, Green 381, Pink 206, Yellow 135, White 474, Blue 533, Brown 99, Orange 45
 
 ## detector score
 
-- 0.00-0.30: 611 boxes, 58 identified
-- 0.30-0.40: 266 boxes, 36 identified
-- 0.40-0.50: 155 boxes, 18 identified
-- 0.50-0.70: 243 boxes, 37 identified
-- 0.70-1.00: 3465 boxes, 2251 identified
+- 0.00-0.30: 611 boxes, 62 identified
+- 0.30-0.40: 266 boxes, 40 identified
+- 0.40-0.50: 155 boxes, 22 identified
+- 0.50-0.70: 243 boxes, 41 identified
+- 0.70-1.00: 3465 boxes, 2364 identified
 
 ## sponsor keyword suggestions
 
@@ -99,7 +99,7 @@ largest within-burst gap (possible merge):
 - burst 238: 6 frames over 2s, largest gap 2s, 6 with vehicles, 0 without
 - burst 244: 3 frames over 2s, largest gap 2s, 3 with vehicles, 0 without
 
-## weak-match (1384)
+## weak-match (1261)
 
 - `199707` box 0: `85` 0.278, `21` 0.264, `26` 0.258; below_min_sim, short by 0.322; detector 0.87; ocr saw `Castrol` 0.98 h0.16, `P` 0.21 h0.05; pod unclear (yellow 0.000, aspect 1.0); colour Pink (P0.92); lever: weak match, add references from this angle
 - `199523` box 0: `21` 0.292, `74` 0.279, `62` 0.270; below_min_sim, short by 0.308; detector 0.75; ocr saw `EBC` 0.97 h0.04, `FASSI` 0.94 h0.04, `SSIC SPEED CH` 0.73 h0.02; pod unclear (yellow 0.001, aspect 0.6); colour Red (R0.73 G0.10 P0.06); lever: weak match, add references from this angle
@@ -121,17 +121,15 @@ largest within-burst gap (possible merge):
 - `199367` box 3: `39` 0.337, `63` 0.333, `21` 0.326; below_min_sim, short by 0.263; detector 0.75; ocr saw `` 0.00 h0.04; pod black (yellow 0.000, aspect 1.8); colour Green (G0.43 G0.15 P0.14 Bk0.13); lever: weak match, add references from this angle
 - `202067` box 1: `21` 0.337, `63` 0.307, `50` 0.287; below_min_sim, short by 0.263; detector 0.92; ocr saw no text; pod black (yellow 0.000, aspect 5.1); colour White (W0.89 G0.06); lever: weak match, add references from this angle
 - `199909` box 0: `63` 0.339, `21` 0.322, `50` 0.320; below_min_sim, short by 0.261; detector 0.95; ocr saw `品` 0.71 h0.07, `ALiveyrace Graph` 0.28 h0.03; pod yellow (yellow 0.009, aspect 1.2); colour Multi (M0.85 W0.07 P0.05); lever: weak match, add references from this angle
-- … 1364 more in report.json
+- … 1241 more in report.json
 
-## number-unmatched (76)
+## number-unmatched (70)
 
 - `199683` box 0: `86` 0.279, `50` 0.278, `63` 0.275; below_min_sim, short by 0.321; detector 0.94; read `86`, `37`; start list 86/37>37 0.00, 86 0.00 close call; pod black (yellow 0.000, aspect 1.5); colour unclear (W0.35 G0.27 G0.15 M0.08 O0.05); lever: no entry has number 86 or 37
 - `199685` box 0: `86` 0.292, `39` 0.288, `63` 0.285; below_min_sim, short by 0.308; detector 0.94; read `37`, `86`, `0`; start list 37/86/0>37 0.00, 86 0.00 close call; pod black (yellow 0.000, aspect 1.5); colour unclear (W0.36 G0.27 G0.15 M0.10); lever: no entry has number 37 or 86 or 0
 - `204531` box 0: `109` 0.490, `42` 0.422, `32` 0.416; below_min_sim, short by 0.110; detector 0.93; read `58`; start list 58>8 -7.60, 68 -8.11 no list read; pod yellow (yellow 0.006, aspect 3.0); colour Pink (P0.54 P0.18 R0.16 B0.08); lever: no entry has number 58
 - `198447` box 0: `83` 0.509, `52` 0.501, `3` 0.476; below_min_sim, short by 0.090; detector 0.97; read `0`, `52`; start list 0/52>10 0.25, 52 0.00 close call; pod black (yellow 0.000, aspect 1.4); colour Blue (Bl0.89); lever: no entry has number 0 or 52
-- `199393` box 0: `43` 0.528, `121` 0.524, `30` 0.503; below_min_sim, short by 0.072; detector 0.95; read `56`; start list 56>6 -7.82, 36 -8.11 no list read; pod black (yellow 0.000, aspect 2.7); colour White (W0.55 M0.10 G0.09 G0.07 Bk0.05); lever: no entry has number 56
 - `202307` box 0: `55` 0.539, `26` 0.526, `22` 0.501; below_min_sim, short by 0.061; detector 0.96; read `60`; start list 60>60 0.00, 6 -3.99; pod black (yellow 0.000, aspect 3.0); colour Pink (P0.75 P0.10 R0.07); lever: no entry has number 60
-- `202023` box 0: `30` 0.560, `47` 0.513, `109` 0.467; below_min_sim, short by 0.040; detector 0.95; read `73`; start list 73>73 0.00, 3 -6.05; pod black (yellow 0.000, aspect 2.8); colour Red (R0.62 G0.10 G0.07 P0.07); lever: no entry has number 73
 - `198497` box 0: `43` 0.584, `109` 0.570, `103` 0.566; below_min_sim, short by 0.016; detector 0.95; read `246`; start list 246>82 -5.44, 84 -5.51 no list read; pod unclear (yellow 0.000, aspect 1.2); colour Blue (Bl0.69 B0.06 G0.05); lever: no entry has number 246
 - `205447` box 0: `83` 0.592, `76` 0.582, `21` 0.532; below_min_sim, short by 0.008; detector 0.94; read `688`; start list 688>808 -5.23, 68 -5.34 no list read; pod unclear (yellow 0.000, aspect 1.2); colour unclear (P0.21 W0.20 R0.20 G0.13 B0.10 M0.08); lever: no entry has number 688
 - `205449` box 0: `76` 0.613, `83` 0.599, `21` 0.510; margin_too_small, short by 0.085; detector 0.94; read `688`; start list 688>68 -4.87, 86 -6.16 no list read; pod unclear (yellow 0.000, aspect 1.2); colour unclear (W0.29 R0.20 P0.13 M0.11 B0.10 G0.09); lever: no entry has number 688
@@ -145,7 +143,9 @@ largest within-burst gap (possible merge):
 - `202591` box 1: `83` 0.648, `44` 0.631, `102` 0.616; margin_too_small, short by 0.083; detector 0.83; read `307`, `73`; start list 307/73>73 0.00, 730 -2.51; pod black (yellow 0.000, aspect 2.0); colour Black (Bk0.80 B0.09); lever: no entry has number 307 or 73
 - `198579` box 0: `21` 0.652, `85` 0.650, `75` 0.588; margin_too_small, short by 0.098; detector 0.93; read `06`, `71`; start list 06/71>50 0.92, 107 0.89 close call; pod unclear (yellow 0.000, aspect 1.3); colour unclear (G0.38 G0.34 B0.13 W0.05); lever: no entry has number 06 or 71
 - `199913` box 1: `83` 0.653, `102` 0.626, `44` 0.617; margin_too_small, short by 0.072; detector 0.96; read `8`; start list 8>18 0.29, 8 0.00 close call; pod yellow (yellow 0.037, aspect 0.9); colour Yellow (Y0.79 B0.10); lever: no entry has number 8
-- … 56 more in report.json
+- `204541` box 0: `30` 0.662, `94` 0.649, `3` 0.638; margin_too_small, short by 0.088; detector 0.96; read `609`, `58`; start list 609/58>809 -6.86, 5 -7.85 no list read; pod yellow (yellow 0.068, aspect 1.9); colour Red (R0.41 B0.27 P0.21); lever: no entry has number 609 or 58
+- `205241` box 0: `103` 0.673, `98` 0.633, `116` 0.628; margin_too_small, short by 0.060; detector 0.94; read `45`; start list 45>4 -6.37, 5 -7.29 no list read; pod unclear (yellow 0.000, aspect 1.1); colour Red (R0.72 B0.17); lever: no entry has number 45
+- … 50 more in report.json
 
 ## conflict (13)
 
