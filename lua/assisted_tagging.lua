@@ -53,6 +53,8 @@ M.DIAG_TAGS = {
     -- the outcome tags above, added whenever OCR read a number that didn't resolve.
     number_seen = "Assisted Tagging|Identification|Number seen",
     check_colour = "Assisted Tagging|Identification|Check colour",
+    -- a livery, burst or neighbour match unlike its car's anchors; the box keeps no entry tag
+    check_match = "Assisted Tagging|Identification|Check match",
     -- Experimental (rules.burst_livery_pooling): a frame resolved by pooling box-0
     -- livery similarity across its burst rather than on its own.
     pooled = "Assisted Tagging|Identification|By pooled burst",
@@ -338,6 +340,8 @@ function M.wanted_tags(rows, entries, rules, hand_from)
             if base and base ~= "" then diag[base .. "|" .. r.colour] = true end
             if r.colour_flag then note("check_colour") end
         end
+        -- Independent of the outcome: a match dropped because it didn't look like its car's anchors.
+        if r.anchor_flag then note("check_match") end
         -- Listed sponsor words read inside this vehicle box, one tag each.
         if r.box >= 0 and r.sponsor and r.sponsor ~= "" then
             local base = rules.families.sponsor
@@ -997,7 +1001,7 @@ end
 function M.read_results(text)
     local rows_of, errored, skipped = {}, {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 12) or M.parse_csv_line(line, 11) or M.parse_csv_line(line, 10) or M.parse_csv_line(line, 9)
+        local p = M.parse_csv_line(line, 13) or M.parse_csv_line(line, 12) or M.parse_csv_line(line, 11) or M.parse_csv_line(line, 10) or M.parse_csv_line(line, 9)
         local id = p and tonumber(p[1])
         if id and p[3] == "error" then
             errored[id] = true
@@ -1007,7 +1011,8 @@ function M.read_results(text)
             rows_of[id] = rows_of[id] or {}
             table.insert(rows_of[id], { box = tonumber(p[2]), method = p[3], entry_id = p[4],
                                          alt_entry_id = p[5], unmatched_number = p[7], shot = p[8], order_flag = p[9] == "1",
-                                         colour = p[10] or "", colour_flag = p[11] == "1", sponsor = p[12] or "" })
+                                         colour = p[10] or "", colour_flag = p[11] == "1", sponsor = p[12] or "",
+                                         anchor_flag = p[13] == "1" })
         end
     end
     return rows_of, errored, skipped
@@ -1240,6 +1245,8 @@ M.PRESET_SCHEMA = {
     { key = "tag_number_seen_name", kind = "string", default = "Assisted Tagging|Identification|Number seen" },
     { key = "tag_check_colour", kind = "bool", default = true },
     { key = "tag_check_colour_name", kind = "string", default = "Assisted Tagging|Identification|Check colour" },
+    { key = "tag_check_match", kind = "bool", default = true },
+    { key = "tag_check_match_name", kind = "string", default = "Assisted Tagging|Identification|Check match" },
     { key = "tag_shot", kind = "bool", default = true },
     { key = "tag_shot_name", kind = "string", default = "Assisted Tagging|Identification|Shot" },
     { key = "tag_shot_crowded", kind = "bool", default = true },
@@ -1446,6 +1453,8 @@ local TAG_TOGGLES = {
       when = "OCR read digits that didn't resolve to one entry. Added alongside the outcome tag." },
     { key = "check_colour", kind = "check", label = "Check colour",
       when = "the number read is confident but the car's colour differs from its entry's. Delete this tag once checked." },
+    { key = "check_match", kind = "check", label = "Check match",
+      when = "a livery, burst or neighbour match didn't look like the car's anchors (refs you tagged or picked, or strong number reads), so no entry tag was added. Tag the photo by hand if it is that car." },
     { key = "shot", kind = "check", label = "Shot",
       when = "Solo: one vehicle found. Pack: two or three." },
     { key = "shot_crowded", kind = "check", label = "Shot crowded",
@@ -3131,7 +3140,9 @@ function M.add_references(images, entry_id)
             say(_("Assisted Tagging: no selected image carries all of one entry's tags, so nothing was added."))
             return
         end
-        local results = run_reference_job(state, rows, { "--add-reference" }, "adding references")
+        -- a chosen car makes picked refs (anchors, like hand ones; refs/sources.json records which)
+        local results = run_reference_job(state, rows, entry_id and { "--add-reference", "--picked" } or { "--add-reference" },
+            "adding references")
         if not results then return end
         local added, no_car, failed, no_face, multi, team_rule = 0, 0, 0, 0, 0, 0
         local parsed, notes = M.parse_reference_results(results)
@@ -3387,6 +3398,10 @@ function M.audit_references()
         if (c.quarantined or 0) > 0 then
             crops_note = crops_note .. string.format(" %d refs moved to refs-quarantine (listed in moved.txt).", c.quarantined)
         end
+        if (c.doubtful_anchors or 0) > 0 then
+            crops_note = crops_note .. string.format(" %d anchors look doubtful (never moved; check them by hand).", c.doubtful_anchors)
+        end
+        crops_note = crops_note .. string.format(" %d cars have no anchor.", c.unanchored or 0)
         say(string.format("Assisted Tagging: audited %d references: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers, %d odd crops; %d flagged by 2+ checks (start there).%s Details in %s",
             c.references or 0, c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, c.crops or 0, c.strongest or 0, crops_note, report))
     end)

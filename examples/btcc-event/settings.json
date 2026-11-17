@@ -45,6 +45,8 @@
   "tag_number_seen_name": "Assisted Tagging|Identification|Number seen",
   "tag_check_colour": true,
   "tag_check_colour_name": "Assisted Tagging|Identification|Check colour",
+  "tag_check_match": true,
+  "tag_check_match_name": "Assisted Tagging|Identification|Check match",
   "tag_shot": true,
   "tag_shot_name": "Assisted Tagging|Identification|Shot"
 }

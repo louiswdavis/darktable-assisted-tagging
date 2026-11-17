@@ -5,9 +5,11 @@ it never moves or deletes anything. Run from this folder:
   python audit_refs.py COLLECTION_DIR [--dup-sim 0.97] [--top 40] [--detector PATH.onnx] [--suggest-crops]
 
 Writes ref-audit.txt in COLLECTION_DIR. Sections:
-  strongest candidates - refs flagged by 2+ of the checks below; start here
+  strongest candidates - refs flagged by 2+ of the checks below; start here (anchors are listed, never moved)
+  cars with no anchor - cars none of whose refs the user tagged or picked or a strong number read saved
   attractors         - correctly filed refs that are the closest match for other entries' refs (they pull wrong cars in)
-  mislabel suspects  - closer to another entry's refs than to its own (margin = other - own, 0.2+)
+  mislabel suspects  - closer to another car's refs than to its own (margin = other - own, 0.2+); a car
+                       with anchors (reference_store.anchor_source) is compared with its anchors only
   cross-entry copies - near-identical to a ref filed under a different entry
   outliers           - far from the rest of its own entry (robust z-score, entries with 5+ refs)
   odd crops          - crop size or shape far from the entry's usual (distant car, whole frame, nose-only cut)
@@ -27,6 +29,8 @@ import numpy as np
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from eval_matching import load, unit
+from match import TEAM_KEY
+from reference_store import anchor_source, read_sources
 
 MISLABEL_MIN_MARGIN = 0.2  # other-entry similarity must beat the own-entry one by this much
 CROP_MIN_Z = 4.0  # robust z of crop size or aspect ratio against the entry's median
@@ -46,15 +50,56 @@ STRONG_MIN_FLAGS = 2  # checks that must flag a ref for it to be a strongest can
 COLOUR_MAD_FLOOR = 0.03 # entries whose refs agree closely would otherwise flag normal lighting variation
 
 
-def audit(emb, entry, dup_sim):
-    """Returns (mislabel, copies, outliers, redundant) lists, each worst first."""
+def ref_cars(collection_dir, entry):
+    """Each ref's car key: a double-driven car's second entry names the first in entries.json `car`
+    (match.Entry.car), so both pool their refs under the first id; any other entry is its own car."""
+    with open(os.path.join(collection_dir, "entries.json"), encoding="utf-8") as f:
+        data = json.load(f)
+    items = data["entries"] if isinstance(data, dict) else data
+    car = {e["id"]: e.get("car") or e["id"] for e in items}
+    return [car.get(e, e) for e in entry]
+
+
+def ref_anchors(collection_dir, path):
+    """Bool array: which refs are anchors (refs/sources.json, backfilled by file name)."""
+    return np.array([anchor_source(r) for r in read_sources(collection_dir, path)], dtype=bool)
+
+
+def unanchored_cars(collection_dir):
+    """Car keys (ref_cars) with refs in index.npz but no anchor among them, sorted. Counts every
+    car with a ref, unlike load(), which skips entries under 2 refs."""
+    with np.load(os.path.join(collection_dir, "index.npz"), allow_pickle=False) as z:
+        entry, path = [str(e) for e in z["entry"]], [str(p) for p in z["path"]]
+    keep = [i for i, e in enumerate(entry) if not e.startswith(TEAM_KEY)]
+    entry, path = [entry[i] for i in keep], [path[i] for i in keep]
+    anchored = Counter()
+    for car, anchor in zip(ref_cars(collection_dir, entry), ref_anchors(collection_dir, path)):
+        anchored[car] += int(anchor)
+    return sorted((c for c, k in anchored.items() if k == 0), key=lambda c: (len(c), c))
+
+
+def audit(emb, entry, dup_sim, car=None, anchor=None, skip=()):
+    """Returns (mislabel, copies, outliers, redundant, own_best, other_best), lists worst first. Refs
+    are compared per car (`car`: each ref's car key, default its entry). With `anchor` (bool per ref),
+    a ref whose car has another anchor is compared with those anchors only, and other cars count by
+    their anchors when they have any, by every ref otherwise. Refs in `skip` (paths' indexes) are never
+    compared with, so a job's new refs aren't judged against each other."""
     x = unit(emb - emb.mean(axis=0))
     sims = x @ x.T
     n = len(entry)
     ent = np.array(entry)
-    same = ent[:, None] == ent[None, :]
-    own = np.where(same & (sims < dup_sim) & ~np.eye(n, dtype=bool), sims, -np.inf)
-    other = np.where(~same, sims, -np.inf)
+    key = ent if car is None else np.array(car)
+    same = key[:, None] == key[None, :]
+    col = np.ones(n, dtype=bool)
+    col[list(skip)] = False
+    peers = same & (sims < dup_sim) & ~np.eye(n, dtype=bool) & col[None, :]
+    if anchor is not None:
+        anchored = np.isin(key, list(set(key[anchor & col])))
+        col &= anchor | ~anchored
+        mine = peers & anchor[None, :]
+        peers = np.where(mine.any(axis=1)[:, None], mine, peers)
+    own = np.where(peers, sims, -np.inf)
+    other = np.where(~same & col[None, :], sims, -np.inf)
     own_best, own_arg = own.max(axis=1), own.argmax(axis=1)
     other_best, other_arg = other.max(axis=1), other.argmax(axis=1)
 
@@ -63,7 +108,8 @@ def audit(emb, entry, dup_sim):
         j = other_arg[i]
         if other_best[i] >= dup_sim:
             copies.append((other_best[i], i, j))
-        if other_best[i] - own_best[i] >= MISLABEL_MIN_MARGIN:
+        # own_best is -inf when the car has nothing else to compare with: no evidence either way
+        if np.isfinite(own_best[i]) and other_best[i] - own_best[i] >= MISLABEL_MIN_MARGIN:
             mislabel.append((other_best[i] - own_best[i], i, j))
 
     outliers = []
@@ -355,19 +401,23 @@ def ref_flags(mislabel, copies, outliers, colours, crops, frames):
 
 def screen_refs(collection_dir, rels, dup_sim=0.97):
     """The audit's per-ref checks (not attractors or whole frames, which need every ref queried or a
-    detector) run for just `rels`, refs already in the saved index. Returns {rel: [check names]} for
-    those with a flag; empty when the index holds under 2 entries. Entries with too few refs for a check
-    (5 for outliers, 4 for colour and crop) pass it, as in the audit."""
+    detector) run for just `rels`, refs already in the saved index. Each is compared with the refs
+    saved before the job, never with the others in `rels`, and per car against its anchors (audit).
+    Returns {rel: [check names]} for those with a flag; empty when the index holds under 2 entries.
+    Entries with too few refs for a check (5 for outliers, 4 for colour and crop) pass it, as in the
+    audit."""
     emb, entry, path, _team, _ = load(collection_dir)
     if len(set(entry)) < 2:
         return {}
-    mislabel, copies, outliers, *_ = audit(emb, entry, dup_sim)
+    wanted = set(rels)
+    skip = [i for i, rel in enumerate(path) if rel in wanted]
+    mislabel, copies, outliers, *_ = audit(emb, entry, dup_sim, ref_cars(collection_dir, entry),
+                                           ref_anchors(collection_dir, path), skip)
     try:
         colours = colour_audit(collection_dir, entry, path, ref_events(path)[0])
     except ImportError:  # no cv2: the colour check is skipped
         colours = []
     flags = ref_flags(mislabel, copies, outliers, colours, crop_audit(collection_dir, entry, path), [])
-    wanted = set(rels)
     return {path[i]: f for i, f in flags.items() if path[i] in wanted}
 
 
@@ -382,7 +432,9 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
     emb, entry, path, team, _ = load(collection_dir)
     if len(set(entry)) < 2:
         sys.exit(f"{collection_dir} needs 2+ entries with 2+ references each to audit")
-    mislabel, copies, outliers, redundant, own_best, other_best = audit(emb, entry, dup_sim)
+    car, anchor = ref_cars(collection_dir, entry), ref_anchors(collection_dir, path)
+    mislabel, copies, outliers, redundant, own_best, other_best = audit(emb, entry, dup_sim, car, anchor)
+    unanchored = unanchored_cars(collection_dir)
 
     events, event_ranges = ref_events(path)
     try:
@@ -399,6 +451,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
            f"{len(mislabel)} mislabel suspects, {len(copies)} cross-entry copies, {len(outliers)} outliers, "
            f"{len(colours)} colour outliers, {len(crops)} odd crops, {len(attractors)} attractors, "
            + (f"{len(frames)} whole frames" if detector else "whole-frame check skipped (no detector)"),
+           f"{int(anchor.sum())} anchors; {len(unanchored)} cars have no anchor",
            f"events (ids more than {EVENT_GAP} apart split; colour outliers are judged within an event): "
            + ", ".join(f"{lo}-{hi} ({c})" for lo, hi, c in event_ranges), ""]
 
@@ -407,11 +460,21 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
         return f"  {path[i]}  [{entry[i]}]  ~  {path[j]}  [{entry[j]}]{cross}  {extra}"
 
     flags = ref_flags(mislabel, copies, outliers, colours, crops, [i for s, i in frames if s > 0.0])
-    strongest = sorted((i for i, f in flags.items() if len(f) >= STRONG_MIN_FLAGS), key=lambda i: (-len(flags[i]), path[i]))
+    flagged = sorted((i for i, f in flags.items() if len(f) >= STRONG_MIN_FLAGS), key=lambda i: (-len(flags[i]), path[i]))
+    strongest = [i for i in flagged if not anchor[i]]
+    doubtful = [i for i in flagged if anchor[i]]
     out.append("## strongest candidates (flagged by 2+ checks; look at these first)")
     for i in strongest[:top]:
         out.append(f"  {path[i]}  [{entry[i]}]  {', '.join(flags[i])}")
     out.append(f"  ({len(strongest)} in total)\n")
+    out.append("## doubtful anchors (refs you tagged or picked, or a strong number read saved, flagged by 2+ checks. Every other ref of the car is judged against its anchors, so a wrong one here spoils the car. Never moved automatically: check each and move it out of refs/ by hand if it is the wrong car)")
+    for i in doubtful[:top]:
+        out.append(f"  {path[i]}  [{entry[i]}]  {', '.join(flags[i])}")
+    out.append(f"  ({len(doubtful)} in total)\n")
+    out.append("## cars with no anchor (their refs are judged against each other, and Identify accepts their first match. Tag one photo of each by hand, or Add as reference)")
+    for name in unanchored[:top]:
+        out.append(f"  {name}")
+    out.append(f"  ({len(unanchored)} in total)\n")
     out.append(f"## attractors (correctly filed, but the closest match for {ATTRACTOR_MIN_PULLS}+ refs of other teams' entries and more of those than of its own: an odd angle or size that pulls other cars toward this entry. Teammates' cars look alike, so their pulls are shown but not counted. Removing one costs its own entry some coverage, so check 'pulls' against 'own')")
     for wrong, right, i, victims, mates in attractors[:top]:
         names = ", ".join(f"{v} x{c}" for v, c in sorted(victims.items(), key=lambda kv: -kv[1])[:4])
@@ -467,7 +530,7 @@ def write_audit(collection_dir, dup_sim=0.97, top=40, detector="", on_progress=N
         f.write("\n".join(out) + "\n")
     return report, {"references": len(entry), "mislabel": len(mislabel), "copies": len(copies), "outliers": len(outliers),
                     "colour": len(colours), "crops": len(crops), "attractors": len(attractors), "frames": len(frames), "strongest": len(strongest),
-                    "suggested": len(suggested), "quarantined": len(moved)}
+                    "doubtful_anchors": len(doubtful), "unanchored": len(unanchored), "suggested": len(suggested), "quarantined": len(moved)}
 
 
 def main():

@@ -40,6 +40,8 @@ DIAG_DEFAULTS = {
     "number_seen": "Assisted Tagging|Identification|Number seen",
     # A confident number read whose entry's colour disagrees with the colour seen; the entry tag stays.
     "check_colour": "Assisted Tagging|Identification|Check colour",
+    # A livery, burst or neighbour match unlike its car's anchors (reference_store.Anchors); the box keeps no entry tag.
+    "check_match": "Assisted Tagging|Identification|Check match",
     # Written instead of "livery"/"team" when burst_livery_pooling resolved a frame
     # that didn't clear the threshold on its own.
     "pooled": "Assisted Tagging|Identification|By pooled burst",
@@ -54,7 +56,7 @@ SHOT_LEAVES = (("shot_solo", "Solo"), ("shot_pack", "Pack"), ("shot_crowded", "C
 CROWDED_FROM = (("tag_shot_crowded", "tag_shot"), ("tag_shot_crowded_name", "tag_shot_name"))
 
 TOGGLE_KEYS = ("number", "livery", "burst", "pooled", "neighbour", "check_order", "team", "none",
-               "number_seen", "check_colour", "shot")
+               "number_seen", "check_colour", "check_match", "shot")
 
 MOVED_RULES = ("order_weight", "neighbour_tolerance", "min_read", "colour_weight", "partial_references", "min_sim", "margin", "min_face_px", "burst_livery_pooling",
                "blur_references")

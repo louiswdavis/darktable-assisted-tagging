@@ -3,7 +3,7 @@ write one result row per vehicle for assisted_tagging.lua.
 
 Modes:
   identify.py MANIFEST RESULTS ...            id,filepath,burst_id[,protected tags,hint prefixes,capture epoch] →
-                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot,order_flag,colour,colour_flag,sponsor
+                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot,order_flag,colour,colour_flag,sponsor,anchor_flag
                                               (+ --boxes-out: the per-vehicle boxes.json)
   identify.py MANIFEST RESULTS --add-reference id,filepath,entry_id → id,status
   identify.py MANIFEST RESULTS --promote-boxes --boxes-in F   id,filepath,"" → id,status
@@ -28,6 +28,7 @@ import shutil
 import sqlite3
 import sys
 import time
+from collections import Counter
 from dataclasses import dataclass, field, replace
 
 from vehicles import HIRES_ASPECT_TOL, HIRES_MIN_GAIN, MAX_BOXES, crop_box, detect, detect_vehicles, load_hires, log
@@ -53,13 +54,14 @@ from report import write_report
 from kinds import DEFAULT_KIND, check_entry_fields, check_kind
 from settings import DIAG_DEFAULTS, MOVED_RULES, SettingsError, diagnostics_of, load_settings
 from families import FAMILIES, family_tag, resolve, team_tags
-from reference_store import ReferenceIndex
+from reference_store import ANCHOR_MIN_READ, Anchors, ReferenceIndex
 from people import FACE_EMBED_DIM, FaceModel, face_model_key
 from people_run import analyse_frame_people, build_boxes_people, match_frame_people, reference_face
 
 MAX_WORKERS = 4  # each worker holds every model plus a full-resolution decode
 CACHE_MAX_AGE_DAYS = 90
 CACHE_COMMIT_EVERY = 50
+ANCHOR_CHECKED = ("livery", "pooled", "burst", "neighbour")  # methods whose match must look like the car's anchors; number, hand and team never are
 
 # , ; " break the CSV handoff to Lua; the rest can't appear in a Windows folder name
 _BAD_ID = re.compile(r'[,;"/\\:*?<>|]')
@@ -763,7 +765,7 @@ def box_hint(tag_prefixes: list, sponsor: list) -> tuple:
 def format_row(image_id: str, r: BoxResult, shot: str = "") -> str:
     return (f"{image_id},{r.box},{r.method},{r.entry_id},{r.alt_entry_id},"
             f"{r.confidence:.3f},{r.unmatched_number},{shot},{'1' if r.order_flag else ''},"
-            f"{r.colour},{'1' if r.colour_flag else ''},{r.sponsor}")
+            f"{r.colour},{'1' if r.colour_flag else ''},{r.sponsor},{'1' if r.anchor_flag else ''}")
 
 
 def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) -> str:
@@ -1485,6 +1487,50 @@ def identify(args, models: dict):
 
     # before the burst and neighbour passes, so a background box never anchors them
     frames = keep_main_cars(frames, "matching")
+    # Each car's anchors: its anchor refs plus this run's strong number reads. Livery, burst and
+    # neighbour matches unlike them lose their car (checked before burst and neighbour build on them, then after).
+    anchors = None if verify or rules.kind == "people" else \
+        Anchors(index, {eid: e.car for eid, e in entries.items()}, rules.colour_weight)
+    rejected = Counter()
+
+    def box_vectors(fid: str, box: int) -> tuple:
+        a = analyses.get(detail[fid]["file"]) if fid in detail else None
+        if not a or not 0 <= box < len(a.get("emb", [])):
+            return None, None
+        hist = decode(a["hist"][box]) if "hist" in a else None
+        return (None, None) if anchors.join and hist is None else (decode(a["emb"][box]), hist)
+
+    def check_anchors(frames: dict, stage: str) -> dict:
+        if anchors is None:
+            return frames
+        out, n = {}, 0
+        for fid, rs in frames.items():
+            out[fid] = []
+            for r in rs:
+                vec, hist = box_vectors(fid, r.box) if r.method in ANCHOR_CHECKED and r.entry_id else (None, None)
+                verdict, own, other_car = anchors.unlike(r.entry_id, vec, hist) if vec is not None else ("", None, "")
+                if verdict == "unlike":
+                    closer = f", closer to {other_car}'s" if other_car else ""
+                    log(f"{fid}: box {r.box}: {r.entry_id} doesn't look like its anchors (sim {own:.3f}{closer}, "
+                        f"colour {r.colour or '-'}); {r.method} match dropped")
+                    rejected[r.entry_id] += 1
+                    n += 1
+                    r = replace(r, method="none", entry_id="", alt_entry_id=r.entry_id, confidence=0.0, anchor_flag=True)
+                out[fid].append(r)
+        log(f"anchors ({stage}): {n} matches dropped")
+        return out
+
+    if anchors is not None:
+        strong = 0
+        for fid, rs in frames.items():
+            for r in rs:
+                vec, hist = box_vectors(fid, r.box) if r.method == "number" and r.confidence >= ANCHOR_MIN_READ else (None, None)
+                if vec is not None:
+                    anchors.add(r.entry_id, vec, hist, f"{fid}_b{r.box}")
+                    strong += 1
+        log(f"anchors: {len(anchors.rels) - strong} refs + {strong} number reads of {ANCHOR_MIN_READ}+ this run; "
+            f"{len(anchors.unanchored(list(entries)))} cars have none (their first match is accepted)")
+    frames = check_anchors(frames, "matching")
     if not verify:
         weak = {fid: {i: [tuple(c) for c in b["ocr"] if c[1] >= WEAK_READ_MIN]
                       for i, b in enumerate(d["boxes"]) if b["overlap"] != HIDDEN}
@@ -1550,6 +1596,10 @@ def identify(args, models: dict):
             log(f"{fid}: box {box}: colour {old or 'none'} -> {new} (the car's {n} boxes in this burst)")
         if recoloured:
             log(f"colour: {len(recoloured)} boxes took their car's colour across the burst")
+        frames = check_anchors(frames, "after burst")
+        if rejected:
+            log("anchors: dropped per car (a car with many may need a second anchor from another angle): "
+                + ", ".join(f"{e} {n}" for e, n in rejected.most_common()))
         # burst consensus and neighbour aid can fill a smaller box again
         frames = keep_main_cars(frames, "after burst")
         frames = colour_check(frames, entries)
@@ -1579,16 +1629,36 @@ def identify(args, models: dict):
 
 # ---------------------------------------------------------------- add-reference / list modes
 
-def screen_new_refs(collection: str, index: ReferenceIndex, done: list, mode: str) -> list:
-    """Runs the audit's per-ref checks over the refs a job just saved. A ref flagged by
-    STRONG_MIN_FLAGS+ checks is one the next audit would quarantine: mode "warn" only logs it,
-    "skip" also deletes it (or puts back the sample it replaced) and, when none of a row's refs survive, sets that row's status to
-    "flagged". Returns `done` with the statuses updated."""
+def screen_new_refs(collection: str, index: ReferenceIndex, done: list, mode: str, entries: dict,
+                    colour_weight: float) -> list:
+    """Checks the refs a job just saved against the refs saved before it, never against each other.
+    A non-anchor ref unlike its car's anchors (Anchors.unlike: embedding joined with colour shares at
+    `colour_weight`), or flagged by STRONG_MIN_FLAGS+ of the audit's per-ref checks, is bad: mode
+    "warn" only logs it, "skip" also deletes it (or puts back the sample it replaced) and, when none
+    of a row's refs survive, sets that row's status to "flagged". An anchor is never removed; its
+    flags are logged. A car with no anchor before the job accepts its refs. Returns `done` with the
+    statuses updated."""
     from audit_refs import STRONG_MIN_FLAGS, screen_refs
-    flags = screen_refs(collection, [r for _, _, rels in done for r in rels])
+    new = [r for _, _, rels in done for r in rels]
+    flags = screen_refs(collection, new)
+    anchors = Anchors(index, {eid: e.car for eid, e in entries.items()}, colour_weight, skip=new)
+    row = {rel: i for i, rel in enumerate(index.path)}
     out, removed = [], False
     for image_id, status, rels in done:
-        bad = [r for r in rels if len(flags.get(r, ())) >= STRONG_MIN_FLAGS]
+        bad = []
+        for r in rels:
+            strong = len(flags.get(r, ())) >= STRONG_MIN_FLAGS
+            if index.is_anchor(r):
+                if strong:
+                    log(f"{image_id}: {r} is flagged by {', '.join(flags[r])}; kept, it's an anchor (check it by hand)")
+                continue
+            i = row[r]
+            verdict, own, other_car = anchors.unlike(index.entry[i], index.emb[i], index.hist[i] if index.colour else None)
+            if verdict == "unlike":
+                closer = f", closer to {other_car}'s" if other_car else ""
+                flags[r] = flags.get(r, []) + [f"unlike its anchors (sim {own:.3f}{closer})"]
+            if verdict == "unlike" or strong:
+                bad.append(r)
         for r in bad:
             log(f"{image_id}: {r} is flagged by {', '.join(flags[r])}" + ("; not saved" if mode == "skip" else "; kept, but the next audit would quarantine it"))
             if mode == "skip":
@@ -1704,7 +1774,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = "", siglip: 
         log("cancelled; references added so far are kept")
         sys.exit(130)
     if screen and rules.kind != "people":
-        done = screen_new_refs(collection, index, done, screen)
+        done = screen_new_refs(collection, index, done, screen, entries, rules.colour_weight)
     notes = fill_colours(os.path.join(collection, "entries.json"), entries, rules, done, proposed)
     with atomic_write(args.results, newline="") as f:
         f.writelines(f"{image_id},{status},{note},{eid}\n"
@@ -1718,6 +1788,7 @@ def add_references(args, models: dict):
     is saved, team rows are "unread", and a row is "read" or "unread" by whether a colour came out."""
     teams = None
     colours_only = getattr(args, "colours_only", False)
+    source = "picked" if getattr(args, "picked", False) else "hand"
 
     def handle_people(index, entries, rules, image_id, filepath, entry_id):
         if entry_id not in entries:
@@ -1728,7 +1799,7 @@ def add_references(args, models: dict):
             if crop is None:
                 log(f"{image_id}: {status.replace('_', ' ')}; a face reference needs a photo with exactly one face")
                 return status, []
-            log(f"{image_id}: reference {index.add(entry_id, image_id, crop)}")
+            log(f"{image_id}: reference {index.add(entry_id, image_id, crop, source)}")
             return "added", []
         except Exception as e:
             log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
@@ -1770,7 +1841,7 @@ def add_references(args, models: dict):
                 return "no_vehicle", []
             box, how = reference_box(rgb, boxes, "" if is_team else entries[entry_id].number)
             crop = crop_box(rgb, box)
-            rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop)
+            rel = index.add(team_key(entry_id) if is_team else entry_id, image_id, crop, source)
             log(f"{image_id}: reference {rel} ({how})")
             proposals = []
             if "colour" in rules.families and not is_team:
@@ -1818,7 +1889,7 @@ def promote_boxes(args, models: dict):
                 return "stale", []
             proposals = []
             for b in wanted:
-                rel = index.add(b["entry"], f"{image_id}_b{b['box']}", crop_box(rgb, b["bbox"]))
+                rel = index.add(b["entry"], f"{image_id}_b{b['box']}", crop_box(rgb, b["bbox"]), "number", b.get("confidence"))
                 log(f"{image_id}: box {b['box']} ({b['method']}) reference {rel}")
                 # a boxes.json from before colour reading has no shares, so gives no colour
                 colour = hand_colour if hand_colour and len(wanted) == 1 else car_colour.decide_colour(b.get("colour_shares", {}))
@@ -1925,6 +1996,8 @@ def main(argv=None):
     parser.add_argument("--promote-boxes", action="store_true",
                         help="Add each manifest image's confident vehicles from --boxes-in as references")
     parser.add_argument("--add-reference", action="store_true", help="Add each manifest image as a reference")
+    parser.add_argument("--picked", action="store_true",
+                        help="With --add-reference: the user chose each image's car (Add as reference); its refs are recorded as picked, not hand")
     parser.add_argument("--colours-only", action="store_true",
                         help="With --add-reference: read each car's colour into entries.json without saving a reference")
     parser.add_argument("--audit-refs", action="store_true",

@@ -75,6 +75,9 @@ class BoxResult:
     colour: str = ""
     # A confident number read whose entry's colour disagrees with `colour`; the result stays, the photographer checks it.
     colour_flag: bool = False
+    # A livery, burst or neighbour match that doesn't look like its car's anchors (reference_store.Anchors):
+    # method is "none", alt_entry_id names the rejected car, and the photographer gets a Check tag.
+    anchor_flag: bool = False
     # ListRead.text() when the box's reads were scored against the start list; "" on the fallback path.
     list_read: str = ""
     # The rules.sponsor_keywords words read on the box as tag values, ";"-joined, when the sponsor

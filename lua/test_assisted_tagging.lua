@@ -509,7 +509,7 @@ check("TAG_TOGGLES: every row has a kind in TAG_KINDS", table.concat(bad_kinds, 
 local ordered = {}
 for _, t in ipairs(T.tag_rows_in_order()) do ordered[#ordered + 1] = t.key end
 check("tag_rows_in_order: checks, then diagnostics", table.concat(ordered, ","),
-    "check_order,none,check_colour,shot,shot_crowded,number,livery,burst,pooled,neighbour,team,number_seen,derived")
+    "check_order,none,check_colour,check_match,shot,shot_crowded,number,livery,burst,pooled,neighbour,team,number_seen,derived")
 local none_label
 for _, t in ipairs(T.TAG_TOGGLES) do if t.key == "none" then none_label = t.label end end
 check("TAG_TOGGLES: none is labelled Unidentified (check)", none_label, "Unidentified (check)")
