@@ -2692,7 +2692,6 @@ local function apply_results(run, job)
             end
         end
         if job and job.valid then job.percent = PROGRESS_ANALYSIS + (1 - PROGRESS_ANALYSIS) * i / #primaries end
-        dt.print_hinter(string.format("Assisted Tagging: writing tags %d / %d", i, #primaries))
         if cancelled(job) then
             say(string.format("Assisted Tagging: stopped while writing tags; %d of %d images were updated. Run again to finish.",
                 i, #primaries))
@@ -2778,8 +2777,17 @@ function M.identify_images(images, replace_manual, verify_only)
 
     local job, run = nil, nil
     local okr, err = pcall(function()
+        -- the job and log go up before the reads below, which touch every selected photo and
+        -- film roll and can take minutes on thousands of photos
+        job = dt.gui.create_job(_("Assisted Tagging"), true, stop_job)
+        job.percent = 0.0
+        local stage_start = os.time()
+        log("prepare: reading tags of the selection")
+        flush_log()
         local rows
         run, rows = prepare_run(images, replace_manual)
+        log(string.format("prepare: done, %d rows, %ds", #rows, os.time() - stage_start))
+        flush_log()
         run.verify_only = verify_only
         pcall(os.remove, RESULTS_PATH)
         pcall(os.remove, ENTRIES_PATH)
@@ -2789,16 +2797,19 @@ function M.identify_images(images, replace_manual, verify_only)
         end
         local neighbour_args = {}
         if not verify_only and settings.order_weight > 0 then
+            stage_start = os.time()
+            log("neighbour: reading the film rolls of the selection")
+            flush_log()
             local lib_rows = library_neighbour_rows(images)
-            log(string.format("neighbour: %d unselected tagged photos shot near the selection", #lib_rows))
+            log(string.format("neighbour: %d unselected tagged photos shot near the selection, %ds",
+                #lib_rows, os.time() - stage_start))
+            flush_log()
             if #lib_rows > 0 then
                 if not write_rows(NEIGHBOURS_PATH, lib_rows) then error(WRITE_ROWS_FAILED, 0) end
                 neighbour_args = { "--neighbours", NEIGHBOURS_PATH }
             end
         end
 
-        job = dt.gui.create_job(_("Assisted Tagging"), true, stop_job)
-        job.percent = 0.0
         local script = identify_script()
         local code, why = run_python(args_of({ MANIFEST_PATH, RESULTS_PATH },
             collection_args(), settings_args(), model_args(script), verify_only and { "--verify" } or {}, neighbour_args, {
