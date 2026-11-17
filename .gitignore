@@ -8,5 +8,5 @@ __pycache__/
 /models/
 *.yml
 *.jpg
-/runs/
+# /runs/
 /collections/
