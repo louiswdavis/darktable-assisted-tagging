@@ -2893,11 +2893,21 @@ function M.identify_images(images, replace_manual, verify_only)
         write_ledger(run.ledger, nil, true)
         log(string.format("apply: ledger saved, %ds", os.time() - save_start))
     end
+    -- 2026-11-17 debug: 4 minutes passed between "ledger saved" and "run finished"; each line
+    -- below is flushed so the log shows which step holds it.
+    local finish_start = os.time()
+    log("finish: ending the job")
+    flush_log()
     end_job(job)
+    log(string.format("finish: job ended, %ds; resetting the button", os.time() - finish_start))
+    flush_log()
     busy = false
     set_idle_label()
+    log(string.format("finish: button reset, %ds; removing temp files", os.time() - finish_start))
+    flush_log()
     if not okr then notify_error(_("Assisted Tagging: couldn't run. ") .. tostring(err)) end
     cleanup_tmp()
+    log(string.format("finish: temp files removed, %ds", os.time() - finish_start))
     log("run finished")
     flush_log()
     run_next()
