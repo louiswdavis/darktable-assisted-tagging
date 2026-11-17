@@ -1661,6 +1661,10 @@ local RUN_SETTINGS_PATH = M.run_settings_path(TMP_BASE)
 -- config dir, which outlives tmp_dir; the run before it is kept as .prev.log.
 local LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.log"
 local PREV_LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.prev.log"
+-- Lua errors (panel build, callbacks, events) go to their own log, which runs never rotate.
+local LUA_LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.lua.log"
+local guard = C.error_guard(dt, LUA_LOG_PATH, "Assisted Tagging")
+local new_widget = C.guarded_widget_maker(dt, guard)
 local CACHE_PATH = dt.configuration.config_dir .. "/assisted_tagging/cache.sqlite"
 local LEDGER_PATH = dt.configuration.config_dir .. "/assisted_tagging/ledger.csv"
 local LIB_KEY = C.library_key(dt)
@@ -3491,12 +3495,12 @@ local function install_panel()
     end
     local panel_ready = false -- the first collection load waits for darktable to open (see the end)
 
-    local new_collection_name = dt.new_widget("entry") {
+    local new_collection_name = new_widget("entry") {
         tooltip = _("Name for the new collection's folder, e.g. \"F1 2026\""),
         placeholder = _("collection name"),
         text = "",
     }
-    local new_collection_button = dt.new_widget("button") {
+    local new_collection_button = new_widget("button") {
         label = _("From tagged images"),
         tooltip = _("Build a new collection from the selected images' existing tags: images carrying the "
             .. "same hierarchical tags (e.g. Series|Team|Driver) become one entry, then each image is "
@@ -3507,12 +3511,12 @@ local function install_panel()
             M.create_collection(dt.gui.action_images, new_collection_name.text)
         end,
     }
-    example_combo = dt.new_widget("combobox") {
+    example_combo = new_widget("combobox") {
         label = _("example"),
         tooltip = _("A collection template shipped in the repo's examples folder, with placeholder entries and no references"),
         _("(no examples)"),
     }
-    local example_view_button = dt.new_widget("button") {
+    local example_view_button = new_widget("button") {
         label = _("View example"),
         tooltip = _("Open the selected example's entries.json in your editor, to read or copy from"),
         clicked_callback = function()
@@ -3524,7 +3528,7 @@ local function install_panel()
             open_in_app(examples_root() .. "/" .. example .. "/entries.json")
         end,
     }
-    local example_create_button = dt.new_widget("button") {
+    local example_create_button = new_widget("button") {
         label = _("From example"),
         tooltip = _("Copy the selected example's entries.json into a new collection with no images needed; "
             .. "edit it afterward with your own entries"),
@@ -3533,12 +3537,12 @@ local function install_panel()
         end,
     }
 
-    local reload_button = dt.new_widget("button") {
+    local reload_button = new_widget("button") {
         label = _("Reload"),
         tooltip = _("Reread the collections folder (the preset list) and the selected collection's entries.json and settings.json. Unsaved panel changes are replaced by settings.json."),
         clicked_callback = function() reload_lists(false, false, true) end,
     }
-    local plan_button = dt.new_widget("button") {
+    local plan_button = new_widget("button") {
         label = _("Show tag plan"),
         tooltip = _("Write tag-plan.txt in the collection's folder and open it: the exact tags every entry and outcome (team only, unidentified tags (yours), diagnostics) writes, from its entries.json"),
         clicked_callback = function()
@@ -3547,12 +3551,12 @@ local function install_panel()
             end
         end,
     }
-    local open_entries_button = dt.new_widget("button") {
+    local open_entries_button = new_widget("button") {
         label = _("Open entries.json"),
         tooltip = _("Open the selected collection's entries.json in the app your system uses for .json files. Save it there, then click Reload."),
         clicked_callback = function() open_in_app(entries_json_path()) end,
     }
-    local open_settings_button = dt.new_widget("button") {
+    local open_settings_button = new_widget("button") {
         label = _("Open settings.json"),
         tooltip = _("Open the selected collection's settings.json in the app your system uses for .json files, e.g. to delete a removed setting. Save it there, then click Reload; unsaved panel changes are replaced."),
         clicked_callback = function() open_in_app(settings_json_path()) end,
@@ -3577,7 +3581,7 @@ local function install_panel()
     local column_headers = {} -- the chosen CSV's headers; {} until one is read
     local column_combos = {}
     for i, role in ipairs(M.IMPORT_ROLES) do
-        column_combos[i] = dt.new_widget("combobox") {
+        column_combos[i] = new_widget("combobox") {
             label = ROLE_LABELS[role],
             tooltip = _("The CSV column that holds this role. Choosing a CSV picks the usual header names; (none) leaves the role out. Only number is required. Driver and co-driver in one cell (Smith / Jones) split when co-driver is (none)."),
             _("(none)"),
@@ -3603,24 +3607,24 @@ local function install_panel()
             fill_combo(column_combos[i], items, at)
         end
     end
-    local start_list_file = dt.new_widget("file_chooser_button") {
+    local start_list_file = new_widget("file_chooser_button") {
         title = _("Start list CSV"),
         value = "",
         is_directory = false,
         changed_callback = function(self) load_start_list_header(self.value or "") end,
     }
-    local start_list_text = dt.new_widget("text_view") {
+    local start_list_text = new_widget("text_view") {
         editable = true,
         text = "",
         tooltip = _("Paste an entry list here, e.g. copied from a PDF: one entry per line, number first, e.g. 12 Smith / Jones. Lines without a leading number are skipped."),
     }
     -- File / Paste tabs: a stack shows one source; the open tab's label starts with ●.
     -- text_view has no placeholder, so the paste tab carries its hint as a label.
-    local start_list_stack = dt.new_widget("stack") {
-        dt.new_widget("box") { orientation = "vertical", start_list_file, table.unpack(column_combos) },
-        dt.new_widget("box") {
+    local start_list_stack = new_widget("stack") {
+        new_widget("box") { orientation = "vertical", start_list_file, table.unpack(column_combos) },
+        new_widget("box") {
             orientation = "vertical",
-            dt.new_widget("label") { label = _("one entry per line, number first, e.g. 12 Smith / Jones"), halign = "start" },
+            new_widget("label") { label = _("one entry per line, number first, e.g. 12 Smith / Jones"), halign = "start" },
             start_list_text,
         },
     }
@@ -3630,11 +3634,11 @@ local function install_panel()
         start_list_tabs[1].label = (index == 1 and "● " or "○ ") .. _("CSV file")
         start_list_tabs[2].label = (index == 2 and "● " or "○ ") .. _("paste text")
     end
-    start_list_tabs[1] = dt.new_widget("button") { clicked_callback = function() show_start_list_tab(1) end }
-    start_list_tabs[2] = dt.new_widget("button") { clicked_callback = function() show_start_list_tab(2) end }
+    start_list_tabs[1] = new_widget("button") { clicked_callback = function() show_start_list_tab(1) end }
+    start_list_tabs[2] = new_widget("button") { clicked_callback = function() show_start_list_tab(2) end }
     show_start_list_tab(1)
-    local start_list_tab_box = dt.new_widget("box") { orientation = "horizontal", start_list_tabs[1], start_list_tabs[2] }
-    local import_start_list_button = dt.new_widget("button") {
+    local start_list_tab_box = new_widget("box") { orientation = "horizontal", start_list_tabs[1], start_list_tabs[2] }
+    local import_start_list_button = new_widget("button") {
         label = _("Import start list"),
         tooltip = _("Add the open tab's entries (the CSV or the pasted text) to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
         clicked_callback = function()
@@ -3683,9 +3687,9 @@ local function install_panel()
         end,
     }
     local found = { checks = {}, rows = {}, image_of = {} }
-    local found_title = dt.new_widget("label") { label = "", halign = "start" }
-    local found_box = dt.new_widget("box") { orientation = "vertical" }
-    local add_found_button = dt.new_widget("button") {
+    local found_title = new_widget("label") { label = "", halign = "start" }
+    local found_box = new_widget("box") { orientation = "vertical" }
+    local add_found_button = new_widget("button") {
         label = _("Add ticked to entries.json"),
         tooltip = _("Add the ticked numbers as new entries and the ticked teams, drivers and co-drivers to their entries; a ticked split turns a \"Driver / Co-driver\" name into a driver and a co-driver. The previous file is saved as entries.json.bak. Photos that read an added number get its number tag."),
         visible = false,
@@ -3695,7 +3699,7 @@ local function install_panel()
         for i = #found_box, 1, -1 do found_box[i] = nil end
         found.rows, found.checks = rows, {}
         for i, r in ipairs(rows) do
-            found.checks[i] = dt.new_widget("check_button") { label = M.candidate_label(r), value = false }
+            found.checks[i] = new_widget("check_button") { label = M.candidate_label(r), value = false }
             found_box[#found_box + 1] = found.checks[i]
         end
         found_title.label = title
@@ -3703,13 +3707,15 @@ local function install_panel()
     end
     local function clear_found() show_found({}, "") end
     add_found_button.clicked_callback = function()
-        local ticked = {}
-        for i, check in ipairs(found.checks) do
-            if check.value then ticked[#ticked + 1] = found.rows[i] end
-        end
-        if M.add_found_entries(ticked, found.image_of) then clear_found() end
+        guard("button Add found entries", function()
+            local ticked = {}
+            for i, check in ipairs(found.checks) do
+                if check.value then ticked[#ticked + 1] = found.rows[i] end
+            end
+            if M.add_found_entries(ticked, found.image_of) then clear_found() end
+        end)
     end
-    local find_button = dt.new_widget("button") {
+    local find_button = new_widget("button") {
         label = _("Find new entries"),
         tooltip = _("List the numbers the selected photos read or carry by hand that entries.json lacks, the teams, drivers and co-drivers you tagged by hand on entries that have none, and entries whose name still holds \"Driver / Co-driver\" to split. Nothing is added until you tick it."),
         clicked_callback = function()
@@ -3724,43 +3730,43 @@ local function install_panel()
             end
         end,
     }
-    identify_button = dt.new_widget("button") {
+    identify_button = new_widget("button") {
         label = _("Identify selection"),
         tooltip = _("Identify the vehicles in the selected images with the models (number reading, livery, colour) and tag them with their entries' tags, plus Derived|From identification (or From number / From driver when your own tag named the car). Writes darktable tags, the tag ledger, boxes.json and report.md. Never writes entries.json."),
         clicked_callback = function() start_identify(true) end,
     }
-    local clear_marks_button = dt.new_widget("button") {
+    local clear_marks_button = new_widget("button") {
         label = _("Clear tagging marks"),
         tooltip = _("Removes every tag this plugin attached to the selected images (entries, colours, diagnostics, unidentified) and forgets them in the ledger. Tags you applied by hand and run stamps stay."),
         clicked_callback = function() M.clear_marks(dt.gui.action_images) end,
     }
-    local derive_number_button = dt.new_widget("button") {
+    local derive_number_button = new_widget("button") {
         label = _("Derive from number"),
         tooltip = _("For each selected image whose number tag (added by you) names one entry, add that entry's tags and Derived|From number. Lookup only: no model runs, nothing is removed. Adds Check colour too when the image's colour tag differs from the entry's colour. Writes darktable tags and the tag ledger only."),
         clicked_callback = function() M.derive_images(dt.gui.action_images, "number") end,
     }
-    local derive_colour_button = dt.new_widget("button") {
+    local derive_colour_button = new_widget("button") {
         label = _("Derive from colour"),
         tooltip = _("For each selected image with one colour tag, add the tags of the one entry with that colour (narrowed by your team tags) and Derived|From colour. Skips the image when several entries or none have that colour, or when it has a number tag (use Derive from number). Lookup only: no model runs, nothing is removed. Needs entry colours in entries.json (Fill entry colours). Writes darktable tags and the tag ledger only."),
         clicked_callback = function() M.derive_images(dt.gui.action_images, "colour") end,
     }
-    replace_manual_check = dt.new_widget("check_button") {
+    replace_manual_check = new_widget("check_button") {
         label = _("Replace manual tags"),
         tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let runs replace them. It stays ticked until you untick it."),
         value = dt.preferences.read("assisted_tagging", "replace_manual", "bool"),
         changed_callback = function(w) dt.preferences.write("assisted_tagging", "replace_manual", "bool", w.value) end,
     }
-    verify_button = dt.new_widget("button") {
+    verify_button = new_widget("button") {
         label = _("Verify selection"),
         tooltip = _("Identify the selected images, fully tagged ones included, and report where the result differs from your tags (boxes.json and report.md). No tags are changed."),
         clicked_callback = function() start_identify(false, true) end,
     }
-    entry_combo = dt.new_widget("combobox") {
+    entry_combo = new_widget("combobox") {
         label = _("entry"),
         tooltip = _("The entry Add as reference saves the selected images under"),
         _("(no entries)"),
     }
-    local add_button = dt.new_widget("button") {
+    local add_button = new_widget("button") {
         label = _("Add as reference"),
         tooltip = _("Save the largest vehicle in each selected image as a reference sample of the entry above. Also fills the entry's colour in entries.json when read car colour is on."),
         clicked_callback = function()
@@ -3772,22 +3778,22 @@ local function install_panel()
             M.add_references(dt.gui.action_images, eid)
         end,
     }
-    local add_tagged_button = dt.new_widget("button") {
+    local add_tagged_button = new_widget("button") {
         label = _("Add tagged images"),
         tooltip = _("For each selected image that already carries all of one entry's tags, save it as a reference of that entry. Also fills the entry's colour in entries.json when read car colour is on."),
         clicked_callback = function() M.add_references(dt.gui.action_images, nil) end,
     }
-    local fill_colours_button = dt.new_widget("button") {
+    local fill_colours_button = new_widget("button") {
         label = _("Fill entry colours"),
         tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json. Saves no references. Needs read car colour on."),
         clicked_callback = function() M.fill_entry_colours(dt.gui.action_images) end,
     }
-    local promote_button = dt.new_widget("button") {
+    local promote_button = new_widget("button") {
         label = _("Add from last run"),
         tooltip = _("Save each vehicle the last Identify run was sure of (number read, or a clear livery match) as a reference of the entry it found. Works for pack shots too: only that car's crop is saved. Also fills the entry's colour in entries.json when read car colour is on."),
         clicked_callback = function() M.promote_references(dt.gui.action_images) end,
     }
-    local audit_button = dt.new_widget("button") {
+    local audit_button = new_widget("button") {
         label = _("Audit references"),
         tooltip = _("Refresh the collection's reference index from refs/, then write ref-audit.txt in the collection folder listing refs that look wrongly filed. Nothing is moved or deleted."),
         clicked_callback = function() M.audit_references() end,
@@ -3796,7 +3802,7 @@ local function install_panel()
     -- Settings: everything below is part of the collection's preset (settings.json).
     local checks, check_order = {}, {}
     local function check(key, label, tooltip)
-        local c = dt.new_widget("check_button") {
+        local c = new_widget("check_button") {
             label = label,
             tooltip = tooltip,
             value = false,
@@ -3831,24 +3837,24 @@ local function install_panel()
         vehicle = { _("Vehicle"), _("Write an identified entry's make and model as <root>|<make>|<model>.") },
         sponsor = { _("Sponsor"), _("Write each rules.sponsor_keywords word read on a car as <root>|<Word>. Words read outside a vehicle box (banners) and words not listed are never written.\nDefault: off.") },
     }
-    tag_rows[#tag_rows + 1] = dt.new_widget("section_label") { label = _("tag families") }
+    tag_rows[#tag_rows + 1] = new_widget("section_label") { label = _("tag families") }
     for _i, f in ipairs(M.FAMILIES) do
         local label, what = family_rows[f.key][1], family_rows[f.key][2]
         local c = check("family_" .. f.key, label,
             what .. "\n" .. _("Off: runs stop writing it.") .. "\n" .. _("Default: on."))
-        local e = dt.new_widget("entry") {
+        local e = new_widget("entry") {
             placeholder = "blank = " .. f.default_root,
             tooltip = string.format(_("The root the %s tags sit under. Each family needs its own root. Blank = %s."), label, f.default_root),
             text = "",
         }
         name_entries[#name_entries + 1] = { key = "family_" .. f.key .. "_root", entry = e }
-        tag_rows[#tag_rows + 1] = dt.new_widget("box") { orientation = "horizontal", c, e }
+        tag_rows[#tag_rows + 1] = new_widget("box") { orientation = "horizontal", c, e }
     end
     local kind_labels, last_kind = {}, nil
     for _i, k in ipairs(M.TAG_KINDS) do kind_labels[k.kind] = k.label end
     for _i, t in ipairs(M.tag_rows_in_order()) do
         if t.kind ~= last_kind then
-            tag_rows[#tag_rows + 1] = dt.new_widget("section_label") { label = _(kind_labels[t.kind]) }
+            tag_rows[#tag_rows + 1] = new_widget("section_label") { label = _(kind_labels[t.kind]) }
             last_kind = t.kind
         end
         local c = check("tag_" .. t.key, t.label, tag_tooltip(t, M.named_rules(rules, settings)))
@@ -3858,13 +3864,13 @@ local function install_panel()
         for _j, f in ipairs(M.PRESET_SCHEMA) do
             if f.key == name_key then default = f.default end
         end
-        local e = dt.new_widget("entry") {
+        local e = new_widget("entry") {
             placeholder = "blank = " .. default,
             tooltip = string.format(_("The tag %s writes. Blank = %s."), t.label, default),
             text = "",
         }
         name_entries[#name_entries + 1] = { key = name_key, entry = e }
-        local row = dt.new_widget("box") { orientation = "horizontal", c, e }
+        local row = new_widget("box") { orientation = "horizontal", c, e }
         tag_rows[#tag_rows + 1] = row
         tag_row_boxes[t.key] = row
     end
@@ -3874,7 +3880,7 @@ local function install_panel()
         if f.key == "group_support" then support_keys = f.choices end
     end
     local shown_support = "native" -- last shown or picked: the combo's callback acts only on a change
-    local group_support_combo = dt.new_widget("combobox") {
+    local group_support_combo = new_widget("combobox") {
         label = _("grouping support"),
         tooltip = _("What groups photos for shared identification. Native groups: darktable's image groups. Grouping tags: the children of the tag node below. None: every photo is its own group.\nDefault: native groups. Pick grouping tags after an Assisted Grouping run you have not applied as darktable groups."),
         changed_callback = function(self)
@@ -3886,27 +3892,27 @@ local function install_panel()
         _(GROUP_SUPPORT_LABELS[support_keys[1]]), _(GROUP_SUPPORT_LABELS[support_keys[2]]),
         _(GROUP_SUPPORT_LABELS[support_keys[3]]),
     }
-    local group_node_entry = dt.new_widget("entry") {
+    local group_node_entry = new_widget("entry") {
         placeholder = _("Grouping tag node (blank = latest run per photo)"),
         tooltip = _("Grouping tags only: the tag node whose children are the groups, e.g. Assisted Grouping|2026-01-01 12:00:00|Group. Blank uses each photo's own latest Assisted Grouping run, so photos regrouped by a later run and photos left on an earlier run both keep their groups.\nDefault: blank. Set it to pin one run."),
         text = "",
     }
-    local tolerance_entry = dt.new_widget("entry") {
+    local tolerance_entry = new_widget("entry") {
         placeholder = _("blank = 5"),
         tooltip = _("The most places apart in the sorted number list a neighbouring car can be and still support a doubtful read. The collection's order_weight sets how much of it is used: a neighbour up to order_weight × (tolerance + 1) places away counts. A whole number, 0 or more. Only used when order_weight is above 0.\nDefault: 5. Lower it when cars pass in strict number order; raise it when the order is loose."),
         text = "",
     }
-    local order_weight_entry = dt.new_widget("entry") {
+    local order_weight_entry = new_widget("entry") {
         placeholder = _("blank = 0"),
         tooltip = _("How far the cars pass in number order, from 0 (random: the neighbour aid is off) to 1 (strictly in order); 0.5 is loose order.\nDefault: 0. Set 0.5 for a rally or club event shot roughly in number order."),
         text = "",
     }
-    local min_read_entry = dt.new_widget("entry") {
+    local min_read_entry = new_widget("entry") {
         placeholder = _("blank = 0.85"),
         tooltip = _("How sure a number read must be to count, from 0 to 1: raise it if plates or signs get read as numbers, lower it if clear numbers are missed.\nDefault: 0.85."),
         text = "",
     }
-    local colour_weight_entry = dt.new_widget("entry") {
+    local colour_weight_entry = new_widget("entry") {
         placeholder = _("blank = 0"),
         tooltip = _("How much the colour histogram counts in livery matching, from 0 (off) up; separate from colour tags.\nDefault: 0."),
         text = "",
@@ -3975,9 +3981,9 @@ local function install_panel()
     end
 
     -- template: only the new-collection controls; a collection: everything else
-    local template_box = dt.new_widget("box") {
+    local template_box = new_widget("box") {
         orientation = "vertical",
-        dt.new_widget("section_label") { label = _("new collection") },
+        new_widget("section_label") { label = _("new collection") },
         new_collection_name,
         new_collection_button,
         example_combo,
@@ -3986,32 +3992,32 @@ local function install_panel()
     }
     local page_widgets = {
         { plan_button,
-          dt.new_widget("label") { label = _("start list"), halign = "start" },
+          new_widget("label") { label = _("start list"), halign = "start" },
           start_list_tab_box, start_list_stack, import_start_list_button,
           find_button, found_title, found_box, add_found_button },
         {
             group_support_combo,
-            dt.new_widget("label") { label = _("grouping tag node"), halign = "start" },
+            new_widget("label") { label = _("grouping tag node"), halign = "start" },
             group_node_entry,
         },
         {
             use_hints_check,
-            dt.new_widget("label") { label = _("neighbour tolerance"), halign = "start" },
+            new_widget("label") { label = _("neighbour tolerance"), halign = "start" },
             tolerance_entry,
-            dt.new_widget("label") { label = _("order weight"), halign = "start" },
+            new_widget("label") { label = _("order weight"), halign = "start" },
             order_weight_entry,
-            dt.new_widget("label") { label = _("min read"), halign = "start" },
+            new_widget("label") { label = _("min read"), halign = "start" },
             min_read_entry,
-            dt.new_widget("label") { label = _("colour weight"), halign = "start" },
+            new_widget("label") { label = _("colour weight"), halign = "start" },
             colour_weight_entry,
             partial_references_check,
         },
         tag_rows,
-        { dt.new_widget("section_label") { label = _("identify (models; writes tags)") },
+        { new_widget("section_label") { label = _("identify (models; writes tags)") },
           replace_manual_check, run_tag_check, verify_button, identify_button,
-          dt.new_widget("section_label") { label = _("derive (lookups only; adds tags)") },
+          new_widget("section_label") { label = _("derive (lookups only; adds tags)") },
           derive_number_button, derive_colour_button,
-          dt.new_widget("section_label") { label = _("undo") },
+          new_widget("section_label") { label = _("undo") },
           clear_marks_button },
         { entry_combo, add_button, add_tagged_button, fill_colours_button, promote_button,
           suggest_crops_check, quarantine_check, audit_button },
@@ -4021,9 +4027,9 @@ local function install_panel()
         pages[i] = { number = page.number, title = _(page.title), widgets = page_widgets[i] }
     end
     -- Open entries.json and Open settings.json sit in the top area, above the page buttons
-    local collection_box = dt.new_widget("box") {
+    local collection_box = new_widget("box") {
         orientation = "vertical",
-        dt.new_widget("box") { orientation = "horizontal", open_entries_button, open_settings_button },
+        new_widget("box") { orientation = "horizontal", open_entries_button, open_settings_button },
         C.paged_sections("assisted_tagging", pages),
     }
 
@@ -4061,7 +4067,7 @@ local function install_panel()
         allow_store_new = true,
     })
 
-    local panel_box = dt.new_widget("box") {
+    local panel_box = new_widget("box") {
         orientation = "vertical",
         -- shows the template defaults; nothing is saved
         reset_callback = function()
@@ -4102,7 +4108,7 @@ local function restart()
     pcall(dt.destroy_event, "assisted_tagging_run", "shortcut")
     dt.register_event("assisted_tagging_run", "shortcut",
         function(event, shortcut)
-            start_identify(false)
+            guard("shortcut identify", start_identify, false)
         end, _("identify and tag the selected images with Assisted Tagging")
     )
 end
@@ -4120,14 +4126,18 @@ M.metadata = {
 
 if dt.gui then
     if dt.gui.current_view().id == "lighttable" then
-        install_panel()
-        restart()
+        guard("panel install", function()
+            install_panel()
+            restart()
+        end)
     else
         if not M.event_registered then
             dt.register_event("assisted_tagging", "view-changed", function(event, old_view, new_view)
                 if new_view.name == "lighttable" or new_view.id == "lighttable" then
-                    install_panel()
-                    restart()
+                    guard("panel install", function()
+                        install_panel()
+                        restart()
+                    end)
                 end
             end)
             M.event_registered = true
