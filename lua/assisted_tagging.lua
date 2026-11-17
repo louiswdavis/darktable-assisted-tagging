@@ -1637,8 +1637,8 @@ local function _(msgid)
     return gettext(msgid)
 end
 
--- Every tag attach/detach rewrites the XMP sidecar, so writes are paced:
--- after a budget of writes the GUI gets a short sleep.
+-- Every tag attach/detach rewrites the XMP sidecar and queues a GUI event, so writes are paced:
+-- after a budget of writes the run waits for darktable to catch up (wait_for_writes).
 local WRITE_BUDGET = 12
 local WRITE_SLEEP_MS = 20
 
@@ -2218,6 +2218,26 @@ local function set_idle_label()
     if identify_button then identify_button.label = _("Identify selection") end
 end
 
+-- Each tag write queues a TAG_CHANGED event on darktable's GUI thread. A Lua widget update is
+-- queued at the same priority and blocks until it runs, so re-setting the button label waits
+-- until darktable has processed every write so far. Counters shown after it count finished
+-- writes, and no backlog is left to stall the end of the run.
+local function wait_for_writes()
+    if identify_button then
+        identify_button.label = identify_button.label
+    else
+        dt.control.sleep(WRITE_SLEEP_MS)
+    end
+end
+
+-- The hinter line under the centre view, "<what> cur / tot | ~ETA", as run_python shows for
+-- identify.py's stages. `every` thins the updates on long loops: each one is a GUI round trip.
+local function show_count(what, cur, tot, start, every)
+    if tot <= 0 or (every and cur % every ~= 0 and cur ~= tot) then return end
+    dt.print_hinter(string.format("Assisted Tagging: %s %d / %d%s", what, cur, tot,
+        fmt_eta(os.time() - start, cur, tot)))
+end
+
 -- Drops every queued job; a cancel means "stop what I started", not "run the rest".
 local function clear_queue()
     if #queue == 0 then return end
@@ -2322,7 +2342,7 @@ end
 
 -- Groups the selection into duplicates (same file, identified once) and groups, and reads the
 -- ledger and the tags the user applied by hand. Returns the run's state and the manifest rows.
-local function prepare_run(images, replace_manual)
+local function prepare_run(images, replace_manual, job)
     -- Duplicates and RAW+JPEG pairs are identified once, from the JPEG; the tags go on every copy.
     local primaries, group_of = M.collapse_shots(images)
 
@@ -2388,8 +2408,14 @@ local function prepare_run(images, replace_manual)
     local team_root = on_roots.team
     -- the families whose hand tags name a car (M.hand_entry)
     local naming_roots = { number = on_roots.number, driver = on_roots.driver, co_driver = on_roots.co_driver }
+    local n_copies, n_read, start = 0, 0, os.time()
+    for _, copies in pairs(group_of) do n_copies = n_copies + #copies end
+    local every = math.max(1, n_copies // 200)
     for _, copies in pairs(group_of) do
         for _, copy in ipairs(copies) do
+            n_read = n_read + 1
+            if n_read % every == 0 then show_stage(job, "preparing", n_read / n_copies) end
+            show_count("reading tags, copy", n_read, n_copies, start, every)
             local have = tags_of(copy)
             local kept = {}
             for name in pairs(ledger[copy.id] or {}) do
@@ -2510,13 +2536,14 @@ function M.clear_marks(images)
         end
         local n_tags, n_images, writes = 0, 0, 0
         local plans, stopped = M.plan_clear(records, ledger), false
+        local n_writes, done, start = 0, 0, os.time()
+        for _, plan in ipairs(plans) do n_writes = n_writes + #plan.detach end
         job = dt.gui.create_job(_("Assisted Tagging: clear tagging marks"), true, stop_job)
-        for i, plan in ipairs(plans) do
+        for _, plan in ipairs(plans) do
             if M.cancel_requested or not job.valid then
                 stopped = true
                 break
             end
-            job.percent = (i - 1) / #plans
             -- the row is rebuilt from the failures, so ledger tags no longer on the image go too
             local left = {}
             for _, name in ipairs(plan.detach) do
@@ -2527,10 +2554,12 @@ function M.clear_marks(images)
                 else
                     left[name] = true
                 end
-                writes = writes + 1
+                writes, done = writes + 1, done + 1
                 if writes >= WRITE_BUDGET then
                     writes = 0
-                    dt.control.sleep(WRITE_SLEEP_MS)
+                    wait_for_writes()
+                    job.percent = done / n_writes
+                    show_count("removing tags", done, n_writes, start)
                 end
             end
             if next(left) then
@@ -2541,6 +2570,9 @@ function M.clear_marks(images)
                 n_images = n_images + 1
             end
         end
+        wait_for_writes()
+        dt.print_hinter(" ")
+        log(string.format("clear: darktable finished %d tag writes, %ds", done, os.time() - start))
         write_ledger(ledger, _("The cleared images keep their old ledger rows, so tags you add to them by hand "
             .. "can be removed by the next run or clear."))
         if stopped then
@@ -2583,6 +2615,7 @@ function M.derive_images(images, mode)
                         check_colour = s.tag_check_colour and named.diag.check_colour or "" }
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         local n_derived, n_skipped, n_check, n_tags, writes, failed, stopped = 0, 0, 0, 0, 0, 0, false
+        local start = os.time()
         job = dt.gui.create_job(_("Assisted Tagging: ") .. label, true, stop_job)
         for i, img in ipairs(images) do
             if M.cancel_requested or not job.valid then
@@ -2590,6 +2623,8 @@ function M.derive_images(images, mode)
                 break
             end
             job.percent = (i - 1) / #images
+            -- the tag count is only known once each image is looked up, so this counts images
+            show_count(string.format("deriving (%d tags written), image", n_tags), i, #images, start)
             local have = tags_of(img)
             local plan = M.derive_plan(have, ledger[tonumber(img.id)], entries, entry_order, roots, mode, names)
             if plan.reason ~= "" then
@@ -2620,9 +2655,12 @@ function M.derive_images(images, mode)
             writes = writes + #plan.attach
             if writes >= WRITE_BUDGET then
                 writes = 0
-                dt.control.sleep(WRITE_SLEEP_MS)
+                wait_for_writes()
             end
         end
+        wait_for_writes()
+        dt.print_hinter(" ")
+        log(string.format("derive %s: darktable finished %d tag writes, %ds", mode, n_tags, os.time() - start))
         write_ledger(ledger)
         local msg = string.format(_("Assisted Tagging: %s%s: %d images derived, %d skipped (reasons in the log)"),
             stopped and _("stopped; ") or "", label, n_derived, n_skipped)
@@ -2690,13 +2728,11 @@ local function apply_results(run, job)
     -- then leaves the last image reached in the log
     local n_copies = 0
     for _, img in ipairs(primaries) do n_copies = n_copies + #group_of[img.id] end
-    log(string.format("apply: writing tags to %d images (%d copies)", #primaries, n_copies))
-    flush_log()
-    local apply_start, total_writes = os.time(), 0
+    -- every copy's changes are worked out before the first write, so the counter has a known total
+    local plans_of, n_writes = {}, 0
     for i, img in ipairs(primaries) do
-        log(string.format("apply: %d / %d images, image id %s, %s, %d writes so far, %ds", i, #primaries,
-            tostring(img.id), tostring(img.filename), total_writes, os.time() - apply_start))
-        flush_log()
+        local plans = {}
+        plans_of[i] = plans
         local results = rows_of[tonumber(img.id)]
         if skipped[tonumber(img.id)] then
             n_skipped = n_skipped + 1
@@ -2717,39 +2753,61 @@ local function apply_results(run, job)
                 if run_tag and not stamp_all and (#attach > 0 or #detach > 0) then
                     attach[#attach + 1] = run_tag
                 end
-                -- what the plugin owns on this copy: its earlier tags minus the detached, plus the
-                -- attached; recorded per tag so a failure partway still keeps the ledger true
-                local mine = ledger[copy.id] or {}
-                local okw, werr = pcall(function()
-                    for _, name in ipairs(detach) do
-                        tags.detach(tag_named(name), copy)
-                        mine[name] = nil
-                    end
-                    for _, name in ipairs(attach) do
-                        tags.attach(tag_named(name), copy)
-                        mine[name] = true
-                    end
-                end)
-                ledger[copy.id] = next(mine) and mine or nil
-                if not okw then
-                    failed = failed + 1
-                    first_error = first_error or tostring(werr)
-                end
-                writes = writes + #attach + #detach
-                total_writes = total_writes + #attach + #detach
-                if writes >= WRITE_BUDGET then
-                    writes = 0
-                    dt.control.sleep(WRITE_SLEEP_MS)
-                end
+                plans[#plans + 1] = { copy = copy, attach = attach, detach = detach }
+                n_writes = n_writes + #attach + #detach
             end
         end
-        show_stage(job, "writing tags", i / #primaries)
+    end
+
+    log(string.format("apply: writing %d tags to %d images (%d copies)", n_writes, #primaries, n_copies))
+    flush_log()
+    local apply_start, total_writes = os.time(), 0
+    show_stage(job, "writing tags", 0)
+    for i, img in ipairs(primaries) do
+        log(string.format("apply: %d / %d images, image id %s, %s, %d writes so far, %ds", i, #primaries,
+            tostring(img.id), tostring(img.filename), total_writes, os.time() - apply_start))
+        flush_log()
+        for _, plan in ipairs(plans_of[i]) do
+            local copy, attach, detach = plan.copy, plan.attach, plan.detach
+            -- what the plugin owns on this copy: its earlier tags minus the detached, plus the
+            -- attached; recorded per tag so a failure partway still keeps the ledger true
+            local mine = ledger[copy.id] or {}
+            local okw, werr = pcall(function()
+                for _, name in ipairs(detach) do
+                    tags.detach(tag_named(name), copy)
+                    mine[name] = nil
+                end
+                for _, name in ipairs(attach) do
+                    tags.attach(tag_named(name), copy)
+                    mine[name] = true
+                end
+            end)
+            ledger[copy.id] = next(mine) and mine or nil
+            if not okw then
+                failed = failed + 1
+                first_error = first_error or tostring(werr)
+            end
+            writes = writes + #attach + #detach
+            total_writes = total_writes + #attach + #detach
+            if writes >= WRITE_BUDGET then
+                writes = 0
+                wait_for_writes()
+                show_stage(job, "writing tags", total_writes / n_writes)
+                show_count("writing tags", total_writes, n_writes, apply_start)
+            end
+        end
         if cancelled(job) then
+            wait_for_writes()
+            dt.print_hinter(" ")
             say(string.format("Assisted Tagging: stopped while writing tags; %d of %d images were updated. Run again to finish.",
                 i, #primaries))
             return
         end
     end
+    wait_for_writes()
+    show_stage(job, "writing tags", 1)
+    dt.print_hinter(" ")
+    log(string.format("apply: darktable finished %d tag writes, %ds", total_writes, os.time() - apply_start))
 
     local parts = {}
     for _, m in ipairs({ { "number", "by number" }, { "livery", "by livery" }, { "burst", "by burst" }, { "neighbour", "by neighbour" },
@@ -2772,7 +2830,7 @@ end
 -- verify_only: analyse fully tagged images too and report disagreements, changing no tags.
 -- Unselected photos in the selection's film rolls, shot near it and already tagged with an entry:
 -- rows { id, epoch, entry id } that neighbour aid reads for support only. They are never tagged.
-local function library_neighbour_rows(images)
+local function library_neighbour_rows(images, job)
     local selected, films, times = {}, {}, {}
     for _, img in ipairs(images) do
         selected[img.id] = true
@@ -2780,8 +2838,12 @@ local function library_neighbour_rows(images)
         local okf, film = pcall(function() return img.film end)
         if okf and film then films[film.id] = film end
     end
-    local pool = {}
-    for _, film in pairs(films) do
+    local pool, film_list, start = {}, {}, os.time()
+    for _, film in pairs(films) do film_list[#film_list + 1] = film end
+    -- the bar's first half is reading the film rolls, the second the nearby photos' tags
+    for f, film in ipairs(film_list) do
+        show_stage(job, "neighbours", 0.5 * (f - 1) / #film_list)
+        show_count("reading film roll", f, #film_list, start)
         local okr = pcall(function()
             for i = 1, #film do
                 local img = film[i]
@@ -2796,7 +2858,12 @@ local function library_neighbour_rows(images)
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
     local on_roots = M.family_roots(settings)
     local naming_roots = { number = on_roots.number, driver = on_roots.driver, co_driver = on_roots.co_driver }
-    for _, c in ipairs(M.near_in_time(times, pool, M.NEIGHBOUR_MAX_GAP_S)) do
+    local near = M.near_in_time(times, pool, M.NEIGHBOUR_MAX_GAP_S)
+    local every = math.max(1, #near // 200)
+    start = os.time()
+    for i, c in ipairs(near) do
+        if i % every == 0 then show_stage(job, "neighbours", 0.5 + 0.5 * i / #near) end
+        show_count("reading nearby photo", i, #near, start, every)
         local have = tags_of(c.img)
         -- a photo carrying all of an entry's tags, or one the user's hand tag names
         local eid = M.entry_for_tags(have, entries, entry_order)
@@ -2839,7 +2906,7 @@ function M.identify_images(images, replace_manual, verify_only)
         log("prepare: reading tags of the selection")
         flush_log()
         local rows
-        run, rows = prepare_run(images, replace_manual)
+        run, rows = prepare_run(images, replace_manual, job)
         show_stage(job, "preparing", 1)
         log(string.format("prepare: done, %d rows, %ds", #rows, os.time() - stage_start))
         flush_log()
@@ -2856,7 +2923,7 @@ function M.identify_images(images, replace_manual, verify_only)
             show_stage(job, "neighbours", 0)
             log("neighbour: reading the film rolls of the selection")
             flush_log()
-            local lib_rows = library_neighbour_rows(images)
+            local lib_rows = library_neighbour_rows(images, job)
             show_stage(job, "neighbours", 1)
             log(string.format("neighbour: %d unselected tagged photos shot near the selection, %ds",
                 #lib_rows, os.time() - stage_start))
