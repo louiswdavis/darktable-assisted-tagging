@@ -76,6 +76,33 @@ curl -L -o models/en_PP-OCRv5_mobile_rec.yml https://huggingface.co/PaddlePaddle
 curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2-small/resolve/main/onnx/model.onnx
 ```
 
+**Recommended extras** (about 1.6 GB). These read more numbers and car colours than the base install. Run from the repo root, then `pip install -r` again (SigLIP 2 needs the `tokenizers` package):
+
+```
+curl -L -o models/siglip2_base_vision.onnx https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/onnx/vision_model.onnx
+curl -L -o models/siglip2_base_text.onnx https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/onnx/text_model.onnx
+curl -L -o models/siglip2_base_tokenizer.json https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/tokenizer.json
+curl -L -o models/PP-OCRv5_server_rec.onnx https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.onnx
+curl -L -o models/PP-OCRv5_server_rec.yml https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.yml
+curl -L -o models/image_segmentation_efficientsam_ti_2025april.onnx https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx
+```
+
+| Files | Turns on |
+|---|---|
+| `siglip2_base_*` (3 files) | [box check and colour reader](#box-check-and-colour-reader-optional-siglip-2) |
+| `PP-OCRv5_server_rec.*` | the better [number reader](#number-reader) |
+| `image_segmentation_efficientsam_*` | the [segmenter](#segmenter-optional) for overlapping cars |
+
+**Check what's installed.** Each file must be named exactly as above (curl's `-o` does that; a browser download saves `vision_model.onnx`, `inference.onnx` and so on, which the plugin can't find). The start of the run log lists what each job picked:
+
+```
+number reader: PP-OCRv5_server_rec.onnx
+box check: on (siglip2_base_vision.onnx)
+py: box check: on; colour reader: SigLIP 2
+```
+
+`box check: none installed` or `colour reader: HSV rules` means the SigLIP 2 files are missing or misnamed. `(better, not installed: …)` names files you could add. The first run after adding any of these re-reads every photo once, so expect it to take longer.
+
 The tables give the download for every other file. Save each under the name in the File column.
 
 #### Vehicles
