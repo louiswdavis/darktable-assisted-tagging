@@ -2419,10 +2419,16 @@ end
 -- Writes the ledger of the tags this plugin attached, first dropping the rows of images no
 -- longer in the library. A failed write is tried once more, then reported on screen with
 -- `consequence` (default: what a failed save after a tagging run means).
-local function write_ledger(ledger, consequence)
-    local pruned, skipped = M.ledger_prune(ledger, image_exists)
-    if pruned > 0 then log(string.format("ledger: dropped %d images no longer in the library", pruned)) end
-    if skipped then log("ledger: prune skipped, no image id resolved") end
+-- `keep_gone`: skip the prune. It looks up every image the ledger has ever held, one darktable
+-- call each, which took 9 minutes after a 1830-image run.
+local function write_ledger(ledger, consequence, keep_gone)
+    if not keep_gone then
+        local prune_start = os.time()
+        local pruned, skipped = M.ledger_prune(ledger, image_exists)
+        if pruned > 0 then log(string.format("ledger: dropped %d images no longer in the library", pruned)) end
+        if skipped then log("ledger: prune skipped, no image id resolved") end
+        log(string.format("ledger: prune took %ds", os.time() - prune_start))
+    end
     local text = M.ledger_format(ledger, LIB_KEY)
     local ok_w, err = write_file_atomic(LEDGER_PATH, text)
     if not ok_w then
@@ -2841,7 +2847,9 @@ function M.identify_images(images, replace_manual, verify_only)
     if run and run.applying then
         log("apply: saving the ledger")
         flush_log()
-        write_ledger(run.ledger)
+        local save_start = os.time()
+        write_ledger(run.ledger, nil, true)
+        log(string.format("apply: ledger saved, %ds", os.time() - save_start))
     end
     end_job(job)
     busy = false
