@@ -717,8 +717,10 @@ def run_tests():
     check("boxes.json records each image's status and the box's unmatched digits",
           (run["images"]["9"]["status"], run["images"]["9"]["boxes"][1]["unmatched_number"]), ("ok", ""))
     check("boxes.json carries the thresholds and per-entry facts the report needs",
-          (sorted(run["thresholds"]), sorted(run["entries"]["VER"])), (["min_margin", "min_sim", "reference_margin"],
-                                                                      ["camera", "number", "refs", "tags", "team"]))
+          (sorted(run["thresholds"]), sorted(run["entries"]["VER"])),
+          (["min_margin", "min_read", "min_sim", "number_list_floor", "number_list_margin", "number_min_height",
+            "ocr_min_score", "reference_margin", "weak_read_min"],
+           ["camera", "car", "colour", "number", "refs", "tags", "team"]))
     args.report_out = os.path.join(img, "last-run", "c.report")
     I.identify(args, {"embedder": "fake"})
     check("--report-out writes report.md and report.json", (os.path.isfile(args.report_out + ".md"),
