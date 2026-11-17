@@ -18,7 +18,7 @@ from vehicles import log
 INDEX_NAME = "index.npz"
 SOURCES_NAME = "sources.json"  # under refs/: rel -> {source, confidence, date}; the index is rebuilt from disk, so the source lives beside the crops
 SOURCES = ("hand", "picked", "number")  # Add tagged images / Fill colours; Add as reference (the user chose the car); Add from last run
-ANCHOR_MIN_SIM = 0.5  # a ref or box less like every anchor of its car than this doesn't look like the car (ticket 80); set from replay_anchors.py
+ANCHOR_MIN_SIM = 0.6  # a ref or box less like every anchor of its car than this doesn't look like the car (ticket 80); Rallye replay 2026-11-17: 5th percentile of own-anchor sims 0.59
 ANCHOR_MIN_READ = 0.9  # a number ref read at this or more anchors its car (ticket 80); 89% of Rallye 21:02 number boxes reach it
 CENTRE_MIN_REFS = 20  # fewer references than this: their mean says too little, so the run's boxes join it (use_run_centre)
 
