@@ -508,26 +508,42 @@ def run_tests():
         def is_what(self, vec):
             return self.answers[vec]
 
-    boxes = [(0, 0, 10, 10), (0, 0, 20, 10), (0, 0, 30, 10), (0, 0, 20, 5)]
+    boxes = [(0, 0, 10, 10, 0.5), (0, 0, 20, 10, 0.5), (0, 0, 30, 10, 0.5), (0, 0, 20, 5, 0.5), (0, 0, 9, 9, 0.84)]
     canvas = np.zeros((40, 40, 3), dtype=np.uint8)
     old_siglip = I._W.get("siglip")
     I._W["siglip"] = None
-    check("no SigLIP keeps every box", I.check_boxes(canvas, boxes), (boxes, None, {}))
-    I._W["siglip"] = FakeSigLIP(["person", "car", "railing", "person"])
-    kept, vecs, dropped = I.check_boxes(canvas, boxes)
+    check("no SigLIP keeps every box", I.check_boxes(canvas, boxes), (boxes, None, {}, []))
+    I._W["siglip"] = FakeSigLIP([("person", 0.1), ("car", 0.9), ("railing", 0.2), ("person", 0.05), ("person", 0.1)])
+    kept, vecs, dropped, contested = I.check_boxes(canvas, boxes)
     I._W["siglip"] = old_siglip
-    check("the box check keeps the car with its vector", (kept, vecs), ([(0, 0, 20, 10)], [1]))
+    check("the box check keeps the car, and a low-share box the detector scored high",
+          (kept, vecs), ([(0, 0, 20, 10, 0.5), (0, 0, 9, 9, 0.84)], [1, 4]))
     check("the box check counts dropped boxes per answer", dropped, {"person": 2, "railing": 1})
+    check("contested boxes carry answer, share, score and why kept", contested[-1],
+          {"answer": "person", "share": 0.1, "score": 0.84, "kept": "score"})
+    check("a clear car is not contested", len(contested), 4)
+    import siglip as SG
+    real = SG.SigLIP.__new__(SG.SigLIP)
+    labels = list(SG.CAR_PROMPTS)
+    real.texts = {tuple(SG.CAR_PROMPTS.items()): (labels, np.eye(len(labels), dtype=np.float32))}
+
+    def what_of(sims: dict):
+        vec = np.array([[sims.get(label, 0.0) for label in labels]], dtype=np.float32)
+        return real.is_what(vec)
+    check("is_what: a split vehicle vote beats a lone person", what_of({"car": 0.10, "truck": 0.10, "person": 0.105})[0], SG.CAR)
+    check("is_what: a clear person is dropped with its share", what_of({"person": 0.2, "car": 0.1}), ("person", 0.0))
+    check("is_what: a vehicle nearest is a car even at a low share", what_of({"truck": 0.1})[0], SG.CAR)
     lines = []
     real_log, I.log = I.log, lines.append
     try:
-        I.log_box_check({"a": {"dropped": {"person": 2}}, "b": {"dropped": {"person": 1, "railing": 1}}, "c": None},
+        I.log_box_check({"a": {"dropped": {"person": 2}, "contested": [{"kept": "score"}, {"kept": False}]},
+                         "b": {"dropped": {"person": 1, "railing": 1}, "contested": [{"kept": "share"}]}, "c": None},
                         {"kind": "vehicles", "siglip": frame})
         I.log_box_check({"a": {"dropped": {"person": 2}}}, {"kind": "vehicles", "siglip": ""})
     finally:
         I.log = real_log
-    check("the drop log counts per answer, and is silent without SigLIP", lines,
-          ["box check: dropped 4 boxes: person 3, railing 1"])
+    check("the drop log counts per answer and kept reason, and is silent without SigLIP", lines,
+          ["box check: dropped 4 boxes: person 3, railing 1; kept 1 on vehicle share, 1 on detector score"])
     people = {"kind": "people", "face_det": frame, "face_rec": frame}
     check("the people key carries the fingerprint", FP.analysis_fingerprint() in I.frame_key(frame, people), True)
     check("the cache key carries no stray version", "1" not in I.IdentifyCache._key(["x"]), True)

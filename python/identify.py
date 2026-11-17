@@ -45,7 +45,7 @@ from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUM
 from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
 from segment import SEGMENT_CACHE_TOKEN, Segmenter, needs_mask, segmenter_path
-from siglip import CAR, SigLIP, siglip_key
+from siglip import BOX_KEEP_SCORE, CAR, SigLIP, siglip_key
 from pod import pod_colour, pod_reading
 from rescue import RESCUE_MIN_SIM, plan_burst
 from sponsors import sponsor_prefixes, sponsor_words
@@ -594,11 +594,13 @@ def analyse_frame(filepath: str) -> dict:
         rgb = decode_rgb(filepath)
         h, w = rgb.shape[:2]
         boxes, weak, note = detect(rgb, entry)
-        boxes, vecs, dropped = check_boxes(rgb, boxes)
+        boxes, vecs, dropped, contested = check_boxes(rgb, boxes)
         if dropped and not boxes:
-            note = f"no car: the box check dropped {sum(dropped.values())} boxes"
+            note = (f"no car: the box check dropped {sum(dropped.values())} boxes ("
+                    + ", ".join(f"{c['answer']} {c['share']:.2f} at {c['score']:.2f}" for c in contested if not c["kept"]) + ")")
         out = _read_boxes(rgb, boxes, vecs=vecs)
         out["dropped"] = dropped
+        out["contested"] = contested
     else:
         sh, sw = small.shape[:2]
         weak = boxes_in({"frame": [sw, sh], "boxes": weak}, w, h)
@@ -609,20 +611,27 @@ def analyse_frame(filepath: str) -> dict:
 
 def check_boxes(rgb, boxes: list) -> tuple:
     """The box check: (kept boxes, their SigLIP 2 image vectors or None, {answer: count} of the
-    dropped ones). A box SigLIP 2 calls anything but a car is dropped; without SigLIP all are kept."""
+    dropped ones, contested boxes). A box is dropped when SigLIP 2 calls it anything but a car
+    (siglip.is_what) and the detector scored it below BOX_KEEP_SCORE; without SigLIP all are kept.
+    Contested: {answer, share, score, kept} per box with a vehicle share under 0.5, kept being
+    "share", "score" or False, for tuning the two thresholds from a run."""
     siglip = _W.get("siglip")
     if not siglip or not boxes:
-        return boxes, None, {}
-    kept, vecs, dropped = [], [], {}
+        return boxes, None, {}, []
+    kept, vecs, dropped, contested = [], [], {}, []
     for b in boxes:
         vec = siglip.embed_image(crop_box(rgb, b))
-        what = siglip.is_what(vec)
-        if what == CAR:
+        what, share = siglip.is_what(vec)
+        score = round(float(b[4]), 3)
+        keep = "share" if what == CAR else "score" if score >= BOX_KEEP_SCORE else False
+        if share < 0.5:
+            contested.append({"answer": what, "share": share, "score": score, "kept": keep})
+        if keep:
             kept.append(b)
             vecs.append(vec)
         else:
             dropped[what] = dropped.get(what, 0) + 1
-    return kept, vecs, dropped
+    return kept, vecs, dropped, contested
 
 
 def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -> dict:
@@ -905,15 +914,21 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, p
 
 
 def log_box_check(analyses: dict, models: dict):
-    """One run-log line counting the boxes the box check dropped, per answer."""
+    """One run-log line counting the boxes the box check dropped, per answer, and the contested
+    boxes it kept, per reason (check_boxes)."""
     if models["kind"] == "people" or not models.get("siglip"):
         return
     dropped: dict = {}
+    saved = {"share": 0, "score": 0}
     for a in analyses.values():
         for what, n in ((a or {}).get("dropped") or {}).items():
             dropped[what] = dropped.get(what, 0) + n
+        for c in (a or {}).get("contested") or []:
+            if c["kept"]:
+                saved[c["kept"]] += 1
     counts = ", ".join(f"{what} {n}" for what, n in sorted(dropped.items(), key=lambda p: -p[1]))
-    log(f"box check: dropped {sum(dropped.values())} boxes" + (f": {counts}" if counts else ""))
+    log(f"box check: dropped {sum(dropped.values())} boxes" + (f": {counts}" if counts else "")
+        + f"; kept {saved['share']} on vehicle share, {saved['score']} on detector score")
 
 
 def log_turns(stage: str, analyses):

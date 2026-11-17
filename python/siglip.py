@@ -28,6 +28,11 @@ CAR_PROMPTS = {
     "road": "a photo of an empty road.",
 }
 VEHICLES = (CAR, "race car", "motorbike", "truck")  # the detector boxes all of these; the box check keeps them
+# The box check drops a box only when VEHICLES' summed softmax share of CAR_PROMPTS is below
+# BOX_MIN_VEHICLE_SHARE and the detector scored it below BOX_KEEP_SCORE (2026-11-17: a plain argmax
+# dropped 5 identified Rallye cars, one detected at 0.84 with its number read at 0.99)
+BOX_MIN_VEHICLE_SHARE = 0.25
+BOX_KEEP_SCORE = 0.8
 MULTI_PROMPT = "a photo of a multicoloured rally car."
 
 
@@ -41,7 +46,8 @@ def siglip_files(vision_path: str) -> tuple:
 def siglip_key(vision_path: str) -> list:
     """Cache key parts: the code token, a digest of this module's constants and all three files."""
     import hashlib
-    consts = hashlib.sha1(repr((TEXT_LEN, IMAGE_SIZE, SCALE, CAR_PROMPTS, MULTI_PROMPT, VEHICLES)).encode()).hexdigest()[:8]
+    consts = hashlib.sha1(repr((TEXT_LEN, IMAGE_SIZE, SCALE, CAR_PROMPTS, MULTI_PROMPT, VEHICLES,
+                                BOX_MIN_VEHICLE_SHARE, BOX_KEEP_SCORE)).encode()).hexdigest()[:8]
     return [SIGLIP_CACHE_TOKEN, consts, *(file_key(p) for p in siglip_files(vision_path))]
 
 
@@ -88,12 +94,19 @@ class SigLIP:
             vec = vec[:, 0]
         return vec / np.linalg.norm(vec, axis=1, keepdims=True)
 
-    def is_what(self, image_vec) -> str:
-        """The box check: CAR when the CAR_PROMPTS label nearest the crop is one of VEHICLES, else
-        that label (what the box shows instead)."""
+    def is_what(self, image_vec) -> tuple:
+        """The box check's view of a crop: (answer, vehicle share). The share is VEHICLES' summed
+        softmax over CAR_PROMPTS, 3 places; the answer is CAR when the nearest label is one of
+        VEHICLES or the share reaches BOX_MIN_VEHICLE_SHARE, else the nearest label (what the box
+        shows instead)."""
+        import numpy as np
         labels, vecs = self._text(CAR_PROMPTS)
-        label = labels[int((vecs @ image_vec[0]).argmax())]
-        return CAR if label in VEHICLES else label
+        logits = SCALE * (vecs @ image_vec[0])
+        p = np.exp(logits - logits.max())
+        p /= p.sum()
+        share = round(float(sum(p[i] for i, label in enumerate(labels) if label in VEHICLES)), 3)
+        label = labels[int(logits.argmax())]
+        return (CAR if label in VEHICLES or share >= BOX_MIN_VEHICLE_SHARE else label), share
 
     def _text(self, prompts: dict) -> tuple:
         key = tuple(prompts.items())

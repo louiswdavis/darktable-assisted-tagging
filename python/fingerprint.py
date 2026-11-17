@@ -56,7 +56,7 @@ CACHE_NEUTRAL = {
                  "_SAT", "_VAL", "SIGLIP_MIN_SCORE", "SIGLIP_MIN_GAP", "NEAR_COLOURS"),
     people: (),
     siglip: ("TEXT_LEN", "IMAGE_SIZE", "SCALE", "SIGLIP_CACHE_TOKEN", "CAR", "CAR_PROMPTS", "MULTI_PROMPT",
-             "VEHICLES"),  # siglip_key
+             "VEHICLES", "BOX_MIN_VEHICLE_SHARE", "BOX_KEEP_SCORE"),  # siglip_key
 }
 _FINGERPRINT = ""
 
