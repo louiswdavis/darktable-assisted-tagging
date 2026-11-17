@@ -1110,7 +1110,7 @@ do
     end
     check("tagging defaults", table.concat({ tostring(d.use_hints), d.group_support, d.group_node,
         tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine),
-        tostring(d.neighbour_tolerance) }, " "), "true native  false false false 5")
+        tostring(d.neighbour_tolerance) }, " "), "true native  none false false 5")
     local all_on = true
     for _, item in ipairs(T.PRESET_SCHEMA) do
         if item.key:match("^tag_") and item.kind == "bool" and d[item.key] ~= true then all_on = false end
@@ -1194,6 +1194,11 @@ do
     check("upgrade_settings_text: no-op when both present", tostring(same == both) .. tostring(none), "truenil")
     same, none = T.upgrade_settings_text("{ not json")
     check("upgrade_settings_text: no-op on text that is not JSON", tostring(same == "{ not json") .. tostring(none), "truenil")
+    local on_text, on_keys = T.upgrade_settings_text(both:sub(1, -2) .. ',"run_tag":true}')
+    check("upgrade_settings_text: run_tag true becomes all", T.preset_decode(on_text).run_tag, "all")
+    check("upgrade_settings_text: reports run_tag", table.concat(on_keys, ","), "run_tag")
+    local off_text = T.upgrade_settings_text(both:sub(1, -2) .. ',"run_tag":false}')
+    check("upgrade_settings_text: run_tag false becomes none", T.preset_decode(off_text).run_tag, "none")
 end
 
 do -- model auto-pick: first installed file on each job's best-first list
