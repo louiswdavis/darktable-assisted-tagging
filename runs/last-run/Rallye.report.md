@@ -4,51 +4,51 @@ thresholds: min_sim 0.6, min_margin 0.1
 
 ## Summary
 
-5021 vehicles/images, identified rate 32%
+5021 vehicles/images, identified rate 26%
 
-- identified: 1620 (32%)
+- identified: 1311 (26%)
 - team-obvious: 0 (0%)
-- weak-match: 2074 (41%)
+- weak-match: 2341 (47%)
 - no-references: 0 (0%)
-- number-unmatched: 159 (3%)
-- conflict: 22 (0%)
-- overlapped: 870 (17%)
+- number-unmatched: 205 (4%)
+- conflict: 19 (0%)
+- overlapped: 869 (17%)
 - already-tagged: 22 (0%)
 - no-vehicle: 254 (5%)
-- median weak-match: top-1 0.501, margin 0.036
-- colours: no colour 1938, Red 401, Black 338, Multi 91, Grey 174, Purple 84, Green 325, Pink 204, White 437, Blue 491, Brown 97, Yellow 120, Orange 45
+- median weak-match: top-1 0.521, margin 0.036
+- colours: no colour 1932, Red 403, Black 343, Multi 91, Grey 177, Purple 81, Green 324, Pink 205, White 437, Blue 490, Brown 99, Yellow 119, Orange 44
 
 ## detector score
 
-- 0.00-0.30: 611 boxes, 9 identified
-- 0.30-0.40: 266 boxes, 6 identified
+- 0.00-0.30: 611 boxes, 3 identified
+- 0.30-0.40: 266 boxes, 2 identified
 - 0.40-0.50: 155 boxes, 1 identified
-- 0.50-0.70: 243 boxes, 11 identified
-- 0.70-1.00: 3470 boxes, 1593 identified
+- 0.50-0.70: 243 boxes, 6 identified
+- 0.70-1.00: 3470 boxes, 1299 identified
 
 ## sponsor keyword suggestions
 
 words OCR read on identified boxes of one team tag only; add under `rules.sponsor_keywords` after checking:
-- `maynard` → `Motorsport|Number|35`: 11 identified, would hint 7 unidentified
+- `maynard` → `Motorsport|Number|35`: 10 identified, would hint 8 unidentified
+- `martini` → `Motorsport|Number|97`: 11 identified, would hint 5 unidentified
 - `aswmc` → `Motorsport|Number|101`: 3 identified, would hint 5 unidentified
 - `simpson` → `Motorsport|Number|70`: 2 identified, would hint 5 unidentified
-- `martini` → `Motorsport|Number|97`: 12 identified, would hint 4 unidentified
 - `sale` → `Motorsport|Number|33`: 7 identified, would hint 4 unidentified
+- `turbos` → `Motorsport|Number|90`: 4 identified, would hint 4 unidentified
 - `ndhiv` → `Motorsport|Number|66`: 3 identified, would hint 3 unidentified
 - `demontweeks` → `Motorsport|Number|98`: 5 identified, would hint 2 unidentified
 - `skod` → `Motorsport|Number|50`: 2 identified, would hint 2 unidentified
+- `tucker` → `Motorsport|Number|103`: 2 identified, would hint 2 unidentified
 - `networkq` → `Motorsport|Number|3`: 8 identified, would hint 1 unidentified
+- `llandudno` → `Motorsport|Number|62`: 3 identified, would hint 1 unidentified
 - `olsbergs` → `Motorsport|Number|85`: 3 identified, would hint 1 unidentified
+- `cobra` → `Motorsport|Number|78`: 2 identified, would hint 1 unidentified
 - `helix` → `Motorsport|Number|94`: 2 identified, would hint 1 unidentified
-- `llington` → `Motorsport|Number|96`: 2 identified, would hint 1 unidentified
-- `toyota` → `Motorsport|Number|5`: 18 identified, would hint 0 unidentified
+- `okers` → `Motorsport|Number|62`: 2 identified, would hint 1 unidentified
 - `andy` → `Motorsport|Number|27`: 8 identified, would hint 0 unidentified
 - `motorhomes` → `Motorsport|Number|33`: 8 identified, would hint 0 unidentified
-- `cobra` → `Motorsport|Number|78`: 3 identified, would hint 0 unidentified
 - `hillclimb` → `Motorsport|Number|83`: 3 identified, would hint 0 unidentified
 - `kitchen` → `Motorsport|Number|102`: 3 identified, would hint 0 unidentified
-- `knott` → `Motorsport|Number|25`: 3 identified, would hint 0 unidentified
-- `lmilner` → `Motorsport|Number|94`: 3 identified, would hint 0 unidentified
 
 ## bursts (775 timed, 0 without capture times)
 
@@ -99,7 +99,7 @@ largest within-burst gap (possible merge):
 - burst 238: 6 frames over 2s, largest gap 2s, 6 with vehicles, 0 without
 - burst 244: 3 frames over 2s, largest gap 2s, 3 with vehicles, 0 without
 
-## weak-match (2074)
+## weak-match (2341)
 
 - `202451` box 0: `790` 0.197, `60` 0.196, `52` 0.186; below_min_sim, short by 0.403; detector 0.21; ocr saw no text; pod black (yellow 0.000, aspect 5.7); colour Green (G0.95); lever: weak match, add references from this angle
 - `201709` box 0: `84` 0.206, `39` 0.202, `87` 0.197; below_min_sim, short by 0.394; detector 0.59; ocr saw no text; pod yellow (yellow 0.001, aspect 2.5); colour Green (G0.64 Y0.14 Bk0.05 W0.05); lever: weak match, add references from this angle
@@ -121,9 +121,9 @@ largest within-burst gap (possible merge):
 - `199717` box 1: `790` 0.239, `39` 0.232, `87` 0.197; below_min_sim, short by 0.361; detector 0.23; ocr saw `BMM` 0.90 h0.40; pod black (yellow 0.000, aspect 3.3); colour unclear (O0.57 R0.36); lever: weak match, add references from this angle
 - `205269` box 1: `790` 0.240, `39` 0.228, `87` 0.227; below_min_sim, short by 0.360; detector 0.25; ocr saw no text; pod black (yellow 0.000, aspect 3.9); colour unclear (Bk0.46 B0.41); lever: weak match, add references from this angle
 - `204935` box 0: `790` 0.240, `39` 0.208, `87` 0.189; below_min_sim, short by 0.360; detector 0.29; ocr saw `-` 0.43 h0.13, `VEW BAR` 0.41 h0.13; pod black (yellow 0.000, aspect 4.7); colour unclear (R0.24 G0.24 W0.10 G0.10 M0.10 B0.08 P0.06); lever: weak match, add references from this angle
-- … 2054 more in report.json
+- … 2321 more in report.json
 
-## number-unmatched (159)
+## number-unmatched (205)
 
 - `199715` box 0: `790` 0.276, `39` 0.231, `87` 0.190; below_min_sim, short by 0.324; detector 0.91; read `6`; start list 6>6 0.00, 16 -0.60 close call; pod unclear (yellow 0.000, aspect 1.4); colour Pink (P0.67 R0.16 B0.06 P0.06); lever: no entry has number 6
 - `199683` box 0: `790` 0.289, `97` 0.203, `39` 0.196; below_min_sim, short by 0.311; detector 0.94; read `86`, `37`; start list 86/37>37 0.00, 86 0.00 close call; pod black (yellow 0.000, aspect 1.5); colour unclear (W0.35 G0.27 G0.15 M0.08 O0.05); lever: no entry has number 86 or 37
@@ -145,9 +145,9 @@ largest within-burst gap (possible merge):
 - `202023` box 0: `30` 0.501, `42` 0.485, `64` 0.477; below_min_sim, short by 0.099; detector 0.95; read `73`; start list 73>73 0.00, 3 -6.05; pod black (yellow 0.000, aspect 2.8); colour Red (R0.62 G0.10 G0.07 P0.07); lever: no entry has number 73
 - `198447` box 0: `100` 0.513, `40` 0.387, `3` 0.381; below_min_sim, short by 0.086; detector 0.97; read `0`, `52`; start list 0/52>10 0.25, 52 0.00 close call; pod black (yellow 0.000, aspect 1.4); colour Blue (Bl0.89); lever: no entry has number 0 or 52
 - `198763` box 0: `103` 0.517, `98` 0.490, `64` 0.480; below_min_sim, short by 0.083; detector 0.94; read `883`; start list 883>808 -5.89, 83 -6.54 no list read; pod unclear (yellow 0.000, aspect 1.1); colour Black (Bk0.83 G0.06); lever: no entry has number 883
-- … 139 more in report.json
+- … 185 more in report.json
 
-## conflict (22)
+## conflict (19)
 
 - `202505` box 0: `66` 0.577, `87` 0.542, `69` 0.484; conflict; detector 0.95; read `7`; start list 7>86 10.09, 87 7.41; pod black (yellow 0.000, aspect 1.8); colour Black (Bk0.53 P0.17 B0.10 Bl0.06)
 - `198289` box 0: `3` 0.594, `121` 0.510, `94` 0.509; conflict; detector 0.95; read `2`; start list 2>20 2.87, 2 0.00 (burst of 3); pod black (yellow 0.000, aspect 1.6); colour Red (R0.73 P0.15)
@@ -165,13 +165,11 @@ largest within-burst gap (possible merge):
 - `202657` box 0: `78` 0.788, `35` 0.656, `112` 0.557; conflict; detector 0.97; ocr saw `2784NO` 0.70 h0.08, `` 0.00 h0.08; pod unclear (yellow 0.000, aspect 1.1); colour Brown (B0.81 G0.08)
 - `202695` box 0: `78` 0.790, `35` 0.687, `112` 0.590; conflict; detector 0.96; ocr saw `2784NO` 0.68 h0.10; pod unclear (yellow 0.000, aspect 1.4); colour Brown (B0.37 G0.26 W0.19 Y0.05)
 - `202661` box 0: `78` 0.790, `35` 0.643, `112` 0.588; conflict; detector 0.97; ocr saw `2784NO` 0.72 h0.08; pod unclear (yellow 0.000, aspect 1.3); colour Brown (B0.76 G0.12)
-- `203375` box 0: `98` 0.802, `103` 0.750, `104` 0.730; conflict; detector 0.97; ocr saw no text; pod yellow (yellow 0.004, aspect 1.8); colour Blue (Bl0.84)
 - `203377` box 0: `98` 0.806, `103` 0.795, `104` 0.716; conflict; detector 0.97; ocr saw `CER` 0.89 h0.04, `NTON` 0.88 h0.04, `ITON` 0.47 h0.02; pod black (yellow 0.000, aspect 1.7); colour Blue (Bl0.82)
 - `202659` box 0: `78` 0.811, `35` 0.676, `112` 0.612; conflict; detector 0.96; ocr saw `2784:NO` 0.39 h0.06; pod unclear (yellow 0.000, aspect 1.3); colour Brown (B0.80 G0.10)
-- `203179` box 0: `100` 0.832, `3` 0.750, `5` 0.618; conflict; detector 0.84; read `520`; pod black (yellow 0.000, aspect 1.6); colour Blue (Bl0.72 P0.09 B0.06)
-- … 2 more in report.json
+- `202323` box 0: `760` 0.842, `60` 0.808, `69` 0.618; conflict; detector 0.96; ocr saw no text; pod yellow (yellow 0.001, aspect 1.7); colour Pink (P0.83 R0.14)
 
-## overlapped (870)
+## overlapped (869)
 
 - `202613` box 1: `85` 0.182, `39` 0.173, `41` 0.167; overlapped; detector 0.24; ocr saw no text; pod unclear (yellow 0.000, aspect 0.8)
 - `200537` box 1: `35` 0.219, `78` 0.205, `39` 0.198; overlapped; detector 0.28; ocr saw no text; pod unclear (yellow 0.000, aspect 0.7)
@@ -193,7 +191,7 @@ largest within-burst gap (possible merge):
 - `205069` box 2: `790` 0.274, `39` 0.273, `41` 0.235; overlapped; detector 0.37; read `20`; pod black (yellow 0.000, aspect 4.0)
 - `205513` box 1: `790` 0.279, `39` 0.274, `87` 0.233; overlapped; detector 0.22; ocr saw no text; pod black (yellow 0.000, aspect 12.6)
 - `199581` box 1: `39` 0.279, `84` 0.268, `87` 0.254; overlapped; detector 0.32; ocr saw no text; pod black (yellow 0.000, aspect 4.0)
-- … 850 more in report.json
+- … 849 more in report.json
 
 ## no-vehicle (254)
 
