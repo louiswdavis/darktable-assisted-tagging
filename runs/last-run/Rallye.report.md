@@ -4,56 +4,56 @@ thresholds: min_sim 0.6, min_margin 0.1, reference_margin 0.1
 
 ## Summary
 
-6067 vehicles/images, identified rate 28%
+5021 vehicles/images, identified rate 48%
 
-- identified: 1725 (28%)
+- identified: 2400 (48%)
 - team-obvious: 0 (0%)
-- weak-match: 2420 (40%)
+- weak-match: 1384 (28%)
 - no-references: 0 (0%)
-- number-unmatched: 177 (3%)
-- conflict: 0 (0%)
-- overlapped: 1568 (26%)
-- already-tagged: 30 (0%)
-- no-vehicle: 147 (2%)
-- median weak-match: top-1 0.555, margin 0.028
-- colours: Black 1503, Red 398, Multi 1343, Grey 366, Blue 424, no colour 1571, Green 92, White 57, Brown 78, Orange 19, Yellow 32, Pink 6, Purple 1
+- number-unmatched: 76 (2%)
+- conflict: 13 (0%)
+- overlapped: 867 (17%)
+- already-tagged: 27 (1%)
+- no-vehicle: 254 (5%)
+- median weak-match: top-1 0.597, margin 0.031
+- colours: no colour 1575, Red 466, Black 425, Multi 97, Grey 198, Purple 118, Green 375, Pink 206, Yellow 135, White 471, Blue 530, Brown 99, Orange 45
 
 ## detector score
 
-- 0.00-0.30: 1465 boxes, 55 identified
-- 0.30-0.40: 541 boxes, 18 identified
-- 0.40-0.50: 265 boxes, 19 identified
-- 0.50-0.70: 390 boxes, 71 identified
-- 0.70-1.00: 3229 boxes, 1562 identified
+- 0.00-0.30: 611 boxes, 58 identified
+- 0.30-0.40: 266 boxes, 36 identified
+- 0.40-0.50: 155 boxes, 18 identified
+- 0.50-0.70: 243 boxes, 37 identified
+- 0.70-1.00: 3465 boxes, 2251 identified
 
 ## sponsor keyword suggestions
 
 words OCR read on identified boxes of one team tag only; add under `rules.sponsor_keywords` after checking:
-- `martini` → `Motorsport|Number|97`: 7 identified, would hint 11 unidentified
-- `copper` → `Motorsport|Number|31`: 9 identified, would hint 5 unidentified
-- `hella` → `Motorsport|Number|31`: 2 identified, would hint 4 unidentified
-- `olsbergs` → `Motorsport|Number|85`: 3 identified, would hint 3 unidentified
-- `motorhomes` → `Motorsport|Number|33`: 2 identified, would hint 3 unidentified
-- `patrick` → `Motorsport|Number|45`: 2 identified, would hint 2 unidentified
-- `horse` → `Motorsport|Number|31`: 8 identified, would hint 1 unidentified
-- `advan` → `Motorsport|Number|104`: 2 identified, would hint 1 unidentified
+- `alpine` → `Motorsport|Number|52`: 5 identified, would hint 1 unidentified
+- `olsbergs` → `Motorsport|Number|85`: 3 identified, would hint 1 unidentified
+- `chronographes` → `Motorsport|Number|74`: 2 identified, would hint 1 unidentified
 - `llington` → `Motorsport|Number|104`: 2 identified, would hint 1 unidentified
-- `maynard` → `Motorsport|Number|22`: 27 identified, would hint 0 unidentified
-- `aswmc` → `Motorsport|Number|101`: 12 identified, would hint 0 unidentified
-- `cibie` → `Motorsport|Number|44`: 8 identified, would hint 0 unidentified
-- `motul` → `Motorsport|Number|44`: 8 identified, would hint 0 unidentified
-- `woolworth` → `Motorsport|Number|11`: 8 identified, would hint 0 unidentified
-- `mobil` → `Motorsport|Number|62`: 6 identified, would hint 0 unidentified
-- `bevan` → `Motorsport|Number|98`: 4 identified, would hint 0 unidentified
-- `cobra` → `Motorsport|Number|102`: 4 identified, would hint 0 unidentified
-- `ethan` → `Motorsport|Number|104`: 4 identified, would hint 0 unidentified
-- `moss` → `Motorsport|Number|103`: 4 identified, would hint 0 unidentified
-- `optimal` → `Motorsport|Number|31`: 4 identified, would hint 0 unidentified
+- `mcrae` → `Motorsport|Number|3`: 2 identified, would hint 1 unidentified
+- `mintex` → `Motorsport|Number|115`: 2 identified, would hint 1 unidentified
+- `woolworth` → `Motorsport|Number|11`: 11 identified, would hint 0 unidentified
+- `networkq` → `Motorsport|Number|3`: 9 identified, would hint 0 unidentified
+- `andy` → `Motorsport|Number|27`: 8 identified, would hint 0 unidentified
+- `aswmc` → `Motorsport|Number|101`: 8 identified, would hint 0 unidentified
+- `motorhomes` → `Motorsport|Number|33`: 8 identified, would hint 0 unidentified
+- `llookers` → `Motorsport|Number|62`: 7 identified, would hint 0 unidentified
+- `tommi` → `Motorsport|Number|22`: 6 identified, would hint 0 unidentified
+- `mobil` → `Motorsport|Number|62`: 5 identified, would hint 0 unidentified
+- `andudno` → `Motorsport|Number|62`: 4 identified, would hint 0 unidentified
+- `autosport` → `Motorsport|Number|100`: 4 identified, would hint 0 unidentified
+- `llandudno` → `Motorsport|Number|62`: 4 identified, would hint 0 unidentified
+- `mmishimoto` → `Motorsport|Number|75`: 4 identified, would hint 0 unidentified
+- `sparco` → `Motorsport|Number|62`: 4 identified, would hint 0 unidentified
+- `advan` → `Motorsport|Number|104`: 3 identified, would hint 0 unidentified
 
 ## bursts (775 timed, 0 without capture times)
 
-within-burst largest gap (s) → bursts: 0s ×426, 1s ×305, 2s ×43, 541s ×1
-frames per burst: 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 12, 12, 12, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15, 15, 16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 19, 20, 21, 22, 23, 23, 30, 216
+within-burst largest gap (s) → bursts: 0s ×426, 1s ×306, 2s ×42, 541s ×1
+frames per burst: 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 12, 12, 12, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15, 15, 16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 19, 20, 21, 22, 23, 23, 30, 216
 
 closest to the next burst (possible split):
 - burst 385: 216 frames, next burst starts -1191s later
@@ -81,14 +81,13 @@ largest within-burst gap (possible merge):
 - burst 385: 216 frames over 1711s, largest gap 541s, 216 with vehicles, 0 without
 - burst 1: 3 frames over 3s, largest gap 2s, 3 with vehicles, 0 without
 - burst 14: 18 frames over 6s, largest gap 2s, 18 with vehicles, 0 without
-- burst 18: 5 frames over 3s, largest gap 2s, 5 with vehicles, 0 without
 - burst 26: 6 frames over 2s, largest gap 2s, 6 with vehicles, 0 without
 - burst 47: 5 frames over 2s, largest gap 2s, 5 with vehicles, 0 without
 - burst 78: 8 frames over 3s, largest gap 2s, 8 with vehicles, 0 without
-- burst 90: 9 frames over 2s, largest gap 2s, 9 with vehicles, 0 without
+- burst 90: 9 frames over 2s, largest gap 2s, 8 with vehicles, 1 without
 - burst 111: 9 frames over 4s, largest gap 2s, 9 with vehicles, 0 without
-- burst 114: 6 frames over 2s, largest gap 2s, 2 with vehicles, 4 without
-- burst 146: 6 frames over 2s, largest gap 2s, 5 with vehicles, 1 without
+- burst 114: 6 frames over 2s, largest gap 2s, 3 with vehicles, 3 without
+- burst 146: 6 frames over 2s, largest gap 2s, 6 with vehicles, 0 without
 - burst 147: 6 frames over 3s, largest gap 2s, 6 with vehicles, 0 without
 - burst 149: 5 frames over 2s, largest gap 2s, 5 with vehicles, 0 without
 - burst 156: 5 frames over 3s, largest gap 2s, 5 with vehicles, 0 without
@@ -96,101 +95,118 @@ largest within-burst gap (possible merge):
 - burst 164: 10 frames over 4s, largest gap 2s, 10 with vehicles, 0 without
 - burst 196: 4 frames over 2s, largest gap 2s, 4 with vehicles, 0 without
 - burst 220: 15 frames over 7s, largest gap 2s, 15 with vehicles, 0 without
-- burst 236: 9 frames over 2s, largest gap 2s, 6 with vehicles, 3 without
+- burst 236: 9 frames over 2s, largest gap 2s, 7 with vehicles, 2 without
 - burst 238: 6 frames over 2s, largest gap 2s, 6 with vehicles, 0 without
+- burst 244: 3 frames over 2s, largest gap 2s, 3 with vehicles, 0 without
 
-## weak-match (2420)
+## weak-match (1384)
 
-- `202051` box 1: `74` 0.262, `112` 0.249, `113` 0.245; below_min_sim, short by 0.338; detector 0.33; ocr saw no text; pod unclear (yellow 0.000, aspect 0.7); colour Multi (G0.60 Bl0.27 Bk0.12); lever: weak match, add references from this angle
-- `202397` box 0: `74` 0.263, `113` 0.262, `62` 0.251; below_min_sim, short by 0.337; detector 0.85; ocr saw no text; pod black (yellow 0.000, aspect 1.6); colour Green (G0.56 G0.30 Bk0.10); lever: weak match, add references from this angle
-- `199493` box 0: `62` 0.276, `113` 0.273, `39` 0.269; below_min_sim, short by 0.324; detector 0.91; ocr saw no text; pod unclear (yellow 0.000, aspect 1.3); colour White (W0.87 G0.10); lever: weak match, add references from this angle
-- `199523` box 0: `74` 0.277, `113` 0.272, `62` 0.259; below_min_sim, short by 0.323; detector 0.93; ocr saw `FASSI` 0.99 h0.04, `EBC` 0.96 h0.04, `SN Classics and Motorsport` 0.95 h0.03; pod unclear (yellow 0.001, aspect 0.6); colour Red (R0.61 Bk0.24 G0.07); lever: weak match, add references from this angle
-- `200979` box 0: `74` 0.282, `115` 0.261, `113` 0.258; below_min_sim, short by 0.318; detector 0.87; ocr saw no text; pod black (yellow 0.000, aspect 2.8); colour Multi (Bk0.67 Bl0.25 G0.08); lever: weak match, add references from this angle
-- `200093` box 1: `74` 0.285, `87` 0.274, `112` 0.255; below_min_sim, short by 0.315; detector 0.49; ocr saw no text; pod black (yellow 0.000, aspect 1.4); colour Black (Bk0.85 G0.14); lever: weak match, add references from this angle
-- `205491` box 1: `74` 0.288, `112` 0.263, `113` 0.261; below_min_sim, short by 0.312; detector 0.31; ocr saw no text; pod black (yellow 0.000, aspect 3.8); colour Black (Bk0.94 G0.06); lever: weak match, add references from this angle
-- `202047` box 1: `112` 0.289, `98` 0.287, `115` 0.281; below_min_sim, short by 0.311; detector 0.38; ocr saw no text; pod unclear (yellow 0.000, aspect 0.4); colour Blue (Bl0.54 G0.31 Bk0.15); lever: weak match, add references from this angle
-- `199913` box 0: `74` 0.291, `113` 0.287, `97` 0.287; below_min_sim, short by 0.309; detector 0.90; ocr saw `Alivelyrace Graph` 0.49 h0.03, `LONE` 0.19 h0.06; pod yellow (yellow 0.009, aspect 1.2); colour Multi (G0.42 Bl0.20 R0.17 Y0.14); lever: weak match, add references from this angle
-- `198495` box 0: `74` 0.291, `39` 0.270, `109` 0.264; below_min_sim, short by 0.309; detector 0.92; ocr saw `Sponsored By` 0.99 h0.04, `The Wife` 0.98 h0.05, `JAFFA` 0.94 h0.03; pod unclear (yellow 0.000, aspect 1.3); colour Blue (Bl0.53 G0.29 Bk0.14); lever: weak match, add references from this angle
-- `201347` box 0: `31` 0.295, `47` 0.259, `27` 0.257; below_min_sim, short by 0.305; detector 0.75; ocr saw no text; pod black (yellow 0.000, aspect 2.7); colour Black (Bk0.99); lever: weak match, add references from this angle
-- `199911` box 0: `113` 0.296, `74` 0.295, `112` 0.292; below_min_sim, short by 0.303; detector 0.88; ocr saw `Aliveyrace Graph` 0.72 h0.03, `E` 0.34 h0.07; pod yellow (yellow 0.009, aspect 1.2); colour Multi (G0.43 Bl0.21 R0.17 Y0.14); lever: weak match, add references from this angle
-- `199857` box 0: `74` 0.298, `113` 0.272, `112` 0.263; below_min_sim, short by 0.302; detector 0.96; read `4`; pod black (yellow 0.000, aspect 1.7); colour Blue (Bl0.43 G0.39 W0.09 Bk0.06); lever: weak match, add references from this angle
-- `201375` box 0: `74` 0.300, `113` 0.259, `3` 0.257; below_min_sim, short by 0.300; detector 0.73; ocr saw no text; pod black (yellow 0.000, aspect 2.4); colour Black (Bk0.79 G0.18); lever: weak match, add references from this angle
-- `201331` box 0: `47` 0.301, `31` 0.300, `3` 0.290; below_min_sim, short by 0.299; detector 0.74; ocr saw no text; pod black (yellow 0.000, aspect 2.0); colour Black (Bk0.99); lever: weak match, add references from this angle
-- `199909` box 0: `113` 0.301, `74` 0.299, `112` 0.286; below_min_sim, short by 0.299; detector 0.91; ocr saw `Aliveyrace Grap` 0.54 h0.03, `Ear` 0.19 h0.08; pod yellow (yellow 0.009, aspect 1.2); colour Multi (G0.42 Bl0.21 R0.17 Y0.14); lever: weak match, add references from this angle
-- `202081` box 0: `74` 0.301, `98` 0.292, `112` 0.279; below_min_sim, short by 0.299; detector 0.21; ocr saw no text; pod black (yellow 0.000, aspect 1.5); colour Multi (W0.56 G0.38); lever: weak match, add references from this angle
-- `205617` box 1: `98` 0.302, `97` 0.296, `103` 0.283; below_min_sim, short by 0.298; detector 0.76; ocr saw `Chro` 0.87 h0.02, `B.R.M` 0.55 h0.09; pod unclear (yellow 0.000, aspect 1.3); colour Black (Bk0.85 G0.14); lever: weak match, add references from this angle
-- `200289` box 0: `74` 0.302, `113` 0.302, `112` 0.274; below_min_sim, short by 0.298; detector 0.94; read `1`; pod black (yellow 0.000, aspect 1.8); colour Blue (Bl0.80 P0.10); lever: weak match, add references from this angle
-- `201343` box 0: `31` 0.303, `47` 0.278, `27` 0.278; below_min_sim, short by 0.296; detector 0.62; ocr saw no text; pod black (yellow 0.000, aspect 3.0); colour Black (Bk1.00); lever: weak match, add references from this angle
-- … 2400 more in report.json
+- `199707` box 0: `85` 0.278, `21` 0.264, `26` 0.258; below_min_sim, short by 0.322; detector 0.87; ocr saw `Castrol` 0.98 h0.16, `P` 0.21 h0.05; pod unclear (yellow 0.000, aspect 1.0); colour Pink (P0.92); lever: weak match, add references from this angle
+- `199523` box 0: `21` 0.292, `74` 0.279, `62` 0.270; below_min_sim, short by 0.308; detector 0.75; ocr saw `EBC` 0.97 h0.04, `FASSI` 0.94 h0.04, `SSIC SPEED CH` 0.73 h0.02; pod unclear (yellow 0.001, aspect 0.6); colour Red (R0.73 G0.10 P0.06); lever: weak match, add references from this angle
+- `199705` box 0: `21` 0.295, `62` 0.280, `26` 0.276; below_min_sim, short by 0.305; detector 0.93; ocr saw `Castrol` 0.99 h0.22, `NUPKYKARKKUNEN` 0.22 h0.05; pod black (yellow 0.000, aspect 1.5); colour Pink (P0.92 W0.05); lever: weak match, add references from this angle
+- `199455` box 0: `39` 0.296, `43` 0.277, `60` 0.276; below_min_sim, short by 0.304; detector 0.91; ocr saw no text; pod black (yellow 0.000, aspect 1.4); colour Pink (P0.96); lever: weak match, add references from this angle
+- `201349` box 0: `78` 0.298, `113` 0.295, `67` 0.273; below_min_sim, short by 0.302; detector 0.74; ocr saw no text; pod black (yellow 0.000, aspect 2.6); colour Black (Bk0.79 P0.08 G0.08); lever: weak match, add references from this angle
+- `199703` box 0: `21` 0.302, `62` 0.275, `63` 0.275; below_min_sim, short by 0.298; detector 0.92; ocr saw `Castrol` 0.98 h0.21, `NUPKYKARKKUNEN` 0.51 h0.04; pod black (yellow 0.000, aspect 1.5); colour Pink (P0.93); lever: weak match, add references from this angle
+- `201347` box 0: `62` 0.310, `78` 0.260, `113` 0.231; below_min_sim, short by 0.290; detector 0.91; ocr saw no text; pod black (yellow 0.000, aspect 2.6); colour Black (Bk0.85 G0.10); lever: weak match, add references from this angle
+- `202073` box 0: `21` 0.314, `63` 0.303, `62` 0.286; below_min_sim, short by 0.286; detector 0.93; ocr saw no text; pod black (yellow 0.000, aspect 6.1); colour White (W0.94); lever: weak match, add references from this angle
+- `201353` box 0: `113` 0.317, `62` 0.312, `78` 0.295; below_min_sim, short by 0.283; detector 0.80; ocr saw no text; pod black (yellow 0.000, aspect 2.5); colour Black (Bk0.73 G0.14); lever: weak match, add references from this angle
+- `202071` box 0: `21` 0.323, `63` 0.313, `22` 0.296; below_min_sim, short by 0.277; detector 0.93; ocr saw no text; pod black (yellow 0.000, aspect 6.7); colour White (W0.93); lever: weak match, add references from this angle
+- `200289` box 0: `41` 0.324, `76` 0.320, `39` 0.302; below_min_sim, short by 0.276; detector 0.96; ocr saw `` 0.00 h0.07; pod black (yellow 0.000, aspect 1.8); colour Purple (P0.87 Bl0.08); lever: weak match, add references from this angle
+- `201327` box 0: `55` 0.326, `78` 0.300, `35` 0.297; below_min_sim, short by 0.274; detector 0.91; ocr saw no text; pod black (yellow 0.000, aspect 2.7); colour Black (Bk0.89); lever: weak match, add references from this angle
+- `201343` box 0: `62` 0.329, `78` 0.313, `31` 0.298; below_min_sim, short by 0.271; detector 0.93; ocr saw no text; pod black (yellow 0.000, aspect 2.9); colour Black (Bk0.86); lever: weak match, add references from this angle
+- `199483` box 0: `21` 0.333, `113` 0.313, `3` 0.281; below_min_sim, short by 0.268; detector 0.97; read `00`; pod black (yellow 0.000, aspect 1.4); colour unclear (W0.23 M0.22 R0.21 G0.18 B0.06); lever: weak match, add references from this angle
+- `199489` box 2: `87` 0.334, `76` 0.320, `113` 0.314; below_min_sim, short by 0.267; detector 0.26; ocr saw no text; pod yellow (yellow 0.025, aspect 1.4); colour unclear (R0.32 P0.30 M0.24); lever: weak match, add references from this angle
+- `202069` box 1: `21` 0.334, `63` 0.318, `62` 0.295; below_min_sim, short by 0.266; detector 0.92; ocr saw no text; pod black (yellow 0.000, aspect 4.8); colour White (W0.91); lever: weak match, add references from this angle
+- `199857` box 0: `41` 0.336, `63` 0.335, `62` 0.300; below_min_sim, short by 0.264; detector 0.97; ocr saw `ly Tyre Centre` 0.75 h0.12, `FaIy` 0.29 h0.13, `oombard` 0.18 h0.14; pod black (yellow 0.000, aspect 1.8); colour Blue (Bl0.52 G0.20 W0.09 M0.07); lever: weak match, add references from this angle
+- `199367` box 3: `39` 0.337, `63` 0.333, `21` 0.326; below_min_sim, short by 0.263; detector 0.75; ocr saw `` 0.00 h0.04; pod black (yellow 0.000, aspect 1.8); colour Green (G0.43 G0.15 P0.14 Bk0.13); lever: weak match, add references from this angle
+- `202067` box 1: `21` 0.337, `63` 0.307, `50` 0.287; below_min_sim, short by 0.263; detector 0.92; ocr saw no text; pod black (yellow 0.000, aspect 5.1); colour White (W0.89 G0.06); lever: weak match, add references from this angle
+- `199909` box 0: `63` 0.339, `21` 0.322, `50` 0.320; below_min_sim, short by 0.261; detector 0.95; ocr saw `品` 0.71 h0.07, `ALiveyrace Graph` 0.28 h0.03; pod yellow (yellow 0.009, aspect 1.2); colour Multi (M0.85 W0.07 P0.05); lever: weak match, add references from this angle
+- … 1364 more in report.json
 
-## number-unmatched (177)
+## number-unmatched (76)
 
-- `199717` box 0: `113` 0.310, `112` 0.269, `83` 0.222; below_min_sim, short by 0.290; detector 0.95; read `6`; start list 6>16 2.53, 6 0.00; pod unclear (yellow 0.000, aspect 1.3); colour Multi (W0.25 R0.22 P0.16 G0.16 Y0.14); lever: no entry has number 6
-- `199715` box 0: `113` 0.323, `112` 0.287, `62` 0.248; below_min_sim, short by 0.277; detector 0.95; read `6`; start list 6>16 2.97, 46 0.20; pod unclear (yellow 0.000, aspect 1.3); colour Multi (W0.24 G0.20 R0.18 P0.15 Y0.15); lever: no entry has number 6
-- `204531` box 0: `5` 0.389, `121` 0.382, `42` 0.378; below_min_sim, short by 0.211; detector 0.91; read `58`; start list 58>8 -6.85, 50 -7.68 no list read; pod yellow (yellow 0.007, aspect 3.0); colour Black (Bk0.72 R0.12 G0.10 B0.05); lever: no entry has number 58
-- `203261` box 0: `62` 0.391, `26` 0.322, `75` 0.305; below_min_sim, short by 0.209; detector 0.72; read `06`; start list 06>64 -5.87, 62 -6.66 no list read; pod black (yellow 0.000, aspect 2.4); colour Black (Bk0.80 G0.17); lever: no entry has number 06
-- `199685` box 0: `86` 0.392, `94` 0.344, `97` 0.271; below_min_sim, short by 0.208; detector 0.88; read `86`, `37`; start list 86/37>37 0.00, 86 0.00 close call; pod black (yellow 0.000, aspect 1.5); colour Multi (G0.52 G0.27 R0.08 W0.06 Bk0.05); lever: no entry has number 86 or 37
-- `201581` box 0: `115` 0.415, `103` 0.385, `112` 0.373; below_min_sim, short by 0.185; detector 0.23; read `2`; start list 2>2 0.00, 22 -3.97; pod black (yellow 0.000, aspect 1.7); colour Black (Bk0.94); lever: no entry has number 2
-- `198881` box 0: `31` 0.434, `40` 0.432, `21` 0.425; below_min_sim, short by 0.166; detector 0.85; read `0`; start list 0>6 -5.57, 8 -7.52 no list read; pod unclear (yellow 0.000, aspect 1.3); colour White (W0.73 G0.14 Y0.07); lever: no entry has number 0
-- `203241` box 2: `98` 0.442, `74` 0.382, `115` 0.376; below_min_sim, short by 0.158; detector 0.24; read `2`; start list 2>2 0.00, 26 -0.10 close call; pod black (yellow 0.000, aspect 1.7); colour Black (Bk0.74 G0.17 B0.05); lever: no entry has number 2
-- `198777` box 0: `98` 0.444, `75` 0.413, `3` 0.407; below_min_sim, short by 0.156; detector 0.95; read `0`, `6`; start list 0>10 -3.58, 2 -6.09; pod unclear (yellow 0.000, aspect 1.4); colour Orange (O0.61 G0.19 B0.12 Bk0.06); lever: no entry has number 0
-- `201029` box 0: `22` 0.475, `115` 0.378, `98` 0.377; below_min_sim, short by 0.125; detector 0.84; read `0`; start list 0>6 -6.24, 8 -6.99 no list read; pod unclear (yellow 0.000, aspect 1.3); colour Multi (Bk0.64 B0.24 W0.08); lever: no entry has number 0
-- `203247` box 0: `5` 0.478, `39` 0.464, `80` 0.443; below_min_sim, short by 0.122; detector 0.95; read `90`; start list 90>90 0.00, 790 -2.72; pod unclear (yellow 0.000, aspect 1.4); colour Multi (Bk0.41 G0.40 G0.11); lever: no entry has number 90
-- `204539` box 0: `94` 0.482, `3` 0.442, `121` 0.435; below_min_sim, short by 0.118; detector 0.75; read `58`; start list 58>8 -5.96, 28 -6.89 no list read; pod yellow (yellow 0.033, aspect 2.3); colour Multi (Bk0.39 R0.26 G0.15 P0.14); lever: no entry has number 58
-- `201027` box 0: `22` 0.487, `115` 0.402, `112` 0.387; below_min_sim, short by 0.113; detector 0.86; read `0`; start list 0>6 -6.07, 8 -6.64 no list read; pod unclear (yellow 0.000, aspect 1.3); colour Multi (Bk0.62 B0.25 W0.08); lever: no entry has number 0
-- `199393` box 0: `43` 0.503, `42` 0.470, `30` 0.467; below_min_sim, short by 0.097; detector 0.67; read `56`; start list 56>50 -9.21, 51 -9.21 no list read; pod black (yellow 0.000, aspect 2.3); colour Grey (G0.53 Bk0.25 W0.15); lever: no entry has number 56
-- `199913` box 1: `26` 0.530, `44` 0.528, `86` 0.496; below_min_sim, short by 0.070; detector 0.94; read `8`; start list 8>18 0.69, 28 0.69 close call; pod yellow (yellow 0.035, aspect 0.9); colour Brown (B0.57 R0.22 Bk0.09 O0.06); lever: no entry has number 8
-- `199911` box 1: `44` 0.532, `26` 0.530, `86` 0.488; below_min_sim, short by 0.068; detector 0.94; read `8`; start list 8>18 0.69, 28 0.69 close call; pod yellow (yellow 0.037, aspect 0.9); colour Brown (B0.58 R0.21 Bk0.08 O0.06); lever: no entry has number 8
-- `198377` box 0: `101` 0.536, `97` 0.515, `26` 0.425; below_min_sim, short by 0.064; detector 0.82; read `1`; start list 1>10 0.05, 1 0.00 close call; pod black (yellow 0.000, aspect 2.8); colour Multi (G0.33 W0.21 R0.20 Bl0.14 Bk0.10); lever: no entry has number 1
-- `199909` box 1: `44` 0.542, `26` 0.536, `86` 0.496; below_min_sim, short by 0.058; detector 0.95; read `8`; start list 8>18 0.69, 28 0.69 close call; pod yellow (yellow 0.035, aspect 0.9); colour Brown (B0.58 R0.21 Bk0.08 O0.06); lever: no entry has number 8
-- `198447` box 0: `83` 0.556, `3` 0.481, `75` 0.419; below_min_sim, short by 0.044; detector 0.96; read `52`, `0`; start list 52/0>10 0.34, 52 0.00 close call; pod black (yellow 0.000, aspect 1.4); colour Blue (Bl0.55 G0.27 Bk0.13); lever: no entry has number 52 or 0
-- `199471` box 1: `60` 0.557, `97` 0.510, `83` 0.479; below_min_sim, short by 0.043; detector 0.93; read `2`; start list 2>121 6.18, 21 5.77 close call; pod yellow (yellow 0.010, aspect 1.6); colour Green (G0.79 Bk0.18); lever: no entry has number 2
-- … 157 more in report.json
+- `199683` box 0: `86` 0.279, `50` 0.278, `63` 0.275; below_min_sim, short by 0.321; detector 0.94; read `86`, `37`; start list 86/37>37 0.00, 86 0.00 close call; pod black (yellow 0.000, aspect 1.5); colour unclear (W0.35 G0.27 G0.15 M0.08 O0.05); lever: no entry has number 86 or 37
+- `199685` box 0: `86` 0.292, `39` 0.288, `63` 0.285; below_min_sim, short by 0.308; detector 0.94; read `37`, `86`, `0`; start list 37/86/0>37 0.00, 86 0.00 close call; pod black (yellow 0.000, aspect 1.5); colour unclear (W0.36 G0.27 G0.15 M0.10); lever: no entry has number 37 or 86 or 0
+- `204531` box 0: `109` 0.490, `42` 0.422, `32` 0.416; below_min_sim, short by 0.110; detector 0.93; read `58`; start list 58>8 -7.60, 68 -8.11 no list read; pod yellow (yellow 0.006, aspect 3.0); colour Pink (P0.54 P0.18 R0.16 B0.08); lever: no entry has number 58
+- `198447` box 0: `83` 0.509, `52` 0.501, `3` 0.476; below_min_sim, short by 0.090; detector 0.97; read `0`, `52`; start list 0/52>10 0.25, 52 0.00 close call; pod black (yellow 0.000, aspect 1.4); colour Blue (Bl0.89); lever: no entry has number 0 or 52
+- `199393` box 0: `43` 0.528, `121` 0.524, `30` 0.503; below_min_sim, short by 0.072; detector 0.95; read `56`; start list 56>6 -7.82, 36 -8.11 no list read; pod black (yellow 0.000, aspect 2.7); colour White (W0.55 M0.10 G0.09 G0.07 Bk0.05); lever: no entry has number 56
+- `202307` box 0: `55` 0.539, `26` 0.526, `22` 0.501; below_min_sim, short by 0.061; detector 0.96; read `60`; start list 60>60 0.00, 6 -3.99; pod black (yellow 0.000, aspect 3.0); colour Pink (P0.75 P0.10 R0.07); lever: no entry has number 60
+- `202023` box 0: `30` 0.560, `47` 0.513, `109` 0.467; below_min_sim, short by 0.040; detector 0.95; read `73`; start list 73>73 0.00, 3 -6.05; pod black (yellow 0.000, aspect 2.8); colour Red (R0.62 G0.10 G0.07 P0.07); lever: no entry has number 73
+- `198497` box 0: `43` 0.584, `109` 0.570, `103` 0.566; below_min_sim, short by 0.016; detector 0.95; read `246`; start list 246>82 -5.44, 84 -5.51 no list read; pod unclear (yellow 0.000, aspect 1.2); colour Blue (Bl0.69 B0.06 G0.05); lever: no entry has number 246
+- `205447` box 0: `83` 0.592, `76` 0.582, `21` 0.532; below_min_sim, short by 0.008; detector 0.94; read `688`; start list 688>808 -5.23, 68 -5.34 no list read; pod unclear (yellow 0.000, aspect 1.2); colour unclear (P0.21 W0.20 R0.20 G0.13 B0.10 M0.08); lever: no entry has number 688
+- `205449` box 0: `76` 0.613, `83` 0.599, `21` 0.510; margin_too_small, short by 0.085; detector 0.94; read `688`; start list 688>68 -4.87, 86 -6.16 no list read; pod unclear (yellow 0.000, aspect 1.2); colour unclear (W0.29 R0.20 P0.13 M0.11 B0.10 G0.09); lever: no entry has number 688
+- `204529` box 0: `109` 0.624, `33` 0.604, `47` 0.580; margin_too_small, short by 0.080; detector 0.94; read `58`; start list 58>8 -8.11, 28 -8.52 no list read; pod yellow (yellow 0.042, aspect 2.8); colour Purple (P0.50 B0.18 P0.17 R0.10); lever: no entry has number 58
+- `204821` box 0: `103` 0.627, `98` 0.583, `44` 0.580; margin_too_small, short by 0.057; detector 0.89; read `30`; start list 30>30 0.00, 36 -2.35; pod black (yellow 0.000, aspect 2.8); colour Pink (P0.51 R0.40); lever: no entry has number 30
+- `204511` box 0: `61` 0.628, `62` 0.609, `94` 0.554; margin_too_small, short by 0.081; detector 0.97; read `131`; start list 131>11 -6.44, 13 -7.82 no list read; pod black (yellow 0.000, aspect 2.7); colour White (W0.63 G0.14 B0.08 Bk0.05); lever: no entry has number 131
+- `199909` box 1: `83` 0.632, `102` 0.608, `44` 0.581; margin_too_small, short by 0.077; detector 0.96; read `8`; start list 8>18 0.29, 8 0.00 close call; pod yellow (yellow 0.034, aspect 1.0); colour Yellow (Y0.67 B0.16); lever: no entry has number 8
+- `204499` box 0: `104` 0.637, `121` 0.578, `109` 0.549; margin_too_small, short by 0.041; detector 0.96; read `131`; start list 131>31 -6.59, 11 -6.81 no list read; pod black (yellow 0.001, aspect 2.9); colour White (W0.65 G0.17 G0.07); lever: no entry has number 131
+- `205445` box 0: `83` 0.637, `76` 0.637, `21` 0.503; margin_too_small, short by 0.099; detector 0.95; read `688`; start list 688>68 -6.07, 808 -6.96 no list read; pod unclear (yellow 0.000, aspect 1.2); colour unclear (W0.27 P0.18 R0.18 G0.12 M0.12 B0.07); lever: no entry has number 688
+- `199911` box 1: `83` 0.638, `102` 0.615, `44` 0.599; margin_too_small, short by 0.077; detector 0.96; read `8`; start list 8>18 0.00, 8 0.00 close call; pod yellow (yellow 0.035, aspect 0.9); colour Yellow (Y0.77 B0.11); lever: no entry has number 8
+- `202591` box 1: `83` 0.648, `44` 0.631, `102` 0.616; margin_too_small, short by 0.083; detector 0.83; read `307`, `73`; start list 307/73>73 0.00, 730 -2.51; pod black (yellow 0.000, aspect 2.0); colour Black (Bk0.80 B0.09); lever: no entry has number 307 or 73
+- `198579` box 0: `21` 0.652, `85` 0.650, `75` 0.588; margin_too_small, short by 0.098; detector 0.93; read `06`, `71`; start list 06/71>50 0.92, 107 0.89 close call; pod unclear (yellow 0.000, aspect 1.3); colour unclear (G0.38 G0.34 B0.13 W0.05); lever: no entry has number 06 or 71
+- `199913` box 1: `83` 0.653, `102` 0.626, `44` 0.617; margin_too_small, short by 0.072; detector 0.96; read `8`; start list 8>18 0.29, 8 0.00 close call; pod yellow (yellow 0.037, aspect 0.9); colour Yellow (Y0.79 B0.10); lever: no entry has number 8
+- … 56 more in report.json
 
-## overlapped (1568)
+## conflict (13)
 
-- `200449` box 3: `74` 0.220, `97` 0.218, `113` 0.217; overlapped; detector 0.24; ocr saw no text; pod unclear (yellow 0.000, aspect 0.6)
-- `202053` box 2: `112` 0.263, `74` 0.263, `113` 0.251; overlapped; detector 0.23; ocr saw no text; pod unclear (yellow 0.000, aspect 0.6)
-- `201163` box 1: `26` 0.275, `83` 0.258, `3` 0.242; overlapped; detector 0.21; ocr saw `BOUR` 0.98 h0.20; pod black (yellow 0.000, aspect 1.8)
-- `202079` box 3: `47` 0.287, `76` 0.261, `115` 0.250; overlapped; detector 0.20; ocr saw no text; pod black (yellow 0.000, aspect 1.4)
-- `200213` box 2: `26` 0.289, `11` 0.250, `64` 0.242; overlapped; detector 0.38; ocr saw no text; pod black (yellow 0.000, aspect 1.9)
-- `205593` box 2: `112` 0.294, `11` 0.284, `62` 0.284; overlapped; detector 0.45; ocr saw no text; pod black (yellow 0.000, aspect 2.9)
-- `199989` box 1: `103` 0.295, `74` 0.272, `113` 0.271; overlapped; detector 0.25; ocr saw no text; pod unclear (yellow 0.000, aspect 0.6)
-- `200537` box 2: `78` 0.297, `113` 0.296, `103` 0.294; overlapped; detector 0.22; ocr saw no text; pod unclear (yellow 0.000, aspect 0.7)
-- `198439` box 1: `74` 0.298, `62` 0.289, `60` 0.280; overlapped; detector 0.29; ocr saw no text; pod black (yellow 0.000, aspect 2.5)
-- `202081` box 2: `76` 0.299, `74` 0.270, `115` 0.248; overlapped; detector 0.26; ocr saw no text; pod unclear (yellow 0.000, aspect 0.9)
-- `199981` box 2: `3` 0.301, `76` 0.265, `103` 0.264; overlapped; detector 0.24; ocr saw no text; pod unclear (yellow 0.000, aspect 1.1)
-- `202201` box 2: `74` 0.303, `115` 0.290, `11` 0.279; overlapped; detector 0.37; ocr saw no text; pod black (yellow 0.000, aspect 2.1)
-- `201969` box 2: `113` 0.304, `112` 0.294, `74` 0.271; overlapped; detector 0.21; ocr saw no text; pod black (yellow 0.000, aspect 2.9)
-- `201061` box 1: `103` 0.305, `3` 0.265, `74` 0.264; overlapped; detector 0.37; ocr saw `e` 0.87 h0.35; pod unclear (yellow 0.000, aspect 1.0)
-- `205543` box 1: `108` 0.305, `115` 0.287, `74` 0.285; overlapped; detector 0.20; read `2`; pod unclear (yellow 0.000, aspect 0.7)
-- `200381` box 1: `113` 0.310, `74` 0.305, `112` 0.299; overlapped; detector 0.25; ocr saw `PEUGEOT` 0.99 h0.34; pod black (yellow 0.000, aspect 4.7)
-- `205491` box 2: `74` 0.312, `115` 0.274, `112` 0.270; overlapped; detector 0.23; ocr saw no text; pod unclear (yellow 0.000, aspect 1.4)
-- `200635` box 1: `26` 0.312, `83` 0.249, `3` 0.210; overlapped; detector 0.21; read `1`; pod black (yellow 0.000, aspect 1.6)
-- `201053` box 2: `43` 0.314, `121` 0.274, `74` 0.270; overlapped; detector 0.33; ocr saw `S` 0.55 h0.20; pod unclear (yellow 0.000, aspect 1.1)
-- `201791` box 3: `115` 0.316, `98` 0.306, `103` 0.306; overlapped; detector 0.32; ocr saw no text; pod black (yellow 0.000, aspect 1.6)
-- … 1548 more in report.json
+- `202327` box 0: `21` 0.760, `61` 0.647, `66` 0.634; conflict; detector 0.91; ocr saw no text; pod black (yellow 0.000, aspect 1.5); colour Pink (P0.96)
+- `202505` box 0: `86` 0.919, `21` 0.882, `75` 0.588; conflict; detector 0.95; read `7`; start list 7>86 10.09, 87 7.41; pod black (yellow 0.000, aspect 1.8); colour Black (Bk0.53 P0.17 B0.10 Bl0.06)
+- `202493` box 0: `10` 0.942, `60` 0.881, `101` 0.833; conflict; detector 0.94; ocr saw `福` 0.10 h0.06, `1` 0.04 h0.06; pod black (yellow 0.001, aspect 1.8); colour Red (R0.47 B0.18 P0.16 P0.08)
+- `202489` box 0: `10` 0.958, `60` 0.916, `101` 0.841; conflict; detector 0.93; read `0`; pod yellow (yellow 0.001, aspect 1.8); colour Red (R0.53 P0.18 B0.13 P0.08)
+- `203013` box 0: `97` 0.979, `16` 0.816, `101` 0.697; conflict; detector 0.95; read `16`; start list 16>16 0.00, 18 -3.26 (weak read); pod black (yellow 0.000, aspect 2.3); colour Pink (P0.61 M0.15 R0.08 W0.08)
+- `202681` box 0: `76` 0.984, `78` 0.983, `35` 0.755; conflict; detector 0.94; ocr saw no text; pod unclear (yellow 0.000, aspect 1.2); colour Brown (B0.72 W0.08 G0.07)
+- `202687` box 0: `76` 0.986, `78` 0.977, `35` 0.750; conflict; detector 0.95; ocr saw no text; pod unclear (yellow 0.000, aspect 1.3); colour Brown (B0.76 G0.14)
+- `202689` box 0: `76` 0.987, `78` 0.970, `35` 0.740; conflict; detector 0.95; ocr saw no text; pod unclear (yellow 0.000, aspect 1.3); colour Brown (B0.60 G0.21 W0.07)
+- `202661` box 0: `76` 0.989, `78` 0.975, `35` 0.670; conflict; detector 0.97; ocr saw `2784NO` 0.72 h0.08; pod unclear (yellow 0.000, aspect 1.3); colour Brown (B0.76 G0.12)
+- `202693` box 0: `76` 0.992, `78` 0.967, `35` 0.734; conflict; detector 0.96; ocr saw no text; pod unclear (yellow 0.000, aspect 1.4); colour Brown (B0.49 G0.19 W0.17)
+- `202659` box 0: `76` 0.994, `78` 0.952, `35` 0.705; conflict; detector 0.96; ocr saw `2784:NO` 0.39 h0.06; pod unclear (yellow 0.000, aspect 1.3); colour Brown (B0.80 G0.10)
+- `202691` box 0: `76` 0.996, `78` 0.966, `35` 0.767; conflict; detector 0.96; ocr saw no text; pod unclear (yellow 0.000, aspect 1.3); colour Brown (B0.66 G0.11 W0.08)
+- `202657` box 0: `76` 0.996, `78` 0.930, `35` 0.688; conflict; detector 0.97; ocr saw `2784NO` 0.70 h0.08, `` 0.00 h0.08; pod unclear (yellow 0.000, aspect 1.1); colour Brown (B0.81 G0.08)
 
-## no-vehicle (147)
+## overlapped (867)
 
-- `202303` burst 25: no vehicle at 0.2: strongest vehicle 0.12 (0.21x0.12 of frame)
-- `202305` burst 25: no vehicle at 0.2: strongest vehicle 0.08 (0.40x0.13 of frame)
-- `202325` burst 27: no vehicle at 0.2: strongest vehicle 0.14 (0.15x0.05 of frame)
-- `202347` burst 28: no vehicle at 0.2: strongest vehicle 0.11 (0.04x0.02 of frame)
-- `202349` burst 28: no vehicle at 0.2: strongest vehicle 0.10 (0.02x0.02 of frame)
-- `202997` burst 87: no vehicle at 0.2: strongest vehicle 0.14 (0.96x0.98 of frame)
-- `202999` burst 87: no vehicle at 0.2: strongest vehicle 0.19 (0.54x0.99 of frame)
-- `203079` burst 96: no vehicle at 0.2: strongest vehicle 0.19 (0.41x0.35 of frame)
-- `203081` burst 96: no vehicle at 0.2: strongest vehicle 0.17 (0.83x0.64 of frame)
-- `203083` burst 97: no vehicle at 0.2: strongest vehicle 0.85 (0.07x0.06 of frame)
-- `203085` burst 97: no vehicle at 0.2: strongest vehicle 0.83 (0.07x0.06 of frame)
-- `203087` burst 97: no vehicle at 0.2: strongest vehicle 0.86 (0.07x0.06 of frame)
-- `203089` burst 97: no vehicle at 0.2: strongest vehicle 0.84 (0.07x0.06 of frame)
-- `203091` burst 98: no vehicle at 0.2: strongest vehicle 0.77 (0.06x0.06 of frame)
-- `203093` burst 98: no vehicle at 0.2: strongest vehicle 0.77 (0.06x0.06 of frame)
-- `203139` burst 105: no vehicle at 0.2: strongest vehicle 0.15 (0.06x0.07 of frame)
-- `203145` burst 105: no vehicle at 0.2: strongest vehicle 0.34 (0.07x0.07 of frame)
-- `203177` burst 109: no vehicle at 0.2: strongest vehicle 0.18 (1.00x1.00 of frame)
-- `203223` burst 114: no vehicle at 0.2: strongest vehicle 0.93 (0.07x0.07 of frame)
-- `203225` burst 114: no vehicle at 0.2: strongest vehicle 0.94 (0.07x0.07 of frame)
-- … 127 more in report.json
+- `202613` box 1: `47` 0.246, `82` 0.228, `39` 0.218; overlapped; detector 0.24; ocr saw no text; pod unclear (yellow 0.000, aspect 0.8)
+- `200537` box 1: `113` 0.286, `47` 0.261, `22` 0.260; overlapped; detector 0.28; ocr saw no text; pod unclear (yellow 0.000, aspect 0.7)
+- `199951` box 1: `80` 0.307, `55` 0.304, `26` 0.295; overlapped; detector 0.34; ocr saw no text; pod unclear (yellow 0.000, aspect 0.4)
+- `200155` box 1: `62` 0.318, `113` 0.301, `47` 0.276; overlapped; detector 0.20; ocr saw no text; pod unclear (yellow 0.000, aspect 0.9)
+- `204197` box 1: `55` 0.319, `43` 0.310, `115` 0.304; overlapped; detector 0.26; ocr saw no text; pod unclear (yellow 0.000, aspect 1.1)
+- `201417` box 2: `62` 0.320, `21` 0.313, `74` 0.294; overlapped; detector 0.24; ocr saw no text; pod black (yellow 0.000, aspect 2.0)
+- `205043` box 2: `115` 0.323, `41` 0.312, `76` 0.310; overlapped; detector 0.25; read `2`, `8`; pod black (yellow 0.000, aspect 1.6)
+- `199621` box 1: `22` 0.324, `105` 0.322, `78` 0.308; overlapped; detector 0.29; ocr saw no text; pod black (yellow 0.000, aspect 2.1)
+- `199137` box 2: `39` 0.332, `76` 0.315, `87` 0.298; overlapped; detector 0.51; ocr saw no text; pod unclear (yellow 0.000, aspect 1.1)
+- `199707` box 3: `97` 0.335, `63` 0.308, `113` 0.303; overlapped; detector 0.43; ocr saw no text; pod unclear (yellow 0.000, aspect 1.0)
+- `199703` box 1: `97` 0.338, `8` 0.315, `39` 0.306; overlapped; detector 0.33; ocr saw no text; pod black (yellow 0.000, aspect 3.1)
+- `205091` box 2: `46` 0.338, `35` 0.316, `47` 0.292; overlapped; detector 0.37; ocr saw no text; pod black (yellow 0.000, aspect 2.4)
+- `201345` box 1: `31` 0.340, `40` 0.319, `27` 0.294; overlapped; detector 0.79; ocr saw no text; pod black (yellow 0.000, aspect 2.6)
+- `200007` box 1: `62` 0.342, `83` 0.333, `39` 0.325; overlapped; detector 0.25; ocr saw no text; pod unclear (yellow 0.000, aspect 0.5)
+- `202565` box 2: `41` 0.342, `76` 0.335, `115` 0.331; overlapped; detector 0.22; read `208`; pod black (yellow 0.000, aspect 1.8)
+- `198931` box 1: `80` 0.344, `26` 0.332, `35` 0.321; overlapped; detector 0.30; ocr saw no text; pod unclear (yellow 0.000, aspect 1.0)
+- `204247` box 2: `115` 0.344, `76` 0.325, `41` 0.323; overlapped; detector 0.60; read `208`; pod black (yellow 0.000, aspect 2.7)
+- `199705` box 3: `95` 0.345, `97` 0.333, `39` 0.322; overlapped; detector 0.35; ocr saw no text; pod unclear (yellow 0.000, aspect 1.4)
+- `201655` box 1: `115` 0.345, `42` 0.332, `62` 0.331; overlapped; detector 0.27; ocr saw no text; pod black (yellow 0.000, aspect 2.9)
+- `201179` box 1: `47` 0.347, `121` 0.315, `3` 0.301; overlapped; detector 0.29; ocr saw no text; pod unclear (yellow 0.000, aspect 0.7)
+- … 847 more in report.json
+
+## no-vehicle (254)
+
+- `202325` burst 27: no vehicle at 0.2: strongest vehicle 0.27 (0.05x0.04 of frame)
+- `202347` burst 28: no vehicle at 0.2: strongest vehicle 0.08 (0.04x0.02 of frame)
+- `202349` burst 28: no vehicle at 0.2: strongest vehicle 0.10 (0.04x0.02 of frame)
+- `202479` burst 40: no car: the box check dropped 1 boxes (crowd 0.03 at 0.27)
+- `202481` burst 40: no car: the box check dropped 1 boxes (crowd 0.02 at 0.34)
+- `202997` burst 87: no car: the box check dropped 1 boxes (road 0.03 at 0.20)
+- `202999` burst 87: no car: the box check dropped 1 boxes (road 0.04 at 0.39)
+- `203041` burst 90: no vehicle at 0.2: strongest vehicle 0.11 (0.56x0.42 of frame)
+- `203075` burst 95: no car: the box check dropped 1 boxes (trees 0.01 at 0.26)
+- `203077` burst 95: no car: the box check dropped 1 boxes (trees 0.01 at 0.28)
+- `203079` burst 96: no vehicle at 0.2: strongest vehicle 0.20 (0.23x0.71 of frame)
+- `203081` burst 96: no car: the box check dropped 2 boxes (building 0.07 at 0.27, trees 0.01 at 0.33)
+- `203083` burst 97: no vehicle at 0.2: strongest vehicle 0.76 (0.07x0.06 of frame)
+- `203085` burst 97: no vehicle at 0.2: strongest vehicle 0.76 (0.07x0.06 of frame)
+- `203087` burst 97: no vehicle at 0.2: strongest vehicle 0.70 (0.07x0.06 of frame)
+- `203089` burst 97: no vehicle at 0.2: strongest vehicle 0.69 (0.07x0.06 of frame)
+- `203091` burst 98: no vehicle at 0.2: strongest vehicle 0.69 (0.07x0.06 of frame)
+- `203093` burst 98: no vehicle at 0.2: strongest vehicle 0.71 (0.07x0.06 of frame)
+- `203139` burst 105: no car: the box check dropped 1 boxes (trees 0.04 at 0.33)
+- `203177` burst 109: no car: the box check dropped 1 boxes (person 0.07 at 0.30)
+- … 234 more in report.json
