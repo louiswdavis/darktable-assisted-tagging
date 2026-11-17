@@ -326,6 +326,23 @@ def run_tests():
     out, changes = Mt.burst_colours(car, {"1": "b", "2": "b", "3": "b"}, {("1", 0): red, ("2", 0): hsv, ("3", 0): red})
     check("shares from two colour readers are not mixed", changes, [])
 
+    # main_car_only: one car per photo, the largest box; a smaller box counts only with another car's number
+    background = {"1": [BoxResult(0, "number", "HAM", colour="Brown"), BoxResult(1, "none", colour="Blue", unmatched_number="7")]}
+    out, ignored = Mt.main_car_only(background)
+    check("a background box loses its colour and seen number", out["1"][1], BoxResult(1, "none"))
+    check("the main car is kept", out["1"][0], background["1"][0])
+    check("the ignored box is listed", ignored, [("1", 1, "none", "")])
+    twin = {"1": [BoxResult(0, "livery", "HAM", colour="Grey"), BoxResult(1, "livery", "HAM", colour="Purple")]}
+    check("a second livery box is ignored", summary(Mt.main_car_only(twin)[0]["1"][1]), ("none", "", ""))
+    pack = {"1": [BoxResult(0, "number", "HAM", colour="Red"), BoxResult(1, "number", "VER", colour="Pink")]}
+    check("a smaller box reading another car's number is kept", Mt.main_car_only(pack)[0], pack)
+    same = {"1": [BoxResult(0, "number", "HAM"), BoxResult(1, "number", "HAM", colour="Red")]}
+    check("a smaller box reading the main car's number is ignored", Mt.main_car_only(same)[0]["1"][1], BoxResult(1, "none"))
+    unread = {"1": [BoxResult(0, "none", colour="Green"), BoxResult(1, "none", colour="Blue")], "2": [BoxResult(-1, "hand", "HAM", "", 1.0)]}
+    out, _ = Mt.main_car_only(unread)
+    check("an unidentified photo keeps only its main box's colour", [r.colour for r in out["1"]], ["Green", ""])
+    check("box -1 rows are kept", out["2"], unread["2"])
+
     # shot_type / decided_by / already_tagged / conflicts / promotable
     check("shot: no boxes", Mt.shot_type(0, 4), "")
     check("shot: one box is solo", Mt.shot_type(1, 4), "solo")

@@ -439,6 +439,29 @@ def burst_colours(frames: dict, burst_of: dict, shares_of: dict) -> tuple:
     return out, changes
 
 
+def main_car_only(frames: dict) -> tuple:
+    """(frames, ignored): each photo is of one car, its largest box (box 0: vehicles.select_boxes
+    sorts largest first). A smaller box keeps its result only when it read the number of another
+    car, a real two-car shot; any other smaller box becomes `none` with no colour, sponsor or seen
+    number, so background traffic adds no tags. Box -1 rows (no vehicle, hand) are kept.
+    `ignored` lists (image id, box, method, entry) for each smaller box that had a result or colour."""
+    out, ignored = {}, []
+    for fid, rs in frames.items():
+        named = {r.entry_id for r in rs if r.box == 0 and r.entry_id}
+        row = []
+        for r in rs:
+            if r.box > 0:
+                if r.method == "number" and r.entry_id not in named:
+                    named.add(r.entry_id)
+                else:
+                    if r.entry_id or r.colour or r.sponsor or r.unmatched_number:
+                        ignored.append((fid, r.box, r.method, r.entry_id))
+                    r = BoxResult(r.box, "none")
+            row.append(r)
+        out[fid] = row
+    return out, ignored
+
+
 def colour_pool(entries: dict, colour: str, reads: list, sims: list, min_read: float) -> tuple:
     """(pool, note): the entries whose colour can be the box's `colour` (colour_relation not -1),
     a soft prior like hinted_match's. `note` is {} when nothing was removed, else {colour, kept,

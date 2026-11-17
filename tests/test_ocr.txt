@@ -1,58 +1,6 @@
-ok   two sure digits read
-ok   the read's confidence is its least sure digit
-ok   a repeat collapses, a blank splits
-ok   a repeated step keeps its best probability
-ok   one doubtful digit makes the read doubtful
-ok   nothing read gives confidence 0
-ok   probabilities pass through
-ok   log-probabilities come back as probabilities
-ok   logits are softmaxed
-ok   a PaddleOCR charset decodes
-ok   superscript digits are not part of a number
-ok   circled digits are not a number
-ok   look-alike letters still read as digits
-ok   a trailing space keeps the number
-ok   a hash before the number
-ok   a letter after the number
-ok   a word beside the number, its l not folded
-ok   a year is not a number
-ok   one read per digit run
-ok   | reads as 1
-ok   S4 keeps its S in the read
-ok   a door number is a fair share of the crop
-ok   a plate character is a small share
-ok   a tall crop measures against the full height
-ok   a slanted quad uses its longer side
-ok   the PaddleOCR yml sits beside the model
-ok   the dictionary keeps every entry a string
-ok   one class more adds the space
-ok   a dictionary that doesn't fit the model raises
-ok   a detector yml gives its DB settings
-ok   a detector yml gives its mean and std
-ok   a recogniser's yml is not a detector's
-ok   a PaddleOCR detector's yml joins the cache key
-ok   without it the key is the two models and the recogniser's yml
-ok   db_boxes keeps the sure word only
-ok   db_boxes corners run bottom-left, top-left, top-right, bottom-right
-ok   db_boxes grows the box by area x unclip / perimeter (~11 px a side)
-ok   PaddleOCR input is 1 x 3 x 48 x 320 for a short word
-ok   the word is scaled to 1, the padding is 0
-ok   a long word widens the input
-ok   a quad warps flat at its own size
-ok   a digit matrix trims sure blanks at either end
-ok   a digit matrix row is blank then 0-9
-ok   a digit's column holds its probability
-ok   a look-alike letter adds to its digit
-ok   an all-blank output gives no matrix
-ok   a PaddleOCR charset folds to digits
-ok   an S's matrix scores 5 as a 5's does
-ok   | and ! fold to 1 in the matrix
-ok   read_turned: a number upright reads as upright
-ok   read_turned: a number turned 180° reads as upright
-ok   read_turned: a number turned 90° clockwise, a tall quad reads as upright
-ok   read_turned: a number turned 90° anticlockwise, a tall quad reads as upright
-ok   read_turned: a sure read is not retried
-ok   read_turned: a weak wide quad is retried at 180° only
-ok   read_turned: a weak tall quad is retried at 180°, 90° and 270°
-ok   read_turned: no better read keeps the read as found
-all passed
+
+--- stderr ---
+Traceback (most recent call last):
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_ocr.py", line 8, in <module>
+    import numpy as np
+ModuleNotFoundError: No module named 'numpy'

@@ -91,6 +91,14 @@ ok   each car votes alone
 ok   unidentified and team-only boxes neither vote nor change
 ok   a mean that decides no colour keeps each box's own
 ok   shares from two colour readers are not mixed
+ok   a background box loses its colour and seen number
+ok   the main car is kept
+ok   the ignored box is listed
+ok   a second livery box is ignored
+ok   a smaller box reading another car's number is kept
+ok   a smaller box reading the main car's number is ignored
+ok   an unidentified photo keeps only its main box's colour
+ok   box -1 rows are kept
 ok   shot: no boxes
 ok   shot: one box is solo
 ok   shot: two boxes is a pack

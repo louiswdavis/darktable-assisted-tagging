@@ -40,8 +40,8 @@ from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
 from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
-                   burst_colours, burst_consensus, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
-                   match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
+                   burst_colours, burst_consensus, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera,
+                   match_livery, match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
 from segment import SEGMENT_CACHE_TOKEN, Segmenter, needs_mask, segmenter_path
@@ -1467,6 +1467,18 @@ def identify(args, models: dict):
             analyses = refine_frames(wanted, analyses, models, args.cache, pool, args.progress)
     write_progress(args.progress, 0, 1, "matching")
     frames, burst_of, box0_sims, detail = match_all(analyses)
+
+    def keep_main_cars(frames: dict, stage: str) -> dict:
+        frames, ignored = main_car_only(frames)
+        for fid, box, method, eid in ignored:
+            if eid:
+                log(f"{fid}: box {box}: {method} {eid} ignored, not the photo's main car")
+        if ignored:
+            log(f"main car ({stage}): {len(ignored)} smaller boxes ignored; one counts only with another car's number read")
+        return frames
+
+    # before the burst and neighbour passes, so a background box never anchors them
+    frames = keep_main_cars(frames, "matching")
     if not verify:
         weak = {fid: {i: [tuple(c) for c in b["ocr"] if c[1] >= WEAK_READ_MIN]
                       for i, b in enumerate(d["boxes"]) if b["overlap"] != HIDDEN}
@@ -1532,6 +1544,8 @@ def identify(args, models: dict):
             log(f"{fid}: box {box}: colour {old or 'none'} -> {new} (the car's {n} boxes in this burst)")
         if recoloured:
             log(f"colour: {len(recoloured)} boxes took their car's colour across the burst")
+        # burst consensus and neighbour aid can fill a smaller box again
+        frames = keep_main_cars(frames, "after burst")
         frames = colour_check(frames, entries)
         colour_flagged = sum(1 for rs in frames.values() for r in rs if r.colour_flag)
         if colour_flagged:
