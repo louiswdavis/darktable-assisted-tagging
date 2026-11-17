@@ -42,7 +42,7 @@ from fingerprint import analysis_fingerprint
 from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
                    burst_colours, burst_consensus, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
-from neighbour import CANDIDATE_RIVALS, neighbour_aid, with_library_neighbours
+from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
 from segment import SEGMENT_CACHE_TOKEN, Segmenter, needs_mask, segmenter_path
 from siglip import BOX_KEEP_SCORE, CAR, SigLIP, siglip_key
@@ -1509,10 +1509,9 @@ def identify(args, models: dict):
         library = read_manifest(lib_path, 3) if lib_path and os.path.exists(lib_path) else []
         with_lib, lib_burst_of, lib_times = with_library_neighbours(frames, burst_of, times, library, entries)
         log(f"neighbour: {len(with_lib) - len(frames)} unselected tagged photos lend support")
-        guesses = {(fid, i): b["sims"][:CANDIDATE_RIVALS] for fid, d in detail.items()
-                   for i, b in enumerate(d["boxes"]) if b["overlap"] != HIDDEN}
+        # no `guesses`: the best-guess path was 3/14 right on Rallye (ticket 79)
         aided = neighbour_aid(with_lib, lib_burst_of, lib_times, entries, rules.neighbour_tolerance, rules.order_weight,
-                              similar, guesses)
+                              similar)
         aided = {i: rs for i, rs in aided.items() if i in frames}
         resolved = 0
         for i, rs in aided.items():
