@@ -2764,8 +2764,9 @@ local function apply_results(run, job)
     local apply_start, total_writes = os.time(), 0
     show_stage(job, "writing tags", 0)
     for i, img in ipairs(primaries) do
-        log(string.format("apply: %d / %d images, image id %s, %s, %d writes so far, %ds", i, #primaries,
-            tostring(img.id), tostring(img.filename), total_writes, os.time() - apply_start))
+        -- wait_for_writes runs every WRITE_BUDGET writes, so this count trails darktable by at most that
+        log(string.format("apply: %d / %d images, image id %s, %s, %d / %d writes done by darktable, %ds", i,
+            #primaries, tostring(img.id), tostring(img.filename), total_writes, n_writes, os.time() - apply_start))
         flush_log()
         for _, plan in ipairs(plans_of[i]) do
             local copy, attach, detach = plan.copy, plan.attach, plan.detach
