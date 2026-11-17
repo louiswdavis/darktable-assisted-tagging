@@ -40,7 +40,7 @@ from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
 from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
-                   burst_consensus, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
+                   burst_colours, burst_consensus, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
@@ -1522,11 +1522,18 @@ def identify(args, models: dict):
         log(f"neighbour: resolved {resolved}, flagged {flagged} (order weight {rules.order_weight:g}, tolerance {rules.neighbour_tolerance})")
         frames = aided
     if not verify:
+        frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims)
+        # after consensus, so a burst-filled box votes and takes the car's colour too
+        frames, recoloured = burst_colours(frames, burst_of, {(fid, i): b["colour_shares"] for fid, d in detail.items()
+                                                              for i, b in enumerate(d["boxes"])})
+        for fid, box, old, new, n in recoloured:
+            log(f"{fid}: box {box}: colour {old or 'none'} -> {new} (the car's {n} boxes in this burst)")
+        if recoloured:
+            log(f"colour: {len(recoloured)} boxes took their car's colour across the burst")
         frames = colour_check(frames, entries)
         colour_flagged = sum(1 for rs in frames.values() for r in rs if r.colour_flag)
         if colour_flagged:
             log(f"colour: flagged {colour_flagged} number reads whose entry's colour disagrees")
-        frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims)
 
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
     # A hand-tagged image's box naming another entry is one too, whatever tags the two entries share;

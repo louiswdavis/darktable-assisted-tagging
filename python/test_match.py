@@ -300,6 +300,32 @@ def run_tests():
     liv = {"1": [BoxResult(0, "livery", "HAM", "", 0.8, colour="Red")]}
     check("only number results are flagged", Mt.colour_check(liv, coloured("Blue"))["1"][0].colour_flag, False)
 
+    # burst_colours: one colour per car per burst, from the mean of its boxes' shares
+    red = {"Red": 0.7, "Pink": 0.2, "Multi": 0.1}
+    pink = {"Red": 0.35, "Pink": 0.5, "Multi": 0.15}
+    car = {"1": [BoxResult(0, "number", "HAM", colour="Red")], "2": [BoxResult(0, "livery", "HAM", colour="Pink")],
+           "3": [BoxResult(0, "burst", "HAM", colour="Red")]}
+    shares = {("1", 0): red, ("2", 0): pink, ("3", 0): red}
+    out, changes = Mt.burst_colours(car, {"1": "b", "2": "b", "3": "b"}, shares)
+    check("the odd frame takes the car's colour", [out[f][0].colour for f in "123"], ["Red", "Red", "Red"])
+    check("the change is listed", changes, [("2", 0, "Pink", "Red", 3)])
+    out, changes = Mt.burst_colours(car, {"1": "a", "2": "b", "3": "c"}, shares)
+    check("separate bursts keep their own colours", ([out[f][0].colour for f in "123"], changes), (["Red", "Pink", "Red"], []))
+    two_cars = {"1": [BoxResult(0, "number", "HAM", colour="Red"), BoxResult(1, "number", "VER", colour="Pink")],
+                "2": [BoxResult(0, "number", "HAM", colour="Pink")]}
+    out, _ = Mt.burst_colours(two_cars, {"1": "b", "2": "b"}, {("1", 0): red, ("1", 1): pink, ("2", 0): {**red, "Red": 0.6}})
+    check("each car votes alone", [r.colour for r in out["1"]] + [out["2"][0].colour], ["Red", "Pink", "Red"])
+    unknown = {"1": [BoxResult(0, "number", "HAM", colour="Red")], "2": [BoxResult(0, "none", colour="Pink")],
+               "3": [BoxResult(0, "team", "HAM", colour="Pink")]}
+    out, changes = Mt.burst_colours(unknown, {"1": "b", "2": "b", "3": "b"}, {("1", 0): red, ("2", 0): pink, ("3", 0): pink})
+    check("unidentified and team-only boxes neither vote nor change", changes, [])
+    unsure = {"Red": 0.4, "Pink": 0.35, "Multi": 0.25}
+    out, changes = Mt.burst_colours(car, {"1": "b", "2": "b", "3": "b"}, {("1", 0): unsure, ("2", 0): pink, ("3", 0): unsure})
+    check("a mean that decides no colour keeps each box's own", changes, [])
+    hsv = {"Red": 0.6, "Pink": 0.1}
+    out, changes = Mt.burst_colours(car, {"1": "b", "2": "b", "3": "b"}, {("1", 0): red, ("2", 0): hsv, ("3", 0): red})
+    check("shares from two colour readers are not mixed", changes, [])
+
     # shot_type / decided_by / already_tagged / conflicts / promotable
     check("shot: no boxes", Mt.shot_type(0, 4), "")
     check("shot: one box is solo", Mt.shot_type(1, 4), "solo")

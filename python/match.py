@@ -4,7 +4,7 @@ consensus. Pure functions over OCR candidates and similarities."""
 import math
 from dataclasses import dataclass, replace
 
-from car_colour import colour_relation
+from car_colour import colour_relation, decide_colour
 
 MATCH_MIN_SIM = 0.60
 MATCH_MIN_MARGIN = 0.10  # on centred similarities (reference_store.best_per_entry); eval_matching.py sweeps it
@@ -404,6 +404,39 @@ def colour_check(frames: dict, entries: dict) -> dict:
             return replace(r, colour_flag=True)
         return r
     return {fid: [check(r) for r in rs] for fid, rs in frames.items()}
+
+
+def burst_colours(frames: dict, burst_of: dict, shares_of: dict) -> tuple:
+    """(frames, changes): every box of one burst identified as the same entry takes one colour,
+    decided from the mean of those boxes' colour shares (`shares_of`: (image id, box) → shares).
+    One frame's glare or shadow then no longer gives the car a second colour tag. A group of one
+    box, a group whose boxes hold differently keyed shares (two colour readers), or one whose mean
+    decides no colour keeps each box's own. `changes` lists (image id, box, old, new, boxes)."""
+    groups: dict = {}
+    for fid, rs in frames.items():
+        for r in rs:
+            if r.box >= 0 and r.entry_id and r.method in BURST_ANCHORS + ("burst",) and shares_of.get((fid, r.box)):
+                groups.setdefault((burst_of.get(fid, fid), r.entry_id), []).append((fid, r.box))
+    colour_of: dict = {}
+    for keys in groups.values():
+        all_shares = [shares_of[k] for k in keys]
+        if len(keys) < 2 or any(s.keys() != all_shares[0].keys() for s in all_shares):
+            continue
+        mean = {n: sum(s[n] for s in all_shares) / len(all_shares) for n in all_shares[0]}
+        colour = decide_colour(mean)
+        if colour:
+            colour_of.update({k: (colour, len(keys)) for k in keys})
+    out, changes = {}, []
+    for fid, rs in frames.items():
+        row = []
+        for r in rs:
+            colour, n = colour_of.get((fid, r.box), (r.colour, 0))
+            if colour != r.colour:
+                changes.append((fid, r.box, r.colour, colour, n))
+                r = replace(r, colour=colour)
+            row.append(r)
+        out[fid] = row
+    return out, changes
 
 
 def colour_pool(entries: dict, colour: str, reads: list, sims: list, min_read: float) -> tuple:

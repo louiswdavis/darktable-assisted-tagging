@@ -84,6 +84,13 @@ ok   a Blue entry read on a red box is flagged
 ok   no entry colour, no flag
 ok   a Multi entry on a Multi box is not flagged
 ok   only number results are flagged
+ok   the odd frame takes the car's colour
+ok   the change is listed
+ok   separate bursts keep their own colours
+ok   each car votes alone
+ok   unidentified and team-only boxes neither vote nor change
+ok   a mean that decides no colour keeps each box's own
+ok   shares from two colour readers are not mixed
 ok   shot: no boxes
 ok   shot: one box is solo
 ok   shot: two boxes is a pack
