@@ -657,6 +657,15 @@ do
     check("mask_diag: check_colour off blanks it", dd["Assisted Tagging|Identification|Check colour"], nil)
     check("mask_diag: the colour tag is still written", dd[CB .. "|Red"], true)
     check("owned: colour check tag", T.owned_tags(entries, rules)["Assisted Tagging|Identification|Check colour"], true)
+    local CM = "Assisted Tagging|Identification|Check match"
+    local am = T.read_results("23,0,none,,VER,0.000,,solo,,Red,,,1\n24,0,number,VER,,0.950,,solo,,Red,,Shell,")
+    check("13-column row carries the anchor flag", am[23][1].anchor_flag, true)
+    check("13-column row without the flag", tostring(am[24][1].anchor_flag) .. am[24][1].sponsor, "falseShell")
+    local w23, d23, id23 = T.wanted_tags(am[23], entries, crules)
+    check("anchor flag adds Check match", d23[CM], true)
+    check("a dropped match is unidentified", id23, false)
+    check("mask_diag: check_match off blanks it", select(2, T.wanted_tags(am[23], entries, T.mask_diag(crules, { check_match = true })))[CM], nil)
+    check("owned: match check tag", T.owned_tags(entries, rules)[CM], true)
     check("owned_prefixes: no colour root, no colour prefix", #T.owned_prefixes(T.default_rules()), 1)
     local pre = T.owned_prefixes(crules)
     local has = false

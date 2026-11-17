@@ -9,7 +9,7 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from reference_store import ReferenceIndex
+from reference_store import Anchors, ReferenceIndex
 
 failures = 0
 
@@ -205,6 +205,50 @@ def run_tests():
     centred = dict(s.best_per_entry(car(1)))
     check("centring drops another car's score well below raw", centred["E1"] < 0.2, True)
     check("centring keeps the identical car at 1", round(centred["E0"], 5), 1.0)
+
+    # ---- ticket 80: sources and anchors
+    a = tempfile.mkdtemp()
+    ai = ReferenceIndex.load(a, FakeEmbedder(), ["anchors"])
+    ai.add("10", "1", crop(10))
+    ai.add("10", "2", crop(10), "picked")
+    ai.add("20", "3_b0", crop(20), "number", 0.95123)
+    ai.add("20", "4_b0", crop(30), "number", 0.6)
+    ai.save()
+    check("each button records its source", [ai.sources[r]["source"] for r in ai.path], ["hand", "picked", "number", "number"])
+    check("a number ref keeps its read", (ai.sources["refs/20/3_b0.jpg"]["confidence"],
+                                          ai.sources["refs/20/4_b0.jpg"]["confidence"]), (0.9512, 0.6))
+    check("hand, picked and strong reads anchor; a weak read doesn't", [ai.is_anchor(r) for r in ai.path],
+          [True, True, True, False])
+    check("sources.json survives a reload", ReferenceIndex.load(a, FakeEmbedder(), ["anchors"]).sources, ai.sources)
+
+    b = tempfile.mkdtemp()
+    os.makedirs(os.path.join(b, "refs", "7"))
+    Image.fromarray(crop(10)).save(os.path.join(b, "refs", "7", "5_b0.jpg"))
+    Image.fromarray(crop(10)).save(os.path.join(b, "refs", "7", "6.jpg"))
+    bi = ReferenceIndex.load(b, FakeEmbedder(), ["backfill"])
+    check("refs saved before sources.json are backfilled by file name",
+          {r: (bi.sources[r]["source"], bi.sources[r]["confidence"]) for r in bi.path},
+          {"refs/7/5_b0.jpg": ("number", None), "refs/7/6.jpg": ("hand", None)})
+    check("a backfilled number ref of unknown read anchors", bi.is_anchor("refs/7/5_b0.jpg"), True)
+    check("the backfill is written to sources.json", os.path.isfile(os.path.join(b, "refs", "sources.json")), True)
+
+    probe = FakeEmbedder()
+    anchors = Anchors(ai, {})
+    check("a weak number read is not an anchor", anchors.rels, ["refs/10/1.jpg", "refs/10/2.jpg", "refs/20/3_b0.jpg"])
+    check("a box like its car's anchors", anchors.unlike("10", probe.embed(crop(10)))[0], "like")
+    check("a box unlike its car's anchors", anchors.unlike("10", probe.embed(crop(40)))[:2], ("unlike", 0.0))
+    check("a box closer to another car's anchor names that car", anchors.unlike("10", probe.embed(crop(20))),
+          ("unlike", 0.0, "20"))
+    check("a car with no anchor accepts its first match", anchors.unlike("30", probe.embed(crop(40))),
+          ("unanchored", None, ""))
+    check("unanchored lists cars with no anchor", anchors.unanchored(["10", "20", "30"]), ["30"])
+    anchors.add("30", probe.embed(crop(40)), rel="run box")
+    check("a run's box becomes an anchor", anchors.unlike("30", probe.embed(crop(40)))[0], "like")
+    pooled = Anchors(ai, {"11": "10"})
+    check("a double-driven car's second entry uses the first entry's anchors",
+          pooled.unlike("11", probe.embed(crop(10)))[0], "like")
+    check("skip leaves a job's new refs out of the anchors", Anchors(ai, {}, skip=["refs/20/3_b0.jpg"]).has("20"), False)
+    check("an anchor is not its own evidence", anchors.compare("20", probe.embed(crop(20)), skip_rel="refs/20/3_b0.jpg"), None)
 
     print("")
     if failures == 0:

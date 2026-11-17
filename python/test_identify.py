@@ -650,19 +650,21 @@ def run_tests():
           (first["boxes"], first["candidates"]), ([], [[0.0, 0.0, 32.0, 24.0, 0.1, 2]]))
 
     # ---- results rows
-    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,,,,")
+    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,,,,,")
     check("a team row carries the runner-up", I.format_row("7", BoxResult(0, "team", "VER", "TSU", 0.71234)),
-          "7,0,team,VER,TSU,0.712,,,,,,")
+          "7,0,team,VER,TSU,0.712,,,,,,,")
     check("a row has the shot type before the order flag", I.format_row("7", BoxResult(0, "number", "VER", "", 0.9), "pack"),
-          "7,0,number,VER,,0.900,,pack,,,,")
+          "7,0,number,VER,,0.900,,pack,,,,,")
     check("a flagged row has 1 in the order flag", I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, order_flag=True), "solo"),
-          "7,0,number,VER,,0.850,,solo,1,,,")
+          "7,0,number,VER,,0.850,,solo,1,,,,")
     check("a row ends with the colour and its flag",
-          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, colour="Red", colour_flag=True), "solo").endswith(",Red,1,"), True)
-    check("a row with no colour or sponsor ends with three empty fields", I.format_row("7", BoxResult(0, "none"), "solo").endswith(",,,"), True)
+          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, colour="Red", colour_flag=True), "solo").endswith(",Red,1,,"), True)
+    check("a row with no colour, sponsor or anchor flag ends with four empty fields", I.format_row("7", BoxResult(0, "none"), "solo").endswith(",,,,"), True)
     check("a row ends with its sponsor words",
-          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, sponsor="Castrol;Shell"), "solo").endswith(",,,Castrol;Shell"), True)
-    check("a row has twelve fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 12)
+          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, sponsor="Castrol;Shell"), "solo").endswith(",,,Castrol;Shell,"), True)
+    check("a row ends with the anchor flag",
+          I.format_row("7", BoxResult(0, "none", "", "VER", anchor_flag=True), "solo").endswith(",1"), True)
+    check("a row has thirteen fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 13)
 
     # ---- Review Focus 2: EXIF-rotated frames
     rotated = os.path.join(img, "portrait.jpg")
@@ -865,10 +867,10 @@ def run_tests():
     Image.new("RGB", (100, 50), (200, 30, 30)).save(real_jpg)
     promo_boxes = os.path.join(img, "promo.boxes.json")
 
-    def write_promo(frame):
+    def write_promo(frame, read=0.95):
         record = {"shot": "pack", "file": real_jpg, "frame": frame, "boxes": [
             {"box": 0, "bbox": [0, 0, 50, 50], "entry": "VER", "alt_entry": "", "method": "number",
-             "confidence": 0.95, "candidates": [], "ocr": [], "decided_by": "number", "gap": 0.0, "conflict": False},
+             "confidence": read, "candidates": [], "ocr": [], "decided_by": "number", "gap": 0.0, "conflict": False},
             {"box": 1, "bbox": [50, 0, 100, 50], "entry": "TSU", "alt_entry": "", "method": "livery",
              "confidence": 0.8, "candidates": [["TSU", 0.80], ["VER", 0.78]], "ocr": [], "decided_by": "livery",
              "gap": 0.0, "conflict": False}]}
@@ -893,7 +895,8 @@ def run_tests():
 
     # ---- add-time screening: refs flagged by 2+ audit checks are refused (skip) or kept with a log line (warn)
     # the real screen_refs runs: wide 160x80 seed refs make the near-square red crop fail the crop
-    # check, and blue seeds also fail the colour check; the stand-in embedder trips no embedding check
+    # check, and blue seeds also fail the colour check; the stand-in embedder trips no embedding check.
+    # A read under ANCHOR_MIN_READ (0.85) makes the promoted ref a non-anchor, which the screen may refuse.
     seeds = [os.path.join(coll, "refs", "VER", f"{n}.jpg") for n in range(2, 6)] + [os.path.join(coll, "refs", "TSU", f"{n}.jpg") for n in (6, 7)]
 
     def seed_refs(rgb):
@@ -905,15 +908,22 @@ def run_tests():
     seed_refs((30, 30, 200))
     try:
         I.promote_boxes(pargs, {"embedder": "fake"})
+        check("a strong read is an anchor: flagged, but never removed", open(results, encoding="utf-8").read().strip(), "1,added,,VER")
+        with open(os.path.join(coll, "refs", "sources.json"), encoding="utf-8") as f:
+            check("a promoted box records its source and read", {k: f_rec for k, f_rec in json.load(f)["refs/VER/1_b0.jpg"].items() if k != "date"},
+                  {"source": "number", "confidence": 0.95})
+        write_promo([100, 50], 0.85)
+        I.promote_boxes(pargs, {"embedder": "fake"})
         check("a promoted box the audit checks flag is not saved", open(results, encoding="utf-8").read().strip(), "1,flagged,,VER")
         check("a flagged box's crop is replaced by the sample it overwrote",
               sorted(os.listdir(os.path.join(coll, "refs", "VER"))), ["1_b0.jpg", "2.jpg", "3.jpg", "4.jpg", "5.jpg"])
         seed_refs((200, 30, 30))
+        write_promo([100, 50], 0.85)
         I.promote_boxes(pargs, {"embedder": "fake"})
         check("one flag alone does not refuse a box", open(results, encoding="utf-8").read().strip(), "1,added,,VER")
         with open(os.path.join(coll, "refs", "VER", "1_b0.jpg"), "rb") as f:
             before = f.read()
-        write_promo([100, 50])
+        write_promo([100, 50], 0.85)
         seed_refs((30, 30, 200))
         I.promote_boxes(pargs, {"embedder": "fake"})
         with open(os.path.join(coll, "refs", "VER", "1_b0.jpg"), "rb") as f:
