@@ -555,7 +555,7 @@ def run_tests():
     fake_det = VD.Detector(id="fake:x:1:abc", family="fake", net=None, classes=frozenset({2, 3, 7}))
     saved_w = dict(I._W)
     I._W.clear()
-    I._W.update(models={"kind": "motorsport"}, detector=fake_det,
+    I._W.update(models={"kind": "motorsport"}, detector=fake_det, reader=CountingReader(),
                 detections=VD.DetectionCache(os.path.join(img, "detections.sqlite")))
     try:
         first = I.analyse_frame(frame)
