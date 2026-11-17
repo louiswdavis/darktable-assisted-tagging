@@ -1056,6 +1056,11 @@ def run_tests():
     check("a non-boolean partial_references in entries.json logs and keeps the default",
           (pr_rules.partial_references, "entries.json: rules.partial_references invalid, using False" in lines),
           (False, True))
+    _, solo_rules, _fe = I.load_collection(collection({"entries": [VER]}))
+    _, packs_rules, _fe = I.load_collection(collection({"entries": [VER]},
+                                                       settings=dict(FIXTURE_SETTINGS, cars_per_photo="packs")))
+    check("cars_per_photo: solo by default, packs from settings.json",
+          (solo_rules.cars_per_photo, packs_rules.cars_per_photo), ("solo", "packs"))
 
     # ticket 67: a box's colour softly narrows the entries; the number wins
     cp = {"R": I.Entry("R", "1", "A", ("F1|A",), colour="Red"), "B": I.Entry("B", "2", "B", ("F1|B",), colour="Blue"),

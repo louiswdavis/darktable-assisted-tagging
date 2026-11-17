@@ -85,6 +85,9 @@ class Rules:
     # Experimental: pool box-0 livery similarity across a burst's frames and re-run the
     # livery/team decision once on the average, for frames number didn't resolve.
     burst_livery_pooling: bool = False
+    # "solo": each photo is of one car, its largest box (match.main_car_only); "packs": every box
+    # is tagged, for racing where several cars share a shot.
+    cars_per_photo: str = "solo"
     # Experimental: embed references after downscaling-then-upscaling them (embed.degrade),
     # so their embeddings sit closer to a far-away query crop's degraded detail level.
     blur_references: bool = False
@@ -288,7 +291,8 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
     except ValueError as e:
         raise InputError(f"settings.json: {e}")
     rules = Rules(**own_rules, **{k: values[k] for k in MOVED_RULES},
-                  diagnostics=diagnostics_of(values), kind=kind, families=roots)
+                  cars_per_photo=values["cars_per_photo"], diagnostics=diagnostics_of(values), kind=kind,
+                  families=roots)
     entries = {}
     for n, item in enumerate(data, 1):
         if not isinstance(item, dict):
@@ -1469,6 +1473,8 @@ def identify(args, models: dict):
     frames, burst_of, box0_sims, detail = match_all(analyses)
 
     def keep_main_cars(frames: dict, stage: str) -> dict:
+        if rules.cars_per_photo != "solo":
+            return frames
         frames, ignored = main_car_only(frames)
         for fid, box, method, eid in ignored:
             if eid:

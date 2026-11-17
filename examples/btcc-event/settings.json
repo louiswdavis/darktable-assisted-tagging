@@ -6,6 +6,7 @@
   "run_tag": "none",
   "suggest_crops": false,
   "quarantine": false,
+  "cars_per_photo": "packs",
   "order_weight": 0,
   "neighbour_tolerance": 5,
   "min_read": 0.85,

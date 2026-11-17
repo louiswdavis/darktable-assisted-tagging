@@ -1193,6 +1193,7 @@ M.PRESET_SCHEMA = {
     { key = "run_tag", kind = "choice", choices = { "none", "changed", "all" }, default = "none" },
     { key = "suggest_crops", kind = "bool", default = false },
     { key = "quarantine", kind = "bool", default = false },
+    { key = "cars_per_photo", kind = "choice", choices = { "solo", "packs" }, default = "solo" },
     { key = "order_weight", kind = "number", default = 0 },
     { key = "neighbour_tolerance", kind = "number", default = 5 },
     { key = "min_read", kind = "number", default = 0.85 },
@@ -1506,7 +1507,7 @@ end
 M.PANEL_PAGES = {
     { number = 1, title = "collection", keys = {} },
     { number = 2, title = "bursts", keys = { "group_support", "group_node" } },
-    { number = 3, title = "matching", keys = { "use_hints",
+    { number = 3, title = "matching", keys = { "cars_per_photo", "use_hints",
         "neighbour_tolerance", "order_weight", "min_read", "colour_weight", "partial_references" } },
     { number = 4, title = "tags written", keys = tag_page_keys },
     { number = 5, title = "run", keys = { "run_tag" } },
@@ -2917,8 +2918,9 @@ function M.identify_images(images, replace_manual, verify_only)
     identify_cancellable = true
     if identify_button then identify_button.label = _("Cancel") end
     start_log(verify_only and "verify started" or "identify started", #images)
-    log(string.format("settings: replace manual %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s, order weight %s",
+    log(string.format("settings: replace manual %s, cars per photo %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s, order weight %s",
         tostring(replace_manual and true or false),
+        tostring(settings.cars_per_photo),
         tostring(settings.use_hints),
         tostring(settings.run_tag),
         settings.group_support,
@@ -4103,6 +4105,23 @@ local function install_panel()
         _(RUN_TAG_LABELS[run_tag_keys[1]]), _(RUN_TAG_LABELS[run_tag_keys[2]]),
         _(RUN_TAG_LABELS[run_tag_keys[3]]),
     }
+    local cars_keys
+    for _i, f in ipairs(M.PRESET_SCHEMA) do
+        if f.key == "cars_per_photo" then cars_keys = f.choices end
+    end
+    local CARS_LABELS = { solo = "one car (solo)", packs = "several cars (packs)" }
+    local shown_cars = "solo" -- last shown or picked: the combo's callback acts only on a change
+    local cars_combo = new_widget("combobox") {
+        label = _("cars per photo"),
+        tooltip = _("One car: only the largest car in each photo is tagged; a smaller car counts only when its number is read, so background traffic adds no car or colour tags. Several cars: every car found is tagged, for racing where cars share a shot.\nDefault: one car. Pick several cars for circuit racing."),
+        changed_callback = function(self)
+            local key = cars_keys[self.selected]
+            if not key or key == shown_cars then return end
+            shown_cars = key
+            changed()
+        end,
+        _(CARS_LABELS[cars_keys[1]]), _(CARS_LABELS[cars_keys[2]]),
+    }
     local group_node_entry = new_widget("entry") {
         placeholder = _("Grouping tag node (blank = latest run per photo)"),
         tooltip = _("Grouping tags only: the tag node whose children are the groups, e.g. Assisted Grouping|2026-01-01 12:00:00|Group. Blank uses each photo's own latest Assisted Grouping run, so photos regrouped by a later run and photos left on an earlier run both keep their groups.\nDefault: blank. Set it to pin one run."),
@@ -4147,6 +4166,7 @@ local function install_panel()
         local s = {
             group_support = support_keys[group_support_combo.selected] or shown_support,
             run_tag = run_tag_keys[run_tag_combo.selected] or shown_run_tag,
+            cars_per_photo = cars_keys[cars_combo.selected] or shown_cars,
             group_node = trim(group_node_entry.text),
         }
         for _i, list in ipairs({ number_entries, name_entries }) do
@@ -4176,6 +4196,10 @@ local function install_panel()
         shown_run_tag = s.run_tag
         for i, key in ipairs(run_tag_keys) do
             if key == s.run_tag and run_tag_combo.selected ~= i then run_tag_combo.selected = i end
+        end
+        shown_cars = s.cars_per_photo
+        for i, key in ipairs(cars_keys) do
+            if key == s.cars_per_photo and cars_combo.selected ~= i then cars_combo.selected = i end
         end
         group_node_entry.text = s.group_node
         for _i, n in ipairs(number_entries) do n.entry.text = tostring(s[n.key]) end
@@ -4217,6 +4241,7 @@ local function install_panel()
             group_node_entry,
         },
         {
+            cars_combo,
             use_hints_check,
             new_widget("label") { label = _("neighbour tolerance"), halign = "start" },
             tolerance_entry,
