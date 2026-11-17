@@ -1,10 +1,25 @@
-
---- stderr ---
-Traceback (most recent call last):
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_eval_numbers.py", line 8, in <module>
-    import eval_numbers as En
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/eval_numbers.py", line 22, in <module>
-    from ocr import digit_runs, drop_reason, pick_reads
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/ocr.py", line 11, in <module>
-    import numpy as np
-ModuleNotFoundError: No module named 'numpy'
+ok   drop: passes
+ok   drop: detection under the floor
+ok   drop: letters
+ok   drop: too small
+ok   drop: score checked first
+ok   drop: a lower floor lets it through
+ok   pick: best region per number, lower of det and rec, best first
+ok   pick: matrix of each read
+ok   pick: nothing passes
+ok   pick: a mixed-text region gives each digit run
+ok   drop: a year alone has no number
+ok   cause: a mixed region that read it is below min_read
+ok   cause: no region
+ok   cause: recognised wrong
+ok   cause: dropped with its reason
+ok   cause: passing region under min_read
+ok   cause: accepted read lost in matching
+ok   weak: right number between the two floors
+ok   weak: under WEAK_READ_MIN
+ok   replay: dropped region leaves the box unread
+ok   replay: OCR_MIN_SCORE=0.7 and min_read=0.7 read it
+ok   replay: OCR_MIN_SCORE=0.7 alone reads it as a weak read
+ok   replay: a weak read whose matrix can't spell it stays unread
+ok   set: parses known names
+all tests passed

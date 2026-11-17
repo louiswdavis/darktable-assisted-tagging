@@ -20,7 +20,8 @@ stack traceback:
 	[C]: in global 'xpcall'
 	./plugin_common.lua:267: in local 'guard'
 	test_assisted_tagging.lua:74: in main chunk
-	[C]: in ?
+	[C]: in global 'dofile'
+	[string "<python>"]:1: in main chunk
 ok   error_guard: error returns nil
 ok   error_guard: log has label and traceback
 ok   error_guard: toast names the log file
@@ -32,7 +33,8 @@ stack traceback:
 	./plugin_common.lua:267: in function <./plugin_common.lua:266>
 	(...tail calls...)
 	test_assisted_tagging.lua:80: in main chunk
-	[C]: in ?
+	[C]: in global 'dofile'
+	[string "<python>"]:1: in main chunk
 ok   guarded_widget_maker: callback errors are logged with kind + label
 ok   guarded_widget_maker: other props untouched
 ok   append_error_log: older half dropped at a line start
