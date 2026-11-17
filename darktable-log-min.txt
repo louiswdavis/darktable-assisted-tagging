@@ -42,3 +42,42 @@ Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-e8da73.d
 Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-eb8316.d
 Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-524180.d
 Failed to read file: C:\Users\Louis\AppData\Local\Temp\dep-10e918.d
+'git' is not recognized as an internal or external command,
+operable program or batch file.
+'git' is not recognized as an internal or external command,
+operable program or batch file.
+iven pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+INFO: Could not find files for the given pattern(s).
+53731070!
+   638.4120 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4121 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4122 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4122 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4123 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4124 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4125 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4126 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4126 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4127 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4128 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4129 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4129 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4130 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4131 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4132 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4133 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
+   638.4133 critical: out of memory for dynbuf 'path extra' with size request 6553731070!
