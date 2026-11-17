@@ -1447,7 +1447,7 @@ def identify(args, models: dict):
         weak = {fid: {i: [tuple(c) for c in b["ocr"] if c[1] >= WEAK_READ_MIN]
                       for i, b in enumerate(d["boxes"]) if b["overlap"] != HIDDEN}
                 for fid, d in detail.items()}
-        ctc_of = {fid: dict(enumerate(analyses.get(d["file"], {}).get("ocr_ctc", []))) for fid, d in detail.items()}
+        ctc_of = {fid: dict(enumerate((analyses.get(d["file"]) or {}).get("ocr_ctc", []))) for fid, d in detail.items()}
         agreed = agreeing_reads(frames, burst_of, weak, entries, ctc_of)
         for fid, rs in agreed.items():
             for a, b in zip(rs, frames[fid]):
