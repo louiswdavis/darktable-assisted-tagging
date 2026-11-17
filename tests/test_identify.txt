@@ -157,70 +157,96 @@ ok   people: every constant is filed once
 ok   people: nothing filed that does not exist
 ok   siglip: every constant is filed once
 ok   siglip: nothing filed that does not exist
+ok   analyse_frame runs the detector once for a frame analysed twice
+ok   the first analysis detected, the second read the cache
+ok   the cached detection gives the same candidates
+ok   a box under DETECTOR_MIN_SCORE is a candidate, not a box
+ok   a no-vehicle row
+ok   a team row carries the runner-up
+ok   a row has the shot type before the order flag
+ok   a flagged row has 1 in the order flag
+ok   a row ends with the colour and its flag
+ok   a row with no colour or sponsor ends with three empty fields
+ok   a row ends with its sponsor words
+ok   a row has twelve fields
+ok   an Orientation-6 JPEG decodes upright (portrait)
+ok   a crop of an upright box keeps the upright aspect
+ok   crops are never upscaled
+ok   box selection clips, filters and sorts
+ok   an ONNX model loads from a non-ASCII path
+ok   a file that isn't a model fails at startup with exit-2 input error
+ok   the worker pool is capped
 
 FAIL crashed before finishing; later checks did not run
 Traceback (most recent call last):
   File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 974, in <module>
     run_tests()
     ~~~~~~~~~^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 561, in run_tests
-    first = I.analyse_frame(frame)
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 605, in analyse_frame
-    out = _read_boxes(small, [])
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 638, in _read_boxes
-    keep_regions = _W["reader"].keep_regions
-                   ~~^^^^^^^^^^
-KeyError: 'reader'
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 665, in run_tests
+    I.identify(args, {"embedder": "fake"})
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 1450, in identify
+    ctc_of = {fid: dict(enumerate(analyses.get(d["file"], {}).get("ocr_ctc", []))) for fid, d in detail.items()}
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'
 
 
 --- stderr ---
-00:06:08 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
-00:06:08 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so the face thresholds use defaults
-00:06:08 py: rules.min_sim in entries.json is deprecated; move it to settings.json
-00:06:08 py: rules.margin in entries.json is deprecated; move it to settings.json
-00:06:08 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: entries.json: 1 entries upgraded (class, make/model → fields)
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: entries.json: 1 entries upgraded (class, make/model → fields)
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so the face thresholds use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:09 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:09 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-00:06:09 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:09 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:09 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-00:06:09 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:06:09 py: rules.order_weight in entries.json is deprecated; move it to settings.json
-00:06:09 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-00:06:09 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
-00:06:09 py: /x/2.jpg: rescued a vehicle from /x/1.jpg (crop similarity 0.9)
-00:06:09 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 0 to decode
-00:06:09 py: /x/2.jpg: rescued a vehicle from /x/1.jpg (crop similarity 0.9)
-00:06:09 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
-00:06:09 py: /x/2.jpg: rescued a vehicle from /x/3.jpg (crop similarity 0.9)
+00:10:47 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:47 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:47 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
+00:10:47 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
+00:10:47 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:47 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:47 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:47 py: warning: entries.json has no rules block, so the face thresholds use defaults
+00:10:47 py: rules.min_sim in entries.json is deprecated; move it to settings.json
+00:10:47 py: rules.margin in entries.json is deprecated; move it to settings.json
+00:10:47 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
+00:10:47 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:47 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:47 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:47 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:47 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:47 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: entries.json: 1 entries upgraded (class, make/model → fields)
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: entries.json: 1 entries upgraded (class, make/model → fields)
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so the face thresholds use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:48 py: rules.order_weight in entries.json is deprecated; move it to settings.json
+00:10:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:48 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
+00:10:48 py: /x/2.jpg: rescued a vehicle from /x/1.jpg (crop similarity 0.9)
+00:10:49 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 0 to decode
+00:10:49 py: /x/2.jpg: rescued a vehicle from /x/1.jpg (crop similarity 0.9)
+00:10:49 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
+00:10:49 py: /x/2.jpg: rescued a vehicle from /x/3.jpg (crop similarity 0.9)
+00:10:51 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:51 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:51 py: collection tmpt90wu7vm has no references yet: only numbers can identify a car
+00:10:51 py: livery: raw similarity (0 references and 8 boxes, under 20)
+00:10:51 py: 1: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:51 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:51 py: 3: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+00:10:51 py: 4: no vehicle
