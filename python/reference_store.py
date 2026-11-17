@@ -396,13 +396,14 @@ class Anchors:
         return None if own is None else (own, other, other_car)
 
     def unlike(self, entry_id: str, vec, hist=None, skip_rel: str = "") -> tuple:
-        """(verdict, own, other_car): verdict is "unanchored" when the car has no anchor (its first
-        match is accepted), "unlike" when the best own anchor is under ANCHOR_MIN_SIM or another
-        car's anchor is closer, else "like"."""
+        """(verdict, own, other_car, other): verdict is "unanchored" when the car has no anchor (its
+        first match is accepted), "unlike" when the best own anchor is under ANCHOR_MIN_SIM or another
+        car's anchor is closer, else "like". other_car and other (its best sim) are set only when that
+        car is closer ("" and None otherwise)."""
         got = self.compare(entry_id, vec, hist, skip_rel)
         if got is None:
-            return "unanchored", None, ""
+            return "unanchored", None, "", None
         own, other, other_car = got
-        if own < ANCHOR_MIN_SIM or other > own:
-            return "unlike", own, other_car if other > own else ""
-        return "like", own, ""
+        if other > own:
+            return "unlike", own, other_car, other
+        return ("unlike" if own < ANCHOR_MIN_SIM else "like"), own, "", None

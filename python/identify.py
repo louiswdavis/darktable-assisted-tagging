@@ -1508,9 +1508,10 @@ def identify(args, models: dict):
             out[fid] = []
             for r in rs:
                 vec, hist = box_vectors(fid, r.box) if r.method in ANCHOR_CHECKED and r.entry_id else (None, None)
-                verdict, own, other_car = anchors.unlike(r.entry_id, vec, hist) if vec is not None else ("", None, "")
+                verdict, own, other_car, other = anchors.unlike(r.entry_id, vec, hist) if vec is not None \
+                    else ("", None, "", None)
                 if verdict == "unlike":
-                    closer = f", closer to {other_car}'s" if other_car else ""
+                    closer = f", closer to {other_car}'s {other:.3f}" if other_car else ""
                     log(f"{fid}: box {r.box}: {r.entry_id} doesn't look like its anchors (sim {own:.3f}{closer}, "
                         f"colour {r.colour or '-'}); {r.method} match dropped")
                     rejected[r.entry_id] += 1
@@ -1653,9 +1654,10 @@ def screen_new_refs(collection: str, index: ReferenceIndex, done: list, mode: st
                     log(f"{image_id}: {r} is flagged by {', '.join(flags[r])}; kept, it's an anchor (check it by hand)")
                 continue
             i = row[r]
-            verdict, own, other_car = anchors.unlike(index.entry[i], index.emb[i], index.hist[i] if index.colour else None)
+            verdict, own, other_car, other = anchors.unlike(index.entry[i], index.emb[i],
+                                                            index.hist[i] if index.colour else None)
             if verdict == "unlike":
-                closer = f", closer to {other_car}'s" if other_car else ""
+                closer = f", closer to {other_car}'s {other:.3f}" if other_car else ""
                 flags[r] = flags.get(r, []) + [f"unlike its anchors (sim {own:.3f}{closer})"]
             if verdict == "unlike" or strong:
                 bad.append(r)

@@ -237,10 +237,10 @@ def run_tests():
     check("a weak number read is not an anchor", anchors.rels, ["refs/10/1.jpg", "refs/10/2.jpg", "refs/20/3_b0.jpg"])
     check("a box like its car's anchors", anchors.unlike("10", probe.embed(crop(10)))[0], "like")
     check("a box unlike its car's anchors", anchors.unlike("10", probe.embed(crop(40)))[:2], ("unlike", 0.0))
-    check("a box closer to another car's anchor names that car", anchors.unlike("10", probe.embed(crop(20))),
-          ("unlike", 0.0, "20"))
+    check("a box closer to another car's anchor names that car and its sim",
+          anchors.unlike("10", probe.embed(crop(20))), ("unlike", 0.0, "20", 1.0))
     check("a car with no anchor accepts its first match", anchors.unlike("30", probe.embed(crop(40))),
-          ("unanchored", None, ""))
+          ("unanchored", None, "", None))
     check("unanchored lists cars with no anchor", anchors.unanchored(["10", "20", "30"]), ["30"])
     anchors.add("30", probe.embed(crop(40)), rel="run box")
     check("a run's box becomes an anchor", anchors.unlike("30", probe.embed(crop(40)))[0], "like")
