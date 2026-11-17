@@ -67,6 +67,9 @@ ok   a car seen past the stage-break gap doesn't count
 ok   a car already in the frame isn't given to a second box
 ok   a white car isn't given to a red box
 ok   a white car is given to a white box
+ok   a car in another frame of its own burst counts, with no other group near
+ok   a doubtful read with no other group near isn't flagged
+ok   a rival in its own burst leaves the box
 ok   the look-alike comes before the best guess
 ok   a number-order resolve comes before the best guess
 all tests passed

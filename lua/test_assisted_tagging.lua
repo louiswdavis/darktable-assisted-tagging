@@ -299,6 +299,11 @@ do
     check("derive number: entry already on the image is skipped",
         plan({ ["M|Number|4"] = true, ["M|Team|Gamma"] = true, ["M|Driver|Di"] = true }, "number"),
         " / it already has the entry's tags")
+    check("derive number: Check colour already on the image isn't attached again",
+        plan({ ["M|Number|1"] = true, ["M|Colour|Blue"] = true, ["AT|Check colour"] = true }, "number"),
+        "AT|Derived|From number;M|Driver|Ann;M|Team|Alpha / ")
+    check("derive number: the From number marker already on the image isn't attached again",
+        plan({ ["M|Number|2"] = true, ["AT|Derived|From number"] = true }, "number"), "M|Driver|Bob;M|Team|Beta / ")
     check("derive colour: one entry of that colour",
         plan({ ["M|Colour|Green"] = true }, "colour"), "AT|Derived|From colour;M|Driver|Di;M|Number|4;M|Team|Gamma / ")
     check("derive colour: two entries of that colour skip",

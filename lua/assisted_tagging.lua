@@ -536,7 +536,7 @@ function M.derive_plan(have, ledger_set, entries, order, roots, mode, names)
     local add = {}
     local colours = values_under(have, roots.colour)
     local number_id, why = M.hand_entry(have, ledger_set, entries, { number = roots.number })
-    if number_id and #colours == 1 and names.check_colour ~= ""
+    if number_id and #colours == 1 and names.check_colour ~= "" and not have[names.check_colour]
         and M.colour_relation(entries[number_id].colour, colours[1]) == -1 then
         add[names.check_colour] = true
     end
@@ -580,7 +580,7 @@ function M.derive_plan(have, ledger_set, entries, order, roots, mode, names)
         end
         if not added then
             plan.reason = "it already has the entry's tags"
-        elseif names.derived ~= "" then
+        elseif names.derived ~= "" and not have[names.derived .. "|" .. leaf] then
             add[names.derived .. "|" .. leaf] = true
         end
     end

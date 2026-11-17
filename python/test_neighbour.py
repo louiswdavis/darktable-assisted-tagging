@@ -247,6 +247,16 @@ def run_tests():
     out = N.neighbour_aid(*white, P, 5, 0.5, guesses=guess(("34", 0.58)))
     check("a white car is given to a white box", out["f1"][0].entry_id, "34")
 
+    lone = {"a": [seen("34")], "b": [BoxResult(0, "none")], "c": [seen("34", conf=0.85)]}
+    lone_burst, lone_times = {"a": "g", "b": "g", "c": "g"}, {"a": 100, "b": 101, "c": 102}
+    out = N.neighbour_aid(lone, lone_burst, lone_times, E, 5, 0.5, guesses=guess(("34", 0.58), fid="b"))
+    check("a car in another frame of its own burst counts, with no other group near",
+          (out["b"][0].method, out["b"][0].entry_id), ("neighbour", "34"))
+    check("a doubtful read with no other group near isn't flagged", out["c"][0].order_flag, False)
+    lone["c"] = [seen("38")]
+    out = N.neighbour_aid(lone, lone_burst, lone_times, E, 5, 0.5, guesses=guess(("34", 0.58), ("38", 0.55), fid="b"))
+    check("a rival in its own burst leaves the box", out["b"][0].method, "none")
+
     out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.60, "f2": 0.92}), guess(("34", 0.58)))
     check("the look-alike comes before the best guess", (out["f1"][0].entry_id, out["f1"][0].via), ("38", "lookalike"))
     frames, burst, times = shoot(seen("34"), unmatched("36"), seen("37"))

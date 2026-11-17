@@ -106,6 +106,8 @@ ok   derive number: hand number adds the entry's tags and From number
 ok   derive number: a ledgered (plugin) number tag is not the user's
 ok   derive number: colour that differs adds Check colour
 ok   derive number: entry already on the image is skipped
+ok   derive number: Check colour already on the image isn't attached again
+ok   derive number: the From number marker already on the image isn't attached again
 ok   derive colour: one entry of that colour
 ok   derive colour: two entries of that colour skip
 ok   derive colour: a hand team tag narrows to one

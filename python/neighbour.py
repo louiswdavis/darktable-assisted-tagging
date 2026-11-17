@@ -127,7 +127,8 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
     With `similar` (see lookalike), a `none` box still unresolved takes the car of the nearby
     identified box it looks like (method `neighbour`, confidence = sim), number order aside. With
     `guesses` {(frame id, box): [(entry id, sim)], best first}, one still unresolved then takes its
-    best guess when that car was identified nearby (see best_guess; confidence = sim). A doubtful
+    best guess when that car was identified nearby or in another frame of its own group (see
+    best_guess; confidence = sim). A doubtful
     `number` read that no nearby group supports is flagged (`order_flag`), result unchanged. A candidate
     or look-alike box whose colour disagrees with the box's is passed over. Clear
     reads are never touched. Returns `frames` itself when weight is 0 or there is nothing to measure against."""
@@ -173,7 +174,7 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
     for g in ordered:
         near_boxes = window_boxes(g)
         around = [eid for _fid, _box, eid in near_boxes]
-        if not around:
+        if not around and not (guesses and seen[g]):
             continue
         for fid in members[g]:
             boxes = []
@@ -194,10 +195,12 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
                             r = replace(r, method="neighbour", entry_id=hit[0], confidence=hit[1], via="lookalike")
                     if r.method == "none" and guesses:
                         here = {x.entry_id for x in frames[fid] + boxes if x.method in IDENTIFIED + (HAND, "neighbour")}
-                        hit = best_guess(guesses.get((fid, r.box), []), set(around), here, r.colour, entries)
+                        # the box's own burst counts too, its other frames only (`here` covers this one)
+                        near = set(around) | {eid for ofid, _box, eid in seen[g] if ofid != fid}
+                        hit = best_guess(guesses.get((fid, r.box), []), near, here, r.colour, entries)
                         if hit:
                             r = replace(r, method="neighbour", entry_id=hit[0], confidence=hit[1], via="candidate")
-                elif (r.method == "number" and r.confidence < DOUBT_CONF and weight >= FLAG_MIN_WEIGHT
+                elif (around and r.method == "number" and r.confidence < DOUBT_CONF and weight >= FLAG_MIN_WEIGHT
                       and support(r.entry_id, around) == 0):
                     r = replace(r, order_flag=True)
                 boxes.append(r)
