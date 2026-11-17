@@ -617,6 +617,27 @@ def run_tests():
     check("the first analysis detected, the second read the cache",
           (first.pop("detection_cached", None), second.pop("detection_cached", None)), (False, True))
     check("the cached detection gives the same candidates", second["candidates"], first["candidates"])
+
+    # ---- worker smoke: the real per-frame workers run end to end with SigLIP 2 on and stand-in
+    # models, so a changed helper signature fails here and not on a 2-hour Windows run
+    VD.FAMILIES["fakecar"] = {"match": lambda name: False, "load": None, "classes": frozenset({2, 3, 7}),
+                              "run": lambda detector, canvas, scale, w, h: np.array([[2, 2, 50, 40, 0.9, 2]], dtype=np.float64)}
+    saved_w = dict(I._W)
+    I._W.clear()
+    I._W.update(models={"kind": "motorsport"}, reader=CountingReader(), embedder=OneEmbedder(),
+                siglip=FakeSigLIP([("car", 0.9)] * 4),
+                detector=VD.Detector(id="fakecar:x:1:abc", family="fakecar", net=None, classes=frozenset({2, 3, 7})),
+                detections=VD.DetectionCache(os.path.join(tempfile.mkdtemp(), "detections.sqlite")))
+    try:
+        analysed = I.analyse_frame(frame)
+        rescued = I.rescue_frame((frame, [2, 2, 50, 40, 0.9, 2], "/x/mate.jpg", encode(np.ones(4, dtype=np.float32))))
+    finally:
+        I._W["detections"].close()
+        I._W.clear()
+        I._W.update(saved_w)
+    check("smoke: analyse_frame keeps the box the check calls a car", (len(analysed["boxes"]), analysed["dropped"]), (1, {}))
+    check("smoke: rescue_frame reads the candidate as the frame's one box", (len(rescued["boxes"]), rescued["rescued"]["from"]),
+          (1, "mate.jpg"))
     check("a box under DETECTOR_MIN_SCORE is a candidate, not a box",
           (first["boxes"], first["candidates"]), ([], [[0.0, 0.0, 32.0, 24.0, 0.1, 2]]))
 
