@@ -499,6 +499,9 @@ ok   upgrade_settings_text: copies tag_shot_name into tag_shot_crowded_name
 ok   upgrade_settings_text: reports both keys
 ok   upgrade_settings_text: no-op when both present
 ok   upgrade_settings_text: no-op on text that is not JSON
+ok   upgrade_settings_text: run_tag true becomes all
+ok   upgrade_settings_text: reports run_tag
+ok   upgrade_settings_text: run_tag false becomes none
 ok   pick first present
 ok   pick best present
 ok   none present

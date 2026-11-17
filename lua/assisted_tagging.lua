@@ -2240,6 +2240,22 @@ local function wait_for_writes()
     end
 end
 
+-- Empties the selection for a batch of tag writes and returns what it was. On every tag write
+-- darktable refreshes the thumbnail info and the tagging module's attached list for every
+-- selected image (thumbtable.c, libs/tagging.c), so a large selection slows each write.
+local function hide_selection()
+    local selected = dt.gui.selection()
+    if #selected > 0 then
+        dt.gui.selection({})
+        log(string.format("selection: %d images deselected while tags are written", #selected))
+    end
+    return selected
+end
+
+local function restore_selection(selected)
+    if selected and #selected > 0 then dt.gui.selection(selected) end
+end
+
 -- The panel's progress line, "<what> cur / tot | ~ETA", as run_python shows for
 -- identify.py's stages. `every` thins the updates on long loops: each one is a GUI round trip.
 local function show_count(what, cur, tot, start, every)
@@ -2528,7 +2544,7 @@ function M.clear_marks(images)
     busy = true
     M.cancel_requested = false
     start_log("clear", #images)
-    local job
+    local job, selected
 
     local okr, err = pcall(function()
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
@@ -2549,6 +2565,7 @@ function M.clear_marks(images)
         local n_writes, done, start = 0, 0, os.time()
         for _, plan in ipairs(plans) do n_writes = n_writes + #plan.detach end
         job = dt.gui.create_job(_("Assisted Tagging: clear tagging marks"), true, stop_job)
+        selected = hide_selection()
         for _, plan in ipairs(plans) do
             if M.cancel_requested or not job.valid then
                 stopped = true
@@ -2592,6 +2609,7 @@ function M.clear_marks(images)
             say(string.format(_("Assisted Tagging: cleared %d tags from %d images."), n_tags, n_images))
         end
     end)
+    restore_selection(selected)
     end_job(job)
     busy = false
     if not okr then notify_error(_("Assisted Tagging: couldn't clear tagging marks. ") .. tostring(err)) end
@@ -2772,6 +2790,8 @@ local function apply_results(run, job)
     log(string.format("apply: writing %d tags to %d images (%d copies)", n_writes, #primaries, n_copies))
     flush_log()
     local apply_start, total_writes = os.time(), 0
+    -- restored by the caller, so a stop or error partway still gets it back
+    run.selected = hide_selection()
     show_stage(job, "writing tags", 0)
     for i, img in ipairs(primaries) do
         -- wait_for_writes runs every WRITE_BUDGET writes, so this count trails darktable by at most that
@@ -2973,6 +2993,7 @@ function M.identify_images(images, replace_manual, verify_only)
 
     -- Saved once tags may have changed, even if the apply stopped or errored partway, so the tags
     -- this run attached aren't mistaken for the user's next time. Earlier stages leave it as it was.
+    restore_selection(run and run.selected)
     if run and run.applying then
         show_stage(job, "saving", 0)
         log("apply: saving the ledger")
