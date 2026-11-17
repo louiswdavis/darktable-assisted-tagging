@@ -261,6 +261,12 @@ ok   colour flag adds Check colour
 ok   mask_diag: check_colour off blanks it
 ok   mask_diag: the colour tag is still written
 ok   owned: colour check tag
+ok   13-column row carries the anchor flag
+ok   13-column row without the flag
+ok   anchor flag adds Check match
+ok   a dropped match is unidentified
+ok   mask_diag: check_match off blanks it
+ok   owned: match check tag
 ok   owned_prefixes: no colour root, no colour prefix
 ok   owned_prefixes includes the colour base
 ok   hand_value: one hand colour

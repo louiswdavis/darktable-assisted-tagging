@@ -36,15 +36,37 @@ ok   raw similarity leaves no centre
 ok   enough run boxes centre the collection
 ok   centring drops another car's score well below raw
 ok   centring keeps the identical car at 1
+ok   each button records its source
+ok   a number ref keeps its read
+ok   hand, picked and strong reads anchor; a weak read doesn't
+ok   sources.json survives a reload
+ok   refs saved before sources.json are backfilled by file name
+ok   a backfilled number ref of unknown read anchors
+ok   the backfill is written to sources.json
+ok   a weak number read is not an anchor
+ok   a box like its car's anchors
+ok   a box unlike its car's anchors
+ok   a box closer to another car's anchor names that car
+ok   a car with no anchor accepts its first match
+ok   unanchored lists cars with no anchor
+ok   a run's box becomes an anchor
+ok   a double-driven car's second entry uses the first entry's anchors
+ok   skip leaves a job's new refs out of the anchors
+ok   an anchor is not its own evidence
 
 all tests passed
 
 --- stderr ---
-22:20:24 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-22:20:24 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-22:20:24 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-22:20:24 py: references: stopped after 1 of 2; the rest are embedded next time
-22:20:24 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-22:20:24 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-22:20:24 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
-22:20:24 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+22:49:16 py: references: 1 had no recorded source; set by file name (_b<n> = number read, else hand)
+22:49:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+22:49:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+22:49:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+22:49:16 py: references: stopped after 1 of 2; the rest are embedded next time
+22:49:16 py: references: 1 had no recorded source; set by file name (_b<n> = number read, else hand)
+22:49:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+22:49:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+22:49:16 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
+22:49:16 py: references: 1 had no recorded source; set by file name (_b<n> = number read, else hand)
+22:49:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+22:49:16 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+22:49:16 py: references: 2 had no recorded source; set by file name (_b<n> = number read, else hand)
