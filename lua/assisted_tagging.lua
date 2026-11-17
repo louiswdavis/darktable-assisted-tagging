@@ -1633,9 +1633,7 @@ local function _(msgid)
 end
 
 -- Every tag attach/detach rewrites the XMP sidecar, so writes are paced:
--- after a budget of writes the GUI gets a short sleep. Identifying fills the
--- progress bar to PROGRESS_ANALYSIS, writing tags fills the rest.
-local PROGRESS_ANALYSIS = 0.8
+-- after a budget of writes the GUI gets a short sleep.
 local WRITE_BUDGET = 12
 local WRITE_SLEEP_MS = 20
 
@@ -1931,7 +1929,40 @@ end
 -- moving job.percent from `from` to `to` with its progress. Returns the exit
 -- code, or nil plus "cancelled", "stalled" or "launch" (the last two already
 -- reported to the user).
-local function run_python(args, job, from, to, hint)
+-- Where each stage of an Identify run sits on the job bar, { from, to }. A stage fills its band
+-- as it reports cur / tot. Python stage names match identify.py's write_progress calls.
+local IDENTIFY_BANDS = {
+    ["preparing"] = { 0.00, 0.02 },
+    ["neighbours"] = { 0.02, 0.04 },
+    ["starting Python"] = { 0.04, 0.05 },
+    ["loading models"] = { 0.05, 0.10 },
+    ["references"] = { 0.10, 0.13 },
+    ["checking cache"] = { 0.13, 0.15 },
+    ["starting workers"] = { 0.15, 0.17 },
+    ["analysing"] = { 0.17, 0.66 },
+    ["rescue"] = { 0.66, 0.70 },
+    ["refining"] = { 0.70, 0.76 },
+    ["matching"] = { 0.76, 0.80 },
+    ["writing tags"] = { 0.80, 0.98 },
+    ["saving"] = { 0.98, 1.00 },
+}
+local shown_stage = nil
+
+-- Moves the job bar to `done` (0–1) through `stage`'s band. A new stage gets a toast and a log line.
+local function show_stage(job, stage, done)
+    local band = IDENTIFY_BANDS[stage]
+    if job and job.valid and band then
+        job.percent = band[1] + (band[2] - band[1]) * math.max(0, math.min(1.0, done or 0))
+    end
+    if stage ~= shown_stage then
+        shown_stage = stage
+        dt.print("Assisted Tagging: " .. stage .. "…")
+        log("stage: " .. stage)
+    end
+end
+
+-- staged: an Identify run, whose stages each fill their IDENTIFY_BANDS band instead of from..to
+local function run_python(args, job, from, to, hint, staged)
     local script = identify_script()
     pcall(os.remove, DONE_PATH)
     pcall(os.remove, PROGRESS_PATH)
@@ -1945,6 +1976,7 @@ local function run_python(args, job, from, to, hint)
         notify_error("Assisted Tagging: couldn't start identify.py: " .. why .. ".")
         return nil, "launch"
     end
+    if staged then show_stage(job, "starting Python", 0) end
     local start, last_progress, last_change, stage = os.time(), nil, os.time(), nil
     while true do
         if job and cancelled(job) then
@@ -1969,7 +2001,11 @@ local function run_python(args, job, from, to, hint)
         local p = M.parse_progress(progress)
         if p and p.stage ~= stage then stage, start = p.stage, os.time() end
         if hint and p and p.tot > 0 then
-            if job and job.valid then job.percent = from + (to - from) * math.min(1.0, p.cur / p.tot) end
+            if staged and p.stage and IDENTIFY_BANDS[p.stage] then
+                show_stage(job, p.stage, p.cur / p.tot)
+            elseif job and job.valid then
+                job.percent = from + (to - from) * math.min(1.0, p.cur / p.tot)
+            end
             dt.print_hinter(string.format("Assisted Tagging: %s %d / %d%s", p.stage or hint, p.cur, p.tot,
                 fmt_eta(os.time() - start, p.cur - p.cached, p.tot - p.cached)))
         end
@@ -2697,7 +2733,7 @@ local function apply_results(run, job)
                 end
             end
         end
-        if job and job.valid then job.percent = PROGRESS_ANALYSIS + (1 - PROGRESS_ANALYSIS) * i / #primaries end
+        show_stage(job, "writing tags", i / #primaries)
         if cancelled(job) then
             say(string.format("Assisted Tagging: stopped while writing tags; %d of %d images were updated. Run again to finish.",
                 i, #primaries))
@@ -2787,11 +2823,14 @@ function M.identify_images(images, replace_manual, verify_only)
         -- film roll and can take minutes on thousands of photos
         job = dt.gui.create_job(_("Assisted Tagging"), true, stop_job)
         job.percent = 0.0
+        shown_stage = nil
+        show_stage(job, "preparing", 0)
         local stage_start = os.time()
         log("prepare: reading tags of the selection")
         flush_log()
         local rows
         run, rows = prepare_run(images, replace_manual)
+        show_stage(job, "preparing", 1)
         log(string.format("prepare: done, %d rows, %ds", #rows, os.time() - stage_start))
         flush_log()
         run.verify_only = verify_only
@@ -2804,9 +2843,11 @@ function M.identify_images(images, replace_manual, verify_only)
         local neighbour_args = {}
         if not verify_only and settings.order_weight > 0 then
             stage_start = os.time()
+            show_stage(job, "neighbours", 0)
             log("neighbour: reading the film rolls of the selection")
             flush_log()
             local lib_rows = library_neighbour_rows(images)
+            show_stage(job, "neighbours", 1)
             log(string.format("neighbour: %d unselected tagged photos shot near the selection, %ds",
                 #lib_rows, os.time() - stage_start))
             flush_log()
@@ -2825,7 +2866,7 @@ function M.identify_images(images, replace_manual, verify_only)
                 "--report-out", report_prefix(),
                 "--archive-dir", RUNS_DIR,
             }),
-            job, 0, PROGRESS_ANALYSIS, "identifying")
+            job, 0, 0.8, "identifying", true)
         flush_log()
         dt.print_hinter(" ")
 
@@ -2845,6 +2886,7 @@ function M.identify_images(images, replace_manual, verify_only)
     -- Saved once tags may have changed, even if the apply stopped or errored partway, so the tags
     -- this run attached aren't mistaken for the user's next time. Earlier stages leave it as it was.
     if run and run.applying then
+        show_stage(job, "saving", 0)
         log("apply: saving the ledger")
         flush_log()
         local save_start = os.time()

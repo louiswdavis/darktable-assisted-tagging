@@ -1,37 +1,6 @@
-ok   detection_key is stable
-ok   detection_key carries the detector id
-ok   detection_key changes with DETECT_VERSION
-ok   detection_key restored
-ok   cache creates the parent folder
-ok   cache miss is None
-ok   cache round-trips an entry
-ok   prune drops a row unused for 90 days
-ok   non-sqlite file raises InputError naming the path
-ok   empty path disables the cache
-ok   detect stores the frame size
-ok   detect stores the detector id
-ok   detect keeps one NMS survivor above CANDIDATE_MIN_SCORE
-ok   detect letterboxes to DETECTOR_INPUT
-ok   detect passes the letterbox scale
-ok   detect sorts score descending
-ok   NMS over the 0.03 set filtered at 0.35 equals NMS over the 0.35 set
-ok   boxes_in rescales from the stored frame
-ok   detect_cached raises on decode failure
-ok   decode failure writes nothing
-ok   detect_cached misses then hits
-ok   detect_cached runs the detector once
-ok   detect_cached returns the stored entry on a hit
-ok   load_detector on a missing file names it
-ok   load_detector with no family match names the file
-ok   yolox family matches the opencv_zoo name
-ok   detr family matches a D-FINE export
-ok   detr family matches an RT-DETR export
-ok   yolox family does not match a D-FINE export
-ok   detr keeps the vehicle box and drops the person
-ok   detr feeds images and orig_target_sizes
-ok   detr images input is 1x3x640x640
-ok   detr: a car boxed twice keeps only the stronger box
-ok   detr raw export: feeds pixel_values only
-ok   detr raw export: sigmoid over vehicle classes, cxcywh × canvas / scale → source xyxy
-ok   detection_fingerprint is 12 hex
-all tests passed
+
+--- stderr ---
+Traceback (most recent call last):
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_vehicle_detect.py", line 11, in <module>
+    import numpy as np
+ModuleNotFoundError: No module named 'numpy'

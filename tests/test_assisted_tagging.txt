@@ -12,6 +12,31 @@ ok   temp_base: <dir>/<prefix><epoch>_<seq>_
 ok   sweep_temp: removes only this prefix's stale files
 ok   sweep_temp: newer file kept
 ok   sweep_temp: other prefix kept
+ok   error_guard: results pass through
+Assisted Tagging panel install: test_assisted_tagging.lua:74: boom
+stack traceback:
+	[C]: in global 'error'
+	test_assisted_tagging.lua:74: in function <test_assisted_tagging.lua:74>
+	[C]: in global 'xpcall'
+	./plugin_common.lua:267: in local 'guard'
+	test_assisted_tagging.lua:74: in main chunk
+	[C]: in ?
+ok   error_guard: error returns nil
+ok   error_guard: log has label and traceback
+ok   error_guard: toast names the log file
+Assisted Tagging button Derive: test_assisted_tagging.lua:79: cb
+stack traceback:
+	[C]: in global 'error'
+	test_assisted_tagging.lua:79: in function <test_assisted_tagging.lua:79>
+	[C]: in global 'xpcall'
+	./plugin_common.lua:267: in function <./plugin_common.lua:266>
+	(...tail calls...)
+	test_assisted_tagging.lua:80: in main chunk
+	[C]: in ?
+ok   guarded_widget_maker: callback errors are logged with kind + label
+ok   guarded_widget_maker: other props untouched
+ok   append_error_log: older half dropped at a line start
+ok   append_error_log: entry appended
 ok   plugin_folder: plugins_root/<folder>
 ok   shared key set: nothing logged
 ok   plugin_folder: old key when shared blank

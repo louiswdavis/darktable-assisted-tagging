@@ -851,7 +851,9 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, p
     """filepath → analysis (cached or fresh); a frame that fails to decode maps to None."""
     unique = list(dict.fromkeys(paths))  # darktable duplicates and versions share a file
     done, total, out, todo = 0, len(unique), {}, []
-    for p in unique:
+    for i, p in enumerate(unique):
+        if i % 100 == 0:
+            write_progress(progress, i, total, "checking cache")
         hit = cache.get(*frame_key(p, models))
         if hit is not None:
             out[p] = hit
@@ -867,6 +869,8 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, p
         return out
     workers = pool.size
     hits, detected, started = 0, 0, time.time()
+    # each worker loads every model before its first frame; the first finished frame ends this stage
+    write_progress(progress, 0, 1, "starting workers")
     executor = pool.get()
     futures = {executor.submit(analyse_frame, p): p for p in todo}
     for fut in concurrent.futures.as_completed(futures):
@@ -1356,7 +1360,9 @@ def identify(args, models: dict):
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
+    write_progress(args.progress, 0, 1, "loading models")
     embedder = check_models(models)
+    write_progress(args.progress, 1, 1, "loading models")
     if rules.kind == "people":
         return identify_people(args, models, entries, rules, from_entries, collection, embedder)
     rows = read_manifest(args.manifest, 3, 4)
@@ -1375,7 +1381,9 @@ def identify(args, models: dict):
         if r[6] and r[6] not in entries:
             log(f"image {r[0]}: hand-tagged as entry {r[6]}, which is not in entries.json; its hand tag is not used (Reload, then run again)")
     hand_of = {r[0]: r[6] for r in rows if r[6] in entries and not verify and r[0] not in fully_tagged}
+    write_progress(args.progress, 0, 1, "references")
     index = open_index(collection, models, rules, embedder, args.progress)
+    write_progress(args.progress, 1, 1, "references")
     if cancel_requested(args.progress):
         log("cancelled")
         sys.exit(130)
@@ -1442,6 +1450,7 @@ def identify(args, models: dict):
         wanted = hires_wanted(frames, detail, analyses)
         if wanted and not cancel_requested(args.progress):
             analyses = refine_frames(wanted, analyses, models, args.cache, pool, args.progress)
+    write_progress(args.progress, 0, 1, "matching")
     frames, burst_of, box0_sims, detail = match_all(analyses)
     if not verify:
         weak = {fid: {i: [tuple(c) for c in b["ocr"] if c[1] >= WEAK_READ_MIN]

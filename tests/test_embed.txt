@@ -1,5 +1,6 @@
-ok   a base model's size is 768
-ok   a large model's size is 1024
-ok   a symbolic size is measured with one run
 
-all tests passed
+--- stderr ---
+Traceback (most recent call last):
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_embed.py", line 8, in <module>
+    import numpy as np
+ModuleNotFoundError: No module named 'numpy'
