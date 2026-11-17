@@ -3752,7 +3752,7 @@ local function install_panel()
         label = _("Replace manual tags"),
         tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let runs replace them. It stays ticked until you untick it."),
         value = dt.preferences.read("assisted_tagging", "replace_manual", "bool"),
-        changed_callback = function(w) dt.preferences.write("assisted_tagging", "replace_manual", "bool", w.value) end,
+        clicked_callback = function(w) dt.preferences.write("assisted_tagging", "replace_manual", "bool", w.value) end,
     }
     verify_button = new_widget("button") {
         label = _("Verify selection"),
