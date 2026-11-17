@@ -1854,6 +1854,16 @@ local queue = {}
 -- models or re-embedding references, so this is generous).
 local STALL_SECONDS = 300
 local verify_button, identify_button, entry_combo, example_combo = nil, nil, nil, nil
+local status_label, status_text = nil, "" -- the progress line under Identify selection
+
+-- Shows a progress line in the panel. Never dt.print_hinter: it sets darktable's hinter label from
+-- the Lua thread without marshalling to the GUI thread, and frequent calls corrupt the label and
+-- crash darktable (5.6.2, pixman access violation). A Lua widget setter runs on the GUI thread.
+local function show_status(text)
+    if not status_label or text == status_text then return end
+    status_text = text
+    status_label.label = text
+end
 local preset_ctl = nil -- the preset controls; each preset is a collection (set by install_panel)
 local collection_store -- defined with the panel code below
 local collection_loaded = false -- the last collection switch loaded its entries
@@ -2011,7 +2021,7 @@ local function run_python(args, job, from, to, hint, staged)
             elseif job and job.valid then
                 job.percent = from + (to - from) * math.min(1.0, p.cur / p.tot)
             end
-            dt.print_hinter(string.format("Assisted Tagging: %s %d / %d%s", p.stage or hint, p.cur, p.tot,
+            show_status(string.format("%s %d / %d%s", p.stage or hint, p.cur, p.tot,
                 fmt_eta(os.time() - start, p.cur - p.cached, p.tot - p.cached)))
         end
         dt.control.sleep(150)
@@ -2230,11 +2240,11 @@ local function wait_for_writes()
     end
 end
 
--- The hinter line under the centre view, "<what> cur / tot | ~ETA", as run_python shows for
+-- The panel's progress line, "<what> cur / tot | ~ETA", as run_python shows for
 -- identify.py's stages. `every` thins the updates on long loops: each one is a GUI round trip.
 local function show_count(what, cur, tot, start, every)
     if tot <= 0 or (every and cur % every ~= 0 and cur ~= tot) then return end
-    dt.print_hinter(string.format("Assisted Tagging: %s %d / %d%s", what, cur, tot,
+    show_status(string.format("%s %d / %d%s", what, cur, tot,
         fmt_eta(os.time() - start, cur, tot)))
 end
 
@@ -2571,7 +2581,7 @@ function M.clear_marks(images)
             end
         end
         wait_for_writes()
-        dt.print_hinter(" ")
+        show_status("")
         log(string.format("clear: darktable finished %d tag writes, %ds", done, os.time() - start))
         write_ledger(ledger, _("The cleared images keep their old ledger rows, so tags you add to them by hand "
             .. "can be removed by the next run or clear."))
@@ -2659,7 +2669,7 @@ function M.derive_images(images, mode)
             end
         end
         wait_for_writes()
-        dt.print_hinter(" ")
+        show_status("")
         log(string.format("derive %s: darktable finished %d tag writes, %ds", mode, n_tags, os.time() - start))
         write_ledger(ledger)
         local msg = string.format(_("Assisted Tagging: %s%s: %d images derived, %d skipped (reasons in the log)"),
@@ -2799,7 +2809,7 @@ local function apply_results(run, job)
         end
         if cancelled(job) then
             wait_for_writes()
-            dt.print_hinter(" ")
+            show_status("")
             say(string.format("Assisted Tagging: stopped while writing tags; %d of %d images were updated. Run again to finish.",
                 i, #primaries))
             return
@@ -2807,7 +2817,7 @@ local function apply_results(run, job)
     end
     wait_for_writes()
     show_stage(job, "writing tags", 1)
-    dt.print_hinter(" ")
+    show_status("")
     log(string.format("apply: darktable finished %d tag writes, %ds", total_writes, os.time() - apply_start))
 
     local parts = {}
@@ -2946,7 +2956,7 @@ function M.identify_images(images, replace_manual, verify_only)
             }),
             job, 0, 0.8, "identifying", true)
         flush_log()
-        dt.print_hinter(" ")
+        show_status("")
 
         -- Burst consensus needs whole bursts, so a cancelled run applies nothing.
         if why == "cancelled" or code == 130 then
@@ -3006,7 +3016,7 @@ local function run_reference_job(state, rows, mode_args, what)
         { "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH }),
         state.job, 0, 1, what)
     flush_log()
-    dt.print_hinter(" ")
+    show_status("")
     if why == "cancelled" or code == 130 then
         say(_("Assisted Tagging: cancelled. References already saved stay in the collection."))
         return nil
@@ -3912,6 +3922,7 @@ local function install_panel()
         tooltip = _("For each selected image with one colour tag, add the tags of the one entry with that colour (narrowed by your team tags) and Derived|From colour. Skips the image when several entries or none have that colour, or when it has a number tag (use Derive from number). Lookup only: no model runs, nothing is removed. Needs entry colours in entries.json (Fill entry colours). Writes darktable tags and the tag ledger only."),
         clicked_callback = function() M.derive_images(dt.gui.action_images, "colour") end,
     }
+    status_label = new_widget("label") { label = "", halign = "start" }
     replace_manual_check = new_widget("check_button") {
         label = _("Replace manual tags"),
         tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let runs replace them. It stays ticked until you untick it."),
@@ -4197,7 +4208,7 @@ local function install_panel()
         },
         tag_rows,
         { new_widget("section_label") { label = _("identify (models; writes tags)") },
-          replace_manual_check, run_tag_combo, verify_button, identify_button,
+          replace_manual_check, run_tag_combo, verify_button, identify_button, status_label,
           new_widget("section_label") { label = _("derive (lookups only; adds tags)") },
           derive_number_button, derive_colour_button,
           new_widget("section_label") { label = _("undo") },
