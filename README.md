@@ -56,7 +56,7 @@ python3 -m venv .venv
 
 ### 2. Models
 
-Download them into a `models` folder in the repo. The plugin looks there, `.gitignore` already skips `*.onnx` and `*.yml`, and `git pull` leaves them alone.
+Download them into a `models` folder in the repo. The plugin looks there, `.gitignore` skips the whole folder, and `git pull` leaves it alone. Run every curl block below from the repo root, the folder holding `README.md`, not `python/`; `--create-dirs` makes `models/`.
 
 The plugin picks the model for each job itself. Each table below lists one job's files best first; the plugin uses the best one in `models/` and ignores the rest. The row marked `(base)` comes with the base install; a row below it is an older fallback. A job with none of its files installed stops the run with an error naming the file to get (the face models are the exception: only people collections need them).
 
@@ -65,33 +65,53 @@ The run log names each pick, plus any better file you haven't installed, e.g. `v
 - a new vehicle finder, text finder or number reader re-reads every photo once, because the model is part of the cache key
 - a new livery embedder re-embeds every reference before analysing (the progress bar counts the references; on a large collection this takes minutes, and a cancel keeps those already done)
 
-**Base install.** From the repo root (Windows 10+ ships `curl`):
+**Base install** (Windows 10+ ships `curl`):
 
 ```
-mkdir models
-curl -L -o models/object_detection_yolox_2022nov.onnx https://github.com/opencv/opencv_zoo/raw/main/models/object_detection_yolox/object_detection_yolox_2022nov.onnx
-curl -L -o models/text_detection_en_ppocrv3_2023may.onnx https://github.com/opencv/opencv_zoo/raw/main/models/text_detection_ppocr/text_detection_en_ppocrv3_2023may.onnx
-curl -L -o models/en_PP-OCRv5_mobile_rec.onnx https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/main/inference.onnx
-curl -L -o models/en_PP-OCRv5_mobile_rec.yml https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/main/inference.yml
-curl -L -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2-small/resolve/main/onnx/model.onnx
+curl -L --create-dirs -o models/object_detection_yolox_2022nov.onnx https://github.com/opencv/opencv_zoo/raw/main/models/object_detection_yolox/object_detection_yolox_2022nov.onnx
+curl -L --create-dirs -o models/text_detection_en_ppocrv3_2023may.onnx https://github.com/opencv/opencv_zoo/raw/main/models/text_detection_ppocr/text_detection_en_ppocrv3_2023may.onnx
+curl -L --create-dirs -o models/en_PP-OCRv5_mobile_rec.onnx https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/main/inference.onnx
+curl -L --create-dirs -o models/en_PP-OCRv5_mobile_rec.yml https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/main/inference.yml
+curl -L --create-dirs -o models/dinov2_small.onnx https://huggingface.co/onnx-community/dinov2-small/resolve/main/onnx/model.onnx
 ```
 
-**Recommended extras** (about 1.6 GB). These read more numbers and car colours than the base install. Run from the repo root, then `pip install -r` again (SigLIP 2 needs the `tokenizers` package):
+**Recommended extras** (about 2.2 GB). These find more cars, read more numbers and car colours, and match liveries better than the base install. Then `pip install -r` again (SigLIP 2 needs the `tokenizers` package, D-FINE needs `onnxruntime`):
 
 ```
-curl -L -o models/siglip2_base_vision.onnx https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/onnx/vision_model.onnx
-curl -L -o models/siglip2_base_text.onnx https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/onnx/text_model.onnx
-curl -L -o models/siglip2_base_tokenizer.json https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/tokenizer.json
-curl -L -o models/PP-OCRv5_server_rec.onnx https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.onnx
-curl -L -o models/PP-OCRv5_server_rec.yml https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.yml
-curl -L -o models/image_segmentation_efficientsam_ti_2025april.onnx https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx
+curl -L --create-dirs -o models/dfine_x_coco.onnx https://huggingface.co/onnx-community/dfine_x_coco-ONNX/resolve/main/onnx/model.onnx
+curl -L --create-dirs -o models/siglip2_base_vision.onnx https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/onnx/vision_model.onnx
+curl -L --create-dirs -o models/siglip2_base_text.onnx https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/onnx/text_model.onnx
+curl -L --create-dirs -o models/siglip2_base_tokenizer.json https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/tokenizer.json
+curl -L --create-dirs -o models/PP-OCRv5_server_rec.onnx https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.onnx
+curl -L --create-dirs -o models/PP-OCRv5_server_rec.yml https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.yml
+curl -L --create-dirs -o models/dinov2_base.onnx https://huggingface.co/onnx-community/dinov2-base/resolve/main/onnx/model.onnx
+curl -L --create-dirs -o models/image_segmentation_efficientsam_ti_2025april.onnx https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx
 ```
 
 | Files | Turns on |
 |---|---|
+| `dfine_x_coco.onnx` | the best [vehicle finder](#vehicles) (finds more cars than YOLOX) |
 | `siglip2_base_*` (3 files) | [box check and colour reader](#box-check-and-colour-reader-optional-siglip-2) |
 | `PP-OCRv5_server_rec.*` | the better [number reader](#number-reader) |
+| `dinov2_base.onnx` | the better [livery embedder](#livery-embedder) |
 | `image_segmentation_efficientsam_*` | the [segmenter](#segmenter-optional) for overlapping cars |
+
+**Largest livery embedder** (1.22 GB, optional). Matches liveries best but embeds slowest. Once it's in `models/`, the plugin uses it instead of `dinov2_base`:
+
+```
+curl -L --create-dirs -o models/dinov2_large.onnx https://huggingface.co/onnx-community/dinov2-large/resolve/main/onnx/model.onnx
+```
+
+**People collections only** (face models; motorsport doesn't use them):
+
+```
+curl -L --create-dirs -o models/face_detection_yunet_2023mar.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx
+curl -L --create-dirs -o models/face_recognition_sface_2021dec.onnx https://github.com/opencv/opencv_zoo/raw/main/models/face_recognition_sface/face_recognition_sface_2021dec.onnx
+```
+
+Not in any block on purpose: the other vehicle finders (`dfine_l`, `rtdetr_v2`, `dfine_m`, `dfine_s`: smaller or slower steps between YOLOX and D-FINE-X), the CRNN reader (an older fallback) and PP-OCRv6 small (on trial, see [Trying PP-OCRv6 small](#trying-pp-ocrv6-small)). Their downloads are in the tables below.
+
+**curl says `client returned ERROR on write` (error 23)?** curl got the data but couldn't save it. It isn't because the file already exists: curl overwrites. Either `models/` doesn't exist where you ran it (run from the repo root, with `--create-dirs`), or the file is in use (close darktable, or wait for a run to finish, then retry).
 
 **Check what's installed.** Each file must be named exactly as above (curl's `-o` does that; a browser download saves `vision_model.onnx`, `inference.onnx` and so on, which the plugin can't find). The start of the run log lists what each job picked:
 
