@@ -1,0 +1,20 @@
+[2026-11-17 00:25:57] panel install
+field "changed_callback" can't be written for type lua_check_button
+
+stack traceback:
+	[C]: in ?
+	[C]: in ?
+	...Plugins/darktable-assisted-tagging/lua/plugin_common.lua:291: in function <...Plugins/darktable-assisted-tagging/lua/plugin_common.lua:285>
+	...AppData\Local\darktable/lua/contrib/assisted_tagging.lua:3751: in upvalue 'install_panel'
+	...AppData\Local\darktable/lua/contrib/assisted_tagging.lua:4128: in function <...AppData\Local\darktable/lua/contrib/assisted_tagging.lua:4127>
+	[C]: in function 'xpcall'
+	...Plugins/darktable-assisted-tagging/lua/plugin_common.lua:267: in local 'guard'
+	...AppData\Local\darktable/lua/contrib/assisted_tagging.lua:4127: in main chunk
+	[C]: in function 'require'
+	[C]: in function 'pcall'
+	C:\Users\Louis\AppData\Local\darktable\luarc:5: in local 'luarc'
+	...uis\AppData\Local\darktable/lua/tools/script_manager.lua:1396: in main chunk
+	[C]: in function 'require'
+	C:\Program Files\darktable\share\darktable\luarc:76: in main chunk
+	[C]: in ?
+
