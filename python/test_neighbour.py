@@ -211,6 +211,48 @@ def run_tests():
     frames, burst, times = shoot(by_hand, unmatched("36"))
     check("a hand result alone is support enough", N.neighbour_aid(frames, burst, times, E, 5, 1.0)["f1"][0].method, "neighbour")
 
+    # Best guess seen nearby: an unread box takes its top livery guess when that car was identified close by.
+    frames, burst, times = shoot(seen("34"), BoxResult(0, "none"), seen("38"))
+
+    def guess(*pairs, fid="f1", box=0):
+        return {(fid, box): list(pairs)}
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, guesses=guess(("34", 0.58), ("33", 0.55)))
+    got = out["f1"][0]
+    check("an unread box takes its best guess seen nearby", (got.method, got.entry_id, got.via), ("neighbour", "34", "candidate"))
+    check("best-guess confidence is the livery sim", got.confidence, 0.58)
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, guesses=guess(("35", 0.58), ("33", 0.55)))
+    check("a best guess not seen nearby is left", out["f1"][0].method, "none")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, guesses=guess(("34", 0.58), ("38", 0.57)))
+    check("a best guess with a rival also nearby is left", out["f1"][0].method, "none")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, guesses=guess(("34", 0.58), ("33", 0.57), ("35", 0.5), ("38", 0.4)))
+    check("a guess past the rivals checked doesn't block", out["f1"][0].entry_id, "34")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, guesses=guess(("34", N.CANDIDATE_MIN_SIM - 0.01)))
+    check("a best guess under the floor is left", out["f1"][0].method, "none")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, guesses=guess(("34", 0.58), box=1))
+    check("a guess for another box doesn't apply", out["f1"][0].method, "none")
+    check("no guesses leave the box", N.neighbour_aid(frames, burst, times, E, 5, 0.5)["f1"][0].method, "none")
+    far = {"f0": 100, "f1": 100 + N.NEIGHBOUR_MAX_GAP_S + 1, "f2": 100 + 2 * (N.NEIGHBOUR_MAX_GAP_S + 1)}
+    out = N.neighbour_aid(frames, burst, far, E, 5, 0.5, guesses=guess(("34", 0.58)))
+    check("a car seen past the stage-break gap doesn't count", out["f1"][0].method, "none")
+
+    two = {"f0": [seen("34")], "f1": [seen("34"), BoxResult(1, "none")], "f2": [seen("38")]}
+    out = N.neighbour_aid(two, {}, times, E, 5, 0.5, guesses=guess(("34", 0.58), box=1))
+    check("a car already in the frame isn't given to a second box", out["f1"][1].method, "none")
+
+    P = {n: Entry(n, n, "", (), "", c) for n, c in {"33": "", "34": "White", "35": "", "37": "", "38": ""}.items()}
+    red = shoot(seen("34"), BoxResult(0, "none", colour="Red"), seen("38"))
+    out = N.neighbour_aid(*red, P, 5, 0.5, guesses=guess(("34", 0.58)))
+    check("a white car isn't given to a red box", out["f1"][0].method, "none")
+    white = shoot(seen("34"), BoxResult(0, "none", colour="White"), seen("38"))
+    out = N.neighbour_aid(*white, P, 5, 0.5, guesses=guess(("34", 0.58)))
+    check("a white car is given to a white box", out["f1"][0].entry_id, "34")
+
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.60, "f2": 0.92}), guess(("34", 0.58)))
+    check("the look-alike comes before the best guess", (out["f1"][0].entry_id, out["f1"][0].via), ("38", "lookalike"))
+    frames, burst, times = shoot(seen("34"), unmatched("36"), seen("37"))
+    out = N.neighbour_aid(frames, burst, times, E, 5, 1.0, guesses=guess(("34", 0.58)))
+    check("a number-order resolve comes before the best guess", (out["f1"][0].entry_id, out["f1"][0].via), ("35", "order"))
+
     if failures == 0:
         print("all tests passed")
         sys.exit(0)

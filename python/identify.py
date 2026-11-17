@@ -42,7 +42,7 @@ from fingerprint import analysis_fingerprint
 from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
                    burst_colours, burst_consensus, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
-from neighbour import neighbour_aid, with_library_neighbours
+from neighbour import CANDIDATE_RIVALS, neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
 from segment import SEGMENT_CACHE_TOKEN, Segmenter, needs_mask, segmenter_path
 from siglip import BOX_KEEP_SCORE, CAR, SigLIP, siglip_key
@@ -1509,14 +1509,18 @@ def identify(args, models: dict):
         library = read_manifest(lib_path, 3) if lib_path and os.path.exists(lib_path) else []
         with_lib, lib_burst_of, lib_times = with_library_neighbours(frames, burst_of, times, library, entries)
         log(f"neighbour: {len(with_lib) - len(frames)} unselected tagged photos lend support")
-        aided = neighbour_aid(with_lib, lib_burst_of, lib_times, entries, rules.neighbour_tolerance, rules.order_weight, similar)
+        guesses = {(fid, i): b["sims"][:CANDIDATE_RIVALS] for fid, d in detail.items()
+                   for i, b in enumerate(d["boxes"]) if b["overlap"] != HIDDEN}
+        aided = neighbour_aid(with_lib, lib_burst_of, lib_times, entries, rules.neighbour_tolerance, rules.order_weight,
+                              similar, guesses)
         aided = {i: rs for i, rs in aided.items() if i in frames}
         resolved = 0
         for i, rs in aided.items():
             for a, b in zip(rs, frames[i]):
                 if a.method == "neighbour" and b.method != "neighbour":
                     resolved += 1
-                    how = f"read {b.unmatched_number}, fits the number order" if a.via == "order" else "looks like a nearby car"
+                    how = {"order": f"read {b.unmatched_number}, fits the number order",
+                           "candidate": "best guess, seen nearby"}.get(a.via, "looks like a nearby car")
                     log(f"{i}: box {a.box}: neighbour {a.entry_id} ({how}, {a.confidence:.3f})")
         flagged = sum(1 for rs in aided.values() for r in rs if r.order_flag)
         log(f"neighbour: resolved {resolved}, flagged {flagged} (order weight {rules.order_weight:g}, tolerance {rules.neighbour_tolerance})")

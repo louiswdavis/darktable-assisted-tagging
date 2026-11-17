@@ -69,7 +69,8 @@ class BoxResult:
     # either side of it; the result and its tags stay, the photographer checks it.
     order_flag: bool = False
     # How neighbour.neighbour_aid settled a `neighbour` result: "order" (a misread fits the number
-    # order) or "lookalike" (the crop looks like a nearby identified car). Log only; not in results.csv.
+    # order), "lookalike" (the crop looks like a nearby identified car) or "candidate" (its best livery
+    # guess was identified nearby). Log only; not in results.csv.
     via: str = ""
     # The box's decided body colour (car_colour), carried through every later rewrite; "" when none.
     colour: str = ""

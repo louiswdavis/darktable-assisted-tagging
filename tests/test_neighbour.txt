@@ -55,4 +55,18 @@ ok   consecutive rows of one entry form one group
 ok   a hand result supports a doubtful read
 ok   a hand result is left as it is
 ok   a hand result alone is support enough
+ok   an unread box takes its best guess seen nearby
+ok   best-guess confidence is the livery sim
+ok   a best guess not seen nearby is left
+ok   a best guess with a rival also nearby is left
+ok   a guess past the rivals checked doesn't block
+ok   a best guess under the floor is left
+ok   a guess for another box doesn't apply
+ok   no guesses leave the box
+ok   a car seen past the stage-break gap doesn't count
+ok   a car already in the frame isn't given to a second box
+ok   a white car isn't given to a red box
+ok   a white car is given to a white box
+ok   the look-alike comes before the best guess
+ok   a number-order resolve comes before the best guess
 all tests passed

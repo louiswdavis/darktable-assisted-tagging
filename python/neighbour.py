@@ -18,6 +18,10 @@ FLAG_MIN_WEIGHT = 0.5  # order_weight at which a doubtful read with no support i
 # Raw embedding cosine between the two crops (same embedder, same run); first guesses, tune from the run log.
 LOOKALIKE_MIN_SIM = 0.85
 LOOKALIKE_MARGIN = 0.05  # over the best-looking box of any other car nearby
+# Best guess seen nearby: an unread box takes its top livery guess when that car, and none of its
+# next guesses, was identified in a nearby group. First guesses, tune from the run log.
+CANDIDATE_MIN_SIM = 0.50  # livery sim of the top guess; MATCH_MIN_SIM (0.60) alone would identify it
+CANDIDATE_RIVALS = 3  # the top guess and the next guesses that must not be nearby
 
 
 def entry_positions(entries: dict) -> dict:
@@ -99,14 +103,31 @@ def with_library_neighbours(frames: dict, burst_of: dict, times: dict, rows: lis
     return frames, burst_of, times
 
 
+def best_guess(guesses: list, near: set, here: set, colour: str, entries: dict):
+    """(entry id, sim) of the top of `guesses` [(entry id, sim)] when it is in `near`, none of the
+    next CANDIDATE_RIVALS - 1 guesses is, its sim reaches CANDIDATE_MIN_SIM, it isn't in `here`
+    (identified in the same frame) and its colour doesn't clash with `colour`; else None."""
+    top = guesses[:CANDIDATE_RIVALS]
+    if not top:
+        return None
+    eid, sim = top[0]
+    if (eid not in near or eid in here or sim < CANDIDATE_MIN_SIM or eid not in entries
+            or any(other in near for other, _ in top[1:])
+            or colour_relation(entries[eid].colour, colour) == -1):
+        return None
+    return eid, sim
+
+
 def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
-                  tolerance: int, weight: float, similar=None) -> dict:
+                  tolerance: int, weight: float, similar=None, guesses=None) -> dict:
     """frames: image id to [BoxResult]; times: image id to capture seconds (0 or missing = untimed).
     A `none` box with digits read takes the one candidate whose support from nearby groups reaches
     1 - `weight` (method `neighbour`, confidence = support): a neighbour up to weight x (tolerance + 1)
     places away counts, so 1 uses the whole tolerance and a weight near 0 needs that same car nearby.
     With `similar` (see lookalike), a `none` box still unresolved takes the car of the nearby
-    identified box it looks like (method `neighbour`, confidence = sim), number order aside. A doubtful
+    identified box it looks like (method `neighbour`, confidence = sim), number order aside. With
+    `guesses` {(frame id, box): [(entry id, sim)], best first}, one still unresolved then takes its
+    best guess when that car was identified nearby (see best_guess; confidence = sim). A doubtful
     `number` read that no nearby group supports is flagged (`order_flag`), result unchanged. A candidate
     or look-alike box whose colour disagrees with the box's is passed over. Clear
     reads are never touched. Returns `frames` itself when weight is 0 or there is nothing to measure against."""
@@ -171,6 +192,11 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
                         hit = lookalike(similar, fid, r.box, same)
                         if hit:
                             r = replace(r, method="neighbour", entry_id=hit[0], confidence=hit[1], via="lookalike")
+                    if r.method == "none" and guesses:
+                        here = {x.entry_id for x in frames[fid] + boxes if x.method in IDENTIFIED + (HAND, "neighbour")}
+                        hit = best_guess(guesses.get((fid, r.box), []), set(around), here, r.colour, entries)
+                        if hit:
+                            r = replace(r, method="neighbour", entry_id=hit[0], confidence=hit[1], via="candidate")
                 elif (r.method == "number" and r.confidence < DOUBT_CONF and weight >= FLAG_MIN_WEIGHT
                       and support(r.entry_id, around) == 0):
                     r = replace(r, order_flag=True)

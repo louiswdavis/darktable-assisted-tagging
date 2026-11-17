@@ -719,6 +719,8 @@ The thresholds are starting points, not tuned defaults. Each is a named constant
 | `BURST_MIN_CONFIDENCE` | `match.py` | 0.5 | the share of the group the entry must cover before a burst fill is written |
 | `LOOKALIKE_MIN_SIM` | `neighbour.py` | 0.85 | how alike a box with no number and a nearby identified car must look for the neighbour look-alike |
 | `LOOKALIKE_MARGIN` | `neighbour.py` | 0.05 | how far that car must lead the best-looking other car nearby |
+| `CANDIDATE_MIN_SIM` | `neighbour.py` | 0.50 | lowest livery similarity at which an unread box takes its best guess because that car was identified nearby |
+| `CANDIDATE_RIVALS` | `neighbour.py` | 3 | that best guess and the next guesses checked; it is only taken when none of the others was nearby |
 | `DOUBT_CONF` | `neighbour.py` | 0.90 | a number read below this is doubtful, so the neighbour aid checks it |
 | `ACHROMATIC_WEIGHT` | `car_colour.py` | 0.5 | how much a white, grey or black share counts against a colour's. Raise it if coloured cars with a small sponsor patch lose their white, grey or black tag; lower it if tarmac and shadow make coloured cars come out grey or black. Applied at match time, so a change needs no re-read |
 | `MULTI_RATIO` | `car_colour.py` | 0.6 | how close the second colour's weighted share must be to the first's for `Multi`. Raise it if too many cars come out `Multi`; lower it if clear two-tone cars get one colour. Applied at match time, so a change needs no re-read |
