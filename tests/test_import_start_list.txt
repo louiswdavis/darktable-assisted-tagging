@@ -1,13 +1,13 @@
 ok   the removed --tag-prefix flag is rejected
 ok   a rejected run writes no entries.json
-added 3 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpj1bhblj_/rally/entries.json; , ; and " removed from the names of 12
+added 3 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpdx14k6rz/rally/entries.json; , ; and " removed from the names of 12
 ok   a CSV creates entries.json with no rules
 ok   header aliases map the columns; class becomes a tag; commas are cleaned
 ok   the file is in the canonical layout
-added 0 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpj1bhblj_/rally/entries.json; skipped 3 already listed: 1, 12, 7; , ; and " removed from the names of 12
+added 0 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpdx14k6rz/rally/entries.json; skipped 3 already listed: 1, 12, 7; , ; and " removed from the names of 12
 ok   re-importing the same CSV adds nothing
 ok   a no-op import writes no .bak
-added 2 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpj1bhblj_/rally/entries.json; skipped 1 already listed: 7; 2 line(s) without a leading number ignored
+added 2 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpdx14k6rz/rally/entries.json; skipped 1 already listed: 7; 2 line(s) without a leading number ignored
 ok   pasted lines add only the new numbers
 ok   a pasted line splits driver / co-driver
 ok   a pasted line without a co-driver has no co_driver
@@ -25,14 +25,14 @@ ok   map_header: need_number=False allows no number
 ok   rows_from_csv splits a shared driver cell with no co-driver column
 ok   rows_from_csv keeps the cell when a co-driver column exists
 ok   header_report lists headers then each role's mapped header
-added 1 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpj1bhblj_/codrivers/entries.json; , ; and " removed from the names of 5
+added 1 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpdx14k6rz/codrivers/entries.json; , ; and " removed from the names of 5
 ok   a co-driver alone gets co_driver, cleaned of , ; and "
-added 4 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpj1bhblj_/vehicles/entries.json
+added 4 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpdx14k6rz/vehicles/entries.json
 ok   class column → extra, make+model → make, model, make only → make; | and ; are removed; no tags
 ok   fields follow id, number, name, team order
 ok   the Vehicle column isn't read as a role
 ok   a model with no make fails
-added 3 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpj1bhblj_/shared/entries.json
+added 3 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpdx14k6rz/shared/entries.json
 ok   the higher number of a shared car names the lower; the lower and unshared rows get no car
 ok   a one-way pair fails
 ok   a partner not in the list fails
@@ -41,7 +41,7 @@ ok   a partner that isn't a number fails
 ok   a car shared with itself fails
 ok   a number over 3 digits fails
 ok   a number listed twice fails
-added 3 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpj1bhblj_/hand/entries.json; 2 line(s) without a leading number ignored
+added 3 entries to /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpdx14k6rz/hand/entries.json; 2 line(s) without a leading number ignored
 ok   a hand-formatted file gets the new entries
 ok   a hand-formatted file is reflowed into the canonical layout
 ok   the hand-formatted original is kept as .bak
@@ -61,4 +61,4 @@ import_start_list: number 30: shares car with "x", which is not a 1–3 digit nu
 import_start_list: number 30 shares a car with itself
 import_start_list: row 1: "1234" is not a 1–3 digit number
 import_start_list: number 9 is listed twice
-import_start_list: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpj1bhblj_/bare/entries.json is a bare list; make it {"entries": [...]} first
+import_start_list: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpdx14k6rz/bare/entries.json is a bare list; make it {"entries": [...]} first

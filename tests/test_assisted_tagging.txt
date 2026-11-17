@@ -234,6 +234,8 @@ ok   two drivers' tags map to no one
 ok   no matching tags map to no one
 ok   a double-driven car's full tags map to its first entry
 ok   a car plus another entry's tags map to no one
+ok   tags the plugin wrote (in the ledger) map to no one
+ok   tags the user added by hand still map with a ledger
 ok   results group by image id
 ok   a no-vehicle frame has a row
 ok   an errored frame has no rows to apply

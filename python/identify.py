@@ -39,7 +39,7 @@ import entries_file
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
-from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, REFERENCE_MIN_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
+from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
                    burst_colours, burst_consensus, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, match_camera, match_livery,
                    match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
@@ -1154,7 +1154,6 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                             "hand": d.get("hand", ""), "tagged": d.get("tagged", "")}
     return {"collection": collection,
             "thresholds": {"min_sim": MATCH_MIN_SIM, "min_margin": MATCH_MIN_MARGIN,
-                           "reference_margin": REFERENCE_MIN_MARGIN,
                            # the number path's knobs, which eval_numbers.py replays and overrides
                            "ocr_min_score": OCR_MIN_SCORE, "number_min_height": NUMBER_MIN_HEIGHT,
                            "min_read": min_read, "weak_read_min": WEAK_READ_MIN,

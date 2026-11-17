@@ -115,8 +115,7 @@ ok   conflict: never in a pack
 ok   conflict: nothing protected
 ok   conflict: a shared tag agrees
 ok   promotable: number
-ok   promotable: wide livery margin
-ok   promotable: narrow livery margin
+ok   promotable: never livery, however wide its lead
 ok   promotable: never burst
 ok   promotable: never team
 ok   promotable: never pooled

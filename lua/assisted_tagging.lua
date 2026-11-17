@@ -972,12 +972,13 @@ end
 -- The entry an already-tagged image belongs to: the one whose tags it carries
 -- all of (a shared team tag alone matches no one). nil when none or several do;
 -- entries with the same tag set (a double-driven car's two entries) count as one, the first.
-function M.entry_for_tags(have, entries, order)
+-- Tags in `ledger_set` (the plugin wrote them) don't count, so its own guesses never become references.
+function M.entry_for_tags(have, entries, order, ledger_set)
     local found = nil
     for _, id in ipairs(order) do
         local all = #entries[id].tags > 0
         for _, t in ipairs(entries[id].tags) do
-            if not have[t] then all = false; break end
+            if not have[t] or (ledger_set and ledger_set[t]) then all = false; break end
         end
         if all then
             if not found then
@@ -3106,11 +3107,11 @@ function M.add_references(images, entry_id)
         for _, img in ipairs(images) do
             -- the entry comes from the selected image's tags; the crop from its paired JPEG
             local src = pick_of[img.id]
-            local eid = entry_id or M.entry_for_tags(tags_of(img), entries, entry_order)
+            local eid = entry_id or M.entry_for_tags(tags_of(img), entries, entry_order, ledger[img.id])
             if not eid then
                 -- tagged only to team level: identify.py saves it as a team reference when
                 -- rules.partial_references is on and the shot is solo
-                local prefixes = sorted_names(M.hint_tags(tags_of(img), nil, entries, M.family_roots(settings).team))
+                local prefixes = sorted_names(M.hint_tags(tags_of(img), ledger[img.id], entries, M.family_roots(settings).team))
                 if #prefixes == 1 then eid = prefixes[1] end
             end
             if eid then
@@ -3282,9 +3283,9 @@ function M.fill_entry_colours(images)
         local colour_base = M.family_roots(settings).colour
         for _, img in ipairs(images) do
             local src = pick_of[img.id]
-            local eid = M.entry_for_tags(tags_of(img), entries, entry_order)
+            local eid = M.entry_for_tags(tags_of(img), entries, entry_order, ledger[img.id])
             if not eid then
-                local prefixes = sorted_names(M.hint_tags(tags_of(img), nil, entries, M.family_roots(settings).team))
+                local prefixes = sorted_names(M.hint_tags(tags_of(img), ledger[img.id], entries, M.family_roots(settings).team))
                 if #prefixes == 1 then eid = prefixes[1] end
             end
             if eid then

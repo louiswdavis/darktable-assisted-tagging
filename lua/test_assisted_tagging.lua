@@ -594,6 +594,11 @@ check("a double-driven car's full tags map to its first entry",
 check("a car plus another entry's tags map to no one", T.entry_for_tags({
     ["Rally|Number|30"] = true, ["Rally|Number|730"] = true, ["Rally|Number|12"] = true,
 }, car_entries, { "30", "730", "12" }), nil)
+local tsu_tags = { ["F1|Red Bull"] = true, ["F1|Red Bull|Tsunoda"] = true }
+check("tags the plugin wrote (in the ledger) map to no one",
+    T.entry_for_tags(tsu_tags, entries, order, { ["F1|Red Bull|Tsunoda"] = true }), nil)
+check("tags the user added by hand still map with a ledger",
+    T.entry_for_tags(tsu_tags, entries, order, { ["F1|Ferrari|Hamilton"] = true }), "TSU")
 
 -- read_results (review fix 4) ----------------------------------------------
 local rows_of, errored, skipped_ids = T.read_results(table.concat({

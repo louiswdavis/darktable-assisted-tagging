@@ -376,11 +376,11 @@ def run_tests():
 
     wide = {"method": "livery", "entry": "VER", "candidates": [["VER", 0.9], ["TSU", 0.7]]}
     check("promotable: number", Mt.promotable({"method": "number", "entry": "VER"}), True)
-    check("promotable: wide livery margin", Mt.promotable(wide), True)
-    check("promotable: narrow livery margin", Mt.promotable({**wide, "candidates": [["VER", 0.9], ["TSU", 0.85]]}), False)
+    # a wide livery lead isn't enough: on Rallye, 36 of the 44 boxes promoted to car 39 were other cars
+    check("promotable: never livery, however wide its lead", Mt.promotable(wide), False)
     for m in ("burst", "team", "pooled", "conflict", "none"):
         check(f"promotable: never {m}", Mt.promotable({**wide, "method": m}), False)
-    check("promotable: no entry", Mt.promotable({**wide, "entry": ""}), False)
+    check("promotable: no entry", Mt.promotable({"method": "number", "entry": ""}), False)
 
     # ---- Stage B: hints
     check("entries_under: prefix boundary", list(Mt.entries_under(ENTRIES, ["F1|Red"])), [])

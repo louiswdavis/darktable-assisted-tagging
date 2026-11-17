@@ -823,7 +823,7 @@ def run_tests():
     check("boxes.json carries the thresholds and per-entry facts the report needs",
           (sorted(run["thresholds"]), sorted(run["entries"]["VER"])),
           (["min_margin", "min_read", "min_sim", "number_list_floor", "number_list_margin", "number_min_height",
-            "ocr_min_score", "reference_margin", "weak_read_min"],
+            "ocr_min_score", "weak_read_min"],
            ["camera", "car", "colour", "number", "refs", "tags", "team"]))
     args.report_out = os.path.join(img, "last-run", "c.report")
     I.identify(args, dict(fake_models))

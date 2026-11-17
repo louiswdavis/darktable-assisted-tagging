@@ -38,7 +38,7 @@ def image(boxes, status="ok", shot="solo"):
 
 
 def data(images, skipped=()):
-    return {"collection": "demo", "thresholds": {"min_sim": 0.6, "min_margin": 0.05, "reference_margin": 0.1},
+    return {"collection": "demo", "thresholds": {"min_sim": 0.6, "min_margin": 0.05},
             "entries": ENTRIES, "images": images, "skipped": list(skipped)}
 
 

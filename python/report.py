@@ -288,7 +288,7 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int, extra: dict =
     extra = extra or extras(data, all_rows)
     t = data["thresholds"]
     out = [f"# Assisted Tagging report: `{data['collection']}`", "",
-           f"thresholds: min_sim {t['min_sim']}, min_margin {t['min_margin']}, reference_margin {t['reference_margin']}",
+           f"thresholds: min_sim {t['min_sim']}, min_margin {t['min_margin']}",
            "", "## Summary", "", f"{summary['total']} vehicles/images, identified rate {pct(summary['identified_rate'])}", ""]
     for c in CATEGORIES:
         out.append(f"- {c}: {summary['counts'][c]} ({pct(summary['shares'][c])})")

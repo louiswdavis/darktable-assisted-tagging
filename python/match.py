@@ -15,7 +15,6 @@ BURST_MIN_CONFIDENCE = 0.5  # a burst fill below this share of its span is not w
 SOLO_ANCHOR_CONF = 0.95
 BURST_MAX_RANK = 2  # the burst's entry must be in the box's own top N by similarity...
 BURST_SIM_SLACK = 0.05  # ...or within this of its top-1
-REFERENCE_MIN_MARGIN = 0.10  # a livery match must lead by this much to be saved as a reference
 
 # a number read under rules.min_read but at least this sure goes through the start-list scoring
 # (usable_reads), and its scores are summed across WEAK_AGREE_MIN or more frames of a group
@@ -625,20 +624,10 @@ def disagrees(result: BoxResult, tagged: str, solo: bool) -> bool:
 
 
 def promotable(record: dict) -> bool:
-    """A boxes.json box record confident enough to become a reference: number-read, or a
-    livery match whose lead over the runner-up is at least REFERENCE_MIN_MARGIN. Burst,
-    team, pooled and conflict boxes never are."""
-    if not record.get("entry"):
-        return False
-    if record["method"] == "number":
-        return True
-    if record["method"] != "livery":
-        return False
-    cands = record.get("candidates") or []
-    if not cands:
-        return False
-    s2 = cands[1][1] if len(cands) > 1 else 0.0
-    return cands[0][1] - s2 >= REFERENCE_MIN_MARGIN
+    """A boxes.json box record confident enough to become a reference: number-read only. A livery
+    match never is, however wide its lead: a wrong one saved as a reference then matches itself
+    on the next run, so the error grows."""
+    return bool(record.get("entry")) and record["method"] == "number"
 
 
 def _supported(sims: list, eid: str) -> bool:
