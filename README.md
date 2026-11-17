@@ -96,12 +96,11 @@ curl -L -o models/image_segmentation_efficientsam_ti_2025april.onnx https://gith
 **Check what's installed.** Each file must be named exactly as above (curl's `-o` does that; a browser download saves `vision_model.onnx`, `inference.onnx` and so on, which the plugin can't find). The start of the run log lists what each job picked:
 
 ```
-number reader: PP-OCRv5_server_rec.onnx
-box check: on (siglip2_base_vision.onnx)
-py: box check: on; colour reader: SigLIP 2
+number reader: … (PP-OCRv5_server_rec.onnx); text finder: …
+box check: on (SigLIP 2); colour reader: SigLIP 2
 ```
 
-`box check: none installed` or `colour reader: HSV rules` means the SigLIP 2 files are missing or misnamed. `(better, not installed: …)` names files you could add. The first run after adding any of these re-reads every photo once, so expect it to take longer.
+`box check: off (no SigLIP 2 model); colour reader: HSV rules` means the SigLIP 2 files are missing or misnamed. `(better, not installed: …)` names files you could add. The first run after adding any of these re-reads every photo once, so expect it to take longer.
 
 The tables give the download for every other file. Save each under the name in the File column.
 
@@ -130,7 +129,7 @@ For pack shots with overlapping cars. With it in `models`, a box that overlaps a
 
 | File | Size | Download | Source, licence |
 |---|---|---|---|
-| `image_segmentation_efficientsam_ti_2025april.onnx` | | `https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx` | OpenCV model zoo (EfficientSAM), Apache-2.0 |
+| `image_segmentation_efficientsam_ti_2025april.onnx` | 48 MB | `https://github.com/opencv/opencv_zoo/raw/main/models/image_segmentation_efficientsam/image_segmentation_efficientsam_ti_2025april.onnx` | OpenCV model zoo (EfficientSAM), Apache-2.0 |
 
 #### Text finder
 
@@ -147,7 +146,7 @@ A PaddleOCR reader needs its `.yml` (its dictionary) beside it under the same na
 
 | File | Size | Download | Source, licence |
 |---|---|---|---|
-| `PP-OCRv5_server_rec.onnx` + `.yml` | 84.5 MB | `https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.onnx` and `…/inference.yml` | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
+| `PP-OCRv5_server_rec.onnx` + `.yml` | 84.5 MB | `https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.onnx` and `https://huggingface.co/PaddlePaddle/PP-OCRv5_server_rec_onnx/resolve/main/inference.yml` | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
 | `en_PP-OCRv5_mobile_rec.onnx` + `.yml` (base) | 7.9 MB | base install above | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
 | `PP-OCRv6_small_rec.onnx` + `.yml` (on trial) | 21.2 MB | `https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx/resolve/main/inference.onnx` and `…/inference.yml` | PaddleOCR via PaddlePaddle on Hugging Face, Apache-2.0 |
 | `text_recognition_CRNN_EN_2021sep.onnx` | 34 MB | `https://github.com/opencv/opencv_zoo/raw/main/models/text_recognition_crnn/text_recognition_CRNN_EN_2021sep.onnx` | OpenCV model zoo (CRNN), Apache-2.0 |
@@ -190,8 +189,8 @@ Download the three files and rename them; the plugin finds the text model and to
 | File | Download (rename to the file name) | Source, licence |
 |---|---|---|
 | `siglip2_base_vision.onnx` | `https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/onnx/vision_model.onnx` | SigLIP 2 base (Google, Apache-2.0) via onnx-community; the export states no licence |
-| `siglip2_base_text.onnx` | `…/resolve/main/onnx/text_model.onnx` | same |
-| `siglip2_base_tokenizer.json` | `…/resolve/main/tokenizer.json` | same |
+| `siglip2_base_text.onnx` | `https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/onnx/text_model.onnx` | same |
+| `siglip2_base_tokenizer.json` | `https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX/resolve/main/tokenizer.json` | same |
 
 #### Face detector and face recognizer (people collections only)
 
