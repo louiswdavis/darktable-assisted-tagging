@@ -1639,7 +1639,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = "", siglip: 
         done.append((image_id, status, list(index.added)))
         proposed.append(proposals)
         row_entries.append(row_entry[0] if row_entry else (proposals[0][0] if proposals else entry_id))
-        write_progress(args.progress, n, len(rows))
+        write_progress(args.progress, n, len(rows), "matching")
     index.save()
     if cancelled:
         log("cancelled; references added so far are kept")
