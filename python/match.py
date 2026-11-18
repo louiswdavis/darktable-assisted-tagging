@@ -92,7 +92,8 @@ class BoxResult:
     # A confident number read whose entry's colour disagrees with `colour`; the result stays, the photographer checks it.
     colour_flag: bool = False
     # A livery, burst or neighbour match that doesn't look like its car's anchors (reference_store.Anchors):
-    # method is "none", alt_entry_id names the rejected car, and the photographer gets a Check tag.
+    # alt_entry_id names the rejected car and the photographer gets a Check tag. method is "none", or
+    # kept with the entry of the car it is closer to (closer_car_match).
     anchor_flag: bool = False
     # ListRead.text() when the box's reads were scored against the start list; "" on the fallback path.
     list_read: str = ""
@@ -472,6 +473,22 @@ def main_car_only(frames: dict) -> tuple:
     return out, ignored
 
 
+def closer_car_match(r: BoxResult, own: float, other_car: str, other, entries: dict, margin: float,
+                     min_sim: float, taken=()) -> BoxResult:
+    """`r`, a match unlike its car's anchors (reference_store.Anchors.unlike gives own, other_car and
+    other), moved to the car whose anchors it is closer to, or dropped to `none`. It moves only when
+    `margin` is above 0 (0: never move), `other` leads `own` by `margin` or more and reaches `min_sim`,
+    one entry drives that car (a double-driven car can't say which driver) and no other box of the
+    photo (`taken`: their entry ids) is that entry. Either way anchor_flag is set and alt_entry_id
+    names the rejected car."""
+    drivers = [e.id for e in entries.values() if (e.car or e.id) == other_car] if other_car else []
+    moves = margin > 0 and len(drivers) == 1 and drivers[0] not in taken \
+        and other >= min_sim and other - own >= margin - 1e-9
+    if not moves:
+        return replace(r, method="none", entry_id="", alt_entry_id=r.entry_id, confidence=0.0, anchor_flag=True)
+    return replace(r, entry_id=drivers[0], alt_entry_id=r.entry_id, confidence=other, anchor_flag=True)
+
+
 def colour_pool(entries: dict, colour: str, reads: list, sims: list, min_read: float) -> tuple:
     """(pool, note): the entries whose colour can be the box's `colour` (colour_relation not -1),
     a soft prior like hinted_match's. `note` is {} when nothing was removed, else {colour, kept,
@@ -650,10 +667,11 @@ def conflicts(entry_id: str, protected: set, entries: dict, solo: bool) -> bool:
 
 def disagrees(result: BoxResult, tagged: str, solo: bool) -> bool:
     """--verify: a solo shot whose result names a different entry than the one its tags already
-    spell out (`tagged`). A team result agrees when it still lists that entry."""
+    spell out (`tagged`). A team result agrees when it still lists that entry; a match moved to
+    the closer car (alt_entry_id = the car it left) does not."""
     if not solo or not result.entry_id:
         return False
-    return tagged not in (result.entry_id, result.alt_entry_id)
+    return tagged not in (result.entry_id, result.alt_entry_id if result.method == "team" else "")
 
 
 def promotable(record: dict) -> bool:

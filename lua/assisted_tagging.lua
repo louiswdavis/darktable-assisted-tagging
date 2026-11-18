@@ -1199,6 +1199,7 @@ M.PRESET_SCHEMA = {
     { key = "suggest_crops", kind = "bool", default = false },
     { key = "quarantine", kind = "bool", default = false },
     { key = "cars_per_photo", kind = "choice", choices = { "solo", "packs" }, default = "solo" },
+    { key = "closer_car_margin", kind = "number", default = 0 },
     { key = "order_weight", kind = "number", default = 0 },
     { key = "neighbour_tolerance", kind = "number", default = 5 },
     { key = "min_read", kind = "number", default = 0.85 },
@@ -1257,6 +1258,7 @@ M.PRESET_SCHEMA = {
 
 -- Number ranges, as SETTINGS_SCHEMA's lo/hi (open = the bound itself is out) and whole numbers.
 local SETTING_RANGES = {
+    closer_car_margin = { lo = 0, hi = 1 },
     order_weight = { lo = 0, hi = 1 },
     neighbour_tolerance = { lo = 0, integer = true },
     min_read = { lo = 0, hi = 1 },
@@ -1454,7 +1456,7 @@ local TAG_TOGGLES = {
     { key = "check_colour", kind = "check", label = "Check colour",
       when = "the number read is confident but the car's colour differs from its entry's. Delete this tag once checked." },
     { key = "check_match", kind = "check", label = "Check match",
-      when = "a livery, burst or neighbour match didn't look like the car's anchors (refs you tagged or picked, or strong number reads), so no entry tag was added. Tag the photo by hand if it is that car." },
+      when = "a livery, burst or neighbour match didn't look like the car's anchors (refs you tagged or picked, or strong number reads), so no entry tag was added. Tag the photo by hand if it is that car. With closer_car_margin above 0, a match clearly closer to another car's anchors is tagged as that car and keeps this tag: check it." },
     { key = "shot", kind = "check", label = "Shot",
       when = "Solo: one vehicle found. Pack: two or three." },
     { key = "shot_crowded", kind = "check", label = "Shot crowded",
@@ -1523,7 +1525,7 @@ M.PANEL_PAGES = {
     { number = 6, title = "references", keys = { "suggest_crops", "quarantine" } },
 }
 -- settings.json only, no panel widget
-M.PANEL_OTHER_KEYS = { "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references" }
+M.PANEL_OTHER_KEYS = { "closer_car_margin", "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references" }
 
 -- Model files per job, best first. `base` is the base install (README, "Models"), the last
 -- file when unset; files after it are older fallbacks, then models on trial (PP-OCRv6 small,

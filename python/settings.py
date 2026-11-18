@@ -84,6 +84,7 @@ def _schema() -> tuple:
         Setting("suggest_crops", "bool", False),
         Setting("quarantine", "bool", False),
         Setting("cars_per_photo", "choice", "solo", choices=("solo", "packs")),
+        Setting("closer_car_margin", "number", 0, lo=0, hi=1),
         Setting("order_weight", "number", 0, lo=0, hi=1),
         Setting("neighbour_tolerance", "number", 5, lo=0, integer=True),
         Setting("min_read", "number", 0.85, lo=0, hi=1),

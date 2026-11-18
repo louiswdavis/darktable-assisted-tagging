@@ -41,7 +41,7 @@ from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
 from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
-                   burst_colours, burst_consensus, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera,
+                   burst_colours, burst_consensus, closer_car_match, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera,
                    match_livery, match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
@@ -54,7 +54,7 @@ from report import write_report
 from kinds import DEFAULT_KIND, check_entry_fields, check_kind
 from settings import DIAG_DEFAULTS, MOVED_RULES, SettingsError, diagnostics_of, load_settings
 from families import FAMILIES, family_tag, resolve, team_tags
-from reference_store import ANCHOR_MIN_READ, Anchors, ReferenceIndex
+from reference_store import ANCHOR_MIN_READ, ANCHOR_MIN_SIM, Anchors, ReferenceIndex
 from people import FACE_EMBED_DIM, FaceModel, face_model_key
 from people_run import analyse_frame_people, build_boxes_people, match_frame_people, reference_face
 
@@ -90,6 +90,9 @@ class Rules:
     # "solo": each photo is of one car, its largest box (match.main_car_only); "packs": every box
     # is tagged, for racing where several cars share a shot.
     cars_per_photo: str = "solo"
+    # A match unlike its car's anchors moves to the car whose anchors it is closer to by this much
+    # similarity or more (match.closer_car_match) instead of being dropped; 0: always dropped.
+    closer_car_margin: float = 0.0
     # Experimental: embed references after downscaling-then-upscaling them (embed.degrade),
     # so their embeddings sit closer to a far-away query crop's degraded detail level.
     blur_references: bool = False
@@ -293,7 +296,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
     except ValueError as e:
         raise InputError(f"settings.json: {e}")
     rules = Rules(**own_rules, **{k: values[k] for k in MOVED_RULES},
-                  cars_per_photo=values["cars_per_photo"], diagnostics=diagnostics_of(values), kind=kind,
+                  cars_per_photo=values["cars_per_photo"], closer_car_margin=values["closer_car_margin"], diagnostics=diagnostics_of(values), kind=kind,
                   families=roots)
     entries = {}
     for n, item in enumerate(data, 1):
@@ -1509,7 +1512,7 @@ def identify(args, models: dict):
     def check_anchors(frames: dict, stage: str) -> dict:
         if anchors is None:
             return frames
-        out, n = {}, 0
+        out, n, moved = {}, 0, 0
         for fid, rs in frames.items():
             out[fid] = []
             for r in rs:
@@ -1518,13 +1521,18 @@ def identify(args, models: dict):
                     else ("", None, "", None)
                 if verdict == "unlike":
                     closer = f", closer to {other_car}'s {other:.3f}" if other_car else ""
+                    checked = closer_car_match(r, own, other_car, other, entries, rules.closer_car_margin, ANCHOR_MIN_SIM,
+                                               {x.entry_id for x in out[fid] + rs[len(out[fid]) + 1:] if x.entry_id})
+                    moved += bool(checked.entry_id)
+                    outcome = f"moved to {checked.entry_id}" if checked.entry_id else "dropped"
                     log(f"{fid}: box {r.box}: {r.entry_id} doesn't look like its anchors (sim {own:.3f}{closer}, "
-                        f"colour {r.colour or '-'}); {r.method} match dropped")
+                        f"colour {r.colour or '-'}); {r.method} match {outcome}")
                     rejected[r.entry_id] += 1
                     n += 1
-                    r = replace(r, method="none", entry_id="", alt_entry_id=r.entry_id, confidence=0.0, anchor_flag=True)
+                    r = checked
                 out[fid].append(r)
-        log(f"anchors ({stage}): {n} matches dropped")
+        log(f"anchors ({stage}): {n - moved} matches dropped, {moved} moved to the closer car "
+            f"(closer_car_margin {rules.closer_car_margin:g})")
         return out
 
     if anchors is not None:
@@ -1605,7 +1613,7 @@ def identify(args, models: dict):
             log(f"colour: {len(recoloured)} boxes took their car's colour across the burst")
         frames = check_anchors(frames, "after burst")
         if rejected:
-            log("anchors: dropped per car (a car with many may need a second anchor from another angle): "
+            log("anchors: dropped or moved per car (a car with many may need a second anchor from another angle): "
                 + ", ".join(f"{e} {n}" for e, n in rejected.most_common()))
         # burst consensus and neighbour aid can fill a smaller box again
         frames = keep_main_cars(frames, "after burst")

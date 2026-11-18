@@ -428,6 +428,8 @@ def run_tests():
     check("disagrees: a solo shot of another entry", Mt.disagrees(BoxResult(0, "livery", "TSU"), "VER", True), True)
     check("disagrees: the tagged entry agrees", Mt.disagrees(BoxResult(0, "livery", "VER"), "VER", True), False)
     check("disagrees: a team result listing it agrees", Mt.disagrees(BoxResult(0, "team", "TSU", "VER", 0.7), "VER", True), False)
+    check("disagrees: a match moved off the tagged entry disagrees",
+          Mt.disagrees(BoxResult(0, "livery", "TSU", "VER", 0.7, anchor_flag=True), "VER", True), True)
     check("disagrees: packs and unidentified boxes never disagree",
           (Mt.disagrees(BoxResult(0, "livery", "TSU"), "VER", False), Mt.disagrees(BoxResult(0, "none"), "VER", True)), (False, False))
     check("most_specific: an ancestor prefix is dropped", Mt.most_specific(["F1", "F1|Red Bull", "F1|Red Bull", "F2"]), ["F1|Red Bull", "F2"])
@@ -565,6 +567,25 @@ def run_tests():
     check("shows: a read of a colour-removed car's number still drops the colour pool",
           Mt.colour_pool({"E14": replace(shown["E14"], colour="Blue"), "E44": replace(shown["E44"], colour="Red")},
                          "Blue", [("44", 0.95)], [("E14", 0.9)], 0.85)[1]["reason"], "number_outside")
+
+    # closer_car_match: a match unlike its anchors moves to the closer car, or is dropped
+    cars = {"14": Entry("14", "14", "", ()), "808": Entry("808", "808", "", (), car="108"),
+            "108": Entry("108", "108", "", (), car="108"), "60": Entry("60", "60", "", ())}
+    doubt = BoxResult(0, "livery", "14", confidence=0.7, colour="Blue")
+
+    def closer(other_car, own, other, margin, taken=()):
+        got = Mt.closer_car_match(doubt, own, other_car, other, cars, margin, 0.6, taken)
+        return got.method, got.entry_id, got.alt_entry_id, got.confidence, got.anchor_flag, got.colour
+
+    check("closer car: a lead of the margin or more moves the match and keeps the flag",
+          closer("60", 0.70, 0.86, 0.1), ("livery", "60", "14", 0.86, True, "Blue"))
+    check("closer car: a lead of exactly the margin moves", closer("60", 0.761, 0.861, 0.1)[:2], ("livery", "60"))
+    check("closer car: a lead under the margin drops", closer("60", 0.80, 0.86, 0.1), ("none", "", "14", 0.0, True, "Blue"))
+    check("closer car: margin 0 never moves", closer("60", 0.10, 0.99, 0)[:2], ("none", ""))
+    check("closer car: no closer car drops", closer("", 0.50, None, 0.1)[:2], ("none", ""))
+    check("closer car: a double-driven car can't say which driver, so drops", closer("108", 0.50, 0.90, 0.1)[:2], ("none", ""))
+    check("closer car: a closer car under the anchor floor drops", closer("60", 0.30, 0.55, 0.1)[:2], ("none", ""))
+    check("closer car: the photo's other box is that car already, so drops", closer("60", 0.50, 0.90, 0.1, {"60"})[:2], ("none", ""))
 
     if failures == 0:
         print("all tests passed")
