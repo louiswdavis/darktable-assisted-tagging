@@ -50,7 +50,7 @@ for _, file in ipairs({ "/python/identify.py", "/.venv/Scripts/python.exe", "/.v
     "/models/text_recognition_CRNN_EN_2021sep.onnx", "/models/dinov2_small.onnx" }) do
     write_file(PLUGIN .. file, "")
 end
-write_file(ROOT .. "/collections/Rallye/settings.json", '{"family_colour": true, "family_colour_root": "Colour"}')
+write_file(ROOT .. "/collections/Rallye/settings.json", '{"family_colour": true, "family_colour_root": "Colour", "family_number": true, "family_number_root": "Number"}')
 write_file(ROOT .. "/collections/Rallye/entries.json", "[]")
 -- image 1's entry tag was written by Identify; its colour tag was not
 write_file(ROOT .. "/config/assisted_tagging/ledger.csv", "1,Rallye|112\n")
@@ -235,6 +235,13 @@ check("fill colours, Identify's colour tags split: no colour is sent",
 run = fill({ image(3, "DSC00003.JPG", { "Rallye|35" }) })
 check("fill colours, hand entry tag, no colour tag: the row leaves the colour to the reading",
     run and run.manifest, T.csv_line({ 3, "/photos/DSC00003.JPG", "35", "" }) .. "\n")
+
+-- a number tag alone names the entry, though the photo lacks the entry's other tags
+run = fill({ image(7, "DSC00007.JPG", { "Number|112", "Colour|Red" }), image(8, "DSC00008.JPG", { "Number|112", "Colour|Red" }),
+    image(9, "DSC00009.JPG", { "Number|112", "Colour|Red" }) })
+check("fill colours, number tag only: the rows name the entry and the agreed colour", run and run.manifest,
+    T.csv_line({ 7, "/photos/DSC00007.JPG", "112", "Red" }) .. "\n" .. T.csv_line({ 8, "/photos/DSC00008.JPG", "112", "Red" }) .. "\n"
+    .. T.csv_line({ 9, "/photos/DSC00009.JPG", "112", "Red" }) .. "\n")
 
 -- Add references ------------------------------------------------------------------
 local function add(images, entry_id)

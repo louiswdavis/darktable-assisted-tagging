@@ -3329,8 +3329,10 @@ function M.fill_entry_colours(images)
             local src = pick_of[img.id]
             local have = tags_of(img)
             local hand_colour = M.hand_value(have, ledger[img.id], colour_base)
-            -- this action saves no reference, so the entry tags Identify wrote name the entry too
+            -- this action saves no reference, so the entry tags Identify wrote name the entry too,
+            -- and so does a number, driver or co-driver tag alone
             local eid = M.entry_for_tags(have, entries, entry_order, nil)
+                or M.hand_entry(have, nil, entries, M.family_roots(settings))
             if not eid then
                 local prefixes = sorted_names(M.hint_tags(have, ledger[img.id], entries, M.family_roots(settings).team))
                 if #prefixes == 1 then eid = prefixes[1] end
@@ -4057,7 +4059,7 @@ local function install_panel()
     }
     local fill_colours_button = new_widget("button") {
         label = _("Fill entry colours"),
-        tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json when it has none. A colour tag you applied to the image is used instead of the reading, and replaces a colour the entry already has. So does the colour tag Identify wrote, when at least 3 of the entry's selected images carry the same one and they are two thirds of its colour-tagged images (images tagged Check colour don't count). Saves no references. Needs read car colour on."),
+        tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json when it has none. A colour tag you applied to the image is used instead of the reading, and replaces a colour the entry already has. So does the colour tag Identify wrote, when at least 3 of the entry's selected images carry the same one and they are two thirds of its colour-tagged images (images tagged Check colour don't count). An image is matched to the entry whose tags it carries all of, or the one its number, driver or co-driver tag names. Saves no references. Needs read car colour on."),
         clicked_callback = function() M.fill_entry_colours(dt.gui.action_images) end,
     }
     local promote_button = new_widget("button") {

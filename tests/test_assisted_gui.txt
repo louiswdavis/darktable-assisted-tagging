@@ -15,6 +15,7 @@ ok   fill colours, Identify's colour tag on 3 of 4 photos: every row carries it
 ok   fill colours, Check colour photos don't count: no colour is sent
 ok   fill colours, Identify's colour tags split: no colour is sent
 ok   fill colours, hand entry tag, no colour tag: the row leaves the colour to the reading
+ok   fill colours, number tag only: the rows name the entry and the agreed colour
 ok   add references, no entry tags: no crash
 ok   add references, no entry tags: identify.py isn't started
      add references, no entry tags, says: Assisted Tagging: no selected image carries all of one entry's tags, so nothing was added.
