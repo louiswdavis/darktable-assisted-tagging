@@ -6,17 +6,17 @@ thresholds: min_sim 0.6, min_margin 0.1
 
 5010 vehicles/images, identified rate 32%
 
-- identified: 1598 (32%)
+- identified: 1593 (32%)
 - team-obvious: 0 (0%)
-- weak-match: 2074 (41%)
+- weak-match: 2080 (42%)
 - no-references: 0 (0%)
-- number-unmatched: 147 (3%)
-- conflict: 51 (1%)
+- number-unmatched: 149 (3%)
+- conflict: 52 (1%)
 - overlapped: 868 (17%)
-- already-tagged: 21 (0%)
+- already-tagged: 17 (0%)
 - no-vehicle: 251 (5%)
-- median weak-match: top-1 0.508, margin 0.035
-- colours: no colour 1918, Red 409, Black 340, Multi 91, Grey 177, Purple 80, Green 327, Pink 205, White 441, Blue 491, Brown 96, Yellow 119, Orange 44
+- median weak-match: top-1 0.509, margin 0.035
+- colours: no colour 1918, Red 402, Black 343, Multi 91, Grey 177, Purple 80, Green 327, Pink 204, White 441, Blue 492, Brown 96, Yellow 127, Orange 44
 
 ## detector score
 
@@ -24,7 +24,7 @@ thresholds: min_sim 0.6, min_margin 0.1
 - 0.30-0.40: 265 boxes, 6 identified
 - 0.40-0.50: 155 boxes, 1 identified
 - 0.50-0.70: 243 boxes, 13 identified
-- 0.70-1.00: 3465 boxes, 1570 identified
+- 0.70-1.00: 3469 boxes, 1565 identified
 
 ## sponsor keyword suggestions
 
@@ -50,10 +50,10 @@ words OCR read on identified boxes of one team tag only; add under `rules.sponso
 - `kitchen` → `Motorsport|Number|102`: 3 identified, would hint 0 unidentified
 - `knott` → `Motorsport|Number|25`: 3 identified, would hint 0 unidentified
 
-## bursts (775 timed, 0 without capture times)
+## bursts (776 timed, 0 without capture times)
 
-within-burst largest gap (s) → bursts: 0s ×428, 1s ×304, 2s ×42, 541s ×1
-frames per burst: 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 12, 12, 12, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15, 15, 16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 19, 20, 21, 22, 23, 23, 30, 216
+within-burst largest gap (s) → bursts: 0s ×429, 1s ×305, 2s ×41, 541s ×1
+frames per burst: 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 12, 12, 12, 13, 13, 13, 13, 13, 13, 14, 14, 14, 14, 15, 15, 15, 15, 15, 15, 15, 15, 15, 16, 16, 16, 17, 17, 17, 17, 18, 18, 18, 19, 20, 21, 22, 23, 23, 30, 216
 
 closest to the next burst (possible split):
 - burst 385: 216 frames, next burst starts -1191s later
@@ -79,7 +79,6 @@ closest to the next burst (possible split):
 
 largest within-burst gap (possible merge):
 - burst 385: 216 frames over 1711s, largest gap 541s, 216 with vehicles, 0 without
-- burst 1: 3 frames over 3s, largest gap 2s, 3 with vehicles, 0 without
 - burst 14: 18 frames over 6s, largest gap 2s, 18 with vehicles, 0 without
 - burst 26: 6 frames over 2s, largest gap 2s, 6 with vehicles, 0 without
 - burst 47: 5 frames over 2s, largest gap 2s, 5 with vehicles, 0 without
@@ -98,8 +97,9 @@ largest within-burst gap (possible merge):
 - burst 236: 9 frames over 2s, largest gap 2s, 7 with vehicles, 2 without
 - burst 238: 6 frames over 2s, largest gap 2s, 6 with vehicles, 0 without
 - burst 244: 3 frames over 2s, largest gap 2s, 3 with vehicles, 0 without
+- burst 252: 4 frames over 2s, largest gap 2s, 4 with vehicles, 0 without
 
-## weak-match (2074)
+## weak-match (2080)
 
 - `202451` box 0: `790` 0.197, `60` 0.196, `52` 0.186; below_min_sim, short by 0.403; detector 0.21; ocr saw no text; pod black (yellow 0.000, aspect 5.7); colour Green (G0.95); lever: weak match, add references from this angle
 - `201709` box 0: `84` 0.206, `39` 0.202, `87` 0.197; below_min_sim, short by 0.394; detector 0.59; ocr saw no text; pod yellow (yellow 0.001, aspect 2.5); colour Green (G0.64 Y0.14 Bk0.05 W0.05); lever: weak match, add references from this angle
@@ -121,9 +121,9 @@ largest within-burst gap (possible merge):
 - `199717` box 1: `790` 0.239, `39` 0.232, `87` 0.197; below_min_sim, short by 0.361; detector 0.23; ocr saw `BMM` 0.90 h0.40; pod black (yellow 0.000, aspect 3.3); colour unclear (O0.57 R0.36); lever: weak match, add references from this angle
 - `205269` box 1: `790` 0.240, `39` 0.228, `87` 0.227; below_min_sim, short by 0.360; detector 0.25; ocr saw no text; pod black (yellow 0.000, aspect 3.9); colour unclear (Bk0.46 B0.41); lever: weak match, add references from this angle
 - `204935` box 0: `790` 0.240, `39` 0.208, `87` 0.189; below_min_sim, short by 0.360; detector 0.29; ocr saw `-` 0.43 h0.13, `VEW BAR` 0.41 h0.13; pod black (yellow 0.000, aspect 4.7); colour unclear (R0.24 G0.24 W0.10 G0.10 M0.10 B0.08 P0.06); lever: weak match, add references from this angle
-- … 2054 more in report.json
+- … 2060 more in report.json
 
-## number-unmatched (147)
+## number-unmatched (149)
 
 - `199715` box 0: `790` 0.276, `39` 0.231, `87` 0.190; below_min_sim, short by 0.324; detector 0.91; read `6`; start list 6>6 0.00, 16 -0.60 close call; pod unclear (yellow 0.000, aspect 1.4); colour Pink (P0.67 R0.16 B0.06 P0.06); lever: no entry has number 6
 - `199683` box 0: `790` 0.289, `97` 0.203, `39` 0.196; below_min_sim, short by 0.311; detector 0.94; read `86`, `37`; start list 86/37>37 0.00, 86 0.00 close call; pod black (yellow 0.000, aspect 1.5); colour unclear (W0.35 G0.27 G0.15 M0.08 O0.05); lever: no entry has number 86 or 37
@@ -145,9 +145,9 @@ largest within-burst gap (possible merge):
 - `198447` box 0: `100` 0.513, `40` 0.387, `A0` 0.382; below_min_sim, short by 0.086; detector 0.97; read `0`, `52`; start list 0/52>10 0.25, 52 0.00 close call; pod black (yellow 0.000, aspect 1.4); colour Blue (Bl0.89); lever: no entry has number 0 or 52
 - `198763` box 0: `103` 0.517, `98` 0.490, `64` 0.480; below_min_sim, short by 0.083; detector 0.94; read `883`; start list 883>808 -5.89, 83 -6.54 no list read; pod unclear (yellow 0.000, aspect 1.1); colour Black (Bk0.83 G0.06); lever: no entry has number 883
 - `200477` box 0: `60` 0.522, `820` 0.503, `101` 0.462; below_min_sim, short by 0.078; detector 0.94; read `62`; start list 62>102 0.07, 62 0.00 close call; pod black (yellow 0.000, aspect 1.8); colour Brown (B0.62 Bk0.18 G0.07); lever: no entry has number 62
-- … 127 more in report.json
+- … 129 more in report.json
 
-## conflict (51)
+## conflict (52)
 
 - `202505` box 0: `66` 0.577, `87` 0.542, `69` 0.484; conflict; detector 0.95; read `7`; start list 7>86 10.09, 87 7.41; pod black (yellow 0.000, aspect 1.8); colour Black (Bk0.53 P0.17 B0.10 Bl0.06)
 - `198289` box 0: `A0` 0.599, `121` 0.510, `94` 0.509; conflict; detector 0.95; read `2`; start list 2>20 2.87, 2 0.00 (burst of 3); pod black (yellow 0.000, aspect 1.6); colour Red (R0.73 P0.15)
@@ -169,7 +169,7 @@ largest within-burst gap (possible merge):
 - `204435` box 0: `25` 0.661, `47` 0.650, `732` 0.649; conflict; detector 0.97; read `62`; start list 62>62 0.00, 2 -6.34; pod black (yellow 0.000, aspect 2.5); colour White (W0.45 M0.24 G0.10 B0.05)
 - `204443` box 0: `122` 0.665, `41` 0.663, `47` 0.607; conflict; detector 0.97; read `62`; start list 62>62 0.00, 6 -6.12; pod black (yellow 0.000, aspect 1.6); colour White (W0.51 G0.30 M0.07)
 - `204747` box 0: `35` 0.674, `112` 0.631, `813` 0.577; conflict; detector 0.94; ocr saw `MAYNARD` 0.98 h0.06, `Lucas` 0.91 h0.05, `0-20` 0.91 h0.02; pod unclear (yellow 0.000, aspect 1.2); colour Blue (Bl0.58 G0.12 B0.09)
-- … 31 more in report.json
+- … 32 more in report.json
 
 ## overlapped (868)
 
