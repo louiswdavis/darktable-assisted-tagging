@@ -108,7 +108,10 @@ def decide_colour(shares: dict) -> str:
     return ranked[0][1]
 
 
-NEAR_COLOURS = (("White", "Grey"), ("Grey", "Black"))  # shade and silver blur these; neither agrees nor differs
+# shade, silver and the light of a burst blur these pairs; neither agrees nor differs
+NEAR_COLOURS = (("White", "Grey"), ("Grey", "Black"), ("Blue", "Purple"), ("Blue", "Green"), ("Red", "Pink"),
+                ("Red", "Orange"), ("Orange", "Yellow"), ("Purple", "Pink"), ("Orange", "Brown"))
+VOTE_MIN_SHARE = 2 / 3  # an entry's photos set its colour when this share of their reads back one colour
 
 
 def colour_relation(entry_colour: str, seen: str) -> int:
@@ -122,6 +125,20 @@ def colour_relation(entry_colour: str, seen: str) -> int:
     if MULTI in (entry_colour, seen) or (entry_colour, seen) in NEAR_COLOURS or (seen, entry_colour) in NEAR_COLOURS:
         return 0
     return -1
+
+
+def colour_vote(counts: dict) -> tuple:
+    """(colour, support, total) for {colour: photos}: the colour most photos show, the photos showing
+    it or a NEAR_COLOURS neighbour of it, and all the photos. The colour is "" when two colours tie
+    for the most photos."""
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+    total = sum(counts.values())
+    if not ranked or (len(ranked) > 1 and ranked[1][1] == ranked[0][1]):
+        return "", 0, total
+    top = ranked[0][0]
+    support = sum(n for colour, n in ranked
+                  if colour == top or (top, colour) in NEAR_COLOURS or (colour, top) in NEAR_COLOURS)
+    return top, support, total
 
 
 def palette_digest(palette) -> str:

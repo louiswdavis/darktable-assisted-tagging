@@ -274,6 +274,12 @@ check("colour_relation: Multi is 0", T.colour_relation("Multi", "Red"), 0)
 check("colour_relation: White/Grey near is 0", T.colour_relation("White", "Grey"), 0)
 check("colour_relation: Black/Grey near is 0", T.colour_relation("Black", "Grey"), 0)
 check("colour_relation: White/Black differ", T.colour_relation("White", "Black"), -1)
+check("colour_relation: Blue/Purple near is 0", T.colour_relation("Blue", "Purple"), 0)
+check("colour_relation: Pink/Red near is 0", T.colour_relation("Pink", "Red"), 0)
+check("colour_relation: Green/Purple differ", T.colour_relation("Green", "Purple"), -1)
+check("colour_vote: near colours support the leader", table.concat({ T.colour_vote({ Blue = 4, Purple = 3, Green = 2 }) }, " "), "Blue 9 9")
+check("colour_vote: an unrelated colour gives no support", table.concat({ T.colour_vote({ Blue = 4, Red = 3 }) }, " "), "Blue 4 7")
+check("colour_vote: a tie for the most photos names no colour", tostring((T.colour_vote({ Blue = 2, Purple = 2 }))), "nil")
 
 -- derive_plan / hand_source --------------------------------------------------
 do

@@ -100,6 +100,13 @@ check("Grey vs Black is neutral", (C.colour_relation("Grey", "Black"), C.colour_
 check("White vs Black still disagrees", C.colour_relation("White", "Black"), -1)
 check("Grey vs Red still disagrees", C.colour_relation("Grey", "Red"), -1)
 check("Multi agrees with Multi", C.colour_relation("Multi", "Multi"), 1)
+check("Blue vs Purple is neutral", (C.colour_relation("Blue", "Purple"), C.colour_relation("Purple", "Blue")), (0, 0))
+check("Red vs Pink is neutral", C.colour_relation("Red", "Pink"), 0)
+check("Green vs Purple still disagrees", C.colour_relation("Green", "Purple"), -1)
+check("vote: near colours support the leader", C.colour_vote({"Blue": 4, "Purple": 3, "Green": 2}), ("Blue", 9, 9))
+check("vote: an unrelated colour gives no support", C.colour_vote({"Blue": 4, "Red": 3}), ("Blue", 4, 7))
+check("vote: a tie for the most photos names no colour", C.colour_vote({"Blue": 2, "Purple": 2}), ("", 0, 4))
+check("vote: no reads", C.colour_vote({}), ("", 0, 0))
 
 check("digest is stable", C.palette_digest(C.PALETTE) == C.palette_digest(C.PALETTE), True)
 name, ranges = C.PALETTE[0]

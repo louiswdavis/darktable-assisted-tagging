@@ -53,7 +53,7 @@ CACHE_NEUTRAL = {
     pod: (),
     colour: (),
     car_colour: ("PALETTE", "MULTI", "COLOUR_NAMES", "ACHROMATIC", "ACHROMATIC_WEIGHT", "MULTI_RATIO",
-                 "_SAT", "_VAL", "SIGLIP_MIN_SCORE", "SIGLIP_MIN_GAP", "NEAR_COLOURS"),
+                 "_SAT", "_VAL", "SIGLIP_MIN_SCORE", "SIGLIP_MIN_GAP", "NEAR_COLOURS", "VOTE_MIN_SHARE"),
     people: (),
     siglip: ("TEXT_LEN", "IMAGE_SIZE", "SCALE", "SIGLIP_CACHE_TOKEN", "CAR", "CAR_PROMPTS", "MULTI_PROMPT",
              "VEHICLES", "BOX_MIN_VEHICLE_SHARE", "BOX_KEEP_SCORE"),  # siglip_key

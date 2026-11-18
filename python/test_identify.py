@@ -996,6 +996,24 @@ def run_tests():
                              [[("VER", "Green", False)], [("VER", "Red", True)]]), ["differs", "set"])
         check("entries.json holds the later hand colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
 
+        # readings vote: one odd burst can't set an empty entry's colour
+        vcoll = collection(entries_file.dump({"entries": [VER, TSU]}), root=root, settings=colour_on)
+        ventries = os.path.join(vcoll, "entries.json")
+        vcars, vrules = I.load_collection(vcoll, "")[:2]
+        vdone = [(str(n), "added", []) for n in range(1, 5)]
+        check("readings that tie set no colour",
+              I.fill_colours(ventries, vcars, vrules, vdone[:2], [[("VER", "Red", False)], [("VER", "Blue", False)]]),
+              ["differs", "differs"])
+        check("tied readings leave the entry without a colour", json.load(open(ventries, encoding="utf-8"))["entries"][0].get("colour"), None)
+        check("the colour most photos read wins over an odd first photo, near readings support it",
+              I.fill_colours(ventries, vcars, vrules, vdone,
+                             [[("VER", "Red", False)], [("VER", "Blue", False)], [("VER", "Blue", False)], [("VER", "Purple", False)]]),
+              ["differs", "set", "set", ""])
+        check("entries.json gains the voted colour", json.load(open(ventries, encoding="utf-8"))["entries"][0].get("colour"), "Blue")
+        vcars = I.load_collection(vcoll, "")[0]
+        check("a near reading of a coloured entry isn't a difference",
+              I.fill_colours(ventries, vcars, vrules, vdone[:2], [[("VER", "Purple", False)], [("VER", "Blue", False)]]), ["", "already"])
+
         # --colours-only: the colour alone goes to entries.json, no reference is saved
         ocoll = collection(entries_file.dump({"entries": [VER, TSU]}), root=root, settings=colour_on)
         oentries = os.path.join(ocoll, "entries.json")

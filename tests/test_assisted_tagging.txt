@@ -102,6 +102,12 @@ ok   colour_relation: Multi is 0
 ok   colour_relation: White/Grey near is 0
 ok   colour_relation: Black/Grey near is 0
 ok   colour_relation: White/Black differ
+ok   colour_relation: Blue/Purple near is 0
+ok   colour_relation: Pink/Red near is 0
+ok   colour_relation: Green/Purple differ
+ok   colour_vote: near colours support the leader
+ok   colour_vote: an unrelated colour gives no support
+ok   colour_vote: a tie for the most photos names no colour
 ok   derive number: hand number adds the entry's tags and From number
 ok   derive number: a ledgered (plugin) number tag is not the user's
 ok   derive number: colour that differs adds Check colour

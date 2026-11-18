@@ -473,8 +473,8 @@ function M.hand_value(have, ledger_set, root)
 end
 
 -- Fill entry colours: colour tags Identify wrote replace an entry's stored colour when at least
--- this many of the entry's selected photos carry the same one, and that is this share of its
--- colour-tagged selected photos.
+-- this many of the entry's selected photos carry the leading colour or a near one (M.colour_vote),
+-- and that is this share of its colour-tagged selected photos.
 M.COLOUR_TAG_MIN_PHOTOS = 3
 M.COLOUR_TAG_MIN_SHARE = 2 / 3
 
@@ -515,12 +515,35 @@ end
 
 -- Mirror of python/car_colour.py NEAR_COLOURS and colour_relation: 1 when an entry's colour and a
 -- seen colour agree, -1 when they differ, 0 when either is empty, either is Multi, or the pair is near.
-local NEAR_COLOURS = { White = { Grey = true }, Grey = { White = true, Black = true }, Black = { Grey = true } }
+local NEAR_COLOURS = {}
+for _, pair in ipairs({ { "White", "Grey" }, { "Grey", "Black" }, { "Blue", "Purple" }, { "Blue", "Green" },
+                        { "Red", "Pink" }, { "Red", "Orange" }, { "Orange", "Yellow" }, { "Purple", "Pink" },
+                        { "Orange", "Brown" } }) do
+    NEAR_COLOURS[pair[1]] = NEAR_COLOURS[pair[1]] or {}
+    NEAR_COLOURS[pair[2]] = NEAR_COLOURS[pair[2]] or {}
+    NEAR_COLOURS[pair[1]][pair[2]], NEAR_COLOURS[pair[2]][pair[1]] = true, true
+end
 function M.colour_relation(entry_colour, seen)
     if not entry_colour or entry_colour == "" or not seen or seen == "" then return 0 end
     if entry_colour == seen then return 1 end
     if entry_colour == "Multi" or seen == "Multi" or (NEAR_COLOURS[entry_colour] or {})[seen] then return 0 end
     return -1
+end
+
+-- Mirror of python/car_colour.py colour_vote, for `counts` (colour → photos): the colour most photos
+-- show (nil when two colours tie for the most), the photos showing it or a near colour, all the photos.
+function M.colour_vote(counts)
+    local total, top, top_n, tied = 0, nil, 0, false
+    for colour, n in pairs(counts) do
+        total = total + n
+        if n > top_n then top, top_n, tied = colour, n, false elseif n == top_n then tied = true end
+    end
+    if not top or tied then return nil, 0, total end
+    local support = 0
+    for colour, n in pairs(counts) do
+        if colour == top or (NEAR_COLOURS[top] or {})[colour] then support = support + n end
+    end
+    return top, support, total
 end
 
 -- The values of the tags in `have` under `root` (hand or plugin), sorted. Empty for no root.
@@ -3427,17 +3450,14 @@ function M.fill_entry_colours(images)
         -- no hand colour tag for an entry: the colour tag most of its selected photos carry stands in
         local agreed = {}
         for eid, counts in pairs(tagged) do
-            local total, top, top_n = 0, nil, 0
-            for colour, n in pairs(counts) do
-                total = total + n
-                if n > top_n then top, top_n = colour, n end
-            end
-            if not by_hand[eid] and top_n >= M.COLOUR_TAG_MIN_PHOTOS and top_n >= total * M.COLOUR_TAG_MIN_SHARE then
+            local top, support, total = M.colour_vote(counts)
+            if not by_hand[eid] and top and support >= M.COLOUR_TAG_MIN_PHOTOS and support >= total * M.COLOUR_TAG_MIN_SHARE then
                 agreed[eid] = top
-                log(string.format("entry %s: %d of its %d colour-tagged photos are tagged %s, sent as its colour", eid, top_n, total, top))
+                log(string.format("entry %s: %d of its %d colour-tagged photos are tagged %s or a near colour, sent as its colour",
+                    eid, support, total, top))
             elseif not by_hand[eid] then
-                log(string.format("entry %s: its photos' colour tags don't agree enough (%d of %d for %s; needs %d photos and %d%%), so they change nothing",
-                    eid, top_n, total, top, M.COLOUR_TAG_MIN_PHOTOS, math.floor(M.COLOUR_TAG_MIN_SHARE * 100 + 0.5)))
+                log(string.format("entry %s: its photos' colour tags don't agree enough (%d of %d for %s and near colours; needs %d photos and %d%%), so they change nothing",
+                    eid, support, total, top or "no single colour", M.COLOUR_TAG_MIN_PHOTOS, math.floor(M.COLOUR_TAG_MIN_SHARE * 100 + 0.5)))
             end
         end
         for _, row in ipairs(rows) do

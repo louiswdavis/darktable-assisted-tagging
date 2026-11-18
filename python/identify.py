@@ -1700,15 +1700,18 @@ _NOTE_RANK = {"": 0, "already": 1, "set": 2, "differs": 3}
 def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: list) -> list:
     """Writes the job's colour proposals (`proposed[i]`: [(entry id, colour, by hand)] for row
     `done[i]`; `by hand` may be left out) to entries.json in one entries_file.set_colours call. A
-    colour read from the photo only fills an entry without one; a colour tag the user applied (`by
-    hand`) also replaces the entry's colour, and is taken before any reading. The first proposal per
-    entry wins. Returns each row's colour_note: "set", "differs", "already" (the entry holds that
-    colour) or ""; a row with several outcomes reports the more serious (differs, set, then
-    already). A file that can't be written is logged and its rows get no note."""
+    colour tag the user applied (`by hand`) replaces the entry's colour and is taken before any
+    reading; the first one per entry wins. Colours read from the photos only fill an entry without
+    one, and they vote: the colour most photos read wins when it and its NEAR_COLOURS neighbours are
+    car_colour.VOTE_MIN_SHARE of the entry's reads. Returns each row's colour_note: "set", "differs",
+    "already" (the entry holds that colour) or ""; a row with several outcomes reports the more
+    serious (differs, set, then already). A file that can't be written is logged and its rows get
+    no note."""
     names = [n for n, _ in rules.colour_palette] + [car_colour.MULTI]
     notes = [""] * len(done)
     chosen, rows_of = {}, {}  # entry id → colour; entry id → rows whose proposal is the chosen one
     replaced = {}  # entry id → the colour a hand tag replaces
+    reads = {}  # entry id → [(row, colour read from the photo)]
 
     def mark(i, note):
         if _NOTE_RANK[note] > _NOTE_RANK[notes[i]]:
@@ -1723,24 +1726,45 @@ def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: l
                     continue
                 if colour not in names:
                     log(f"{image_id}: colour {colour} isn't in rules.colour_palette, so entry {eid} doesn't get it")
-                    continue
-                stored = entries[eid].colour
-                have = chosen.get(eid) or stored
-                if eid not in chosen and (not stored or (hand_pass and colour != stored)):
+                elif not hand_pass:
+                    reads.setdefault(eid, []).append((i, colour))
+                elif eid not in chosen and colour != entries[eid].colour:
                     chosen[eid] = colour
                     rows_of[eid] = [i]
-                    if stored:
-                        replaced[eid] = stored
+                    if entries[eid].colour:
+                        replaced[eid] = entries[eid].colour
                 elif colour == chosen.get(eid):
                     rows_of[eid].append(i)
-                elif eid not in chosen and colour == stored:
+                elif eid not in chosen:
                     mark(i, "already")
                 else:
-                    where = "in entries.json" if eid not in chosen else \
-                        "from a colour tag in this job" if eid in replaced else "from an earlier reference in this job"
-                    what = "has the colour tag" if hand_pass else "reads"
-                    log(f"entry {eid}: colour is {have} {where}, this reference {what} {colour}; left as {have}")
+                    log(f"entry {eid}: colour is {chosen[eid]} from a colour tag in this job, "
+                        f"this reference has the colour tag {colour}; left as {chosen[eid]}")
                     mark(i, "differs")
+    for eid, entry_reads in reads.items():
+        have = chosen.get(eid) or entries[eid].colour
+        where = "from a colour tag in this job" if eid in chosen else "in entries.json"
+        if not have:
+            counts = {}
+            for _, colour in entry_reads:
+                counts[colour] = counts.get(colour, 0) + 1
+            top, support, total = car_colour.colour_vote(counts)
+            if not top or support < total * car_colour.VOTE_MIN_SHARE:
+                spread = ", ".join(f"{n} {colour}" for colour, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
+                log(f"entry {eid}: its photos' colour reads don't agree enough ({spread}), so it gets no colour")
+                for i, _ in entry_reads:
+                    mark(i, "differs")
+                continue
+            have, where = top, "from most of its photos in this job"
+            chosen[eid], rows_of[eid] = top, []
+        for i, colour in entry_reads:
+            if colour == have and eid in chosen:
+                rows_of[eid].append(i)
+            elif colour == have:
+                mark(i, "already")
+            elif car_colour.colour_relation(have, colour) == -1:
+                log(f"entry {eid}: colour is {have} {where}, this reference reads {colour}; left as {have}")
+                mark(i, "differs")
     if not chosen:
         return notes
     try:
