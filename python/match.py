@@ -477,12 +477,13 @@ def closer_car_match(r: BoxResult, own: float, other_car: str, other, entries: d
                      min_sim: float, taken=()) -> BoxResult:
     """`r`, a match unlike its car's anchors (reference_store.Anchors.unlike gives own, other_car and
     other), moved to the car whose anchors it is closer to, or dropped to `none`. It moves only when
-    `margin` is above 0 (0: never move), `other` leads `own` by `margin` or more and reaches `min_sim`,
+    it is a livery match (on Rallye 0 of 69 burst fills checked against their burst's number reads
+    were the closer car), `margin` is above 0 (0: never move), `other` leads `own` by `margin` or more and reaches `min_sim`,
     one entry drives that car (a double-driven car can't say which driver) and no other box of the
     photo (`taken`: their entry ids) is that entry. Either way anchor_flag is set and alt_entry_id
     names the rejected car."""
     drivers = [e.id for e in entries.values() if (e.car or e.id) == other_car] if other_car else []
-    moves = margin > 0 and len(drivers) == 1 and drivers[0] not in taken \
+    moves = r.method == "livery" and margin > 0 and len(drivers) == 1 and drivers[0] not in taken \
         and other >= min_sim and other - own >= margin - 1e-9
     if not moves:
         return replace(r, method="none", entry_id="", alt_entry_id=r.entry_id, confidence=0.0, anchor_flag=True)

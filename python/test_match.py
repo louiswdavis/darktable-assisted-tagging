@@ -580,6 +580,9 @@ def run_tests():
     check("closer car: a lead of the margin or more moves the match and keeps the flag",
           closer("60", 0.70, 0.86, 0.1), ("livery", "60", "14", 0.86, True, "Blue"))
     check("closer car: a lead of exactly the margin moves", closer("60", 0.761, 0.861, 0.1)[:2], ("livery", "60"))
+    check("closer car: a burst or neighbour match never moves",
+          [Mt.closer_car_match(replace(doubt, method=m), 0.5, "60", 0.9, cars, 0.1, 0.6).method for m in ("burst", "neighbour")],
+          ["none", "none"])
     check("closer car: a lead under the margin drops", closer("60", 0.80, 0.86, 0.1), ("none", "", "14", 0.0, True, "Blue"))
     check("closer car: margin 0 never moves", closer("60", 0.10, 0.99, 0)[:2], ("none", ""))
     check("closer car: no closer car drops", closer("", 0.50, None, 0.1)[:2], ("none", ""))
