@@ -3114,7 +3114,7 @@ function M.add_references(images, entry_id)
     local state = {}
     local okr, err = pcall(function()
         local rows, n_skipped, sent = {}, 0, {}
-        local _, pick_of = with_paired_jpegs(images)
+        local pick_of = select(2, with_paired_jpegs(images))
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         local colour_base = M.family_roots(settings).colour
         for _, img in ipairs(images) do
@@ -3293,12 +3293,14 @@ function M.fill_entry_colours(images)
     local state = {}
     local okr, err = pcall(function()
         local rows, n_skipped, sent = {}, 0, {}
-        local _, pick_of = with_paired_jpegs(images)
+        local pick_of = select(2, with_paired_jpegs(images))
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         local colour_base = M.family_roots(settings).colour
         for _, img in ipairs(images) do
             local src = pick_of[img.id]
-            local eid = M.entry_for_tags(tags_of(img), entries, entry_order, ledger[img.id])
+            local hand_colour = M.hand_value(tags_of(img), ledger[img.id], colour_base)
+            -- with a colour tag applied by hand, the entry tags Identify wrote name the entry too
+            local eid = M.entry_for_tags(tags_of(img), entries, entry_order, not hand_colour and ledger[img.id] or nil)
             if not eid then
                 local prefixes = sorted_names(M.hint_tags(tags_of(img), ledger[img.id], entries, M.family_roots(settings).team))
                 if #prefixes == 1 then eid = prefixes[1] end
@@ -3306,8 +3308,7 @@ function M.fill_entry_colours(images)
             if eid then
                 if not sent[src.id] then
                     sent[src.id] = true
-                    rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid,
-                        M.hand_value(tags_of(img), ledger[img.id], colour_base) or "" }
+                    rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid, hand_colour or "" }
                 end
             else
                 n_skipped = n_skipped + 1
@@ -3315,7 +3316,7 @@ function M.fill_entry_colours(images)
             end
         end
         if #rows == 0 then
-            say(_("Assisted Tagging: no selected image carries all of one entry's tags, so no colour was read."))
+            say(_("Assisted Tagging: no selected image carries all of one entry's tags (applied by you, or by Identify when you added a colour tag), so no colour was read."))
             return
         end
         local results = run_reference_job(state, rows, { "--add-reference", "--colours-only" }, "reading entry colours")
