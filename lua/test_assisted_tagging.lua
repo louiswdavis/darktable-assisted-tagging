@@ -796,11 +796,22 @@ end
 -- colour_summary: distinct entries per note, unread rows counted
 do
     local rows = T.parse_reference_results("1,read,set,VER\n2,read,set,VER\n3,read,already,HAM\n4,unread,,\n")
-    local n_set, n_already, n_unread = T.colour_summary(rows)
-    check("colour_summary: distinct entries per note", n_set .. "," .. n_already .. "," .. n_unread, "1,1,1")
-    check("colour_summary: nothing read, all zero", table.concat({ T.colour_summary({}) }, ","), "0,0,0,0")
+    local set_ids, already_ids, n_unread = T.colour_summary(rows)
+    check("colour_summary: distinct entries per note",
+        table.concat(set_ids, "+") .. "," .. table.concat(already_ids, "+") .. "," .. n_unread, "VER,HAM,1")
+    local none_set, none_already, none_unread, none_failed = T.colour_summary({})
+    check("colour_summary: nothing read, all zero", #none_set .. "," .. #none_already .. "," .. none_unread .. "," .. none_failed, "0,0,0,0")
+    check("colour_done_message: saved, with one already right",
+        T.colour_done_message({ "101", "98" }, { "112" }, 0, 0, 0, 0), "colour saved for entries 101, 98. Already right: entry 112.")
+    check("colour_done_message: nothing to change, with what was left out",
+        T.colour_done_message({}, { "112" }, 5, 0, 0, 2),
+        "nothing to change, entry 112 already has the right colour. Left out: colour not read on 5 photos; "
+        .. "2 photos read as a different colour from the saved one, which was kept (see log).")
+    check("colour_done_message: nothing saved",
+        T.colour_done_message({}, {}, 3, 2, 1, 0),
+        "no colour saved. Left out: colour not read on 3 photos; 2 photos skipped, no single entry matches the tags; 1 photo failed (see log).")
     local failed = T.parse_reference_results("1,failed,,\n2,read,set,VER\n")
-    check("colour_summary: failed rows are counted", table.concat({ T.colour_summary(failed) }, ","), "1,0,0,1")
+    check("colour_summary: failed rows are counted", table.concat({ #T.colour_summary(failed), select(3, T.colour_summary(failed)) }, ","), "1,0,1")
 end
 
 local prot = T.protected_tags(

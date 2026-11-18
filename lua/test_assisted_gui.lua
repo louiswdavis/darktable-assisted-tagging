@@ -203,7 +203,7 @@ check("fill colours, Identify's entry tag + hand colour: no crash", printed("cou
 check("fill colours, Identify's entry tag + hand colour: the row names the entry and the colour",
     run and run.manifest, T.csv_line({ 1, "/photos/DSC00001.JPG", "112", "Red" }) .. "\n")
 check("fill colours: runs in colours-only mode", run ~= nil and flag(run.argv, "--add-reference") == "--colours-only", true)
-check("fill colours: reports the entry set", printed("colours set for 1 entries, 0 already set, 0 unread"), true)
+check("fill colours: reports the entry set", printed("Assisted Tagging: colour saved for entry 112. File:"), true)
 
 -- Identify wrote every tag: one photo's colour tag is not enough to replace the entry's colour
 local ledger_text = ""

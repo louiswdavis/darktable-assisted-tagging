@@ -874,8 +874,9 @@ function M.parse_reference_results(text)
     return rows, notes
 end
 
--- A colours-only job's rows → entries whose colour was set, entries that already had it, images
--- whose colour was unread, and images the job failed on (the first two count distinct entry ids).
+-- A colours-only job's rows → the ids of the entries whose colour was set, the ids of the entries
+-- that already had it (both sorted, each id once), the count of images whose colour was unread,
+-- and the count of images the job failed on.
 function M.colour_summary(rows)
     local set, already, unread, failed = {}, {}, 0, 0
     for _, p in ipairs(rows) do
@@ -884,10 +885,41 @@ function M.colour_summary(rows)
         if p[2] == "unread" then unread = unread + 1
         elseif p[2] == "failed" then failed = failed + 1 end
     end
-    local n_set, n_already = 0, 0
-    for _ in pairs(set) do n_set = n_set + 1 end
-    for _ in pairs(already) do n_already = n_already + 1 end
-    return n_set, n_already, unread, failed
+    local set_ids, already_ids = {}, {}
+    for id in pairs(set) do set_ids[#set_ids + 1] = id end
+    for id in pairs(already) do
+        if not set[id] then already_ids[#already_ids + 1] = id end
+    end
+    table.sort(set_ids)
+    table.sort(already_ids)
+    return set_ids, already_ids, unread, failed
+end
+
+-- The Fill entry colours done-message: the outcome first (saved, nothing to change, or nothing
+-- saved), then what was left out, only the non-zero counts.
+function M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_failed, n_differs)
+    local function named(ids)
+        return (#ids == 1 and "entry " or "entries ") .. table.concat(ids, ", ")
+    end
+    local msg
+    if #set_ids > 0 then
+        msg = "colour saved for " .. named(set_ids) .. "."
+        if #already_ids > 0 then msg = msg .. " Already right: " .. named(already_ids) .. "." end
+    elseif #already_ids > 0 then
+        msg = "nothing to change, " .. named(already_ids) .. (#already_ids == 1 and " already has" or " already have") .. " the right colour."
+    else
+        msg = "no colour saved."
+    end
+    local function photos(n)
+        return n == 1 and "1 photo" or n .. " photos"
+    end
+    local left = {}
+    if n_unread > 0 then left[#left + 1] = "colour not read on " .. photos(n_unread) end
+    if n_skipped > 0 then left[#left + 1] = photos(n_skipped) .. " skipped, no single entry matches the tags" end
+    if n_failed > 0 then left[#left + 1] = photos(n_failed) .. " failed" end
+    if n_differs > 0 then left[#left + 1] = photos(n_differs) .. " read as a different colour from the saved one, which was kept" end
+    if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (see log)." end
+    return msg
 end
 
 -- The done-message clauses for a reference job's colour notes; only non-zero counts.
@@ -3381,13 +3413,9 @@ function M.fill_entry_colours(images)
         local results = run_reference_job(state, rows, { "--add-reference", "--colours-only" }, "reading entry colours")
         if not results then return end
         local parsed, notes = M.parse_reference_results(results)
-        local n_set, n_already, n_unread, n_failed = M.colour_summary(parsed)
-        local extra = {}
-        if n_skipped > 0 then extra[#extra + 1] = string.format("%d skipped", n_skipped) end
-        if n_failed > 0 then extra[#extra + 1] = string.format("%d failed, see log", n_failed) end
-        if notes.differs > 0 then extra[#extra + 1] = string.format("%d colour readings differ from entries.json (see log)", notes.differs) end
-        say(string.format("Assisted Tagging: colours set for %d entries, %d already set, %d unread.%s File: %s",
-            n_set, n_already, n_unread, #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "", entries_json_path()))
+        local set_ids, already_ids, n_unread, n_failed = M.colour_summary(parsed)
+        say(string.format("Assisted Tagging: %s File: %s",
+            M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_failed, notes.differs), entries_json_path()))
     end)
     finish_reference_job(state, okr, err, "couldn't fill entry colours.")
 end
