@@ -466,16 +466,22 @@ class IdentifyCache:
     Matching isn't cached, so new references or entries apply without a
     re-decode. An empty path disables it."""
 
-    def __init__(self, path: str):
+    def __init__(self, path: str, prune: bool = False):
+        """`prune` drops entries unused for CACHE_MAX_AGE_DAYS: the run's first connection passes it,
+        a later stage's doesn't."""
         self.db, self.used, self.pending = None, [], 0
         if not path:
             return
         os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
         try:
             self.db = sqlite3.connect(path, timeout=30)
+            self.db.execute("PRAGMA journal_mode=WAL")
+            self.db.execute("PRAGMA synchronous=NORMAL")
             self.db.execute("CREATE TABLE IF NOT EXISTS frames "
                             "(key TEXT PRIMARY KEY, value TEXT NOT NULL, used REAL NOT NULL)")
-            self.db.execute("DELETE FROM frames WHERE used < ?", (time.time() - CACHE_MAX_AGE_DAYS * 86400,))
+            self.db.execute("CREATE INDEX IF NOT EXISTS frames_used ON frames (used)")
+            if prune:
+                self.db.execute("DELETE FROM frames WHERE used < ?", (time.time() - CACHE_MAX_AGE_DAYS * 86400,))
             self.db.commit()
         except sqlite3.DatabaseError as e:
             raise InputError(f"cache {path} is unreadable ({e}); delete it to start a fresh one") from e
@@ -514,19 +520,32 @@ class IdentifyCache:
         self.db = None
 
 
+_MODEL_KEYS: dict = {}  # model paths → their cache key parts
+
+
 def frame_key(filepath: str, models: dict) -> list:
     """Cache key parts for a frame's analysis: the file, every model file, the
     constants fingerprint and a token per cached stage (bumped on a code-only
-    change to that stage). Entries and references stay out of it."""
+    change to that stage). Entries and references stay out of it. The model files are read once
+    per process (_MODEL_KEYS): a model file replaced mid-run keeps its old key until the next run."""
+    paths = tuple(models.get(k) for k in ("face_det", "face_rec", "detector", "ocr_det", "ocr_rec", "embedder",
+                                          "segmenter", "siglip"))
+    if paths not in _MODEL_KEYS:
+        _MODEL_KEYS[paths] = ({"faces": face_model_key(models["face_det"], models["face_rec"])}
+                              if models["kind"] == "people" else
+                              {"detector": file_key(models["detector"]),
+                               "ocr": ocr_key(models["ocr_det"], models["ocr_rec"]),
+                               "embedder": embedder_key(models["embedder"]),
+                               "segmenter": file_key(models["segmenter"]) if models.get("segmenter") else None,
+                               "siglip": siglip_key(models["siglip"]) if models.get("siglip") else None})
+    keys = _MODEL_KEYS[paths]
     if models["kind"] == "people":
-        return [file_key(filepath), "people", *face_model_key(models["face_det"], models["face_rec"]),
-                analysis_fingerprint(), "face-1"]
-    return [file_key(filepath), file_key(models["detector"]), ocr_key(models["ocr_det"], models["ocr_rec"]),
-            embedder_key(models["embedder"]), analysis_fingerprint(),
+        return [file_key(filepath), "people", *keys["faces"], analysis_fingerprint(), "face-1"]
+    return [file_key(filepath), keys["detector"], keys["ocr"], keys["embedder"], analysis_fingerprint(),
             "ocr-trace-2", "read-conf-1", "ctc-1", "pod-2", "cand-1", "overlap-2", *(["colour-2"] if models.get("colour") else []),
             *(["car-colour-2", car_colour.palette_digest(models["car_colour"])] if models.get("car_colour") else []),
-            *([SEGMENT_CACHE_TOKEN, file_key(models["segmenter"])] if models.get("segmenter") else []),
-            *(siglip_key(models["siglip"]) if models.get("siglip") else []),
+            *([SEGMENT_CACHE_TOKEN, keys["segmenter"]] if models.get("segmenter") else []),
+            *(keys["siglip"] if models.get("siglip") else []),
             *(["ocr-regions-1"] if models.get("ocr_regions") else [])]
 
 
@@ -596,13 +615,13 @@ def frame_entry(filepath: str, rgb, models: dict) -> tuple:
     return detect_cached(filepath, detector, cache, rgb=rgb)
 
 
-def _init_worker(models: dict):
+def _init_worker(models: dict, siglip_texts=None):
     try:
         import cv2
         cv2.setNumThreads(1)
     except Exception:
         pass
-    _W["models"] = models
+    _W["models"], _W["siglip_texts"] = models, siglip_texts
     if models["kind"] == "people":
         _W["faces"] = FaceModel(models["face_det"], models["face_rec"])
         return
@@ -613,9 +632,10 @@ def _init_worker(models: dict):
 
 
 def _siglip(models: dict):
-    """This process's SigLIP 2, loaded on first use, or None without one."""
+    """This process's SigLIP 2, loaded on first use, or None without one. A worker loads the image
+    model only: its prompt vectors are the parent's (WorkerPool.get)."""
     if "siglip" not in _W:
-        _W["siglip"] = SigLIP(models["siglip"]) if models.get("siglip") else None
+        _W["siglip"] = SigLIP(models["siglip"], _W.get("siglip_texts")) if models.get("siglip") else None
     return _W["siglip"]
 
 
@@ -867,7 +887,8 @@ def worker_count(cpus: int) -> int:
 class WorkerPool:
     """One process pool for every stage of a run (analysis, rescue, re-read), so each worker loads
     the models once per run. Started by the first stage with work to do; a run that is all cache
-    hits starts no workers."""
+    hits starts no workers. Each worker gets SigLIP 2's prompt vectors from this process and loads
+    the image model only."""
 
     def __init__(self, models: dict):
         self.models, self.size, self.executor = models, worker_count(os.cpu_count() or 2), None
@@ -875,8 +896,11 @@ class WorkerPool:
     def get(self) -> concurrent.futures.ProcessPoolExecutor:
         if self.executor is None:
             log(f"worker pool: {self.size} workers, models load once per worker for the whole run")
+            # SigLIP 2's prompt vectors are worked out here once; this process's text model is freed
+            siglip = _W.get("siglip")
+            texts = siglip.prepare_texts(self.models.get("car_colour")) if siglip else None
             self.executor = concurrent.futures.ProcessPoolExecutor(max_workers=self.size, initializer=_init_worker,
-                                                                   initargs=(self.models,))
+                                                                   initargs=(self.models, texts))
         return self.executor
 
     def cancel(self):
@@ -1006,7 +1030,7 @@ def rescue_frames(rows: list, analyses: dict, models: dict, cache: IdentifyCache
             jobs.append((path, box, mate, analyses[mate]["emb"][0]))
     if not jobs:
         return analyses
-    results = {}
+    results, failed = {}, set()
     for job in jobs:
         hit = cache.get(*rescue_key(job, models))
         if hit is not None:
@@ -1017,16 +1041,28 @@ def rescue_frames(rows: list, analyses: dict, models: dict, cache: IdentifyCache
     write_progress(progress, 0, len(todo), "rescue")
     if todo:
         executor = pool.get()
-        for n, (job, result) in enumerate(zip(todo, executor.map(rescue_frame, todo)), 1):
+        futures = {executor.submit(rescue_frame, job): job for job in todo}
+        for n, fut in enumerate(concurrent.futures.as_completed(futures), 1):
             if cancel_requested(progress):
                 log("cancelled")
                 pool.cancel()
                 sys.exit(130)  # the caller's finally closes the cache
+            job = futures[fut]
+            try:
+                results[job[0]] = fut.result()
+                cache.put(results[job[0]] or {}, *rescue_key(job, models))
+            except concurrent.futures.BrokenExecutor as e:
+                raise InputError(f"a rescue worker died (out of memory or a crashed library?); "
+                                 f"frames finished so far are cached, rerun to continue: {e}") from e
+            except Exception as e:
+                log(f"{job[0]}: couldn't rescue, left as no vehicle ({type(e).__name__}: {e})\n"
+                    + "".join(traceback.format_exception(type(e), e, e.__traceback__)))
+                failed.add(job[0])
             write_progress(progress, n, len(todo), "rescue")
-            cache.put(result or {}, *rescue_key(job, models))
-            results[job[0]] = result
     out = dict(analyses)
     for job in jobs:
+        if job[0] in failed:
+            continue
         result = results[job[0]]
         if result is None:
             log(f"{job[0]}: rescue candidate doesn't look like {os.path.basename(job[2])}'s car, left as no vehicle")
@@ -1399,7 +1435,7 @@ def identify_people(args, models: dict, entries: dict, rules: Rules, from_entrie
         log(f"collection {args.collection} has no face references yet: nothing can be identified")
     else:
         log("references: " + ", ".join(f"{e} {counts.get(e, 0)}" for e in entries))
-    cache = IdentifyCache(args.cache)
+    cache = IdentifyCache(args.cache, prune=True)
     try:
         with WorkerPool(models) as pool:
             analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache,
@@ -1521,7 +1557,7 @@ def identify(args, models: dict):
         log("team references for tags no entry carries under the team root (ignored): " + ", ".join(stale_teams))
 
     with WorkerPool(models) as pool:
-        cache = IdentifyCache(args.cache)
+        cache = IdentifyCache(args.cache, prune=True)
         try:
             analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache, args.progress, pool)
             if cancel_requested(args.progress):

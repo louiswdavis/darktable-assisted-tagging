@@ -205,6 +205,21 @@ def run_tests():
     centred = dict(s.best_per_entry(car(1)))
     check("centring drops another car's score well below raw", centred["E1"] < 0.2, True)
     check("centring keeps the identical car at 1", round(centred["E0"], 5), 1.0)
+    # ticket 76: the centred reference matrix is built once and rebuilt when the references or centre change
+    built = s.projected[1]
+    s.best_per_entry(car(2))
+    check("a second match reuses the centred references", s.projected[1] is built, True)
+    s.add("E9", "9", crop(40))
+    s.emb[-1] = car(9)
+    check("an added reference is matched", round(dict(s.best_per_entry(car(9)))["E9"], 5), 1.0)
+    s.add("E9", "9", crop(41))  # replaces the sample in place
+    s.emb[-1] = car(9)
+    replaced = s.projected
+    s.remove("refs/E9/9.jpg")
+    check("a replaced sample drops the built matrix, a removed one is no longer matched",
+          (replaced, "E9" in dict(s.best_per_entry(car(9)))), (None, False))
+    check("dropping the run centre goes back to raw similarity", (s.use_run_centre([]), round(dict(s.best_per_entry(car(1)))["E1"], 2)),
+          ("livery: raw similarity (5 references and 0 boxes, under 20)", 0.9))
 
     # ---- ticket 80: sources and anchors
     a = tempfile.mkdtemp()

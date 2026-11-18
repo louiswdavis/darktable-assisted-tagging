@@ -60,22 +60,37 @@ def colour_prompts(palette) -> dict:
 
 
 class SigLIP:
-    def __init__(self, vision_path: str):
+    def __init__(self, vision_path: str, texts=None):
+        """With `texts` (another SigLIP's prepare_texts), only the image model loads: the prompt
+        vectors come from there, and a prompt set outside them raises."""
         import onnxruntime as ort
         ort.set_default_logger_severity(3)  # errors only: the model-load warnings flood the run log
-        from tokenizers import Tokenizer
         vision, text, tokenizer = siglip_files(vision_path)
-        for path in (text, tokenizer):
-            if not os.path.isfile(path):
-                raise FileNotFoundError(f"{os.path.basename(path)} must sit beside {os.path.basename(vision)}")
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 1  # the worker pool supplies the parallelism
         self.vision = ort.InferenceSession(vision, opts, providers=["CPUExecutionProvider"])
+        self.texts: dict = dict(texts or {})  # prompts tuple → (labels, vectors)
+        self.text = self.tok = None
+        if texts is not None:
+            return
+        from tokenizers import Tokenizer
+        for path in (text, tokenizer):
+            if not os.path.isfile(path):
+                raise FileNotFoundError(f"{os.path.basename(path)} must sit beside {os.path.basename(vision)}")
         self.text = ort.InferenceSession(text, opts, providers=["CPUExecutionProvider"])
         self.tok = Tokenizer.from_file(tokenizer)
         self.pad = self.tok.token_to_id("<pad>")
         self.eos = self.tok.token_to_id("<eos>")
-        self.texts: dict = {}  # prompts tuple → (labels, vectors), worked out once per process
+
+    def prepare_texts(self, palette=None) -> dict:
+        """The prompt vectors a run needs (the box check's, and the colour prompts of `palette`), worked
+        out here once; then the text model and tokenizer are freed. Pass the result to the workers'
+        SigLIP."""
+        self._text(CAR_PROMPTS)
+        if palette:
+            self._text(colour_prompts(palette))
+        self.text = self.tok = None
+        return self.texts
 
     def embed_image(self, crop_rgb):
         """The crop's unit image vector (1, dim)."""
@@ -112,6 +127,8 @@ class SigLIP:
     def _text(self, prompts: dict) -> tuple:
         key = tuple(prompts.items())
         if key not in self.texts:
+            if self.text is None:
+                raise RuntimeError(f"SigLIP 2 has no text model loaded and no vectors for the prompts {list(prompts)}")
             self.texts[key] = (list(prompts), self._embed_text(list(prompts.values())))
         return self.texts[key]
 

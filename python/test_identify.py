@@ -396,6 +396,18 @@ def run_tests():
           (S.SIGLIP_CACHE_TOKEN, 5))
     del models["siglip"]
     check("no SigLIP leaves the cache key as it was", I.frame_key(frame, models), plain_key)
+    # ticket 76: the model files are read once per process, the frame's own file every time
+    model_file = os.path.join(img, "model.onnx")
+    Image.new("RGB", (8, 8), (1, 2, 3)).save(model_file, "PNG")
+    once = {**{k: model_file for k in ("detector", "ocr_det", "ocr_rec", "embedder")}, "kind": "motorsport"}
+    once_key = I.frame_key(frame, once)
+    os.utime(model_file, (1, 1))
+    check("a model file touched mid-run keeps its key", I.frame_key(frame, once), once_key)
+    I._MODEL_KEYS.clear()
+    check("the next run reads the model files again", I.frame_key(frame, once) != once_key, True)
+    once_key = I.frame_key(frame, once)
+    os.utime(frame, (1, 1))
+    check("a frame file touched mid-run changes its key", I.frame_key(frame, once) != once_key, True)
     check("SigLIP files sit beside the vision file", S.siglip_files("m/siglip2_base_vision.onnx"),
           ("m/siglip2_base_vision.onnx", "m/siglip2_base_text.onnx", "m/siglip2_base_tokenizer.json"))
     check("custom palette names are the colour prompts", S.colour_prompts((("Teal", ()),)),
@@ -462,15 +474,21 @@ def run_tests():
 
     # ---- rescue reads are cached: an unchanged re-run decodes nothing, a new mate re-runs
     class CountingPool:
-        """Stands in for WorkerPool: map runs inline and counts the jobs."""
+        """Stands in for WorkerPool: submit runs the job inline and counts it."""
         jobs = 0
 
         def get(self):
             return self
 
-        def map(self, fn, jobs):
-            self.jobs += len(jobs)
-            return [fn(j) for j in jobs]
+        def submit(self, fn, job):
+            import concurrent.futures
+            self.jobs += 1
+            fut = concurrent.futures.Future()
+            try:
+                fut.set_result(fn(job))
+            except Exception as e:
+                fut.set_exception(e)
+            return fut
 
     # real plan_burst, rescue_frame and cache keys over real files; only the models are stand-ins
     burst_dir = tempfile.mkdtemp()
@@ -494,11 +512,46 @@ def run_tests():
             got = I.rescue_frames(rescue_rows, rescue_an, models, cache, pool)
             cache.close()
             counts.append((pool.jobs, got[shots[1]]["rescued"]["from"], len(got[shots[1]]["boxes"])))
+        # ticket 76: a frame that can't be decoded is left as it was; the other bursts' rescues still land
+        mate, broken = os.path.join(burst_dir, "c1.jpg"), os.path.join(burst_dir, "c2.jpg")
+        Image.new("RGB", (64, 48), (90, 90, 90)).save(mate)
+        with open(broken, "wb") as f:
+            f.write(b"not a jpeg")
+        rescue_an[mate] = {"boxes": [car_box], "emb": [one]}
+        rescue_an[broken] = {"boxes": [], "candidates": [[3, 3, 49, 39, 0.1, 2]], "emb": []}
+        pool, cache = CountingPool(), I.IdentifyCache(rescue_db)
+        got = I.rescue_frames(rescue_rows + [["8", mate, "c", "", "", "1", ""], ["9", broken, "c", "", "", "2", ""]],
+                              rescue_an, models, cache, pool)
+        broken_job = (broken, (3, 3, 49, 39, 0.1, 2), mate, one)
+        failed_rescue = (pool.jobs, got[broken]["boxes"], got[shots[1]]["rescued"]["from"],
+                         cache.get(*I.rescue_key(broken_job, models)))
+        cache.close()
     finally:
         I._W.clear()
         I._W.update(saved_w)
     check("rescue: first run decodes, an unchanged re-run reads the cache, a new mate re-runs", counts,
           [(1, "1.jpg", 1), (0, "1.jpg", 1), (1, "3.jpg", 1)])
+    check("rescue: a frame that fails to decode stays no vehicle and uncached, the rest are rescued", failed_rescue,
+          (1, [], "3.jpg", None))
+
+    # ---- ticket 76: the cache is in WAL mode, has an index on `used`, and only a pruning connection drops old entries
+    import sqlite3
+    aged_db = os.path.join(tempfile.mkdtemp(), "cache.sqlite")
+    aged = I.IdentifyCache(aged_db)
+    aged.put({"n": 1}, "old")
+    aged.put({"n": 2}, "new")
+    aged.db.execute("UPDATE frames SET used = 0 WHERE key = ?", (aged._key(["old"]),))
+    check("the cache journal is WAL", aged.db.execute("PRAGMA journal_mode").fetchone()[0], "wal")
+    check("the cache has an index on used",
+          [r[1] for r in aged.db.execute("PRAGMA index_list(frames)") if r[1] == "frames_used"], ["frames_used"])
+    aged.close()
+    later = I.IdentifyCache(aged_db)
+    check("a later stage's connection keeps an old entry", later.get("old"), {"n": 1})
+    later.used = []  # the read above would refresh the entry's age on close
+    later.close()
+    first = I.IdentifyCache(aged_db, prune=True)
+    check("the run's first connection prunes it and keeps the fresh one", (first.get("old"), first.get("new")), (None, {"n": 2}))
+    first.close()
 
     # ---- cancel stops a worker mid-frame instead of waiting for it
     import concurrent.futures
@@ -765,6 +818,40 @@ def run_tests():
         check("an ONNX model loads from a non-ASCII path", V.read_onnx(moved) is not None, True)
     else:
         print("skip non-ASCII model load (models/ not downloaded)")
+    # ticket 76: the parent works out SigLIP 2's prompt vectors once; a worker loads the image model only
+    siglip_vision = os.path.join(models_dir, "siglip2_base_vision.onnx")
+    if os.path.isfile(siglip_vision):
+        parent = S.SigLIP(siglip_vision)
+        crop = np.full((64, 96, 3), (200, 30, 30), dtype=np.uint8)
+        vec = parent.embed_image(crop)
+        want = (parent.is_what(vec), parent.colour_scores(vec, C.PALETTE))
+        texts = parent.prepare_texts(C.PALETTE)
+        check("the parent frees SigLIP 2's text model once its vectors are made", (parent.text, parent.tok, len(texts)),
+              (None, None, 2))
+        siglip_w = dict(I._W)
+        I._W.clear()
+        I._W.update(siglip_texts=texts)
+        worker = I._siglip({"siglip": siglip_vision})
+        I._W.clear()
+        I._W.update(siglip=S.SigLIP(siglip_vision))
+        with I.WorkerPool({"kind": "motorsport", "car_colour": C.PALETTE}) as started:
+            pool_texts = started.get()._initargs[1]  # no job is submitted, so no worker starts
+            pool_parent = (I._W["siglip"].text, sorted(len(labels) for labels, _ in pool_texts.values()))
+        I._W.clear()
+        I._W.update(siglip_w)
+        check("starting the pool hands the workers both prompt sets and frees the parent's text model", pool_parent,
+              (None, sorted([len(S.CAR_PROMPTS), len(C.PALETTE) + 1])))
+        check("a worker's SigLIP 2 has no text model", (worker.text, worker.tok), (None, None))
+        check("a worker answers from the parent's vectors as the parent did",
+              (worker.is_what(worker.embed_image(crop)), worker.colour_scores(worker.embed_image(crop), C.PALETTE)), want)
+        try:
+            worker.colour_scores(vec, (("Teal", C.PALETTE[0][1]),))
+            unprepared = "(no error)"
+        except RuntimeError as e:
+            unprepared = str(e)
+        check("a palette the parent didn't prepare raises", unprepared.startswith("SigLIP 2 has no text model loaded"), True)
+    else:
+        print("skip SigLIP 2 prompt vectors (models/ not downloaded)")
     fake = os.path.join(img, "not-a-model.onnx")
     with open(fake, "w") as f:
         f.write("<html>404</html>")

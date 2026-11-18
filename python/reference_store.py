@@ -64,6 +64,7 @@ class ReferenceIndex:
         self.path: list = []
         self.stat: list = []  # "mtime_ns:size" of each crop when embedded, so a replaced crop is re-embedded
         self.centre = None  # under CENTRE_MIN_REFS references: the mean of references and run boxes (use_run_centre)
+        self.projected = None  # ((emb, hist, centre, join, colour_weight), project()'d references): best_per_entry's
         self.added: list = []  # paths add() has saved since a caller last cleared this
         self.replaced: dict = {}  # rel -> (crop bytes, entry, embedding, histogram, source record) add() overwrote
         self.sources: dict = {}  # rel -> {"source", "confidence" (None when unknown), "date"}; see _sync_sources
@@ -197,6 +198,7 @@ class ReferenceIndex:
         if rel in self.path:
             i = self.path.index(rel)
             self.emb[i], self.entry[i], self.stat[i] = vec, entry_id, self._stat(rel)
+            self.projected = None  # written in place: the arrays are the same objects
             if self.colour:
                 self.hist[i] = hist
             return
@@ -304,7 +306,10 @@ class ReferenceIndex:
         if not self.entry:
             return []
         join = colour_weight > 0 and hist is not None and self.colour
-        emb = self.project(self.emb, self.hist if join else None, colour_weight)
+        state = (self.emb, self.hist, self.centre, join, colour_weight)
+        if self.projected is None or any(a is not b for a, b in zip(self.projected[0], state)):
+            self.projected = (state, self.project(self.emb, self.hist if join else None, colour_weight))
+        emb = self.projected[1]
         vec = self.project(np.asarray(vec, np.float32)[None], np.asarray(hist, np.float32)[None] if join else None,
                            colour_weight)[0]
         sims = emb @ vec
