@@ -48,6 +48,22 @@ class Entry:
     name: str = ""  # the driver, the value of the driver tag family; "" when unknown
     car: str = ""  # a double-driven car's id (the lower entry's id), set on both entries; "" when unshared
     co_driver: str = ""  # a rally co-driver, the value of the co-driver tag family; "" when none
+    shows: tuple = ()  # other numbers the car carries (an old event's number left on the door); () when none
+
+
+def numbers_of(e: Entry) -> tuple:
+    """The numbers a read can name `e` by: its entry number, then any it also shows."""
+    return tuple(n for n in (e.number, *e.shows) if n)
+
+
+def number_index(entries: dict) -> dict:
+    """{number: [entry ids]} over every number each entry carries (numbers_of). A number shown by
+    one car and entered by another names both, so livery decides between them."""
+    by_number: dict = {}
+    for e in entries.values():
+        for n in numbers_of(e):
+            by_number.setdefault(n, []).append(e.id)
+    return by_number
 
 
 @dataclass(frozen=True)
@@ -158,18 +174,18 @@ def _fragment_of_livery(hit: str, ocr: list, sims: list, entries: dict) -> bool:
     livery similarity is below MATCH_MIN_SIM. A real other-team car with the right number still wins."""
     if not sims or sims[0][0] == hit:
         return False
-    read = {d for d, _ in ocr if hit in {e.id for e in entries.values() if e.number == d}}
-    if not any(d != e.number and d in e.number for d in read for e in entries.values() if e.number):
+    read = {d for d, _ in ocr if hit in {e.id for e in entries.values() if d in numbers_of(e)}}
+    if not any(d != n and d in n for d in read for e in entries.values() for n in numbers_of(e)):
         return False
     sim = dict(sims)
     if sim.get(hit, 0.0) < MATCH_MIN_SIM:
         return True
     top = entries.get(sims[0][0])
-    if top is None or not top.number or sims[0][1] < MATCH_MIN_SIM:
+    if top is None or not numbers_of(top) or sims[0][1] < MATCH_MIN_SIM:
         return False
     if sims[0][1] - sim[hit] < MATCH_MIN_MARGIN:
         return False
-    return any(d != top.number and d in top.number for d in read)
+    return any(d != n and d in n for d in read for n in numbers_of(top))
 
 
 def _one_confusion_apart(read: str, number: str) -> bool:
@@ -238,7 +254,7 @@ def list_scores(ocr: list, ctc, entries: dict):
     cached before matrices were kept)."""
     if not ocr or ctc is None or any(d not in ctc for d, _ in ocr):
         return None
-    numbers = sorted({e.number for e in entries.values() if e.number.isascii() and e.number.isdigit()})
+    numbers = sorted({n for e in entries.values() for n in numbers_of(e) if n.isascii() and n.isdigit()})
     scores, conf_of = {}, {}
     for d, conf in ocr:
         base = ctc_log_likelihood(ctc[d], d)
@@ -272,10 +288,7 @@ def match_box(box: int, ocr: list, sims: list, entries: dict, ctc=None) -> BoxRe
     digit matrix} or None. With every read's matrix the reads are scored against the start list
     (list_read): only a clear winner counts as the number read, and look-alike guessing is skipped.
     Without, an exact number hit, then one look-alike digit away (_misread_number)."""
-    by_number: dict = {}
-    for e in entries.values():
-        if e.number:
-            by_number.setdefault(e.number, []).append(e.id)
+    by_number = number_index(entries)
     listed = list_read(ocr, ctc, entries)
     if listed is not None:
         unmatched = ";".join(dict.fromkeys(digits for digits, _ in ocr))
@@ -305,10 +318,7 @@ def burst_list_read(ids: list, frames: dict, weak: dict, ctc: dict, entries: dic
     NUMBER_LIST_MARGIN and averages at least -NUMBER_LIST_FLOOR per frame. A number whose entry's
     colour disagrees with a box's can't win, but still ranks. The map gives each frame's box for the
     winner. None when fewer than WEAK_AGREE_MIN frames have a box with every read's matrix."""
-    by_number: dict = {}
-    for e in entries.values():
-        if e.number:
-            by_number.setdefault(e.number, []).append(e.id)
+    by_number = number_index(entries)
     per_frame, reads_seen, clashes = {}, [], set()
     for fid in ids:
         for r in frames[fid]:
@@ -354,10 +364,7 @@ def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict, ctc:
     on those boxes, when it is the only entry so agreed. Either way, nothing changes when a number,
     livery or neighbour result in the group names another entry. A read naming an entry whose
     colour disagrees with the box's isn't counted."""
-    by_number: dict = {}
-    for e in entries.values():
-        if e.number:
-            by_number.setdefault(e.number, []).append(e.id)
+    by_number = number_index(entries)
     groups: dict = {}
     for fid in frames:
         groups.setdefault(burst_of.get(fid, fid), []).append(fid)
@@ -476,7 +483,7 @@ def colour_pool(entries: dict, colour: str, reads: list, sims: list, min_read: f
         return entries, {}
     note = {"colour": colour, "kept": len(pool), "removed": len(entries) - len(pool), "dropped": False, "reason": ""}
     digits = {d for d, c in reads if c >= min_read}
-    if any(e.number and e.number in digits for eid, e in entries.items() if eid not in pool):
+    if any(set(numbers_of(e)) & digits for eid, e in entries.items() if eid not in pool):
         note["reason"] = "number_outside"
     elif not pool:
         note["reason"] = "no_entries"
@@ -519,14 +526,14 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
         reason = "no_entries"
     else:
         digits = {d for d, c in ocr if c >= min_read}
-        outside = [eid for eid, e in entries.items() if e.number and e.number in digits and eid not in inside]
+        outside = [eid for eid, e in entries.items() if set(numbers_of(e)) & digits and eid not in inside]
         if outside and source == "tag":
             # The user tagged this photo to the set; a number outside it only wins when the livery
             # doesn't clearly point back inside (a misread digit or sponsor text, not another car).
             sim = dict(sims)
             lead = max((sim.get(eid, 0.0) for eid in inside), default=0.0) - max(sim.get(eid, 0.0) for eid in outside)
             if lead >= MATCH_MIN_MARGIN:
-                ocr = [(d, c) for d, c in ocr if d not in {entries[eid].number for eid in outside}]
+                ocr = [(d, c) for d, c in ocr if d not in {n for eid in outside for n in numbers_of(entries[eid])}]
                 outside = []
         if outside:
             reason = "number_outside"

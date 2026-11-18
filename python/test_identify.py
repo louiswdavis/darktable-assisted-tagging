@@ -99,6 +99,14 @@ def run_tests():
     check("a comma in a tag is rejected", load_error([dict(VER, tags=["a,b"])]),
           'entry "VER": tags: tag "a,b" can\'t contain , ; or "')
     check("a non-digit number is rejected", load_error([dict(VER, number="1a")]), 'entry "VER": number must be 1–3 digits')
+    check("a shows list loads as a tuple", I.load_collection(collection([dict(VER, shows=["44", "44"])]))[0]["VER"].shows,
+          ("44",))
+    check("a non-list shows is rejected", load_error([dict(VER, shows="44")]),
+          'entry "VER": shows must be a list of 1–3 digit numbers, e.g. ["44"]')
+    check("a non-digit shown number is rejected", load_error([dict(VER, shows=["4a"])]),
+          'entry "VER": shows must be a list of 1–3 digit numbers, e.g. ["44"]')
+    check("shows can't repeat the entry's own number", load_error([dict(VER, shows=["1"])]),
+          'entry "VER": shows repeats its own number 1')
     check("empty tags load when families build tags", load_error([dict(VER, tags=[])]), "(no error)")
     check("a path character in an id is rejected", load_error([dict(VER, id="a/b")]).startswith('entry "a/b": id can\'t'),
           True)
@@ -123,7 +131,7 @@ def run_tests():
     check("moved rules in entries.json still load", (moved_rules.order_weight, moved_rules.min_read), (0.5, 0.9))
     check("moved rules log the deprecation", "rules.order_weight in entries.json is deprecated; move it to settings.json" in lines, True)
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
-          'entry "VER": unknown field "tagz" (fields are id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car)')
+          'entry "VER": unknown field "tagz" (fields are id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car, shows)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
           'unknown key "entrys" (the file holds "kind", "rules" and "entries")')
     LH = {"id": "Lando Norris", "tags": ["People|Professions|F1 Drivers|Lando Norris"]}
@@ -771,8 +779,8 @@ def run_tests():
     I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("number reads, burst consensus and no-vehicle rows come out in manifest order (3-column manifest)", rows,
-          ["1,0,number,VER,,0.950,,solo,,,,", "2,0,number,VER,,0.900,,solo,,,,", "3,0,burst,VER,,0.667,,solo,,,,",
-           "4,-1,none,,,0.000,,,,,,", "5,-1,error,,,0.000,,,,,,"])
+          ["1,0,number,VER,,0.950,,solo,,,,,", "2,0,number,VER,,0.900,,solo,,,,,", "3,0,burst,VER,,0.667,,solo,,,,,",
+           "4,-1,none,,,0.000,,,,,,,", "5,-1,error,,,0.000,,,,,,,"])
     check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
     check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
 
@@ -807,9 +815,9 @@ def run_tests():
     I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a fully tagged image is skipped; solo disagreement is a conflict, also when burst-filled; packs aren't", rows,
-          ["1,-1,skipped,,,0.000,,,,,,", "2,0,conflict,VER,,0.900,,solo,,,,", "6,0,number,VER,,0.950,,solo,,,,",
-           "7,0,number,VER,,0.950,,solo,,,,", "8,0,conflict,VER,,0.667,,solo,,,,", "9,0,number,VER,,0.950,,pack,,,,",
-           "9,1,none,,,0.000,,pack,,,,"])
+          ["1,-1,skipped,,,0.000,,,,,,,", "2,0,conflict,VER,,0.900,,solo,,,,,", "6,0,number,VER,,0.950,,solo,,,,,",
+           "7,0,number,VER,,0.950,,solo,,,,,", "8,0,conflict,VER,,0.667,,solo,,,,,", "9,0,number,VER,,0.950,,pack,,,,,",
+           "9,1,none,,,0.000,,pack,,,,,"])
     run = json.load(open(args.boxes_out, encoding="utf-8"))
     check("boxes.json names the collection and the skipped images", (run["collection"], run["skipped"]),
           (os.path.basename(coll), ["1"]))
@@ -844,12 +852,12 @@ def run_tests():
     I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a hand-tagged solo shot read as another car is a conflict, though the two share a team tag", rows[0],
-          "2,0,conflict,VER,,0.900,,solo,,,,")
-    check("a hand-tagged frame anchors its burst alone", rows[1], "3,0,burst,TSU,,0.500,,solo,,,,")
-    check("an unread box takes the hand-tagged entry", rows[2], "8,0,hand,TSU,,1.000,,solo,,,,")
-    check("a frame with no vehicle takes the hand-tagged entry", rows[3], "4,-1,hand,TSU,,1.000,,,,,,")
+          "2,0,conflict,VER,,0.900,,solo,,,,,")
+    check("a hand-tagged frame anchors its burst alone", rows[1], "3,0,burst,TSU,,0.500,,solo,,,,,")
+    check("an unread box takes the hand-tagged entry", rows[2], "8,0,hand,TSU,,1.000,,solo,,,,,")
+    check("a frame with no vehicle takes the hand-tagged entry", rows[3], "4,-1,hand,TSU,,1.000,,,,,,,")
     check("a pack keeps its boxes and gains the hand-tagged entry", rows[4:],
-          ["9,0,number,VER,,0.950,,pack,,,,", "9,1,none,,,0.000,,pack,,,,", "9,-1,hand,TSU,,1.000,,pack,,,,"])
+          ["9,0,number,VER,,0.950,,pack,,,,,", "9,1,none,,,0.000,,pack,,,,,", "9,-1,hand,TSU,,1.000,,pack,,,,,"])
     with open(manifest, "w", encoding="utf-8") as f:
         f.write(f'"4","{X}/4.jpg","9","Assisted Tagging|Motorsport|Number|5","","","GONE"\n')
     lines = []
@@ -860,7 +868,7 @@ def run_tests():
         I.log = real_log
     check("a hand entry that isn't in entries.json is logged and its image identified without it",
           (open(results, encoding="utf-8").read().splitlines(), any("hand-tagged as entry GONE" in ln for ln in lines)),
-          (["4,-1,none,,,0.000,,,,,,"], True))
+          (["4,-1,none,,,0.000,,,,,,,"], True))
 
     # ---- --promote-boxes: saves confident boxes from the box crop, replaces on re-run, flags a changed file
     real_jpg = os.path.join(img, "promo.jpg")
@@ -885,7 +893,7 @@ def run_tests():
     write_promo([100, 50])
     I.promote_boxes(pargs, {"embedder": "fake"})
     check("promote adds a confident box", open(results, encoding="utf-8").read().strip(), "1,added,,VER")
-    refs = sorted(os.listdir(os.path.join(coll, "refs")))
+    refs = sorted(d for d in os.listdir(os.path.join(coll, "refs")) if d != "sources.json")
     check("only the wide-margin box became a reference", refs, ["VER"])
     I.promote_boxes(pargs, {"embedder": "fake"})
     check("promoting again replaces rather than duplicates", len(os.listdir(os.path.join(coll, "refs", "VER"))), 1)

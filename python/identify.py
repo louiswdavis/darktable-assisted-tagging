@@ -308,7 +308,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
             raise bad(f'entry "{eid}" appears twice')
         unknown = check_entry_fields(kind, item)
         if unknown:
-            fields = "id, tags" if kind == "people" else "id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car"
+            fields = "id, tags" if kind == "people" else "id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car, shows"
             raise bad(f'entry "{eid}": unknown field "{unknown}" (fields are {fields})')
         if kind == "people":
             _check_tags(item.get("tags"), f'entry "{eid}": tags', bad)
@@ -343,7 +343,13 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         car = item.get("car", "")
         if not isinstance(car, str):
             raise bad(f'entry "{eid}": car must be the id of the entry sharing the car')
-        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, rules.families, bad), camera, colour, name, car, co_driver)
+        shows = item.get("shows", [])
+        if not isinstance(shows, list) or not all(isinstance(s, str) and re.fullmatch(r"\d{1,3}", s) for s in shows):
+            raise bad(f'entry "{eid}": shows must be a list of 1–3 digit numbers, e.g. ["44"]')
+        if number in shows:
+            raise bad(f'entry "{eid}": shows repeats its own number {number}')
+        entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, rules.families, bad), camera, colour, name, car,
+                             co_driver, tuple(dict.fromkeys(shows)))
     if kind == "people":
         if rules_raw is None:
             log("warning: entries.json has no rules block, so the face thresholds use defaults")

@@ -550,6 +550,22 @@ def run_tests():
     check("hinted: a weak read outside the tag set doesn't drop the hint",
           Mt.hinted_match(0, [("44", 0.75)], [("E14", 0.9)], nums, ["Rally|Number|14"], "sponsor", None, 0.85)[1]["dropped"], False)
 
+    shown = {"E14": Entry("E14", "14", "", (), shows=("44",)), "E44": Entry("E44", "44", "", ()),
+             "E108": Entry("E108", "108", "", (), shows=("808",))}
+    check("shows: a shown number held by no other entry identifies by number",
+          summary(Mt.match_box(0, [("808", 0.9)], [("E14", 0.7)], shown)), ("number", "E108", ""))
+    check("shows: a shown number another entry carries goes to livery (old 44 on car 14)",
+          summary(Mt.match_box(0, [("44", 0.9)], [("E14", 0.99), ("E44", 0.40)], shown)), ("livery", "E14", ""))
+    check("shows: the entered car still wins its own number on livery",
+          summary(Mt.match_box(0, [("44", 0.9)], [("E44", 0.99), ("E14", 0.40)], shown)), ("livery", "E44", ""))
+    check("shows: the number index lists both cars for a shared number", Mt.number_index(shown)["44"], ["E14", "E44"])
+    check("shows: list_scores scores shown numbers",
+          sorted(Mt.list_scores([("808", 0.9)], {"808": [[0.9 if j == c else 0.01 for j in range(11)] for c in (9, 0, 1, 0, 9)]}, shown)[0]),
+          ["108", "14", "44", "808"])
+    check("shows: a read of a colour-removed car's number still drops the colour pool",
+          Mt.colour_pool({"E14": replace(shown["E14"], colour="Blue"), "E44": replace(shown["E44"], colour="Red")},
+                         "Blue", [("44", 0.95)], [("E14", 0.9)], 0.85)[1]["reason"], "number_outside")
+
     if failures == 0:
         print("all tests passed")
         sys.exit(0)
