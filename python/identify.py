@@ -1436,6 +1436,7 @@ def identify_people(args, models: dict, entries: dict, rules: Rules, from_entrie
     else:
         log("references: " + ", ".join(f"{e} {counts.get(e, 0)}" for e in entries))
     cache = IdentifyCache(args.cache, prune=True)
+    DetectionCache(models.get("detections", ""), prune=True).close()
     try:
         with WorkerPool(models) as pool:
             analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache,
@@ -1558,6 +1559,7 @@ def identify(args, models: dict):
 
     with WorkerPool(models) as pool:
         cache = IdentifyCache(args.cache, prune=True)
+        DetectionCache(models.get("detections", ""), prune=True).close()
         try:
             analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache, args.progress, pool)
             if cancel_requested(args.progress):

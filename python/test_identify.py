@@ -553,6 +553,27 @@ def run_tests():
     check("the run's first connection prunes it and keeps the fresh one", (first.get("old"), first.get("new")), (None, {"n": 2}))
     first.close()
 
+    # the shared detection cache: the same journal and index, and only the parent's pruning connection drops old rows
+    aged_det = os.path.join(tempfile.mkdtemp(), "detections.sqlite")
+    worker_det = VD.DetectionCache(aged_det)
+    worker_det.put({"boxes": [1]}, "old")
+    worker_det.put({"boxes": [2]}, "new")
+    worker_det.db.execute("UPDATE detections SET used = 0 WHERE key = 'old'")
+    worker_det.db.commit()
+    check("the detection cache journal is WAL and has an index on used",
+          (worker_det.db.execute("PRAGMA journal_mode").fetchone()[0],
+           [r[1] for r in worker_det.db.execute("PRAGMA index_list(detections)") if r[1] == "detections_used"]),
+          ("wal", ["detections_used"]))
+    worker_det.close()
+    later_det = VD.DetectionCache(aged_det)
+    check("a worker's detection cache connection keeps an old row", later_det.get("old"), {"boxes": [1]})
+    later_det.used = []  # the read above would refresh the row's age on close
+    later_det.close()
+    parent_det = VD.DetectionCache(aged_det, prune=True)
+    check("the parent's connection prunes it and keeps the fresh one",
+          (parent_det.get("old"), parent_det.get("new")), (None, {"boxes": [2]}))
+    parent_det.close()
+
     # ---- cancel stops a worker mid-frame instead of waiting for it
     import concurrent.futures
     import time
