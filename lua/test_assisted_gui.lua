@@ -203,11 +203,32 @@ check("fill colours, Identify's entry tag + hand colour: the row names the entry
 check("fill colours: runs in colours-only mode", run ~= nil and flag(run.argv, "--add-reference") == "--colours-only", true)
 check("fill colours: reports the entry set", printed("colours set for 1 entries, 0 already set, 0 unread"), true)
 
--- Identify wrote both tags: nothing by hand names the entry or a colour
-write_file(ROOT .. "/config/assisted_tagging/ledger.csv", "1,Rallye|112\n1,Colour|Red\n")
+-- Identify wrote every tag: one photo's colour tag is not enough to replace the entry's colour
+local ledger_text = ""
+for id = 1, 9 do ledger_text = ledger_text .. id .. ",Rallye|112\n" .. id .. ",Colour|Red\n" .. id .. ",Colour|Brown\n" end
+write_file(ROOT .. "/config/assisted_tagging/ledger.csv", ledger_text)
 run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
-check("fill colours, only Identify's tags: identify.py isn't started", run, nil)
-check("fill colours, only Identify's tags: says no image names an entry", printed("no selected image carries all of one entry's tags"), true)
+check("fill colours, one photo with Identify's tags: the row leaves the colour to the reading",
+    run and run.manifest, T.csv_line({ 1, "/photos/DSC00001.JPG", "112", "" }) .. "\n")
+
+-- three of four agree: their colour is sent for every row of the entry
+run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }), image(4, "DSC00004.JPG", { "Rallye|112", "Colour|Red" }),
+    image(5, "DSC00005.JPG", { "Rallye|112", "Colour|Brown" }), image(6, "DSC00006.JPG", { "Rallye|112", "Colour|Red" }) })
+check("fill colours, Identify's colour tag on 3 of 4 photos: every row carries it", run and run.manifest,
+    T.csv_line({ 1, "/photos/DSC00001.JPG", "112", "Red" }) .. "\n" .. T.csv_line({ 4, "/photos/DSC00004.JPG", "112", "Red" }) .. "\n"
+    .. T.csv_line({ 5, "/photos/DSC00005.JPG", "112", "Red" }) .. "\n" .. T.csv_line({ 6, "/photos/DSC00006.JPG", "112", "Red" }) .. "\n")
+
+-- a photo tagged Check colour has no say, so two photos are left: too few
+run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }), image(4, "DSC00004.JPG", { "Rallye|112", "Colour|Red" }),
+    image(6, "DSC00006.JPG", { "Rallye|112", "Colour|Red", "Assisted Tagging|Identification|Check colour" }) })
+check("fill colours, Check colour photos don't count: no colour is sent",
+    run and run.manifest ~= nil and run.manifest:find("Red", 1, true) == nil, true)
+
+-- split two against two: no colour is sent
+run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }), image(4, "DSC00004.JPG", { "Rallye|112", "Colour|Red" }),
+    image(5, "DSC00005.JPG", { "Rallye|112", "Colour|Brown" }), image(6, "DSC00006.JPG", { "Rallye|112", "Colour|Brown" }) })
+check("fill colours, Identify's colour tags split: no colour is sent",
+    run and run.manifest ~= nil and run.manifest:find("Red", 1, true) == nil and run.manifest:find("Brown", 1, true) == nil, true)
 
 run = fill({ image(3, "DSC00003.JPG", { "Rallye|35" }) })
 check("fill colours, hand entry tag, no colour tag: the row leaves the colour to the reading",

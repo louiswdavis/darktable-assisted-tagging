@@ -9,8 +9,10 @@ ok   fill colours, Identify's entry tag + hand colour: no crash
 ok   fill colours, Identify's entry tag + hand colour: the row names the entry and the colour
 ok   fill colours: runs in colours-only mode
 ok   fill colours: reports the entry set
-ok   fill colours, only Identify's tags: identify.py isn't started
-ok   fill colours, only Identify's tags: says no image names an entry
+ok   fill colours, one photo with Identify's tags: the row leaves the colour to the reading
+ok   fill colours, Identify's colour tag on 3 of 4 photos: every row carries it
+ok   fill colours, Check colour photos don't count: no colour is sent
+ok   fill colours, Identify's colour tags split: no colour is sent
 ok   fill colours, hand entry tag, no colour tag: the row leaves the colour to the reading
 ok   add references, no entry tags: no crash
 ok   add references, no entry tags: identify.py isn't started

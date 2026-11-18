@@ -472,6 +472,12 @@ function M.hand_value(have, ledger_set, root)
     return #values == 1 and values[1] or nil
 end
 
+-- Fill entry colours: colour tags Identify wrote replace an entry's stored colour when at least
+-- this many of the entry's selected photos carry the same one, and that is this share of its
+-- colour-tagged selected photos.
+M.COLOUR_TAG_MIN_PHOTOS = 3
+M.COLOUR_TAG_MIN_SHARE = 2 / 3
+
 -- The entry the user's hand tags name: a number tag (`roots.number`|<n>) names the entry with that
 -- number, a driver tag (`roots.driver`|<name>) the entry with that name, a co-driver tag
 -- (`roots.co_driver`|<name>) the entry with that co_driver. A value two or more entries share names
@@ -3296,19 +3302,30 @@ function M.fill_entry_colours(images)
         local pick_of = select(2, with_paired_jpegs(images))
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         local colour_base = M.family_roots(settings).colour
+        local check_colour = M.named_rules(rules, settings).diag.check_colour
+        -- entry id → it has a hand colour tag; entry id → colour → photos carrying that colour tag
+        local by_hand, tagged = {}, {}
         for _, img in ipairs(images) do
             local src = pick_of[img.id]
-            local hand_colour = M.hand_value(tags_of(img), ledger[img.id], colour_base)
-            -- with a colour tag applied by hand, the entry tags Identify wrote name the entry too
-            local eid = M.entry_for_tags(tags_of(img), entries, entry_order, not hand_colour and ledger[img.id] or nil)
+            local have = tags_of(img)
+            local hand_colour = M.hand_value(have, ledger[img.id], colour_base)
+            -- this action saves no reference, so the entry tags Identify wrote name the entry too
+            local eid = M.entry_for_tags(have, entries, entry_order, nil)
             if not eid then
-                local prefixes = sorted_names(M.hint_tags(tags_of(img), ledger[img.id], entries, M.family_roots(settings).team))
+                local prefixes = sorted_names(M.hint_tags(have, ledger[img.id], entries, M.family_roots(settings).team))
                 if #prefixes == 1 then eid = prefixes[1] end
             end
             if eid then
                 if not sent[src.id] then
                     sent[src.id] = true
                     rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid, hand_colour or "" }
+                    local tag_colour = M.hand_value(have, nil, colour_base)
+                    if hand_colour then
+                        by_hand[eid] = true
+                    elseif tag_colour and not have[check_colour] then
+                        tagged[eid] = tagged[eid] or {}
+                        tagged[eid][tag_colour] = (tagged[eid][tag_colour] or 0) + 1
+                    end
                 end
             else
                 n_skipped = n_skipped + 1
@@ -3316,8 +3333,27 @@ function M.fill_entry_colours(images)
             end
         end
         if #rows == 0 then
-            say(_("Assisted Tagging: no selected image carries all of one entry's tags (applied by you, or by Identify when you added a colour tag), so no colour was read."))
+            say(_("Assisted Tagging: no selected image carries all of one entry's tags, so no colour was read. Select photos already tagged with their car (by Identify or by you)."))
             return
+        end
+        -- no hand colour tag for an entry: the colour tag most of its selected photos carry stands in
+        local agreed = {}
+        for eid, counts in pairs(tagged) do
+            local total, top, top_n = 0, nil, 0
+            for colour, n in pairs(counts) do
+                total = total + n
+                if n > top_n then top, top_n = colour, n end
+            end
+            if not by_hand[eid] and top_n >= M.COLOUR_TAG_MIN_PHOTOS and top_n >= total * M.COLOUR_TAG_MIN_SHARE then
+                agreed[eid] = top
+                log(string.format("entry %s: %d of its %d colour-tagged photos are tagged %s, sent as its colour", eid, top_n, total, top))
+            elseif not by_hand[eid] then
+                log(string.format("entry %s: its photos' colour tags don't agree enough (%d of %d for %s; needs %d photos and %d%%), so they change nothing",
+                    eid, top_n, total, top, M.COLOUR_TAG_MIN_PHOTOS, math.floor(M.COLOUR_TAG_MIN_SHARE * 100 + 0.5)))
+            end
+        end
+        for _, row in ipairs(rows) do
+            if row[4] == "" then row[4] = agreed[row[3]] or "" end
         end
         local results = run_reference_job(state, rows, { "--add-reference", "--colours-only" }, "reading entry colours")
         if not results then return end
@@ -4000,7 +4036,7 @@ local function install_panel()
     }
     local fill_colours_button = new_widget("button") {
         label = _("Fill entry colours"),
-        tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json when it has none. A colour tag you applied to the image is used instead of the reading, and replaces a colour the entry already has. Saves no references. Needs read car colour on."),
+        tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json when it has none. A colour tag you applied to the image is used instead of the reading, and replaces a colour the entry already has. So does the colour tag Identify wrote, when at least 3 of the entry's selected images carry the same one and they are two thirds of its colour-tagged images (images tagged Check colour don't count). Saves no references. Needs read car colour on."),
         clicked_callback = function() M.fill_entry_colours(dt.gui.action_images) end,
     }
     local promote_button = new_widget("button") {
