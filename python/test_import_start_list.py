@@ -105,7 +105,7 @@ def run_tests():
         check("header_report lists headers then each role's mapped header",
               M.header_report("Nr;Pilot;Team\n1;A;B\n").split("\n"),
               ["header\tNr", "header\tPilot", "header\tTeam", "role\tnumber\tNr", "role\tdriver\tPilot", "role\tco-driver\t",
-               "role\tteam\tTeam", "role\tclass\t", "role\tmake\t", "role\tmodel\t", "role\tshares-car\t", "role\tsection\t"])
+               "role\tteam\tTeam", "role\tclass\t", "role\tmake\t", "role\tmodel\t", "role\tshares-car\t", "role\tpaddock\t"])
 
         codir = os.path.join(tmp, "codrivers")
         os.makedirs(codir)
@@ -171,17 +171,20 @@ def run_tests():
         demo = os.path.join(tmp, "demo")
         os.makedirs(demo)
         demo_csv = os.path.join(tmp, "demo.csv")
-        write(demo_csv, "Car No,Driver,Section\n8,Race Eight,Entry\n14,Race Fourteen,Entry\n8,Demo Eight,Demonstration\n")
+        write(demo_csv, "Car No,Driver,Class,Paddock\n8,Race Eight,Class 2,H3\n14,Race Fourteen,Class 2,H4\n8,Demo Eight,Demonstration,A0\n9,Demo Nine,Demonstration,Office 1\n")
         M.main([demo, "--csv", demo_csv])
-        check("a Demonstration row gets id D<number>; demo 8 and race 8 are separate entries",
+        check("a Demonstration row gets its paddock id (spaces dropped); demo 8 and race 8 are separate entries",
               [(e["id"], e["number"], e.get("name")) for e in entries_of(demo)],
-              [("8", "8", "Race Eight"), ("14", "14", "Race Fourteen"), ("D8", "8", "Demo Eight")])
+              [("8", "8", "Race Eight"), ("14", "14", "Race Fourteen"), ("A0", "8", "Demo Eight"), ("Office1", "9", "Demo Nine")])
         demo_twice = os.path.join(tmp, "demo_twice.csv")
-        write(demo_twice, "Car No,Driver,Section\n3,A,Demonstration\n3,B,Demonstration\n")
-        check("a demo number listed twice fails", exits_2([demo, "--csv", demo_twice]), 2)
+        write(demo_twice, "Car No,Driver,Class,Paddock\n3,A,Demonstration,A1\n4,B,Demonstration,A1\n")
+        check("a demo paddock listed twice fails", exits_2([demo, "--csv", demo_twice]), 2)
+        no_paddock = os.path.join(tmp, "no_paddock.csv")
+        write(no_paddock, "Car No,Driver,Class\n3,A,Demonstration\n")
+        check("a demo row with no paddock fails", exits_2([demo, "--csv", no_paddock]), 2)
         rows, _ = M.rows_from_text("1 Smith / Jones\nDemonstrations\nDemo No Driver Licence Paddock\n4 Lee\n")
         check("pasted lines after a Demo heading are demo rows",
-              [(r["number"], r.get("section", "")) for r in rows], [("1", ""), ("4", "Demonstration")])
+              [(r["number"], r.get("class", "")) for r in rows], [("1", ""), ("4", "Demonstration")])
 
         rekey = os.path.join(tmp, "rekey")
         os.makedirs(os.path.join(rekey, "refs", "14"))
@@ -197,19 +200,19 @@ def run_tests():
             {"id": "15", "number": "15", "name": "Other", "car": "14"},
             {"id": "60", "number": "60", "name": "Race Sixty"}]}))
         rekey_csv = os.path.join(tmp, "rekey.csv")
-        write(rekey_csv, "Car No,Driver,Section\n60,Race Sixty,Entry\n14,Demo Fourteen,Demonstration\n")
+        write(rekey_csv, "Car No,Driver,Class,Paddock\n60,Race Sixty,Class 2,E6\n14,Demo Fourteen,Demonstration,A11\n")
         M.main([rekey, "--csv", rekey_csv])
         got = entries_of(rekey)
-        check("an existing bare-number entry is renamed to its demo id, keeping its fields",
+        check("an existing bare-number entry is renamed to its paddock id, keeping its fields",
               [(e["id"], e["number"], e.get("shows")) for e in got],
-              [("D14", "14", ["44"]), ("15", "15", None), ("60", "60", None)])
-        check("a car field naming the old id follows the rename", got[1].get("car"), "D14")
-        check("the refs folder moves to the demo id",
-              (sorted(os.listdir(os.path.join(rekey, "refs", "D14"))), os.path.exists(os.path.join(rekey, "refs", "14"))),
+              [("A11", "14", ["44"]), ("15", "15", None), ("60", "60", None)])
+        check("a car field naming the old id follows the rename", got[1].get("car"), "A11")
+        check("the refs folder moves to the paddock id",
+              (sorted(os.listdir(os.path.join(rekey, "refs", "A11"))), os.path.exists(os.path.join(rekey, "refs", "14"))),
               (["a.jpg", "a_b3.jpg"], False))
         check("sources.json records follow the move; other cars' records stay",
               sorted(json.load(open(os.path.join(rekey, "refs", "sources.json"), encoding="utf-8"))),
-              ["refs/60/c.jpg", "refs/D14/a.jpg"])
+              ["refs/60/c.jpg", "refs/A11/a.jpg"])
 
         clash = os.path.join(tmp, "clash")
         os.makedirs(clash)
@@ -217,18 +220,30 @@ def run_tests():
         M.main([clash, "--csv", rekey_csv])
         check("a bare-number entry with a different driver isn't renamed; the demo is added beside it",
               [(e["id"], e.get("name")) for e in entries_of(clash)],
-              [("14", "Someone Else"), ("60", "Race Sixty"), ("D14", "Demo Fourteen")])
+              [("14", "Someone Else"), ("60", "Race Sixty"), ("A11", "Demo Fourteen")])
 
         joined = os.path.join(tmp, "joined")
         os.makedirs(joined)
         write(os.path.join(joined, "entries.json"), dump({"entries": [
             {"id": "10", "number": "10", "name": "Demo Ten / Co Ten", "colour": "Red"}]}))
         joined_csv = os.path.join(tmp, "joined.csv")
-        write(joined_csv, "Car No,Driver,Co-driver,Section\n10,Demo Ten,Co Ten,Demonstration\n")
+        write(joined_csv, "Car No,Driver,Co-driver,Class,Paddock\n10,Demo Ten,Co Ten,Demonstration,A7\n")
         M.main([joined, "--csv", joined_csv])
         check("an older import's \"driver / co-driver\" name still counts as the same driver",
               [(e["id"], e.get("colour")) for e in entries_of(joined)],
-              [("D10", "Red")])
+              [("A7", "Red")])
+
+        again = os.path.join(tmp, "again")
+        os.makedirs(os.path.join(again, "refs", "D14"))
+        write(os.path.join(again, "refs", "D14", "a.jpg"), "x")
+        write(os.path.join(again, "entries.json"), dump({"entries": [
+            {"id": "D14", "number": "14", "name": "Demo Fourteen", "shows": ["44"]},
+            {"id": "15", "number": "15", "name": "Other", "car": "D14"}]}))
+        M.main([again, "--csv", rekey_csv])
+        got = entries_of(again)
+        check("an entry already renamed to D<number> moves on to its paddock id, with cars and refs",
+              ([(e["id"], e.get("shows")) for e in got], got[1].get("car"), os.listdir(os.path.join(again, "refs", "A11"))),
+              ([("A11", ["44"]), ("15", None), ("60", None)], "A11", ["a.jpg"]))
 
         bare = os.path.join(tmp, "bare")
         os.makedirs(bare)

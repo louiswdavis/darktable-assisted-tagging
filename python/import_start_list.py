@@ -5,7 +5,7 @@
   python python/import_start_list.py COLLECTION_DIR --csv START_LIST.csv --header
 
 A CSV has a header row; MAP says which header holds which role, as `role=header` pairs joined
-by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car, section); `role=` says the
+by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car, paddock); `role=` says the
 CSV has none. A role left out of MAP is found by its usual names (ALIASES); only `number` is
 required. --header prints the headers and that mapping for the panel's column pickers. Pasted text (an entry list copied from a PDF)
 has one entry per line, number first, then "driver / co-driver"; lines without a leading number
@@ -13,10 +13,11 @@ are skipped and counted. Each entry becomes {"id": number, "number": number, "na
 "co_driver": co-driver, "team": team, "extra": class, "make": make, "model": model}, with the empty fields
 left out; a model needs a make. The Class and Vehicle tag families build the tags from them. A `shares-car` column names the other entry
 driving the same car; both rows must name each other, and the higher number gets `"car": "<lower id>"`.
-A row whose `section` starts with "Demo" (a demonstration run) gets id `D<number>`, so demo 14 and
-race car 14 are separate entries; in pasted text, a line starting "Demo" marks the lines after it.
-An entry already in entries.json under the bare number with the same driver is renamed to its D id,
-along with its refs folder and refs/sources.json records. Other ids already in entries.json, and
+A row whose `class` starts with "Demo" (a demonstration run) gets its own `paddock` value as id
+(`A11`, spaces dropped: `Office1`) and keeps its number, so demo 14 and race car 14 are separate
+entries; a demo row with no paddock is bad input. Pasted text has no paddock, so it can't hold demo
+rows. An entry already in entries.json under the bare number, or under the earlier `D<number>` id,
+with the same driver is renamed to its paddock id, along with its refs folder and refs/sources.json records. Other ids already in entries.json, and
 race numbers another race entry holds, are skipped and listed, never overwritten. The previous file is
 kept as entries.json.bak. A file not in the one-entry-per-line layout is reflowed into it. Exit 2
 with a message on bad input."""
@@ -33,7 +34,7 @@ import sys
 from common import atomic_write
 from entries_file import dump
 
-ROLES = ("number", "driver", "co-driver", "team", "class", "make", "model", "shares-car", "section")
+ROLES = ("number", "driver", "co-driver", "team", "class", "make", "model", "shares-car", "paddock")
 ALIASES = {
     "number": ("number", "no", "no.", "#", "nr", "num", "car", "car no", "car no.", "car number", "start no", "start number"),
     "driver": ("driver", "name", "pilot", "driver name", "competitor"),
@@ -43,9 +44,9 @@ ALIASES = {
     "make": ("make", "manufacturer"),
     "model": ("model",),
     "shares-car": ("shares car with", "shares car", "shared car"),
-    "section": ("section", "entry type"),
+    "paddock": ("paddock", "paddock id", "paddock no"),
 }
-DEMO_ID = re.compile(r"D\d{1,3}")
+PADDOCK_ID = re.compile(r"[A-Za-z][A-Za-z0-9]*")
 _LINE = re.compile(r"^\s*#?(\d{1,3})(?!\d)[\s.:)\-–]*(.*?)\s*$")
 _BAD = re.compile(r'[,;"]')
 _BAD_TAG = re.compile(r'[,;"|]')
@@ -53,6 +54,11 @@ _BAD_TAG = re.compile(r'[,;"|]')
 
 class BadInput(Exception):
     pass
+
+
+def is_demo_id(entry_id) -> bool:
+    """Race entries are keyed by their number; a demo is keyed by its paddock id, never all digits."""
+    return not str(entry_id).isdigit()
 
 
 def parse_columns(spec: str) -> dict:
@@ -132,20 +138,20 @@ def header_report(text: str) -> str:
 def rows_from_text(text: str) -> tuple:
     """Pasted lines → (rows, skipped line count). "12 Smith / Jones" gives driver Smith, co-driver Jones.
     A line starting "Demo" (a PDF's Demonstrations heading) makes the numbered lines after it demo rows."""
-    rows, skipped, section = [], 0, ""
+    rows, skipped, demo = [], 0, False
     for line in text.splitlines():
         if not line.strip():
             continue
         m = _LINE.match(line)
         if not m:
             if line.strip().lower().startswith("demo"):
-                section = "Demonstration"
+                demo = True
             skipped += 1
             continue
         driver, _, co = m.group(2).partition(" / ")
         row = {"number": m.group(1), "driver": driver.strip(), "co-driver": co.strip()}
-        if section:
-            row["section"] = section
+        if demo:
+            row["class"] = "Demonstration"
         rows.append(row)
     return rows, skipped
 
@@ -159,10 +165,10 @@ def entries_from(rows: list) -> tuple:
         if not re.fullmatch(r"\d{1,3}", number):
             raise BadInput(f'row {n}: "{row.get("number", "")}" is not a 1–3 digit number')
         number = str(int(number))
-        demo = row.get("section", "").strip().lower().startswith("demo")
-        entry_id = f"D{number}" if demo else number
+        demo = row.get("class", "").strip().lower().startswith("demo")
+        entry_id = demo_id(row, n) if demo else number
         if entry_id in seen:
-            raise BadInput(f"{'demo ' if demo else ''}number {number} is listed twice")
+            raise BadInput(f"{'demo paddock' if demo else 'number'} {entry_id} is listed twice")
         seen.add(entry_id)
         name, co_driver, team = (row.get(k, "").strip() for k in ("driver", "co-driver", "team"))
         if _BAD.search(name + co_driver + team):
@@ -186,6 +192,15 @@ def entries_from(rows: list) -> tuple:
         raise BadInput("no entries found")
     _pair_cars([(e, r) for e, r in zip(entries, rows) if e["id"] == e["number"]])
     return entries, cleaned
+
+
+def demo_id(row: dict, n: int) -> str:
+    """A demo row's paddock id with spaces dropped ("Office 1" → "Office1"); BadInput when the row has
+    none, or one that isn't a letter then letters and digits (an all-digit id would clash with a race number)."""
+    paddock = re.sub(r"\s+", "", row.get("paddock", ""))
+    if not PADDOCK_ID.fullmatch(paddock):
+        raise BadInput(f'row {n}: demo {row.get("number", "")} needs a paddock id (a letter, then letters or digits), got "{row.get("paddock", "")}"')
+    return paddock
 
 
 def _pair_cars(pairs: list):
@@ -235,7 +250,7 @@ def merge(collection_dir: str, entries: list) -> dict:
     renamed = _rename_demos(existing, entries)
     ids = {e.get("id") for e in existing if isinstance(e, dict)}
     race_numbers = {str(e.get("number", "")) for e in existing
-                    if isinstance(e, dict) and not DEMO_ID.fullmatch(str(e.get("id", "")))}
+                    if isinstance(e, dict) and not is_demo_id(e.get("id", ""))}
     taken = [e for e in entries if e["id"] in ids or (e["id"] == e["number"] and e["number"] in race_numbers)]
     new = [e for e in entries if e not in taken]
     skipped = [e["id"] for e in taken if e["id"] not in {n for _, n in renamed}]
@@ -252,23 +267,26 @@ def merge(collection_dir: str, entries: list) -> dict:
 
 
 def _rename_demos(existing: list, entries: list) -> list:
-    """[(old id, demo id)]: each existing entry whose id is the bare number of an imported demo
-    entry, with that number and the same driver (when both name one), takes the demo id; `car`
-    fields naming the old id follow. An existing demo id is left alone. An old entry's name may
+    """[(old id, demo id)]: each existing entry whose id is the bare number, or the earlier D<number>,
+    of an imported demo entry, with that number and the same driver (when both name one), takes the
+    paddock id; `car` fields naming the old id follow. An existing paddock id is left alone. An old entry's name may
     be the older importers' "driver / co-driver", so only its driver part is compared."""
     by_id = {e.get("id"): e for e in existing if isinstance(e, dict)}
     renamed = []
     for entry in entries:
-        old = by_id.get(entry["number"])
-        if not DEMO_ID.fullmatch(entry["id"]) or entry["id"] in by_id or old is None:
+        if not is_demo_id(entry["id"]) or entry["id"] in by_id:
             continue
+        old_id = next((i for i in (f"D{entry['number']}", entry["number"]) if i in by_id), None)
+        if old_id is None:
+            continue
+        old = by_id[old_id]
         if str(old.get("number", "")) != entry["number"]:
             continue
         if old.get("name") and entry.get("name") and old["name"].split(" / ")[0] != entry["name"]:
             continue
         old["id"] = entry["id"]
-        by_id[entry["id"]] = by_id.pop(entry["number"])
-        renamed.append((entry["number"], entry["id"]))
+        by_id[entry["id"]] = by_id.pop(old_id)
+        renamed.append((old_id, entry["id"]))
     for old_id, new_id in renamed:
         for e in by_id.values():
             if e.get("car") == old_id:
@@ -307,7 +325,7 @@ def main(argv=None):
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--csv", help="a start list with a header row")
     src.add_argument("--text", help="pasted lines, number first")
-    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car, section); role= for none')
+    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car, paddock); role= for none')
     parser.add_argument("--header", action="store_true", help="with --csv: print the headers and how the usual names map them, write nothing")
     args = parser.parse_args(argv)
     if args.header and not args.csv:
@@ -330,7 +348,7 @@ def main(argv=None):
         sys.exit(2)
     notes = []
     if result["renamed"]:
-        notes.append(f"renamed {len(result['renamed'])} to demo ids: "
+        notes.append(f"renamed {len(result['renamed'])} to paddock ids: "
                      + ", ".join(f"{o}→{n}" for o, n in result["renamed"]))
     if result["skipped"]:
         notes.append(f"skipped {len(result['skipped'])} already listed: {', '.join(result['skipped'])}")

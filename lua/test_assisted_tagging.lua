@@ -718,7 +718,7 @@ do
     check("parse_header_report: empty output", #(T.parse_header_report("")), 0)
     check("columns_spec names every role, none as empty",
         T.columns_spec({ number = "Nr", driver = "Pilot" }),
-        "number=Nr;driver=Pilot;co-driver=;team=;class=;make=;model=;shares-car=;section=")
+        "number=Nr;driver=Pilot;co-driver=;team=;class=;make=;model=;shares-car=;paddock=")
 end
 
 -- ledger / protected tags / shot + conflict handling ---------------------------

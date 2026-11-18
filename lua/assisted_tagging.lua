@@ -1019,7 +1019,7 @@ function M.read_results(text)
 end
 
 -- The start-list import's column roles, as import_start_list.py ROLES names them.
-M.IMPORT_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "shares-car", "section" }
+M.IMPORT_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "shares-car", "paddock" }
 
 -- `import_start_list.py --header` output → (CSV headers in order, {role = mapped header or ""}).
 function M.parse_header_report(out)
@@ -3790,7 +3790,7 @@ local function install_panel()
     end
     -- One picker per role: (none) + the chosen CSV's headers, preset to the usual names.
     local ROLE_LABELS = { number = _("number"), driver = _("driver"), ["co-driver"] = _("co-driver"), team = _("team"),
-        class = _("class"), make = _("make"), model = _("model"), ["shares-car"] = _("shares car with"), section = _("section") }
+        class = _("class"), make = _("make"), model = _("model"), ["shares-car"] = _("shares car with"), paddock = _("paddock") }
     local column_headers = {} -- the chosen CSV's headers; {} until one is read
     local column_combos = {}
     for i, role in ipairs(M.IMPORT_ROLES) do
