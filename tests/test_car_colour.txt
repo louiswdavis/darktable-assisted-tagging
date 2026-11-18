@@ -51,6 +51,13 @@ ok   Grey vs Black is neutral
 ok   White vs Black still disagrees
 ok   Grey vs Red still disagrees
 ok   Multi agrees with Multi
+ok   Blue vs Purple is neutral
+ok   Red vs Pink is neutral
+ok   Green vs Purple still disagrees
+ok   vote: near colours support the leader
+ok   vote: an unrelated colour gives no support
+ok   vote: a tie for the most photos names no colour
+ok   vote: no reads
 ok   digest is stable
 ok   digest changes with a bound
 ok   digest changes with a name

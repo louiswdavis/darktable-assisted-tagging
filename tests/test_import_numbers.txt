@@ -1,4 +1,4 @@
-wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmp9vlgerv2\entries.json
+wrote 3 entries to C:\Users\Louis\AppData\Local\Temp\tmpwd06bfpo\entries.json
 ok   import writes numbers-only entries
 ok   import writes no rules (tag roots and order_weight live in settings.json)
 ok   import refuses to overwrite
@@ -9,9 +9,9 @@ ok   import rejects the removed --tag-prefix flag
 all tests passed
 
 --- stderr ---
-import_numbers: C:\Users\Louis\AppData\Local\Temp\tmp9vlgerv2\entries.json already exists; not overwriting
+import_numbers: C:\Users\Louis\AppData\Local\Temp\tmpwd06bfpo\entries.json already exists; not overwriting
 import_numbers: number 12 is listed twice
-import_numbers: C:\Users\Louis\AppData\Local\Temp\tmp9vlgerv2\empty.csv has no numbers
+import_numbers: C:\Users\Louis\AppData\Local\Temp\tmpwd06bfpo\empty.csv has no numbers
 usage: test_import_numbers.py [-h] numbers_csv out_entries_json
 test_import_numbers.py: error: unrecognized arguments: --order-weight 0.5
 usage: test_import_numbers.py [-h] numbers_csv out_entries_json
