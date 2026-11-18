@@ -219,6 +219,17 @@ def run_tests():
               [(e["id"], e.get("name")) for e in entries_of(clash)],
               [("14", "Someone Else"), ("60", "Race Sixty"), ("D14", "Demo Fourteen")])
 
+        joined = os.path.join(tmp, "joined")
+        os.makedirs(joined)
+        write(os.path.join(joined, "entries.json"), dump({"entries": [
+            {"id": "10", "number": "10", "name": "Demo Ten / Co Ten", "colour": "Red"}]}))
+        joined_csv = os.path.join(tmp, "joined.csv")
+        write(joined_csv, "Car No,Driver,Co-driver,Section\n10,Demo Ten,Co Ten,Demonstration\n")
+        M.main([joined, "--csv", joined_csv])
+        check("an older import's \"driver / co-driver\" name still counts as the same driver",
+              [(e["id"], e.get("colour")) for e in entries_of(joined)],
+              [("D10", "Red")])
+
         bare = os.path.join(tmp, "bare")
         os.makedirs(bare)
         write(os.path.join(bare, "entries.json"), '[\n  { "id": "1", "tags": ["X"] }\n]\n')

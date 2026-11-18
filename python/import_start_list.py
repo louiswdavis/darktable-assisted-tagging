@@ -254,7 +254,8 @@ def merge(collection_dir: str, entries: list) -> dict:
 def _rename_demos(existing: list, entries: list) -> list:
     """[(old id, demo id)]: each existing entry whose id is the bare number of an imported demo
     entry, with that number and the same driver (when both name one), takes the demo id; `car`
-    fields naming the old id follow. An existing demo id is left alone."""
+    fields naming the old id follow. An existing demo id is left alone. An old entry's name may
+    be the older importers' "driver / co-driver", so only its driver part is compared."""
     by_id = {e.get("id"): e for e in existing if isinstance(e, dict)}
     renamed = []
     for entry in entries:
@@ -263,7 +264,7 @@ def _rename_demos(existing: list, entries: list) -> list:
             continue
         if str(old.get("number", "")) != entry["number"]:
             continue
-        if old.get("name") and entry.get("name") and old["name"] != entry["name"]:
+        if old.get("name") and entry.get("name") and old["name"].split(" / ")[0] != entry["name"]:
             continue
         old["id"] = entry["id"]
         by_id[entry["id"]] = by_id.pop(entry["number"])
