@@ -984,8 +984,17 @@ def run_tests():
 
         check("a hand colour on an entry without one is set", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","VER","Red"'), "1,added,set,VER")
         check("entries.json gains the colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
-        check("a different reading of a coloured entry differs", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","VER","Blue"'), "1,added,differs,VER")
-        check("a differing reading leaves the colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
+        check("a different hand colour replaces the entry's colour", ref_job(I.add_references, ccoll, f'"1","{real_jpg}","VER","Blue"'), "1,added,set,VER")
+        check("entries.json holds the hand colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Blue")
+        ccars = I.load_collection(ccoll, "")[0]
+        crules = I.load_collection(ccoll, "")[1]
+        check("a different reading of a coloured entry differs",
+              I.fill_colours(centries, ccars, crules, [("1", "added", [])], [[("VER", "Red", False)]]), ["differs"])
+        check("a differing reading leaves the colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Blue")
+        check("a hand colour beats a reading earlier in the job",
+              I.fill_colours(centries, ccars, crules, [("1", "added", []), ("2", "added", [])],
+                             [[("VER", "Green", False)], [("VER", "Red", True)]]), ["differs", "set"])
+        check("entries.json holds the later hand colour", json.load(open(centries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
 
         # --colours-only: the colour alone goes to entries.json, no reference is saved
         ocoll = collection(entries_file.dump({"entries": [VER, TSU]}), root=root, settings=colour_on)

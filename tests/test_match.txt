@@ -200,6 +200,7 @@ ok   shows: list_scores scores shown numbers
 ok   shows: a read of a colour-removed car's number still drops the colour pool
 ok   closer car: a lead of the margin or more moves the match and keeps the flag
 ok   closer car: a lead of exactly the margin moves
+ok   sure cars: a 0.9+ number read (by car) or a hand tag counts, per burst; weak reads and livery don't
 ok   closer car: a burst or neighbour match never moves
 ok   closer car: a lead under the margin drops
 ok   closer car: margin 0 never moves
@@ -207,4 +208,6 @@ ok   closer car: no closer car drops
 ok   closer car: a double-driven car can't say which driver, so drops
 ok   closer car: a closer car under the anchor floor drops
 ok   closer car: the photo's other box is that car already, so drops
+ok   closer car: the burst's sure cars name another car, so drops
+ok   closer car: the burst's sure cars include the closer car, so moves
 all tests passed

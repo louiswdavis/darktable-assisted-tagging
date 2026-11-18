@@ -244,6 +244,9 @@ def run_tests():
     check("an entry with a colour is never changed", F.set_colours(blue, {"A": "Red"}), (False, "unchanged"))
     check("an unchanged file keeps its bytes", read(blue), before)
     check("an unchanged file gets no .bak", os.path.exists(blue + ".bak"), False)
+    check("an entry named in replace gets the new colour", (F.set_colours(blue, {"A": "Red"}, {"A"}), read(blue)),
+          ((True, "set"), '[\n  { "id": "A", "colour": "Red" }\n]\n'))
+    check("replace with the colour it has is unchanged", F.set_colours(blue, {"A": "Red"}, {"A"}), (False, "unchanged"))
 
     split = write('{\n  "rules": {},\n  "entries": [\n    { "id": "A",\n      "number": "1" }\n  ]\n}\n')
     check("an entry split over two lines is written", F.set_colours(split, {"A": "Red"}), (True, "set"))

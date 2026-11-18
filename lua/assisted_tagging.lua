@@ -3999,7 +3999,7 @@ local function install_panel()
     }
     local fill_colours_button = new_widget("button") {
         label = _("Fill entry colours"),
-        tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json. Saves no references. Needs read car colour on."),
+        tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json when it has none. A colour tag you applied to the image is used instead of the reading, and replaces a colour the entry already has. Saves no references. Needs read car colour on."),
         clicked_callback = function() M.fill_entry_colours(dt.gui.action_images) end,
     }
     local promote_button = new_widget("button") {

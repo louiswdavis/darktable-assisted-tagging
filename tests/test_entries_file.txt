@@ -11,6 +11,8 @@ ok   no temp file is left
 ok   an entry with a colour is never changed
 ok   an unchanged file keeps its bytes
 ok   an unchanged file gets no .bak
+ok   an entry named in replace gets the new colour
+ok   replace with the colour it has is unchanged
 ok   an entry split over two lines is written
 ok   a split entry is reflowed onto one line
 ok   the panel's one-line rules layout writes

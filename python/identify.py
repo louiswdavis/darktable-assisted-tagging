@@ -1698,49 +1698,61 @@ _NOTE_RANK = {"": 0, "already": 1, "set": 2, "differs": 3}
 
 
 def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: list) -> list:
-    """Writes the job's colour proposals (`proposed[i]`: [(entry id, colour)] for row `done[i]`) to
-    entries.json in one entries_file.set_colours call. Only entries without a colour get one; the first
-    proposal per entry wins. Returns each row's colour_note: "set", "differs", "already" (the entry
-    holds that colour) or ""; a row with several outcomes reports the more serious (differs, set,
-    then already). A file that can't be written is logged and its rows get no note."""
+    """Writes the job's colour proposals (`proposed[i]`: [(entry id, colour, by hand)] for row
+    `done[i]`; `by hand` may be left out) to entries.json in one entries_file.set_colours call. A
+    colour read from the photo only fills an entry without one; a colour tag the user applied (`by
+    hand`) also replaces the entry's colour, and is taken before any reading. The first proposal per
+    entry wins. Returns each row's colour_note: "set", "differs", "already" (the entry holds that
+    colour) or ""; a row with several outcomes reports the more serious (differs, set, then
+    already). A file that can't be written is logged and its rows get no note."""
     names = [n for n, _ in rules.colour_palette] + [car_colour.MULTI]
     notes = [""] * len(done)
     chosen, rows_of = {}, {}  # entry id → colour; entry id → rows whose proposal is the chosen one
+    replaced = {}  # entry id → the colour a hand tag replaces
 
     def mark(i, note):
         if _NOTE_RANK[note] > _NOTE_RANK[notes[i]]:
             notes[i] = note
 
-    for i, ((image_id, status, _), props) in enumerate(zip(done, proposed)):
-        if status == "flagged":
-            continue
-        for eid, colour in props:
-            if colour not in names:
-                log(f"{image_id}: colour {colour} isn't in rules.colour_palette, so entry {eid} doesn't get it")
+    for hand_pass in (True, False):
+        for i, ((image_id, status, _), props) in enumerate(zip(done, proposed)):
+            if status == "flagged":
                 continue
-            have = entries[eid].colour or chosen.get(eid, "")
-            if not have:
-                chosen[eid] = colour
-                rows_of.setdefault(eid, []).append(i)
-            elif colour == chosen.get(eid) and not entries[eid].colour:
-                rows_of[eid].append(i)
-            elif colour == entries[eid].colour:
-                mark(i, "already")
-            elif colour != have:
-                where = "in entries.json" if entries[eid].colour else "from an earlier reference in this job"
-                log(f"entry {eid}: colour is {have} {where}, this reference reads {colour}; left as {have}")
-                mark(i, "differs")
+            for eid, colour, *by_hand in props:
+                if bool(by_hand and by_hand[0]) != hand_pass:
+                    continue
+                if colour not in names:
+                    log(f"{image_id}: colour {colour} isn't in rules.colour_palette, so entry {eid} doesn't get it")
+                    continue
+                stored = entries[eid].colour
+                have = chosen.get(eid) or stored
+                if eid not in chosen and (not stored or (hand_pass and colour != stored)):
+                    chosen[eid] = colour
+                    rows_of[eid] = [i]
+                    if stored:
+                        replaced[eid] = stored
+                elif colour == chosen.get(eid):
+                    rows_of[eid].append(i)
+                elif eid not in chosen and colour == stored:
+                    mark(i, "already")
+                else:
+                    where = "in entries.json" if eid not in chosen else \
+                        "from a colour tag in this job" if eid in replaced else "from an earlier reference in this job"
+                    what = "has the colour tag" if hand_pass else "reads"
+                    log(f"entry {eid}: colour is {have} {where}, this reference {what} {colour}; left as {have}")
+                    mark(i, "differs")
     if not chosen:
         return notes
     try:
-        written, reason = entries_file.set_colours(path, chosen)
+        written, reason = entries_file.set_colours(path, chosen, replaced)
     except (OSError, ValueError) as e:
         log(f"couldn't update entries.json ({type(e).__name__}: {e})")
         return notes
     if not written:
         return notes
     for eid, colour in chosen.items():
-        log(f"entry {eid}: colour set to {colour} in entries.json")
+        log(f"entry {eid}: colour changed from {replaced[eid]} to {colour} in entries.json (your colour tag)" if eid in replaced
+            else f"entry {eid}: colour set to {colour} in entries.json")
         for i in rows_of[eid]:
             mark(i, "set")
     return notes
@@ -1764,7 +1776,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = "", siglip: 
     """Runs `handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour) -> (status,
     proposals[, row_entry])` over the manifest rows (an optional 4th column is the image's hand-applied
     colour), writing one `id,status,colour_note,entry_id` results row and a progress tick per row.
-    `proposals` is [(entry id, colour)] for fill_colours; the row's entry id is `row_entry` when the
+    `proposals` is [(entry id, colour, by hand)] for fill_colours; the row's entry id is `row_entry` when the
     handler gives one, else the first proposal's, else the manifest's (`""` when it has none).
     References added before a cancel are kept, colours aren't
     written; the reference index is saved either way. `screen` ("warn" or "skip") then checks the new
@@ -1855,7 +1867,7 @@ def add_references(args, models: dict):
                 if not colour:
                     log(f"{image_id}: " + (f"no vehicle found ({note})" if not boxes else "couldn't tell the car's colour") + "; colour unread")
                     return "unread", []
-                return "read", [(entry_id, colour)]
+                return "read", [(entry_id, colour, bool(hand_colour))]
             if is_team and len(boxes) != 1:
                 log(f"{image_id}: {len(boxes)} vehicles found; only a solo shot can be a team reference")
                 return "team_not_solo", []
@@ -1869,7 +1881,7 @@ def add_references(args, models: dict):
             proposals = []
             if "colour" in rules.families and not is_team:
                 colour = hand_colour or car_colour.decide_colour(colour_read(crop, rules.colour_palette))
-                proposals = [(entry_id, colour)] if colour else []
+                proposals = [(entry_id, colour, bool(hand_colour))] if colour else []
             return "added", proposals
         except Exception as e:
             log(f"{image_id}: couldn't add reference ({type(e).__name__}: {e})")
@@ -1915,9 +1927,10 @@ def promote_boxes(args, models: dict):
                 rel = index.add(b["entry"], f"{image_id}_b{b['box']}", crop_box(rgb, b["bbox"]), "number", b.get("confidence"))
                 log(f"{image_id}: box {b['box']} ({b['method']}) reference {rel}")
                 # a boxes.json from before colour reading has no shares, so gives no colour
-                colour = hand_colour if hand_colour and len(wanted) == 1 else car_colour.decide_colour(b.get("colour_shares", {}))
+                by_hand = bool(hand_colour) and len(wanted) == 1
+                colour = hand_colour if by_hand else car_colour.decide_colour(b.get("colour_shares", {}))
                 if "colour" in rules.families and colour:
-                    proposals.append((b["entry"], colour))
+                    proposals.append((b["entry"], colour, by_hand))
             return "added", proposals, wanted[0]["entry"]
         except Exception as e:
             log(f"{image_id}: couldn't add references ({type(e).__name__}: {e})")

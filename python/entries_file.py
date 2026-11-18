@@ -41,10 +41,11 @@ def dump(data, inline_rules: bool = False) -> str:
     return "{\n" + ",\n".join(lines) + "\n}\n"
 
 
-def set_colours(path: str, colours: dict) -> tuple:
+def set_colours(path: str, colours: dict, replace=()) -> tuple:
     """Gives each entry in `colours` ({entry id: colour}) that has no colour yet its colour, appended
-    as its last key. Entries that already have a colour are never touched. Returns (written, reason):
-    (True, "set"), or (False, "unchanged") when no entry needed one. A file in `dump`'s layout
+    as its last key. An entry that already has a colour is only changed when its id is in `replace`
+    (the user's own colour tags), keeping the key where it was. Returns (written, reason):
+    (True, "set"), or (False, "unchanged") when no entry changed. A file in `dump`'s layout
     (trailing whitespace aside) keeps its layout, line endings and trailing whitespace; any other
     layout is reflowed into the canonical one. Writes a temp file, keeps the previous file as
     entries.json.bak, then replaces it."""
@@ -59,6 +60,9 @@ def set_colours(path: str, colours: dict) -> tuple:
         colour = colours.get(e.get("id")) if isinstance(e, dict) else None
         if colour and not e.get("colour"):
             e.pop("colour", None)
+            e["colour"] = colour
+            changed = True
+        elif colour and e["id"] in replace and e["colour"] != colour:
             e["colour"] = colour
             changed = True
     if not changed:
