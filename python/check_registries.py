@@ -79,7 +79,29 @@ def schema_problems() -> list:
     return out
 
 
+def shadow_problems() -> list:
+    """Lines of assisted_tagging.lua that call the translate function `_` where a local or a loop
+    variable named `_` hides it ("attempt to call a nil/table value" in darktable). A `local _` hides
+    it up to the end of the file's indentation block, a `for _, ...` loop inside its body."""
+    with open(os.path.join(os.path.dirname(HERE), "lua", "assisted_tagging.lua"), encoding="utf-8") as f:
+        lines = f.read().split("\n")
+    out = []
+    for n, line in enumerate(lines):
+        bound = re.match(r"(\s*)(local _\s*[,=]|for _\s*[,=])", line)
+        if not bound:
+            continue
+        indent, is_loop = len(bound.group(1)), bound.group(2).startswith("for")
+        for m in range(n + 1, len(lines)):
+            body = lines[m]
+            depth = len(body) - len(body.lstrip())
+            if body.strip() and (depth < indent or (is_loop and depth == indent)):
+                break
+            if re.search(r"(?<![\w.])_\(", body):
+                out.append(f"lua: line {m + 1} calls _() but line {n + 1} binds a variable named _")
+    return out
+
+
 if __name__ == "__main__":
-    found = fingerprint_problems() + schema_problems()
+    found = fingerprint_problems() + schema_problems() + shadow_problems()
     print("\n".join(found) if found else "registries ok")
     sys.exit(1 if found else 0)
