@@ -2879,6 +2879,9 @@ local function apply_results(run, job)
     log(string.format("apply: writing %d tags to %d images (%d copies)", n_writes, #primaries, n_copies))
     flush_log()
     local apply_start, total_writes = os.time(), 0
+    -- os.clock is wall time on Windows: call_s is the tag calls (database, undo, sidecar), wait_s is
+    -- darktable's panels handling the change signals
+    local call_s, wait_s = 0, 0
     -- restored by the caller, so a stop or error partway still gets it back
     run.selected = hide_selection()
     show_stage(job, "writing tags", 0)
@@ -2892,6 +2895,7 @@ local function apply_results(run, job)
             -- what the plugin owns on this copy: its earlier tags minus the detached, plus the
             -- attached; recorded per tag so a failure partway still keeps the ledger true
             local mine = ledger[copy.id] or {}
+            local call_start = os.clock()
             local okw, werr = pcall(function()
                 for _, name in ipairs(detach) do
                     tags.detach(tag_named(name), copy)
@@ -2902,6 +2906,7 @@ local function apply_results(run, job)
                     mine[name] = true
                 end
             end)
+            call_s = call_s + os.clock() - call_start
             ledger[copy.id] = next(mine) and mine or nil
             if not okw then
                 failed = failed + 1
@@ -2911,7 +2916,9 @@ local function apply_results(run, job)
             total_writes = total_writes + #attach + #detach
             if writes >= WRITE_BUDGET then
                 writes = 0
+                local wait_start = os.clock()
                 wait_for_writes()
+                wait_s = wait_s + os.clock() - wait_start
                 show_stage(job, "writing tags", total_writes / n_writes)
                 show_count("writing tags", total_writes, n_writes, apply_start)
             end
@@ -2928,6 +2935,8 @@ local function apply_results(run, job)
     show_stage(job, "writing tags", 1)
     show_status("")
     log(string.format("apply: darktable finished %d tag writes, %ds", total_writes, os.time() - apply_start))
+    log(string.format("apply: timing: %.1fs in tag calls (database, undo, sidecar), %.1fs waiting for darktable's panels",
+        call_s, wait_s))
 
     local parts = {}
     for _, m in ipairs({ { "number", "by number" }, { "livery", "by livery" }, { "burst", "by burst" }, { "neighbour", "by neighbour" },
