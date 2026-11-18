@@ -101,6 +101,7 @@ def run_tests():
     check("a non-digit number is rejected", load_error([dict(VER, number="1a")]), 'entry "VER": number must be 1–3 digits')
     check("a shows list loads as a tuple", I.load_collection(collection([dict(VER, shows=["44", "44"])]))[0]["VER"].shows,
           ("44",))
+    check("a paddock field is accepted", I.load_collection(collection([dict(VER, paddock="H3")]))[0]["VER"].id, "VER")
     check("a non-list shows is rejected", load_error([dict(VER, shows="44")]),
           'entry "VER": shows must be a list of 1–3 digit numbers, e.g. ["44"]')
     check("a non-digit shown number is rejected", load_error([dict(VER, shows=["4a"])]),
@@ -131,7 +132,7 @@ def run_tests():
     check("moved rules in entries.json still load", (moved_rules.order_weight, moved_rules.min_read), (0.5, 0.9))
     check("moved rules log the deprecation", "rules.order_weight in entries.json is deprecated; move it to settings.json" in lines, True)
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
-          'entry "VER": unknown field "tagz" (fields are id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car, shows)')
+          'entry "VER": unknown field "tagz" (fields are id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car, shows, paddock)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
           'unknown key "entrys" (the file holds "kind", "rules" and "entries")')
     LH = {"id": "Lando Norris", "tags": ["People|Professions|F1 Drivers|Lando Norris"]}

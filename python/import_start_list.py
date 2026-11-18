@@ -10,7 +10,7 @@ CSV has none. A role left out of MAP is found by its usual names (ALIASES); only
 required. --header prints the headers and that mapping for the panel's column pickers. Pasted text (an entry list copied from a PDF)
 has one entry per line, number first, then "driver / co-driver"; lines without a leading number
 are skipped and counted. Each entry becomes {"id": number, "number": number, "name": driver,
-"co_driver": co-driver, "team": team, "extra": class, "make": make, "model": model}, with the empty fields
+"co_driver": co-driver, "team": team, "extra": class, "make": make, "model": model, "paddock": paddock}, with the empty fields
 left out; a model needs a make. The Class and Vehicle tag families build the tags from them. A `shares-car` column names the other entry
 driving the same car; both rows must name each other, and the higher number gets `"car": "<lower id>"`.
 A row whose `class` starts with "Demo" (a demonstration run) gets its own `paddock` value as id
@@ -184,7 +184,8 @@ def entries_from(rows: list) -> tuple:
         klass, make, model = (_BAD_TAG.sub("", row.get(k, "")).strip() for k in ("class", "make", "model"))
         if model and not make:
             raise BadInput(f"row {n}: model {model} has no make")
-        for key, value in (("extra", klass), ("make", make), ("model", model)):
+        paddock = _BAD_TAG.sub("", row.get("paddock", "")).strip()
+        for key, value in (("extra", klass), ("make", make), ("model", model), ("paddock", paddock)):
             if value:
                 entry[key] = value
         entries.append(entry)
@@ -248,14 +249,15 @@ def merge(collection_dir: str, entries: list) -> dict:
         inline = next((i for i in (False, True) if dump(json.loads(text), i).rstrip() == text.rstrip()), None)
     existing = data.setdefault("entries", [])
     renamed = _rename_demos(existing, entries)
+    filled = _fill_paddocks(existing, entries)
     ids = {e.get("id") for e in existing if isinstance(e, dict)}
     race_numbers = {str(e.get("number", "")) for e in existing
                     if isinstance(e, dict) and not is_demo_id(e.get("id", ""))}
     taken = [e for e in entries if e["id"] in ids or (e["id"] == e["number"] and e["number"] in race_numbers)]
     new = [e for e in entries if e not in taken]
     skipped = [e["id"] for e in taken if e["id"] not in {n for _, n in renamed}]
-    if not new and not renamed:
-        return {"added": 0, "skipped": skipped, "renamed": [], "path": path}
+    if not new and not renamed and not filled:
+        return {"added": 0, "skipped": skipped, "renamed": [], "filled": 0, "path": path}
     existing.extend(new)
     with atomic_write(path) as f:
         f.write(dump(data, bool(inline)))
@@ -263,7 +265,7 @@ def merge(collection_dir: str, entries: list) -> dict:
             shutil.copy2(path, path + ".bak")  # the original, before the replace on exit
     for old, new_id in renamed:
         _rename_refs(collection_dir, old, new_id)
-    return {"added": len(new), "skipped": skipped, "renamed": renamed, "path": path}
+    return {"added": len(new), "skipped": skipped, "renamed": renamed, "filled": filled, "path": path}
 
 
 def _rename_demos(existing: list, entries: list) -> list:
@@ -292,6 +294,19 @@ def _rename_demos(existing: list, entries: list) -> list:
             if e.get("car") == old_id:
                 e["car"] = new_id
     return renamed
+
+
+def _fill_paddocks(existing: list, entries: list) -> int:
+    """Sets `paddock` on each existing entry the import lists with one and that has none; a paddock
+    already on the entry is kept. Returns how many were set."""
+    by_id = {e.get("id"): e for e in existing if isinstance(e, dict)}
+    filled = 0
+    for entry in entries:
+        old = by_id.get(entry["id"])
+        if old is not None and entry.get("paddock") and not old.get("paddock"):
+            old["paddock"] = entry["paddock"]
+            filled += 1
+    return filled
 
 
 def _rename_refs(collection_dir: str, old: str, new: str):
@@ -350,6 +365,8 @@ def main(argv=None):
     if result["renamed"]:
         notes.append(f"renamed {len(result['renamed'])} to paddock ids: "
                      + ", ".join(f"{o}→{n}" for o, n in result["renamed"]))
+    if result["filled"]:
+        notes.append(f"paddock set on {result['filled']} existing entries")
     if result["skipped"]:
         notes.append(f"skipped {len(result['skipped'])} already listed: {', '.join(result['skipped'])}")
     if skipped_lines:

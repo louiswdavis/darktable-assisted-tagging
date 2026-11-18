@@ -176,6 +176,17 @@ def run_tests():
         check("a Demonstration row gets its paddock id (spaces dropped); demo 8 and race 8 are separate entries",
               [(e["id"], e["number"], e.get("name")) for e in entries_of(demo)],
               [("8", "8", "Race Eight"), ("14", "14", "Race Fourteen"), ("A0", "8", "Demo Eight"), ("Office1", "9", "Demo Nine")])
+        check("every row's paddock is stored on its entry; a demo's is also its id",
+              [(e["id"], e.get("paddock")) for e in entries_of(demo)],
+              [("8", "H3"), ("14", "H4"), ("A0", "A0"), ("Office1", "Office 1")])
+        M.main([demo, "--csv", demo_csv])
+        before = entries_of(demo)
+        write(os.path.join(demo, "entries.json"), dump({"entries": [dict(e, paddock="X1") if e["id"] == "8" else
+                                                                     {k: v for k, v in e.items() if k != "paddock"} for e in before]}))
+        M.main([demo, "--csv", demo_csv])
+        check("a re-import fills a missing paddock on existing entries and keeps one already set",
+              [(e["id"], e.get("paddock")) for e in entries_of(demo)],
+              [("8", "X1"), ("14", "H4"), ("A0", "A0"), ("Office1", "Office 1")])
         demo_twice = os.path.join(tmp, "demo_twice.csv")
         write(demo_twice, "Car No,Driver,Class,Paddock\n3,A,Demonstration,A1\n4,B,Demonstration,A1\n")
         check("a demo paddock listed twice fails", exits_2([demo, "--csv", demo_twice]), 2)

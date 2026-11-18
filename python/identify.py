@@ -308,7 +308,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
             raise bad(f'entry "{eid}" appears twice')
         unknown = check_entry_fields(kind, item)
         if unknown:
-            fields = "id, tags" if kind == "people" else "id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car, shows"
+            fields = "id, tags" if kind == "people" else "id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car, shows, paddock"
             raise bad(f'entry "{eid}": unknown field "{unknown}" (fields are {fields})')
         if kind == "people":
             _check_tags(item.get("tags"), f'entry "{eid}": tags', bad)
