@@ -4171,9 +4171,6 @@ local function install_panel()
         { key = "min_read", entry = min_read_entry },
         { key = "colour_weight", entry = colour_weight_entry },
     }
-    -- Set in the schema and settings.json only, never on the panel.
-    local HAND_EDIT_KEYS = { "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references" }
-
     local function trim(s) return (s or ""):match("^%s*(.-)%s*$") end
 
     local shown = M.preset_defaults(M.PRESET_SCHEMA) -- the values show_panel last filled in
@@ -4193,7 +4190,8 @@ local function install_panel()
                 s[n.key] = value
             end
         end
-        for _i, key in ipairs(HAND_EDIT_KEYS) do s[key] = shown[key] end
+        -- settings.json-only keys have no widget: a run and Save carry the values last loaded
+        for _i, key in ipairs(M.PANEL_OTHER_KEYS) do s[key] = shown[key] end
         for _i, key in ipairs(check_order) do s[key] = checks[key].value and true or false end
         return s
     end
