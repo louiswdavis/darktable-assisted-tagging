@@ -599,6 +599,14 @@ check("tags the plugin wrote (in the ledger) map to no one",
     T.entry_for_tags(tsu_tags, entries, order, { ["F1|Red Bull|Tsunoda"] = true }), nil)
 check("tags the user added by hand still map with a ledger",
     T.entry_for_tags(tsu_tags, entries, order, { ["F1|Ferrari|Hamilton"] = true }), "TSU")
+check("entry_tags_note: several full matches are listed", T.entry_tags_note({
+    ["Rally|Number|30"] = true, ["Rally|Number|730"] = true, ["Rally|Number|12"] = true,
+}, car_entries, { "30", "730", "12" }), "it carries all the tags of entries 30, 730, 12")
+check("entry_tags_note: a partial match names the entry and the tags it lacks",
+    T.entry_tags_note({ ["Rally|Number|30"] = true }, car_entries, { "30", "730", "12" }),
+    "nearest is entry 30, 1 of its tags present, lacking Rally|Number|730")
+check("entry_tags_note: no entry tag at all", T.entry_tags_note({ ["Holiday"] = true }, car_entries, { "30", "730", "12" }),
+    "it carries no entry's tags")
 
 -- read_results (review fix 4) ----------------------------------------------
 local rows_of, errored, skipped_ids = T.read_results(table.concat({

@@ -5,6 +5,7 @@ ok   the startup load has no Lua error
 ok   fill colours, no entry tags: says no image names an entry
 ok   fill colours, no entry tags: no crash
 ok   fill colours, no entry tags: identify.py isn't started
+ok   fill colours, no entry tags: the log says why
 ok   fill colours, Identify's entry tag + hand colour: no crash
 ok   fill colours, Identify's entry tag + hand colour: the row names the entry and the colour
 ok   fill colours: runs in colours-only mode

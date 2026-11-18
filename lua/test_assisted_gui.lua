@@ -194,6 +194,8 @@ local run = fill({ image(2, "DSC00002.JPG", { "Somewhere|Else" }) })
 check("fill colours, no entry tags: says no image names an entry", printed("no selected image carries all of one entry's tags"), true)
 check("fill colours, no entry tags: no crash", printed("couldn't fill entry colours"), false)
 check("fill colours, no entry tags: identify.py isn't started", run, nil)
+check("fill colours, no entry tags: the log says why", (read_file(ROOT .. "/config/assisted_tagging.log") or "")
+    :find("DSC00002.JPG: skipped, its tags match no single entry: it carries no entry's tags", 1, true) ~= nil, true)
 
 PYTHON.results = "1,added,set,112\n"
 run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })

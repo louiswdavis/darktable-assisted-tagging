@@ -1001,6 +1001,26 @@ function M.entry_for_tags(have, entries, order, ledger_set)
     return found
 end
 
+-- Why entry_for_tags named no entry for `have`, for the log: the entries whose tags it carries all
+-- of when several do, else the entry it carries most tags of and the tags of that entry it lacks.
+function M.entry_tags_note(have, entries, order)
+    local full, nearest, nearest_n, lacks = {}, nil, 0, {}
+    for _, id in ipairs(order) do
+        local n, missing = 0, {}
+        for _, t in ipairs(entries[id].tags) do
+            if have[t] then n = n + 1 else missing[#missing + 1] = t end
+        end
+        if n > 0 and #missing == 0 then
+            full[#full + 1] = id
+        elseif n > nearest_n then
+            nearest, nearest_n, lacks = id, n, missing
+        end
+    end
+    if #full > 0 then return "it carries all the tags of entries " .. table.concat(full, ", ") end
+    if not nearest then return "it carries no entry's tags" end
+    return string.format("nearest is entry %s, %d of its tags present, lacking %s", nearest, nearest_n, table.concat(lacks, ", "))
+end
+
 -- identify.py's results.csv → rows by image id, and the ids it couldn't analyse.
 -- Those get no rows, so their tags are left exactly as they were. `skipped` (already
 -- fully tagged, not analysed) is the same.
@@ -3329,7 +3349,8 @@ function M.fill_entry_colours(images)
                 end
             else
                 n_skipped = n_skipped + 1
-                log(string.format("%s: skipped, its tags match no single entry", img.filename))
+                log(string.format("%s: skipped, its tags match no single entry: %s", img.filename,
+                    M.entry_tags_note(have, entries, entry_order)))
             end
         end
         if #rows == 0 then
