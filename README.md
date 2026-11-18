@@ -757,7 +757,7 @@ Editing a constant of a per-frame module (`vehicles.py`, `ocr.py`, `embed.py`, `
 ## Troubleshooting
 
 - **The panel isn't there.** Start darktable with `-d lua` and look for `LUA ERROR` in the log. On Windows the log is `Documents\Darktable\darktable-log.txt`.
-- **Every run writes a log** to `assisted_tagging.log` in darktable's config directory (e.g. `%LOCALAPPDATA%\darktable` on Windows); the run before it is kept as `assisted_tagging.prev.log`. It has the exact command, the reference counts per entry, one line per vehicle with what was read and matched, and any per-image errors.
+- **Every run writes a log** to `assisted_tagging.log` in darktable's config directory (e.g. `%LOCALAPPDATA%\darktable` on Windows); the 5 runs before it are kept as `assisted_tagging.prev.log` (the last one), `assisted_tagging.prev2.log` … `assisted_tagging.prev5.log`. Each line is written as it happens, so a crash leaves the last step in the file; each stage logs `started` and `done` with its seconds, and a failed write names its image. It has the exact command, the reference counts per entry, one line per vehicle with what was read and matched, and any per-image errors.
 - **"…/entries.json: …"** The run stopped on a mistake in that file; the message says which entry and what's wrong.
 - **"… model not found: …"** A model file is missing. Download it into `models/` (see [Install](#2-models)). A job with none of its files installed stops the run with `Assisted Tagging: no <job> model in models/. Install <file> (README, "Models").`
 - **"Python is missing a package."** `darktable-assisted-tagging/.venv` doesn't have `requirements.txt` installed; the log names the package.

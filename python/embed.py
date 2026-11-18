@@ -53,6 +53,7 @@ class Embedder:
         if not os.path.isfile(model_path):
             raise FileNotFoundError(f"embedder model not found: {model_path}")
         import onnxruntime as ort
+        ort.set_default_logger_severity(3)  # errors only: the model-load warnings flood the run log
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 1  # the worker pool supplies the parallelism
         with open(model_path, "rb") as f:  # bytes, so a non-ASCII path can't trip a narrow-path API

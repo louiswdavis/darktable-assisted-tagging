@@ -19,7 +19,7 @@ stack traceback:
 	[C]: in global 'error'
 	test_assisted_tagging.lua:76: in function <test_assisted_tagging.lua:76>
 	[C]: in global 'xpcall'
-	./plugin_common.lua:267: in local 'guard'
+	./plugin_common.lua:338: in local 'guard'
 	test_assisted_tagging.lua:76: in main chunk
 	[C]: in ?
 ok   error_guard: error returns nil
@@ -30,7 +30,7 @@ stack traceback:
 	[C]: in global 'error'
 	test_assisted_tagging.lua:81: in function <test_assisted_tagging.lua:81>
 	[C]: in global 'xpcall'
-	./plugin_common.lua:267: in function <./plugin_common.lua:266>
+	./plugin_common.lua:338: in function <./plugin_common.lua:337>
 	(...tail calls...)
 	test_assisted_tagging.lua:82: in main chunk
 	[C]: in ?

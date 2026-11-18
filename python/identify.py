@@ -28,10 +28,11 @@ import shutil
 import sqlite3
 import sys
 import time
+import traceback
 from collections import Counter
 from dataclasses import dataclass, field, replace
 
-from vehicles import HIRES_ASPECT_TOL, HIRES_MIN_GAIN, MAX_BOXES, crop_box, detect, detect_vehicles, load_hires, log
+from vehicles import HIRES_ASPECT_TOL, HIRES_MIN_GAIN, MAX_BOXES, crop_box, detect, detect_vehicles, load_hires, log, peak_memory_mb
 from vehicle_detect import DetectionCache, boxes_in, decode_rgb, decode_rgb_sized, detect_cached, file_key, load_detector
 from common import atomic_write
 from ocr import NUMBER_MIN_HEIGHT, OCR_CROP_DIM, OCR_MIN_SCORE, NumberReader, ocr_key
@@ -531,9 +532,32 @@ def frame_key(filepath: str, models: dict) -> list:
 
 # ---------------------------------------------------------------- progress
 
+_STAGE = {"name": "", "started": 0.0}
+
+
+def end_stage():
+    """Logs the open stage's `done` line: its seconds and this process's peak memory so far."""
+    if _STAGE["name"]:
+        log(f"{_STAGE['name']}: done, {time.time() - _STAGE['started']:.0f}s, "
+            f"peak memory {peak_memory_mb():.0f} MB (workers not included)")
+    _STAGE["name"] = ""
+
+
+def enter_stage(stage: str):
+    """Logs `<stage>: started` when the run moves to another stage, after the last one's `done` line."""
+    if stage == _STAGE["name"]:
+        return
+    end_stage()
+    _STAGE.update(name=stage, started=time.time())
+    log(f"{stage}: started")
+
+
 def write_progress(progress_path: str, cur: int, tot: int, stage: str = "", cached: int = 0):
     """Writes `stage,cur,tot,cached` (or `cur,tot` with no stage) for the Lua poll: `cached` of
-    `cur` were done without work, so the ETA counts only the rest."""
+    `cur` were done without work, so the ETA counts only the rest. A new stage name also puts the
+    stage lines in the log."""
+    if stage:
+        enter_stage(stage)
     if not progress_path:
         return
     line = f"{stage},{cur},{tot},{cached}" if stage else f"{cur},{tot}"
@@ -597,11 +621,12 @@ def _siglip(models: dict):
 
 def analyse_frame(filepath: str) -> dict:
     """Boxes, OCR candidates and embeddings for one frame: the cached value, plus `detection_cached`
-    (whether the shared detection entry was already there), which run_frames pops off. Detection
+    (whether the shared detection entry was already there) and `worker_peak_mb` (this worker's peak
+    memory so far), which run_frames pops off. Detection
     reads a fast small decode; the full-size decode runs only when a vehicle box passes. Boxes,
     candidates and `frame` are in full-size pixels either way."""
     if _W["models"]["kind"] == "people":
-        return analyse_frame_people(decode_rgb(filepath), _W["faces"])
+        return {**analyse_frame_people(decode_rgb(filepath), _W["faces"]), "worker_peak_mb": peak_memory_mb()}
     small, (w, h) = decode_rgb_sized(filepath, fast_jpeg=True)
     entry, hit = frame_entry(filepath, small, _W["models"])
     boxes, weak, note = detect(small, entry)
@@ -620,7 +645,8 @@ def analyse_frame(filepath: str) -> dict:
         sh, sw = small.shape[:2]
         weak = boxes_in({"frame": [sw, sh], "boxes": weak}, w, h)
         out = _read_boxes(small, [])
-    out.update(note=note, frame=[w, h], candidates=[list(b) for b in weak], detection_cached=hit)
+    out.update(note=note, frame=[w, h], candidates=[list(b) for b in weak], detection_cached=hit,
+               worker_peak_mb=peak_memory_mb())
     return out
 
 
@@ -893,7 +919,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, p
         log_turns("analysis", out.values())
         return out
     workers = pool.size
-    hits, detected, started = 0, 0, time.time()
+    hits, detected, started, worker_peak_mb = 0, 0, time.time(), 0.0
     # each worker loads every model before its first frame; the first finished frame ends this stage
     write_progress(progress, 0, 1, "starting workers")
     executor = pool.get()
@@ -907,6 +933,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, p
         p = futures[fut]
         try:
             out[p] = fut.result()
+            worker_peak_mb = max(worker_peak_mb, out[p].pop("worker_peak_mb", 0.0))
             if out[p].pop("detection_cached", False):
                 hits += 1
             else:
@@ -916,12 +943,14 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, p
             raise InputError(f"an analysis worker died (out of memory or a crashed library?); "
                              f"frames finished so far are cached, rerun to continue: {e}") from e
         except Exception as e:
-            log(f"{p}: couldn't analyse ({type(e).__name__}: {e})")
+            log(f"{p}: couldn't analyse ({type(e).__name__}: {e})\n"
+                + "".join(traceback.format_exception(type(e), e, e.__traceback__)))
             out[p] = None
         done += 1
         write_progress(progress, done, total, "analysing", cached)
     elapsed = time.time() - started
-    log(f"analysis: {len(todo)} frames in {elapsed:.0f}s, {len(todo) * 60 / max(elapsed, 0.001):.0f} frames/min ({workers} workers)")
+    log(f"analysis: {len(todo)} frames in {elapsed:.0f}s, {len(todo) * 60 / max(elapsed, 0.001):.0f} frames/min ({workers} workers), "
+        f"largest worker peak memory {worker_peak_mb:.0f} MB")
     if models["kind"] != "people":
         log(f"detections: {hits} cached, {detected} detected")
     log_box_check(out, models)
@@ -1054,7 +1083,8 @@ def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, p
                     reads[p] = fut.result()
                     cache.put(reads[p], *frame_key(p, models), *hires_key(analyses[p]["boxes"], wanted[p]))
                 except Exception as e:
-                    log(f"{p}: couldn't re-read at higher detail ({type(e).__name__}: {e}), first pass kept")
+                    log(f"{p}: couldn't re-read at higher detail ({type(e).__name__}: {e}), first pass kept\n"
+                + "".join(traceback.format_exception(type(e), e, e.__traceback__)))
                 done += 1
                 write_progress(progress, done, len(todo), "refining")
                 if done % 10 == 0 or done == len(todo):
@@ -2137,6 +2167,7 @@ def main(argv=None):
     models = {"detector": args.detector, "ocr_det": args.ocr_det, "ocr_rec": args.ocr_rec,
               "embedder": args.embedder, "face_det": args.face_detector, "face_rec": args.face_recognizer,
               "segmenter": args.segmenter, "siglip": args.siglip, "detections": args.detections, "kind": DEFAULT_KIND}
+    started = time.time()
     try:
         if args.list:
             list_mode(args)
@@ -2151,6 +2182,9 @@ def main(argv=None):
     except InputError as e:
         print(f"Assisted Tagging: {e}", file=sys.stderr, flush=True)
         sys.exit(2)
+    finally:
+        end_stage()
+        log(f"run: {time.time() - started:.0f}s in total, peak memory {peak_memory_mb():.0f} MB (workers not included)")
 
 
 if __name__ == "__main__":
@@ -2159,6 +2193,5 @@ if __name__ == "__main__":
     except SystemExit:
         raise
     except Exception:
-        import traceback
-        traceback.print_exc()
+        log("identify.py failed:\n" + traceback.format_exc())
         sys.exit(1)

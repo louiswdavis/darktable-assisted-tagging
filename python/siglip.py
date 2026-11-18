@@ -62,6 +62,7 @@ def colour_prompts(palette) -> dict:
 class SigLIP:
     def __init__(self, vision_path: str):
         import onnxruntime as ort
+        ort.set_default_logger_severity(3)  # errors only: the model-load warnings flood the run log
         from tokenizers import Tokenizer
         vision, text, tokenizer = siglip_files(vision_path)
         for path in (text, tokenizer):

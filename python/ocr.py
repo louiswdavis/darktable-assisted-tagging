@@ -228,6 +228,7 @@ def db_boxes(prob: np.ndarray, config: dict) -> tuple:
 def _onnx_session(path: str):
     """(onnxruntime session on one thread, its input name)."""
     import onnxruntime as ort
+    ort.set_default_logger_severity(3)  # errors only: the model-load warnings flood the run log
     opts = ort.SessionOptions()
     opts.intra_op_num_threads = 1  # the worker pool supplies the parallelism
     with open(path, "rb") as f:  # bytes, so a non-ASCII path can't trip a narrow-path API

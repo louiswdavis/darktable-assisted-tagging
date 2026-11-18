@@ -1757,7 +1757,7 @@ local RUN_SETTINGS_PATH = M.run_settings_path(TMP_BASE)
 -- The run log: this plugin's lines plus identify.py's stderr. Kept in the
 -- config dir, which outlives tmp_dir; the run before it is kept as .prev.log.
 local LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.log"
-local PREV_LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.prev.log"
+local LOGS_KEPT = 5
 -- Lua errors (panel build, callbacks, events) go to their own log, which runs never rotate.
 local LUA_LOG_PATH = dt.configuration.config_dir .. "/assisted_tagging.lua.log"
 local guard = C.error_guard(dt, LUA_LOG_PATH, "Assisted Tagging")
@@ -1901,23 +1901,14 @@ local function fmt_eta(elapsed, done, total)
     return string.format(" | ~%dm %02ds left", remaining // 60, remaining % 60)
 end
 
--- Lines wait here while identify.py appends its stderr to the same file:
--- two processes appending at once can overwrite each other's lines on Windows.
-local log_buffer = {}
-
-function log(msg)
-    log_buffer[#log_buffer + 1] = os.date("%H:%M:%S ") .. "lua: " .. msg
-end
+-- Each line is written as it is logged, so a crash leaves the last step in the file.
+-- Lines wait only while identify.py appends its stderr to the same file (run_log.hold to
+-- run_log.release): two processes appending at once can overwrite each other's lines on Windows.
+local run_log = C.run_log(LOG_PATH)
+log = run_log.log
 
 -- Only call while no identify.py process is running.
-local function flush_log()
-    if #log_buffer == 0 then return end
-    local f = io.open(LOG_PATH, "a")
-    if not f then return end
-    f:write(table.concat(log_buffer, "\n"), "\n")
-    f:close()
-    log_buffer = {}
-end
+local flush_log = run_log.flush
 
 local function say(msg)
     dt.print(msg)
@@ -2079,9 +2070,10 @@ local function run_python(args, job, from, to, hint, staged)
     local py = python_bin(script)
     local argv = args_of({ script }, args, { "--progress", PROGRESS_PATH })
     log("running: " .. command_line(py, argv))
-    flush_log()
+    run_log.hold()
     local launched, why = run_async_python(py, argv, LOG_PATH, true, DONE_PATH)
     if not launched then
+        run_log.release()
         notify_error("Assisted Tagging: couldn't start identify.py: " .. why .. ".")
         return nil, "launch"
     end
@@ -2095,6 +2087,7 @@ local function run_python(args, job, from, to, hint, staged)
         end
         if file_exists(DONE_PATH) then
             local code = tonumber((read_file(DONE_PATH) or ""):match("-?%d+"))
+            run_log.release()
             log("identify.py exit " .. tostring(code))
             return code
         end
@@ -2234,7 +2227,7 @@ local function reload_lists(quiet, show_plan, reread_settings)
     if preset_ctl then preset_ctl.refresh() end
     busy = true
     local loaded = false
-    local okr, err = pcall(function()
+    local okr, err = C.logged_call(log, "reload collections", function()
         pcall(os.remove, COLLECTIONS_PATH)
         pcall(os.remove, ENTRIES_PATH)
         pcall(os.remove, RULES_PATH)
@@ -2357,9 +2350,8 @@ local function stop_job(job)
 end
 
 local function start_log(what, n)
-    flush_log() -- anything logged since the last run belongs to its log
-    pcall(os.remove, PREV_LOG_PATH)
-    pcall(os.rename, LOG_PATH, PREV_LOG_PATH)
+    run_log.release() -- anything logged since the last run belongs to its log
+    run_log.rotate(LOGS_KEPT)
     log(string.format("%s: darktable %s, %d images, collection %s", what,
         tostring(dt.configuration.version), n, current_collection()))
 end
@@ -2643,7 +2635,7 @@ function M.clear_marks(images)
     start_log("clear", #images)
     local job
 
-    local okr, err = pcall(function()
+    local okr, err = C.logged_call(log, "clear tagging marks", function()
         job = start_job(_("Clear tagging marks"), #images)
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         local records, img_of = {}, {}
@@ -2724,7 +2716,7 @@ function M.derive_images(images, mode)
     start_log("derive " .. mode, #images)
     local job
 
-    local okr, err = pcall(function()
+    local okr, err = C.logged_call(log, "derive tags", function()
         job = start_job(label, #images)
         load_entries_csv()
         if not next(entries) then
@@ -2772,7 +2764,7 @@ function M.derive_images(images, mode)
             ledger[tonumber(img.id)] = next(mine) and mine or nil
             if not okw then
                 failed = failed + 1
-                log(string.format("derive %s: %s couldn't be tagged: %s", mode, img.filename, tostring(werr)))
+                log(string.format("derive %s: %s couldn't be tagged: %s", mode, C.image_label(img), tostring(werr)))
             end
             writes = writes + #plan.attach
             if writes >= WRITE_BUDGET then
@@ -2920,6 +2912,7 @@ local function apply_results(run, job)
             if not okw then
                 failed = failed + 1
                 first_error = first_error or tostring(werr)
+                log(C.image_label(copy) .. ": tag writes failed: " .. tostring(werr))
             end
             writes = writes + #attach + #detach
             total_writes = total_writes + #attach + #detach
@@ -3034,7 +3027,7 @@ function M.identify_images(images, replace_manual, verify_only)
         tostring(settings.order_weight)))
 
     local job, run = nil, nil
-    local okr, err = pcall(function()
+    local okr, err = C.logged_call(log, "identify", function()
         -- the job and log go up before the reads below, which touch every selected photo and
         -- film roll and can take minutes on thousands of photos
         job = start_job(label, #images)
@@ -3211,7 +3204,7 @@ function M.add_references(images, entry_id)
     start_log(entry_id and ("add references to " .. entry_id) or "add tagged images as references", #images)
 
     local state = {}
-    local okr, err = pcall(function()
+    local okr, err = C.logged_call(log, "add references", function()
         state.job = start_job(_("Add references"), #images)
         local rows, n_skipped, sent = {}, 0, {}
         local pick_of = select(2, with_paired_jpegs(images))
@@ -3310,7 +3303,12 @@ local function retag_added_numbers(rows, image_of, number_root, seen_base)
                     end
                 end)
                 ledger[img.id] = next(mine) and mine or nil
-                if ok then n_images = n_images + 1 else failed = failed or tostring(err) end
+                if ok then
+                    n_images = n_images + 1
+                else
+                    failed = failed or tostring(err)
+                    log(C.image_label(img) .. ": number tag " .. new_name .. " couldn't be attached: " .. tostring(err))
+                end
             end
         end
     end
@@ -3398,7 +3396,7 @@ function M.fill_entry_colours(images)
     start_log("fill entry colours", #images)
 
     local state = {}
-    local okr, err = pcall(function()
+    local okr, err = C.logged_call(log, "fill entry colours", function()
         state.job = start_job(_("Fill entry colours"), #images)
         local rows, n_skipped, sent = {}, 0, {}
         local pick_of = select(2, with_paired_jpegs(images))
@@ -3483,7 +3481,7 @@ function M.promote_references(images)
     start_log("add confident vehicles from last run", #images)
 
     local state = {}
-    local okr, err = pcall(function()
+    local okr, err = C.logged_call(log, "add from last run", function()
         state.job = start_job(_("Add from last run"), #images)
         -- Identify recorded boxes for the JPEG of a RAW+JPEG pair, so a selected RAW reads its JPEG's
         local rows = {}
@@ -3526,7 +3524,7 @@ function M.audit_references()
     start_log("audit references", 0)
 
     local state = {}
-    local okr, err = pcall(function()
+    local okr, err = C.logged_call(log, "audit references", function()
         state.job = start_job(_("Audit references"), 0)
         local suggest = settings.suggest_crops
         local quarantine = settings.quarantine

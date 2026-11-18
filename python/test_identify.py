@@ -1256,6 +1256,24 @@ def run_tests():
     with open(prog, encoding="utf-8") as pf:
         check("a progress line with no stage stays cur,tot", pf.read(), "3,9")
 
+    # ticket 75: each stage logs a start line and a done line with its seconds and peak memory
+    import contextlib
+    import io
+    I.end_stage()
+    stderr_text = io.StringIO()
+    with contextlib.redirect_stderr(stderr_text):
+        I.write_progress("", 1, 2, "refining")
+        I.write_progress("", 2, 2, "refining")
+        I.write_progress("", 0, 5, "matching")
+        I.end_stage()
+        I.end_stage()
+    stage_lines = [re.sub(r"^\d\d:\d\d:\d\d py: ", "", line) for line in stderr_text.getvalue().splitlines()]
+    check("stage lines: one start and one done line per stage, in order",
+          [re.sub(r"\d+", "N", line) for line in stage_lines],
+          ["refining: started", "refining: done, Ns, peak memory N MB (workers not included)",
+           "matching: started", "matching: done, Ns, peak memory N MB (workers not included)"])
+    check("peak memory is this process's real peak, in MB", 20 < V.peak_memory_mb() < 100000, True)
+
     print("")
     if failures == 0:
         print("all tests passed")
