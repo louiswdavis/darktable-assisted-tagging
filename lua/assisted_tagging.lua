@@ -4399,7 +4399,11 @@ local function install_panel()
           derive_number_button, derive_colour_button,
           new_widget("section_label") { label = _("undo") },
           clear_marks_button },
-        { entry_combo, add_button, add_tagged_button, fill_colours_button, promote_button,
+        { new_widget("section_label") { label = _("add to one entry (uses the entry list)") },
+          entry_combo, add_button,
+          new_widget("section_label") { label = _("add by tags or last run (entry list not used)") },
+          add_tagged_button, fill_colours_button, promote_button,
+          new_widget("section_label") { label = _("audit") },
           suggest_crops_check, quarantine_check, audit_button },
     }
     local pages = {}

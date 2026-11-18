@@ -600,9 +600,13 @@ The page has three groups: **identify** (models; writes tags), **derive** (looku
 
 ### 6 references
 
-- **entry.** The entry **Add as reference** saves under.
-- **Add as reference**, **Add tagged images**, **Fill entry colours**, **Add from last run.** See [Building references](#building-references). The three add actions also fill the entry's colour in `entries.json` when **read car colour** is on, and a colour tag you applied replaces the stored one.
-- **Audit: suggest re-crops**, **Audit: quarantine poor refs** (both off by default), **Audit references.** See **Audit references** under [Building references](#building-references).
+The page has three sections. Only the first uses the **entry** list.
+
+- **add to one entry**: **entry** (the entry **Add as reference** saves under) and **Add as reference**.
+- **add by tags or last run**: **Add tagged images**, **Fill entry colours**, **Add from last run.** Each finds the entry from the image's tags or the last run; the **entry** list is not used.
+- **audit**: **Audit: suggest re-crops**, **Audit: quarantine poor refs** (both off by default), **Audit references.** See **Audit references** under [Building references](#building-references).
+
+See [Building references](#building-references) for each action. The three add actions also fill the entry's colour in `entries.json` when **read car colour** is on, and a colour tag you applied replaces the stored one.
 
 Everything in pages 2 to 6 except **Replace manual tags** is saved with the collection by **update preset**. **Replace manual tags** is saved in darktable's preferences instead, so it carries across collections and restarts.
 
