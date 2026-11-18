@@ -2357,6 +2357,17 @@ local function start_log(what, n)
         tostring(dt.configuration.version), n, current_collection()))
 end
 
+-- Puts `what` on darktable's job list and says it has started, before the action's first slow
+-- read: reading the tags and film rolls of a large selection takes long enough that a click
+-- looked ignored. n: the images selected, 0 for an action that reads none.
+local function start_job(what, n)
+    local job = dt.gui.create_job("Assisted Tagging: " .. what, true, stop_job)
+    job.percent = 0.0
+    say(string.format("Assisted Tagging: %s started%s…", what,
+        n > 0 and (" on " .. (n == 1 and "1 image" or n .. " images")) or ""))
+    return job
+end
+
 local function write_rows(path, rows)
     local f = io.open(path, "w")
     if not f then return false end
@@ -2618,6 +2629,7 @@ function M.clear_marks(images)
     local job, selected
 
     local okr, err = pcall(function()
+        job = start_job(_("Clear tagging marks"), #images)
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         local records, img_of = {}, {}
         for _, img in ipairs(images) do
@@ -2635,7 +2647,6 @@ function M.clear_marks(images)
         local plans, stopped = M.plan_clear(records, ledger), false
         local n_writes, done, start = 0, 0, os.time()
         for _, plan in ipairs(plans) do n_writes = n_writes + #plan.detach end
-        job = dt.gui.create_job(_("Assisted Tagging: clear tagging marks"), true, stop_job)
         selected = hide_selection()
         for _, plan in ipairs(plans) do
             if M.cancel_requested or not job.valid then
@@ -2702,6 +2713,7 @@ function M.derive_images(images, mode)
     local job
 
     local okr, err = pcall(function()
+        job = start_job(label, #images)
         load_entries_csv()
         if not next(entries) then
             say(_("Assisted Tagging: no entries loaded; pick the collection (or Reload) first."))
@@ -2715,7 +2727,6 @@ function M.derive_images(images, mode)
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         local n_derived, n_skipped, n_check, n_tags, writes, failed, stopped = 0, 0, 0, 0, 0, 0, false
         local start = os.time()
-        job = dt.gui.create_job(_("Assisted Tagging: ") .. label, true, stop_job)
         for i, img in ipairs(images) do
             if M.cancel_requested or not job.valid then
                 stopped = true
@@ -2761,11 +2772,18 @@ function M.derive_images(images, mode)
         show_status("")
         log(string.format("derive %s: darktable finished %d tag writes, %ds", mode, n_tags, os.time() - start))
         write_ledger(ledger)
-        local msg = string.format(_("Assisted Tagging: %s%s: %d images derived, %d skipped (reasons in the log)"),
-            stopped and _("stopped; ") or "", label, n_derived, n_skipped)
-        if n_check > 0 then msg = msg .. string.format(_(", %d check colour"), n_check) end
-        if failed > 0 then msg = msg .. string.format(_(", %d couldn't be updated (see log)"), failed) end
-        say(msg .. ".")
+        local msg = "Assisted Tagging: " .. label
+        if n_derived > 0 then
+            msg = msg .. string.format(stopped and " stopped early: %d images derived so far." or " done: %d images derived.", n_derived)
+        else
+            msg = msg .. (stopped and " stopped early: no image derived." or ": no image derived.")
+        end
+        if n_check > 0 then msg = msg .. string.format(" %d marked Check colour.", n_check) end
+        local left = {}
+        if n_skipped > 0 then left[#left + 1] = string.format("%d skipped", n_skipped) end
+        if failed > 0 then left[#left + 1] = string.format("%d couldn't be tagged", failed) end
+        if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (reasons in the log)." end
+        say(msg)
     end)
     end_job(job)
     busy = false
@@ -3001,8 +3019,7 @@ function M.identify_images(images, replace_manual, verify_only)
     local okr, err = pcall(function()
         -- the job and log go up before the reads below, which touch every selected photo and
         -- film roll and can take minutes on thousands of photos
-        job = dt.gui.create_job(_("Assisted Tagging"), true, stop_job)
-        job.percent = 0.0
+        job = start_job(label, #images)
         shown_stage = nil
         show_stage(job, "preparing", 0)
         local stage_start = os.time()
@@ -3094,16 +3111,14 @@ function M.identify_images(images, replace_manual, verify_only)
     run_next()
 end
 
--- Writes the manifest and runs identify.py in a reference mode (`mode_args`). Sets state.job for
--- finish_reference_job. Returns results.csv's text, or nil once a cancel, stall or failure has been reported.
--- what: the job-area title and progress hint, e.g. "auditing references".
+-- Writes the manifest and runs identify.py in a reference mode (`mode_args`) under state.job, which
+-- the action started. Returns results.csv's text, or nil once a cancel, stall or failure has been reported.
+-- what: the progress hint, e.g. "auditing references".
 local function run_reference_job(state, rows, mode_args, what)
     pcall(os.remove, RESULTS_PATH)
     if not write_rows(MANIFEST_PATH, rows) then
         error(WRITE_ROWS_FAILED, 0)
     end
-    state.job = dt.gui.create_job("Assisted Tagging: " .. what, true, stop_job)
-    state.job.percent = 0.0
     local code, why = run_python(args_of({ MANIFEST_PATH, RESULTS_PATH },
         mode_args, collection_args(), settings_args(), model_args(identify_script()),
         { "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH }),
@@ -3171,6 +3186,7 @@ function M.add_references(images, entry_id)
 
     local state = {}
     local okr, err = pcall(function()
+        state.job = start_job(_("Add references"), #images)
         local rows, n_skipped, sent = {}, 0, {}
         local pick_of = select(2, with_paired_jpegs(images))
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
@@ -3214,16 +3230,21 @@ function M.add_references(images, entry_id)
             elseif p[2] == "no_vehicle" then no_car = no_car + 1
             else failed = failed + 1 end
         end
-        local extra = M.colour_note_extras(notes)
-        if no_car > 0 then extra[#extra + 1] = string.format("%d had no vehicle found, not saved", no_car) end
-        if no_face > 0 then extra[#extra + 1] = string.format("%d had no face", no_face) end
-        if multi > 0 then extra[#extra + 1] = string.format("%d had several faces, so can't name one person", multi) end
-        if team_rule > 0 then extra[#extra + 1] = string.format("%d tagged only to team level, not saved (the team-reference rule is off or the shot isn't solo)", team_rule) end
-        if n_skipped > 0 then extra[#extra + 1] = string.format("%d skipped", n_skipped) end
-        if failed > 0 then extra[#extra + 1] = string.format("%d failed, see log", failed) end
-        say(string.format("Assisted Tagging: added %d references to %s%s. Each sample's crop is in %s/refs.%s",
-            added, entry_id or "their entries", #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "",
-            current_collection(), notes.set > 0 and (" Colours: " .. entries_json_path()) or ""))
+        local msg = added > 0
+            and string.format("Assisted Tagging: added %d references to %s. Crops are in %s/refs.", added,
+                entry_id or "their entries", current_collection())
+            or "Assisted Tagging: no reference added."
+        local colour_notes = M.colour_note_extras(notes)
+        if #colour_notes > 0 then msg = msg .. " " .. table.concat(colour_notes, "; ") .. "." end
+        local left = {}
+        if no_car > 0 then left[#left + 1] = string.format("%d had no vehicle found", no_car) end
+        if no_face > 0 then left[#left + 1] = string.format("%d had no face", no_face) end
+        if multi > 0 then left[#left + 1] = string.format("%d had several faces, so can't name one person", multi) end
+        if team_rule > 0 then left[#left + 1] = string.format("%d tagged only to team level (the team-reference rule is off or the shot isn't solo)", team_rule) end
+        if n_skipped > 0 then left[#left + 1] = string.format("%d skipped, no single entry matches the tags", n_skipped) end
+        if failed > 0 then left[#left + 1] = string.format("%d failed", failed) end
+        if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (see log)." end
+        say(msg .. (notes.set > 0 and (" Colours: " .. entries_json_path()) or ""))
     end)
     finish_reference_job(state, okr, err, "couldn't add references.")
 end
@@ -3276,6 +3297,7 @@ end
 -- images by id. nil when the run can't start (the reason is already on screen).
 function M.find_new_entries(images)
     if not can_start(images) or not take_settings() then return nil end
+    say(string.format("Assisted Tagging: Find new entries started on %s…", #images == 1 and "1 image" or #images .. " images"))
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
     local list, image_of = {}, {}
     for _, img in ipairs(images) do
@@ -3314,6 +3336,7 @@ function M.add_found_entries(ticked, image_of)
     -- cmd.exe strips the outer quotes of a quoted command line, so the whole thing gets one more pair
     if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
     log("add new entries: " .. cmd)
+    dt.print(_("Assisted Tagging: adding the ticked entries to entries.json…"))
     local p = io.popen(cmd)
     if not p then
         notify_error(_("Assisted Tagging: couldn't start Python to add the entries."))
@@ -3350,6 +3373,7 @@ function M.fill_entry_colours(images)
 
     local state = {}
     local okr, err = pcall(function()
+        state.job = start_job(_("Fill entry colours"), #images)
         local rows, n_skipped, sent = {}, 0, {}
         local pick_of = select(2, with_paired_jpegs(images))
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
@@ -3437,6 +3461,7 @@ function M.promote_references(images)
 
     local state = {}
     local okr, err = pcall(function()
+        state.job = start_job(_("Add from last run"), #images)
         -- Identify recorded boxes for the JPEG of a RAW+JPEG pair, so a selected RAW reads its JPEG's
         local rows = {}
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
@@ -3450,14 +3475,19 @@ function M.promote_references(images)
         local counts = { added = 0, none_promotable = 0, flagged = 0, stale = 0, failed = 0 }
         local parsed, notes = M.parse_reference_results(results)
         for _, p in ipairs(parsed) do counts[p[2]] = (counts[p[2]] or 0) + 1 end
-        local extra = M.colour_note_extras(notes)
-        if counts.none_promotable > 0 then extra[#extra + 1] = string.format("%d images had none confident enough", counts.none_promotable) end
-        if counts.flagged > 0 then extra[#extra + 1] = string.format("%d not saved: the audit checks flagged them (see log)", counts.flagged) end
-        if counts.stale > 0 then extra[#extra + 1] = string.format("%d changed since the run (run Identify again)", counts.stale) end
-        if counts.failed > 0 then extra[#extra + 1] = string.format("%d failed, see log", counts.failed) end
-        say(string.format("Assisted Tagging: saved vehicles from %d images as references%s. Crops are in %s/refs.%s",
-            counts.added, #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or "", current_collection(),
-            notes.set > 0 and (" Colours: " .. entries_json_path()) or ""))
+        local msg = counts.added > 0
+            and string.format("Assisted Tagging: saved vehicles from %d images as references. Crops are in %s/refs.",
+                counts.added, current_collection())
+            or "Assisted Tagging: no vehicle saved as a reference."
+        local colour_notes = M.colour_note_extras(notes)
+        if #colour_notes > 0 then msg = msg .. " " .. table.concat(colour_notes, "; ") .. "." end
+        local left = {}
+        if counts.none_promotable > 0 then left[#left + 1] = string.format("%d images had no vehicle confident enough", counts.none_promotable) end
+        if counts.flagged > 0 then left[#left + 1] = string.format("%d flagged by the audit checks", counts.flagged) end
+        if counts.stale > 0 then left[#left + 1] = string.format("%d changed since the run (run Identify again)", counts.stale) end
+        if counts.failed > 0 then left[#left + 1] = string.format("%d failed", counts.failed) end
+        if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (see log)." end
+        say(msg .. (notes.set > 0 and (" Colours: " .. entries_json_path()) or ""))
     end)
     finish_reference_job(state, okr, err, "couldn't save vehicles as references.")
 end
@@ -3474,6 +3504,7 @@ function M.audit_references()
 
     local state = {}
     local okr, err = pcall(function()
+        state.job = start_job(_("Audit references"), 0)
         local suggest = settings.suggest_crops
         local quarantine = settings.quarantine
         local results = run_reference_job(state, {}, args_of({ "--audit-refs" }, suggest and { "--suggest-crops" } or {},
@@ -3492,8 +3523,12 @@ function M.audit_references()
             crops_note = crops_note .. string.format(" %d anchors look doubtful (never moved; check them by hand).", c.doubtful_anchors)
         end
         crops_note = crops_note .. string.format(" %d cars have no anchor.", c.unanchored or 0)
-        say(string.format("Assisted Tagging: audited %d references: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers, %d odd crops; %d flagged by 2+ checks (start there).%s Details in %s",
-            c.references or 0, c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, c.crops or 0, c.strongest or 0, crops_note, report))
+        local flagged = (c.mislabel or 0) + (c.copies or 0) + (c.outliers or 0) + (c.colour or 0) + (c.crops or 0)
+        local found = flagged == 0 and "nothing flagged."
+            or string.format("flagged: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers, %d odd crops; %d flagged by 2+ checks (start there).",
+                c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, c.crops or 0, c.strongest or 0)
+        say(string.format("Assisted Tagging: audit done, %d references checked, %s%s Details in %s",
+            c.references or 0, found, crops_note, report))
     end)
     finish_reference_job(state, okr, err, "couldn't audit references.")
 end
@@ -3978,6 +4013,7 @@ local function install_panel()
                 dt.print(_("Assisted Tagging: choose a start list CSV first."))
                 return
             end
+            dt.print(_("Assisted Tagging: importing the start list…"))
             local ok, out = run_start_list_import(argv)
             log("import start list: " .. (out ~= "" and out or (ok and "no output" or "failed")))
             if not ok then

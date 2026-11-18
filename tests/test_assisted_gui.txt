@@ -4,6 +4,7 @@ ok   startup lists the collection's entries
 ok   the startup load has no Lua error
 ok   fill colours, no entry tags: says no image names an entry
 ok   fill colours, no entry tags: no crash
+ok   fill colours: says it started as soon as it is clicked
 ok   fill colours, no entry tags: identify.py isn't started
 ok   fill colours, no entry tags: the log says why
 ok   fill colours, Identify's entry tag + hand colour: no crash
@@ -18,10 +19,12 @@ ok   fill colours, hand entry tag, no colour tag: the row leaves the colour to t
 ok   fill colours, number tag only: the rows name the entry and the agreed colour
 ok   add references, no entry tags: no crash
 ok   add references, no entry tags: identify.py isn't started
+ok   add references: says it started as soon as it is clicked
      add references, no entry tags, says: Assisted Tagging: no selected image carries all of one entry's tags, so nothing was added.
 ok   add references, hand entry tag: no crash
 ok   add references, hand entry tag: the row names the entry
-     add references, hand entry tag, says: Assisted Tagging: added 1 references to their entries. Each sample's crop is in Rallye/refs.
+ok   add references, hand entry tag: reports the reference added
+ok   add references, no vehicle found: says nothing was added and why
 ok   the buttons leave no Lua error
 
 all tests passed
