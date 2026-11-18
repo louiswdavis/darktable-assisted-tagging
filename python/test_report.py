@@ -132,10 +132,35 @@ def run_tests():
                                                            "hints: 1 applied, 1 dropped" in hmd), (True, True))
     check("render: no hint, no hint line", "hints:" in R.render_md(d, R.rows(d), R.summarize(d, R.rows(d)), 5), False)
 
+    found = dict(d, noise_numbers={"3": 4, "44": 3},
+                 entry_list=["entry list: number 14 is on more than one car (A, B): a read of it names none of them, only livery can"])
+    fmd = R.render_md(found, R.rows(found), R.summarize(found, R.rows(found)), 0)
+    check("render: the summary lists the run's noise numbers and entry-list findings",
+          [ln for ln in fmd.splitlines() if "noise numbers" in ln or "entry list" in ln],
+          ["- noise numbers (left out of a box's reads when it has another): 3 (beside 4 numbers), 44 (beside 3 numbers)",
+           "- entry list: number 14 is on more than one car (A, B): a read of it names none of them, only livery can"])
+    check("render: a boxes.json without noise numbers or entry-list findings has neither line",
+          any("noise numbers" in ln or "entry list" in ln for ln in R.render_md(d, R.rows(d), R.summarize(d, R.rows(d)), 5).splitlines()), False)
+
+    by_pool = data({"p1": image([box("pooled", "margin_too_small", cands=(("a", 0.55), ("b", 0.5)))]),
+                    "p2": image([box("pooled", "below_min_sim", cands=(("a", 0.4),))]), "n1": image([box("number", "number")])})
+    pmd = R.render_md(by_pool, R.rows(by_pool), R.summarize(by_pool, R.rows(by_pool)), 1)
+    check("render: frames resolved by pooled burst have their own section, weakest first",
+          pmd.split("## resolved by pooled burst (2)\n\n")[-1].splitlines(),
+          ["- as `a`: `p2` box 0: `a` 0.400; below_min_sim, short by 0.040; ocr saw no text", "- … 1 more in report.json"])
+    check("render: no pooled frame, no pooled section", "pooled burst" in R.render_md(d, R.rows(d), R.summarize(d, R.rows(d)), 5), False)
+    check("render: top=0 leaves the pooled section out",
+          "pooled burst" in R.render_md(by_pool, R.rows(by_pool), R.summarize(by_pool, R.rows(by_pool)), 0), False)
+
     with tempfile.TemporaryDirectory() as tmp:
         prefix = os.path.join(tmp, "sub", "c.report")
+        R.write_report(found, prefix, 20)
+        out = json.load(open(prefix + ".json", encoding="utf-8"))
+        check("write_report: report.json carries the noise numbers and entry-list findings",
+              (out["noise_numbers"], out["entry_list"]), (found["noise_numbers"], found["entry_list"]))
         md_path, json_path = R.write_report(d, prefix, 20)
         out = json.load(open(json_path, encoding="utf-8"))
+        check("write_report: a boxes.json from before noise numbers still reports", (out["noise_numbers"], out["entry_list"]), ({}, []))
         check("write_report: both files, every row carries its category",
               (os.path.isfile(md_path), [r["category"] for r in out["rows"]]),
               (True, ["already-tagged", "identified", "weak-match", "no-vehicle"]))

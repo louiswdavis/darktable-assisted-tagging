@@ -5,6 +5,7 @@
 import ast
 import json
 import os
+import re
 import sys
 import tempfile
 from argparse import Namespace
@@ -675,6 +676,69 @@ def run_tests():
           I.format_row("7", BoxResult(0, "none", "", "VER", anchor_flag=True), "solo").endswith(",1"), True)
     check("a row has thirteen fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 13)
 
+    # ---- pooled burst livery (experimental)
+    drivers = {"VER": I.Entry("VER", "1", "Red Bull", ("F1|Red Bull|VER",)),
+               "TSU": I.Entry("TSU", "22", "Red Bull", ("F1|Red Bull|TSU",)),
+               "HAM": I.Entry("HAM", "44", "Ferrari", ("F1|Ferrari|HAM",))}
+    ver_sims = [("VER", 0.9), ("TSU", 0.5), ("HAM", 0.2)]
+    seen_box = {"boxes": [{"overlap": "", "hint": {}}]}
+    unread = [BoxResult(0, "none")]
+    burst = {"a": "g", "b": "g", "c": "g"}
+    methods = lambda out: {fid: (rs[0].method, rs[0].entry_id, rs[0].alt_entry_id) for fid, rs in out.items()}
+    check("pooled: unidentified frames of a burst take the pooled livery match",
+          methods(I.pool_burst_livery({"a": unread, "b": unread}, burst, {"a": ver_sims, "b": ver_sims}, drivers,
+                                      {"a": seen_box, "b": seen_box})),
+          {"a": ("pooled", "VER", ""), "b": ("pooled", "VER", "")})
+    check("pooled: a frame already identified by livery keeps its method",
+          methods(I.pool_burst_livery({"a": [BoxResult(0, "livery", "VER", "", 0.8)], "b": unread}, burst,
+                                      {"a": ver_sims, "b": ver_sims}, drivers, {"a": seen_box, "b": seen_box})),
+          {"a": ("livery", "VER", ""), "b": ("pooled", "VER", "")})
+    check("pooled: a burst with a frame identified as another car is left alone",
+          methods(I.pool_burst_livery({"a": [BoxResult(0, "livery", "HAM", "", 0.8)], "b": unread, "c": unread}, burst,
+                                      {"a": ver_sims, "b": ver_sims, "c": ver_sims}, drivers,
+                                      {"a": seen_box, "b": seen_box, "c": seen_box})),
+          {"a": ("livery", "HAM", ""), "b": ("none", "", ""), "c": ("none", "", "")})
+    check("pooled: an overlapped box 0 is neither pooled nor filled",
+          methods(I.pool_burst_livery({"a": unread, "b": unread, "c": unread}, burst,
+                                      {"a": ver_sims, "b": ver_sims, "c": [("HAM", 5.0)]}, drivers,
+                                      {"a": seen_box, "b": seen_box, "c": {"boxes": [{"overlap": I.HIDDEN, "hint": {}}]}})),
+          {"a": ("pooled", "VER", ""), "b": ("pooled", "VER", ""), "c": ("none", "", "")})
+    tie = [("VER", 0.9), ("TSU", 0.9 - I.MATCH_MIN_MARGIN / 2), ("HAM", 0.2)]
+    check("pooled: a pooled team tie names no driver",
+          methods(I.pool_burst_livery({"a": unread, "b": unread}, burst, {"a": tie, "b": tie}, drivers,
+                                      {"a": seen_box, "b": seen_box})),
+          {"a": ("none", "", ""), "b": ("none", "", "")})
+    ferrari_hint = {"boxes": [{"overlap": "", "hint": {"prefixes": ["F1|Ferrari"], "source": "tag", "restricted": 1,
+                                                       "dropped": False, "reason": ""}}]}
+    check("pooled: a frame whose tag hint leaves the entry out keeps its result",
+          methods(I.pool_burst_livery({"a": unread, "b": unread, "c": unread}, burst,
+                                      {"a": ver_sims, "b": ver_sims, "c": ver_sims}, drivers,
+                                      {"a": ferrari_hint, "b": seen_box, "c": seen_box})),
+          {"a": ("none", "", ""), "b": ("pooled", "VER", ""), "c": ("pooled", "VER", "")})
+    check("pooled: a team result takes the pooled driver only for its own team",
+          methods(I.pool_burst_livery({"a": [BoxResult(0, "team", "TSU", "VER", 0.7)], "b": [BoxResult(0, "team", "HAM", "", 0.7)],
+                                       "c": unread}, burst, {"a": ver_sims, "b": ver_sims, "c": ver_sims}, drivers,
+                                      {"a": seen_box, "b": seen_box, "c": seen_box})),
+          {"a": ("pooled", "VER", ""), "b": ("team", "HAM", ""), "c": ("pooled", "VER", "")})
+    blue = dict(drivers, VER=I.Entry("VER", "1", "Red Bull", ("F1|Red Bull|VER",), colour="Blue"))
+    red_box, blue_box = [BoxResult(0, "none", colour="Red")], [BoxResult(0, "none", colour="Blue")]
+    check("pooled: a frame whose colour differs from the pooled entry's is left out of the fill",
+          methods(I.pool_burst_livery({"a": blue_box, "b": unread, "c": red_box}, burst,
+                                      {"a": ver_sims, "b": ver_sims, "c": ver_sims}, blue,
+                                      {"a": seen_box, "b": seen_box, "c": seen_box})),
+          {"a": ("pooled", "VER", ""), "b": ("pooled", "VER", ""), "c": ("none", "", "")})
+    # c's sims carry the pool to VER; without c the two blue frames name no one
+    weak_sims = [("VER", I.MATCH_MIN_SIM - 0.1), ("TSU", 0.2), ("HAM", 0.1)]
+    check("pooled: a frame whose colour differs is left out of the pool",
+          methods(I.pool_burst_livery({"a": blue_box, "b": unread, "c": red_box}, burst,
+                                      {"a": weak_sims, "b": weak_sims, "c": [("VER", 5.0)]}, blue,
+                                      {"a": seen_box, "b": seen_box, "c": seen_box})),
+          {"a": ("none", "", ""), "b": ("none", "", ""), "c": ("none", "", "")})
+    check("pooled: one frame left after the colour check is no pool",
+          methods(I.pool_burst_livery({"a": blue_box, "b": red_box}, burst, {"a": ver_sims, "b": ver_sims}, blue,
+                                      {"a": seen_box, "b": seen_box})),
+          {"a": ("none", "", ""), "b": ("none", "", "")})
+
     # ---- Review Focus 2: EXIF-rotated frames
     rotated = os.path.join(img, "portrait.jpg")
     exif = Image.Exif()
@@ -833,9 +897,13 @@ def run_tests():
           (run["images"]["9"]["status"], run["images"]["9"]["boxes"][1]["unmatched_number"]), ("ok", ""))
     check("boxes.json carries the thresholds and per-entry facts the report needs",
           (sorted(run["thresholds"]), sorted(run["entries"]["VER"])),
-          (["min_margin", "min_read", "min_sim", "number_list_floor", "number_list_margin", "number_min_height",
+          (["min_margin", "min_read", "min_sim", "noise_min_beside_share", "noise_min_partners", "number_list_floor", "number_list_margin", "number_min_height",
             "ocr_min_score", "weak_read_min"],
            ["camera", "car", "colour", "number", "refs", "tags", "team"]))
+    readme = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "README.md"), encoding="utf-8").read()
+    listed = re.search(r'"thresholds" \(\{([^}]*)\}', readme)
+    check("the README's boxes.json shape lists the thresholds the run writes",
+          sorted(listed.group(1).split(", ")) if listed else None, sorted(run["thresholds"]))
     args.report_out = os.path.join(img, "last-run", "c.report")
     I.identify(args, dict(fake_models))
     check("--report-out writes report.md and report.json", (os.path.isfile(args.report_out + ".md"),
@@ -870,6 +938,65 @@ def run_tests():
     check("a hand entry that isn't in entries.json is logged and its image identified without it",
           (open(results, encoding="utf-8").read().splitlines(), any("hand-tagged as entry GONE" in ln for ln in lines)),
           (["4,-1,none,,,0.000,,,,,,,"], True))
+
+    # ---- noise numbers: a class "3" on every car, read beside three start-list numbers; one car is number 3
+    ALB = {"id": "ALB", "number": "7", "team": "Williams", "tags": ["F1|Williams", "F1|Williams|Albon"]}
+    PER = {"id": "PER", "number": "3", "team": "Cadillac", "tags": ["F1|Cadillac", "F1|Cadillac|Perez"]}
+    # two cars entered under 99, which no frame reads
+    OCO = {"id": "OCO", "number": "99", "team": "Haas", "tags": ["F1|Haas", "F1|Haas|Ocon"]}
+    BEA = {"id": "BEA", "number": "99", "team": "Haas", "tags": ["F1|Haas", "F1|Haas|Bearman"]}
+    noise_coll = collection([VER, TSU, ALB, PER, OCO, BEA], root=root)
+    scene_reads.update({50: [("1", 0.95), ("3", 0.95)], 60: [("22", 0.95), ("3", 0.95)], 70: [("7", 0.95), ("3", 0.95)],
+                        80: [("3", 0.95)]})
+    for n, shade in {11: 50, 12: 60, 13: 70, 14: 80}.items():
+        Image.new("RGB", (100, 50), (shade,) * 3).save(f"{X}/{n}.jpg", format="PNG")
+    with open(manifest, "w", encoding="utf-8") as f:
+        f.write("".join(f'"{n}","{X}/{n}.jpg","{n}"\n' for n in (11, 12, 13, 14)))
+    args.collection, args.boxes_out = os.path.basename(noise_coll), os.path.join(img, "last-run", "noise.boxes.json")
+    lines = []
+    real_log, I.log = I.log, lines.append
+    try:
+        I.identify(args, dict(fake_models))
+    finally:
+        I.log = real_log
+    check("a noise number is left out of a box that reads another number, and kept where it is the only read",
+          open(results, encoding="utf-8").read().splitlines(),
+          ["11,0,number,VER,,0.950,,solo,,,,,", "12,0,number,TSU,,0.950,,solo,,,,,", "13,0,number,ALB,,0.950,,solo,,,,,",
+           "14,0,number,PER,,0.950,,solo,,,,,"])
+    check("the run logs its noise numbers once, and each box that left one out",
+          ([ln for ln in lines if ln.startswith("noise numbers:")], sum("[noise number 3 not used]" in ln for ln in lines)),
+          (["noise numbers: 3 (beside 3 numbers); left out of a box's reads when it has another"], 3))
+    shared = [i for i, ln in enumerate(lines) if ln.startswith("entry list: number 99 is on more than one car (OCO, BEA)")]
+    check("the run logs a number entered on two cars once, before any frame is matched",
+          (len(shared), shared[:1] < [i for i, ln in enumerate(lines) if ln.startswith("11:")][:1]), (1, True))
+    noise_run = json.load(open(args.boxes_out, encoding="utf-8"))
+    check("boxes.json lists the noise numbers and keeps each box's full OCR",
+          (noise_run["noise_numbers"], noise_run["images"]["11"]["boxes"][0]["ocr"]), ({"3": 3}, [["1", 0.95], ["3", 0.95]]))
+    check("boxes.json keeps the entry-list findings the run logged",
+          noise_run["entry_list"], [ln for ln in lines if ln.startswith("entry list:")])
+    check("the entry-list findings are not empty", len(noise_run["entry_list"]) > 0, True)
+    args.collection, args.boxes_out = os.path.basename(coll), ""
+
+    # ---- the entry-list check at the start of a run
+    listed = {"A": I.Entry("A", "14", "", ()), "B": I.Entry("B", "14", "", ()), "C": I.Entry("C", "7", "", (), shows=("22",)),
+              "D": I.Entry("D", "22", "", ()), "E": I.Entry("E", "", "", ()), "F": I.Entry("F", "", "", ())}
+    check("entry list: a number on two cars (entered or shown), an entry nothing can find, and entries without references",
+          I.entry_list_check(listed, {"A": 3, "F": 1}),
+          ["entry list: number 14 is on more than one car (A, B): a read of it names none of them, only livery can",
+           "entry list: number 22 is on more than one car (C, D): a read of it names none of them, only livery can",
+           "entry list: 1 entry has no number and no references, so nothing can identify it: E",
+           "entry list: 3 of 6 entries have no references, so only a number read finds them: B, C, D"])
+    check("entry list: with no references at all, entries that have a number aren't listed",
+          I.entry_list_check({k: listed[k] for k in "CE"}, {}),
+          ["entry list: 1 entry has no number and no references, so nothing can identify it: E"])
+    pair = {"A": I.Entry("A", "14", "", (), car="A"), "B": I.Entry("B", "14", "", (), car="A")}
+    check("entry list: a double-driven car's two entries share its number and its references", I.entry_list_check(pair, {"B": 2}), [])
+    many = {f"E{n}": I.Entry(f"E{n}", str(n), "", ()) for n in range(1, 19)}
+    check("entry list: one entry without references reads in the singular",
+          I.entry_list_check({k: listed[k] for k in "AB"}, {"A": 3}),
+          ["entry list: number 14 is on more than one car (A, B): a read of it names none of them, only livery can",
+           "entry list: 1 of 2 entries has no references, so only a number read finds it: B"])
+    check("entry list: a long list of ids is cut short", I.entry_list_check(many, {"E18": 1})[0].endswith("E14, E15 and 2 more"), True)
 
     # ---- --promote-boxes: saves confident boxes from the box crop, replaces on re-run, flags a changed file
     real_jpg = os.path.join(img, "promo.jpg")

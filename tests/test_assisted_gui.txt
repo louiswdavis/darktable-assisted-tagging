@@ -25,6 +25,11 @@ ok   add references, hand entry tag: no crash
 ok   add references, hand entry tag: the row names the entry
 ok   add references, hand entry tag: reports the reference added
 ok   add references, no vehicle found: says nothing was added and why
+ok   clear, selection not restored: the clear doesn't raise
+ok   clear, selection not restored: the tags are cleared
+ok   clear, selection not restored: says the selection wasn't restored
+ok   clear, selection not restored: the job bar is closed
+ok   clear, selection not restored: the next clear runs, the panel isn't left busy
 ok   the buttons leave no Lua error
 
 all tests passed

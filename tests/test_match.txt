@@ -192,6 +192,16 @@ ok   burst: a sure read of the winner leaves the fusion on
 ok   burst: one frame with matrices falls back to string agreement
 ok   burst: a colour clash drops the number
 ok   hinted: a weak read outside the tag set doesn't drop the hint
+ok   noise: a number beside three start-list numbers is noise, with its partner count
+ok   noise: the box that also reads 14 is number 14
+ok   noise: the box that reads only 3 is still number 3
+ok   noise: two cars sharing a box twice make neither number noise
+ok   noise: a read under min_read is no partner and gains none
+ok   noise: a number off the start list is no partner, but can be noise itself
+ok   noise: a real car beside three others in three boxes, alone in three more, is no noise
+ok   noise: a class number alone in a few boxes, beside a start-list number in most, stays noise
+ok   noise: boxes that read it under min_read don't count towards the share
+ok   noise: a box reading only noise numbers keeps them all
 ok   shows: a shown number held by no other entry identifies by number
 ok   shows: a shown number another entry carries goes to livery (old 44 on car 14)
 ok   shows: the entered car still wins its own number on livery

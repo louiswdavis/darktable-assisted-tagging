@@ -2624,6 +2624,16 @@ local function write_ledger(ledger, consequence, keep_gone)
     end
 end
 
+-- The end of a job: puts the selection back (`selected` nil when none was hidden), closes the
+-- job bar and clears busy. A step that raises is reported once busy is clear, and the rest still run.
+local function finish_job(job, selected)
+    local ok_s, err_s = pcall(C.restore_selection, dt, selected)
+    local ok_j, err_j = pcall(end_job, job)
+    busy = false
+    if not ok_s then notify_error(_("Assisted Tagging: couldn't restore the selection: ") .. tostring(err_s)) end
+    if not ok_j then notify_error(_("Assisted Tagging: couldn't close the job bar: ") .. tostring(err_j)) end
+end
+
 -- Detaches every tag the ledger says this plugin attached to the selected images, from any
 -- collection's roots, then drops their ledger rows. Hand-applied tags and run stamps stay.
 -- A tag that fails to detach keeps its place in the row, so clearing again retries it.
@@ -2698,9 +2708,7 @@ function M.clear_marks(images)
             say(string.format(_("Assisted Tagging: cleared %d tags from %d images."), n_tags, n_images))
         end
     end)
-    C.restore_selection(dt, selected)
-    end_job(job)
-    busy = false
+    finish_job(job, selected)
     if not okr then notify_error(_("Assisted Tagging: couldn't clear tagging marks. ") .. tostring(err)) end
     log("clear finished")
     flush_log()
@@ -2792,8 +2800,7 @@ function M.derive_images(images, mode)
         if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (reasons in the log)." end
         say(msg)
     end)
-    end_job(job)
-    busy = false
+    finish_job(job)
     if not okr then notify_error(_("Assisted Tagging: couldn't derive tags. ") .. tostring(err)) end
     log("derive finished")
     flush_log()
@@ -3098,28 +3105,39 @@ function M.identify_images(images, replace_manual, verify_only)
 
     -- Saved once tags may have changed, even if the apply stopped or errored partway, so the tags
     -- this run attached aren't mistaken for the user's next time. Earlier stages leave it as it was.
-    C.restore_selection(dt, run and run.selected)
+    -- Each closing step runs under pcall and is reported after busy is clear, so none can leave
+    -- the panel busy.
+    local ok_s, err_s = pcall(C.restore_selection, dt, run and run.selected)
+    local ok_l, err_l = true, nil
     if run and run.applying then
-        show_stage(job, "saving", 0)
-        log("apply: saving the ledger")
-        flush_log()
-        local save_start = os.time()
-        write_ledger(run.ledger, nil, true)
-        log(string.format("apply: ledger saved, %ds", os.time() - save_start))
+        ok_l, err_l = pcall(function()
+            show_stage(job, "saving", 0)
+            log("apply: saving the ledger")
+            flush_log()
+            local save_start = os.time()
+            write_ledger(run.ledger, nil, true)
+            log(string.format("apply: ledger saved, %ds", os.time() - save_start))
+        end)
     end
     -- 2026-11-17 debug: 4 minutes passed between "ledger saved" and "run finished"; each line
     -- below is flushed so the log shows which step holds it.
     local finish_start = os.time()
     log("finish: ending the job")
     flush_log()
-    end_job(job)
+    local ok_j, err_j = pcall(end_job, job)
+    busy = false
     log(string.format("finish: job ended, %ds; resetting the button", os.time() - finish_start))
     flush_log()
-    busy = false
     set_idle_label()
     log(string.format("finish: button reset, %ds; removing temp files", os.time() - finish_start))
     flush_log()
     if not okr then notify_error(_("Assisted Tagging: couldn't run. ") .. tostring(err)) end
+    if not ok_s then notify_error(_("Assisted Tagging: couldn't restore the selection: ") .. tostring(err_s)) end
+    if not ok_l then
+        notify_error(_("Assisted Tagging: couldn't save the tag ledger: ") .. tostring(err_l)
+            .. ". " .. _("Tags this run attached will count as yours next run."))
+    end
+    if not ok_j then notify_error(_("Assisted Tagging: couldn't close the job bar: ") .. tostring(err_j)) end
     cleanup_tmp()
     log(string.format("finish: temp files removed, %ds", os.time() - finish_start))
     log("run finished")
@@ -3155,8 +3173,7 @@ end
 
 -- failure: the sentence a crash is reported with, e.g. "couldn't audit references."
 local function finish_reference_job(state, okr, err, failure)
-    end_job(state.job)
-    busy = false
+    finish_job(state.job)
     if not okr then notify_error("Assisted Tagging: " .. failure .. " " .. tostring(err)) end
     cleanup_tmp()
     log("run finished")

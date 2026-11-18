@@ -32,6 +32,13 @@ NUMBER_LIST_MARGIN = 2.3
 NUMBER_LIST_FLOOR = 4.6
 CTC_MIN_PROB = 1e-4  # a digit matrix holds 4 decimals; a 0 there is read as this
 
+# a number read at min_read or more beside this many different start-list numbers across the run
+# is on many cars (a class number, a year, a sponsor's digits), so it names none (noise_numbers)
+NOISE_MIN_PARTNERS = 3
+# ...and only when more than this share of the boxes that read it also read a start-list number:
+# a class number sits beside the car's own, a real car's number is mostly alone in its box
+NOISE_MIN_BESIDE_SHARE = 0.5
+
 IDENTIFIED = ("number", "livery")
 HAND = "hand"  # the entry the user's own number or driver tag names (the manifest's 7th field)
 BURST_ANCHORS = IDENTIFIED + ("neighbour", HAND)  # results that can anchor a burst fill
@@ -246,6 +253,33 @@ def usable_reads(ocr: list, ctc, min_read: float) -> list:
     """The reads matching may use: those at min_read or more, plus those at WEAK_READ_MIN or more
     that have a digit matrix, since list_read holds a weak read to the same bar as a sure one."""
     return [(d, c) for d, c in ocr if c >= min_read or (c >= WEAK_READ_MIN and ctc is not None and d in ctc)]
+
+
+def noise_numbers(boxes: list, entries: dict, min_read: float) -> dict:
+    """{digits: partner count} of the run's noise numbers, from every vehicle box's reads (`boxes`:
+    one [(digits, confidence)] per box). A read's partners are the other start-list numbers read in
+    the same box, both at min_read or more. A number is noise with NOISE_MIN_PARTNERS different
+    partners across the run and a partner in more than NOISE_MIN_BESIDE_SHARE of the boxes that read
+    it: a real car passed by three others is still alone in most of its boxes. Two cars sharing a
+    box give each number one partner, however often they do."""
+    listed = set(number_index(entries))
+    partners, read_in, beside = {}, {}, {}
+    for ocr in boxes:
+        sure = {d for d, c in ocr if c >= min_read}
+        for d in sure:
+            mates = {n for n in sure if n != d and n in listed}
+            partners.setdefault(d, set()).update(mates)
+            read_in[d] = read_in.get(d, 0) + 1
+            beside[d] = beside.get(d, 0) + bool(mates)
+    return {d: len(p) for d, p in sorted(partners.items())
+            if len(p) >= NOISE_MIN_PARTNERS and beside[d] > NOISE_MIN_BESIDE_SHARE * read_in[d]}
+
+
+def without_noise(ocr: list, noise: dict) -> list:
+    """ocr without the run's noise numbers. Unchanged when nothing else was read: a noise number
+    alone in a box can still be the car's own."""
+    kept = [(d, c) for d, c in ocr if d not in noise]
+    return kept or ocr
 
 
 def list_scores(ocr: list, ctc, entries: dict):

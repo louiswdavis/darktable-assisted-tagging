@@ -1,8 +1,12 @@
 # Run with: python python/test_eval_numbers.py
 # Exercises ocr.py's region filter (drop_reason, pick_reads) and eval_numbers' miss causes; no models or files needed.
 
+import contextlib
+import io
+import json
 import os
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import eval_numbers as En
@@ -61,17 +65,54 @@ def run_tests():
     entries = {"E14": Entry("E14", "14", "A", ("t|14",)), "E22": Entry("E22", "22", "B", ("t|22",))}
     box = {"box": 0, "hint": {}, "sims": [["E22", 0.5], ["E14", 0.4]],
            "ocr_regions": [region("14", det=0.75)]}
-    check("replay: dropped region leaves the box unread", En.replay_box(box, entries, KNOBS)[0].method != "number", True)
+    check("replay: dropped region leaves the box unread", En.replay_box(box, entries, KNOBS, {})[0].method != "number", True)
     lower = dict(KNOBS, ocr_min_score=0.7, min_read=0.7)
-    check("replay: OCR_MIN_SCORE=0.7 and min_read=0.7 read it", En.replay_box(box, entries, lower)[0].entry_id, "E14")
+    check("replay: OCR_MIN_SCORE=0.7 and min_read=0.7 read it", En.replay_box(box, entries, lower, {})[0].entry_id, "E14")
     # its confidence (0.75) is under min_read, but its matrix still takes it through the start list
     check("replay: OCR_MIN_SCORE=0.7 alone reads it as a weak read",
-          En.replay_box(box, entries, dict(KNOBS, ocr_min_score=0.7))[0].entry_id, "E14")
+          En.replay_box(box, entries, dict(KNOBS, ocr_min_score=0.7), {})[0].entry_id, "E14")
     blank = dict(box, ocr_regions=[dict(region("14", det=0.75), matrix=[[0.0] * 11])])
     check("replay: a weak read whose matrix can't spell it stays unread",
-          En.replay_box(blank, entries, dict(KNOBS, ocr_min_score=0.7))[0].method != "number", True)
+          En.replay_box(blank, entries, dict(KNOBS, ocr_min_score=0.7), {})[0].method != "number", True)
+    both = dict(box, ocr_regions=[region("14"), region("41", rec=0.95)])
+    three = dict(entries, E41=Entry("E41", "41", "C", ("t|41",)))
+    check("replay: two numbers read in one box is no number read", En.replay_box(both, three, KNOBS, {})[0].method != "number", True)
+    check("replay: the live run's noise number is left out", En.replay_box(both, three, KNOBS, {"41": 3})[0].entry_id, "E14")
     check("set: parses known names", En.parse_sets(["OCR_MIN_SCORE=0.7", "min_read=0.8"]),
           {"OCR_MIN_SCORE": 0.7, "min_read": 0.8})
+
+    # 41 is read at 0.8 beside three start-list numbers: noise once min_read drops under 0.8
+    def beside(number):
+        return dict(box, ocr_regions=[region(number), region("41", rec=0.8)], read_entry="")
+
+    four = dict(three, E33=Entry("E33", "33", "D", ("t|33",)))
+    run = {"thresholds": KNOBS, "noise_numbers": {},
+           "entries": {e.id: {"number": e.number, "team": e.team, "tags": list(e.tags)} for e in four.values()},
+           "images": {"1": {"hand": "E14", "boxes": [beside("14")]}, "2": {"boxes": [beside("22")]},
+                      "3": {"boxes": [beside("33"), dict(box, ocr_regions=[])]}}}
+    check("noise: the live run's knobs give the live run's noise numbers", En.replay_noise(run, four, KNOBS), run["noise_numbers"])
+    check("noise: a lower min_read finds the number the live run didn't count",
+          En.replay_noise(run, four, dict(KNOBS, min_read=0.75)), {"41": 3})
+    sure = {"noise_numbers": {"41": 3}, "images": {str(i): {"boxes": [{"ocr": [[n, 0.9], ["41", 0.9]]}]}
+                                                   for i, n in enumerate(("14", "22", "33"))}}
+    check("noise: a box that kept no regions counts with its stored reads", En.replay_noise(sure, four, KNOBS), sure["noise_numbers"])
+    check("noise: a higher min_read drops the live run's noise number", En.replay_noise(sure, four, dict(KNOBS, min_read=0.95)), {})
+    check("noise: a boxes.json from before noise numbers has none",
+          En.replay_noise({"images": sure["images"]}, four, KNOBS), {})
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "boxes.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(run, f)
+        printed, argv = io.StringIO(), sys.argv
+        sys.argv = ["eval_numbers.py", path, "--set", "min_read=0.75"]
+        try:
+            with contextlib.redirect_stdout(printed):
+                En.main()
+        finally:
+            sys.argv = argv
+    check("main: --set min_read replays with its own noise numbers",
+          [ln for ln in printed.getvalue().splitlines() if ln.startswith("read right")],
+          ["read right 1 (100.0%), wrong entry 0 (0.0%), unread 0 (0.0%)"])
 
     if failures == 0:
         print("all tests passed")

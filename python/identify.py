@@ -40,7 +40,7 @@ import entries_file
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
-from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
+from match import (HAND, IDENTIFIED, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NOISE_MIN_BESIDE_SHARE, NOISE_MIN_PARTNERS, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads, noise_numbers, without_noise, number_index, numbers_of,
                    burst_colours, burst_consensus, closer_car_match, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera, sure_cars,
                    match_livery, match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
@@ -1090,29 +1090,48 @@ def hires_wanted(frames: dict, detail: dict, analyses: dict) -> dict:
     return wanted
 
 
-def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: dict) -> dict:
-    """Experimental (rules.burst_livery_pooling): for each burst with 2+ frames, pool
-    box-0 livery similarity across them and re-run the livery/team decision once on the
-    average. Frames whose box 0 was already resolved by number are left alone; a frame
-    the pooled decision still can't resolve keeps its own per-frame result."""
+def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: dict, detail: dict) -> dict:
+    """Experimental (rules.burst_livery_pooling): for each burst with 2+ frames whose box 0 is
+    visible, pool box-0 livery similarity across them and re-run the livery decision once on the
+    average. Only a pooled livery match names a car (a pooled team tie names no driver), and only
+    when no frame's box 0 is identified as another entry by number or livery. It fills the frames
+    whose box 0 is unidentified (`none`, or `team` for the same team); a box 0 that is overlapped
+    (`detail`'s overlap), already identified, or under a tag or sponsor hint that leaves the
+    entry out keeps its own result. A frame whose box-0 colour differs from the pooled entry's
+    (colour_relation -1, neighbour aid's veto) is left out of the pool and the fill: the rest
+    are pooled again without it and must name the same entry."""
     members: dict = {}
     for image_id in box0_sims:
-        members.setdefault(burst_of.get(image_id, image_id), []).append(image_id)
+        if detail[image_id]["boxes"][0]["overlap"] != HIDDEN:
+            members.setdefault(burst_of.get(image_id, image_id), []).append(image_id)
     out = dict(frames)
     for ids in members.values():
         if len(ids) < 2:
             continue
-        pooled = pool_sims([box0_sims[i] for i in ids])
-        decision = match_livery(0, pooled, entries)
-        if decision.method == "none":
+        decision = match_livery(0, pool_sims([box0_sims[i] for i in ids]), entries)
+        if decision.method != "livery":
             continue
-        for image_id in ids:
-            box0 = out[image_id][0]
-            if box0.method == "number":
+        eid = decision.entry_id
+        if any(r.box == 0 and r.method in IDENTIFIED and r.entry_id != eid for i in ids for r in frames[i]):
+            continue
+        agreeing = [i for i in ids if car_colour.colour_relation(entries[eid].colour, frames[i][0].colour) != -1]
+        if len(agreeing) < len(ids):
+            if len(agreeing) < 2:
                 continue
-            out[image_id] = [replace(box0, method="pooled", entry_id=decision.entry_id,
-                                      alt_entry_id=decision.alt_entry_id,
-                                      confidence=decision.confidence)] + out[image_id][1:]
+            decision = match_livery(0, pool_sims([box0_sims[i] for i in agreeing]), entries)
+            if decision.method != "livery" or decision.entry_id != eid:
+                continue
+        for image_id in agreeing:
+            box0 = out[image_id][0]
+            hint = detail[image_id]["boxes"][0]["hint"]
+            if box0.method == "team" and entries[box0.entry_id].team != entries[eid].team:
+                continue
+            if box0.method not in ("none", "team"):
+                continue
+            if hint and not hint["dropped"] and eid not in entries_under(entries, hint["prefixes"]):
+                continue
+            out[image_id] = [replace(box0, method="pooled", entry_id=eid, alt_entry_id="",
+                                     confidence=decision.confidence)] + out[image_id][1:]
     return out
 
 
@@ -1136,10 +1155,12 @@ def archive_run(files: list, archive_dir: str, keep: int):
 
 
 def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entries: dict, counts: dict,
-                sponsor_keywords: tuple = (), min_read: float = Rules.min_read) -> dict:
+                sponsor_keywords: tuple = (), min_read: float = Rules.min_read, noise: dict = None, entry_list: tuple = ()) -> dict:
     """The run's per-vehicle record (see the README for the shape). `skipped` lists images
     left alone because they already carry one entry's full tag set; each image's `status` is
-    ok, no_vehicle or error. `entries` and `thresholds` give the debug report what it needs."""
+    ok, no_vehicle or error. `entries` and `thresholds` give the debug report what it needs.
+    `noise` is the run's noise numbers (match.noise_numbers), which eval_numbers.py replays;
+    `entry_list` is entry_list_check's lines. The report shows both."""
     images, skipped = {}, []
     for image_id, results in frames.items():
         if any(r.method == "skipped" for r in results):
@@ -1172,7 +1193,11 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                            # the number path's knobs, which eval_numbers.py replays and overrides
                            "ocr_min_score": OCR_MIN_SCORE, "number_min_height": NUMBER_MIN_HEIGHT,
                            "min_read": min_read, "weak_read_min": WEAK_READ_MIN,
-                           "number_list_margin": NUMBER_LIST_MARGIN, "number_list_floor": NUMBER_LIST_FLOOR},
+                           "number_list_margin": NUMBER_LIST_MARGIN, "number_list_floor": NUMBER_LIST_FLOOR,
+                           "noise_min_partners": NOISE_MIN_PARTNERS,
+                           "noise_min_beside_share": NOISE_MIN_BESIDE_SHARE},
+            "noise_numbers": dict(noise or {}),
+            "entry_list": list(entry_list),
             "sponsor_keywords": dict(sponsor_keywords),
             "entries": {e.id: {"team": e.team, "number": e.number, "tags": list(e.tags), "camera": e.camera,
                                     "colour": e.colour, "car": e.car, "refs": counts.get(e.id, 0)}
@@ -1188,10 +1213,11 @@ def write_boxes(path: str, data: dict):
 
 
 def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, rules: Rules, team_of: dict,
-                tag_hints: list, boxes_out: list, box0_sims: dict, quiet: bool = False) -> list:
+                tag_hints: list, boxes_out: list, box0_sims: dict, noise: dict, quiet: bool = False) -> list:
     """One BoxResult per detected vehicle in the analysed frame `a`. Appends each box's detail
     (bbox, detector score, sims, OCR, hint) to `boxes_out`, and box 0's sims to `box0_sims` when
-    burst pooling needs them. `quiet` skips the per-box log lines (a pass that is redone)."""
+    burst pooling needs them. `noise` is the run's noise numbers (match.noise_numbers), left out of
+    a box's reads when it has another. `quiet` skips the per-box log lines (a pass that is redone)."""
     results = []
     for i, ocr in enumerate(a["ocr"]):
         sims = index.best_per_entry(decode(a["emb"][i]),
@@ -1202,7 +1228,8 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         prefixes, source = box_hint(tag_hints if len(a["boxes"]) == 1 else [],
                                     sponsor_prefixes(trace, rules.sponsor_keywords))
         ctc = a["ocr_ctc"][i] if "ocr_ctc" in a else None
-        reads = usable_reads([tuple(c) for c in ocr], ctc, rules.min_read)
+        usable = usable_reads([tuple(c) for c in ocr], ctc, rules.min_read)
+        reads = without_noise(usable, noise)
         overlap = a.get("overlap", [""] * len(a["ocr"]))[i]
         shares = a["car_colour"][i] if "car_colour" in a else {}
         colour = car_colour.decide_colour(shares) if shares and overlap != HIDDEN else ""
@@ -1228,6 +1255,7 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
                 + (f" [hint {';'.join(prefixes)} ({source}){', dropped: ' + hint['reason'] if hint['dropped'] else ''}]" if hint else "")
                 + (f" [colour {colour_note['colour']}: {colour_note['kept']} of {colour_note['kept'] + colour_note['removed']} entries"
                    + (f", dropped: {colour_note['reason']}" if colour_note["dropped"] else "") + "]" if colour_note else "")
+                + (f" [noise number {'/'.join(d for d, _ in usable if (d, _) not in reads)} not used]" if len(reads) < len(usable) else "")
                 + (" [higher detail]" if a.get("hires", [])[i:i + 1] == [True] else "")
                 + (" [masked]" if a.get("masked", [])[i:i + 1] == [True] else ""))
         results.append(r)
@@ -1383,6 +1411,34 @@ def identify_people(args, models: dict, entries: dict, rules: Rules, from_entrie
     log("faces by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 
 
+ENTRY_LIST_SHOWN = 15  # entry ids named per line of the entry-list check
+
+
+def entry_list_check(entries: dict, counts: dict) -> list:
+    """Log lines on what in the entry list will cost matches, for the start of a run: numbers on
+    more than one car, entries with no references (`counts`: references per entry id), and entries
+    with neither a number nor references. A double-driven car's two entries count as one car."""
+    def named(ids: list) -> str:
+        more = len(ids) - ENTRY_LIST_SHOWN
+        return ", ".join(ids[:ENTRY_LIST_SHOWN]) + (f" and {more} more" if more > 0 else "")
+
+    car_of = {e.id: e.car or e.id for e in entries.values()}
+    refs: dict = {}
+    for eid, car in car_of.items():
+        refs[car] = refs.get(car, 0) + counts.get(eid, 0)
+    lines = [f"number {n} is on more than one car ({', '.join(ids)}): a read of it names none of them, only livery can"
+             for n, ids in number_index(entries).items() if len({car_of[i] for i in ids}) > 1]
+    unfindable = [e.id for e in entries.values() if not numbers_of(e) and not refs[car_of[e.id]]]
+    if unfindable:
+        have, them = ("entry has", "it") if len(unfindable) == 1 else ("entries have", "them")
+        lines.append(f"{len(unfindable)} {have} no number and no references, so nothing can identify {them}: {named(unfindable)}")
+    no_refs = [e.id for e in entries.values() if numbers_of(e) and not refs[car_of[e.id]]]
+    if counts and no_refs:
+        have, them = ("has", "it") if len(no_refs) == 1 else ("have", "them")
+        lines.append(f"{len(no_refs)} of {len(entries)} entries {have} no references, so only a number read finds {them}: {named(no_refs)}")
+    return [f"entry list: {line}" for line in lines]
+
+
 def identify(args, models: dict):
     collection = os.path.join(args.collections_root, args.collection)
     entries, rules, from_entries = load_collection(collection, args.settings)
@@ -1422,6 +1478,9 @@ def identify(args, models: dict):
         log(f"collection {args.collection} has no references yet: only numbers can identify a car")
     else:
         log("references: " + ", ".join(f"{e} {counts.get(e, 0)}" for e in entries))
+    entry_list = entry_list_check(entries, counts)
+    for line in entry_list:
+        log(line)
     unknown = sorted(k for k in set(counts) - set(entries) if not k.startswith(TEAM_KEY))
     team_of = {team_key(p): p for p in team_tags(entries, rules.families)} if rules.partial_references else {}
     if unknown:
@@ -1447,6 +1506,11 @@ def identify(args, models: dict):
 
         def match_all(analyses: dict, quiet: bool = False) -> tuple:
             frames, burst_of, box0_sims, detail = {}, {}, {}, {}
+            noise = noise_numbers([[tuple(c) for c in ocr] for a in analyses.values() if a for ocr in a.get("ocr", [])],
+                                  entries, rules.min_read)
+            if noise and not quiet:
+                log("noise numbers: " + ", ".join(f"{d} (beside {n} numbers)" for d, n in noise.items())
+                    + "; left out of a box's reads when it has another")
             for image_id, filepath, burst, _protected, _hints, taken, hand in rows:
                 burst_of[image_id] = burst
                 # hand and tagged are the truth eval_numbers.py scores a --verify run against
@@ -1472,16 +1536,16 @@ def identify(args, models: dict):
                     continue
                 detail[image_id]["frame"] = a["frame"]
                 frames[image_id] = match_frame(image_id, a, index, entries, rules, team_of, tag_hints_of[image_id],
-                                               detail[image_id]["boxes"], box0_sims, quiet)
-            return frames, burst_of, box0_sims, detail
+                                               detail[image_id]["boxes"], box0_sims, noise, quiet)
+            return frames, burst_of, box0_sims, detail, noise
 
         # first pass on the cheap analysis; boxes it can't identify are then re-read at higher detail
-        frames, burst_of, box0_sims, detail = match_all(analyses, quiet=True)
+        frames, burst_of, box0_sims, detail, _ = match_all(analyses, quiet=True)
         wanted = hires_wanted(frames, detail, analyses)
         if wanted and not cancel_requested(args.progress):
             analyses = refine_frames(wanted, analyses, models, args.cache, pool, args.progress)
     write_progress(args.progress, 0, 1, "matching")
-    frames, burst_of, box0_sims, detail = match_all(analyses)
+    frames, burst_of, box0_sims, detail, noise = match_all(analyses)
 
     def keep_main_cars(frames: dict, stage: str) -> dict:
         if rules.cars_per_photo != "solo":
@@ -1554,7 +1618,7 @@ def identify(args, models: dict):
             f"{len(anchors.unanchored(list(entries)))} cars have none (their first match is accepted)")
     frames = check_anchors(frames, "matching")
     if not verify:
-        weak = {fid: {i: [tuple(c) for c in b["ocr"] if c[1] >= WEAK_READ_MIN]
+        weak = {fid: {i: without_noise([tuple(c) for c in b["ocr"] if c[1] >= WEAK_READ_MIN], noise)
                       for i, b in enumerate(d["boxes"]) if b["overlap"] != HIDDEN}
                 for fid, d in detail.items()}
         ctc_of = {fid: dict(enumerate((analyses.get(d["file"]) or {}).get("ocr_ctc", []))) for fid, d in detail.items()}
@@ -1566,7 +1630,7 @@ def identify(args, models: dict):
                     log(f"{fid}: box {a.box}: number {a.entry_id} (weak read {a.confidence:.2f}, {how})")
         frames = agreed
     if rules.burst_livery_pooling and not verify:
-        frames = pool_burst_livery(frames, burst_of, box0_sims, entries)
+        frames = pool_burst_livery(frames, burst_of, box0_sims, entries, detail)
     # before neighbour aid and burst consensus, so a hand-tagged frame supports the frames around it
     frames = with_hand_entries(frames, hand_of)
     for image_id, eid in hand_of.items():
@@ -1644,7 +1708,7 @@ def identify(args, models: dict):
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:
         write_run_outputs(args, build_boxes(args.collection, frames, shots, detail, entries, counts, rules.sponsor_keywords,
-                                            rules.min_read))
+                                            rules.min_read, noise, entry_list))
     write_collection_outputs(args, collection, entries, rules, from_entries)
     log("vehicles by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 

@@ -35,6 +35,13 @@ ok   render: top=0 has summary only
 ok   render: ids with markdown characters sit in code spans
 ok   render: a dropped hint is listed and counted
 ok   render: no hint, no hint line
+ok   render: the summary lists the run's noise numbers and entry-list findings
+ok   render: a boxes.json without noise numbers or entry-list findings has neither line
+ok   render: frames resolved by pooled burst have their own section, weakest first
+ok   render: no pooled frame, no pooled section
+ok   render: top=0 leaves the pooled section out
+ok   write_report: report.json carries the noise numbers and entry-list findings
+ok   write_report: a boxes.json from before noise numbers still reports
 ok   write_report: both files, every row carries its category
 
 all tests passed

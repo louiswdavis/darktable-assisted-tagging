@@ -301,6 +301,12 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int, extra: dict =
         out.append("- colours: " + ", ".join(f"{n} {c}" for n, c in summary["colours"].items()))
     if summary["errors"]:
         out.append(f"- images that failed analysis (not counted above): {summary['errors']}")
+    # a boxes.json from before noise numbers and the entry-list check has neither key
+    noise = data.get("noise_numbers", {})
+    if noise:
+        out.append("- noise numbers (left out of a box's reads when it has another): "
+                   + ", ".join(f"{d} (beside {n} numbers)" for d, n in noise.items()))
+    out += [f"- {line}" for line in data.get("entry_list", [])]
     bands = extra["detector_bands"]
     if bands and top > 0:
         out += ["", "## detector score", ""]
@@ -343,6 +349,13 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int, extra: dict =
             out += [f"- {describe(r)}" for r in sel[:top]]
             if len(sel) > top:
                 out.append(f"- … {len(sel) - top} more in report.json")
+        # identified, so in no category above; listed for checking the experimental rule
+        pooled = sorted((r for r in all_rows if r.get("method") == "pooled"), key=lambda r: r["top1"])
+        if pooled:
+            out += ["", f"## resolved by pooled burst ({len(pooled)})", ""]
+            out += [f"- as `{r['entry']}`: {describe(r)}" for r in pooled[:top]]
+            if len(pooled) > top:
+                out.append(f"- … {len(pooled) - top} more in report.json")
     return "\n".join(out) + "\n"
 
 
@@ -396,6 +409,8 @@ def write_report(data: dict, out_prefix: str, top: int) -> tuple:
     os.makedirs(os.path.dirname(os.path.abspath(out_prefix)), exist_ok=True)
     for path, text in ((paths[0], render_md(data, all_rows, summary, top, extra)),
                        (paths[1], json.dumps({"collection": data["collection"], "thresholds": data["thresholds"],
+                                              "noise_numbers": data.get("noise_numbers", {}),
+                                              "entry_list": data.get("entry_list", []),
                                               "summary": summary, **extra, "rows": all_rows}))):
         with atomic_write(path) as f:
             f.write(text)

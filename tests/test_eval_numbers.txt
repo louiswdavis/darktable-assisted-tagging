@@ -21,5 +21,13 @@ ok   replay: dropped region leaves the box unread
 ok   replay: OCR_MIN_SCORE=0.7 and min_read=0.7 read it
 ok   replay: OCR_MIN_SCORE=0.7 alone reads it as a weak read
 ok   replay: a weak read whose matrix can't spell it stays unread
+ok   replay: two numbers read in one box is no number read
+ok   replay: the live run's noise number is left out
 ok   set: parses known names
+ok   noise: the live run's knobs give the live run's noise numbers
+ok   noise: a lower min_read finds the number the live run didn't count
+ok   noise: a box that kept no regions counts with its stored reads
+ok   noise: a higher min_read drops the live run's noise number
+ok   noise: a boxes.json from before noise numbers has none
+ok   main: --set min_read replays with its own noise numbers
 all tests passed

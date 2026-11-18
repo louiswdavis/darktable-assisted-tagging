@@ -11,7 +11,9 @@ from car_colour import colour_relation
 from match import HAND, IDENTIFIED, BoxResult, Entry, _one_confusion_apart
 
 NEIGHBOUR_WINDOW = 3  # groups either side of a group that can lend support
-NEIGHBOUR_MAX_GAP_S = 20  # a neighbour shot further away than this (a stage break) is ignored
+# a neighbour is ignored when more than this lies between the end of the earlier group and the start
+# of the later one (a stage break); it also splits library rows of one entry into separate passes
+NEIGHBOUR_MAX_GAP_S = 20
 DOUBT_CONF = 0.90  # a number read below this is doubtful; reads under ocr.OCR_MIN_SCORE (0.80) never get here
 FLAG_MIN_WEIGHT = 0.5  # order_weight at which a doubtful read with no support is flagged
 # Look-alike: an unread box takes the car of an identified box in a nearby group whose crop it resembles.
@@ -53,13 +55,14 @@ def candidates_for(digits: str, entries: dict) -> list:
 
 
 def _group_times(frames: dict, burst_of: dict, times: dict) -> dict:
-    """Group id to its earliest positive capture time; groups with no timed photo are left out."""
+    """Group id to its (earliest, latest) positive capture time; groups with no timed photo are left out."""
     out: dict = {}
     for fid in frames:
         t = times.get(fid)
         if t and t > 0:
             g = burst_of.get(fid, fid)
-            out[g] = min(out.get(g, t), t)
+            first, last = out.get(g, (t, t))
+            out[g] = (min(first, t), max(last, t))
     return out
 
 
@@ -87,16 +90,18 @@ LIBRARY_PREFIX = "lib:"  # frame ids of library neighbours, so they never collid
 def with_library_neighbours(frames: dict, burst_of: dict, times: dict, rows: list, entries: dict) -> tuple:
     """(frames, burst_of, times) plus the unselected photos in `rows` [(image id, epoch, entry id)],
     each an identified box for support only. Rows of an unknown entry, an untimed row or a selected
-    id are dropped. Consecutive rows (by time) of the same entry form one group, so a library burst
-    takes one NEIGHBOUR_WINDOW slot. Callers drop the LIBRARY_PREFIX ids from neighbour_aid's result."""
+    id are dropped. Consecutive rows (by time, then entry, so rows of one second don't interleave)
+    of the same entry, each within NEIGHBOUR_MAX_GAP_S of the row before, form one group, so a library burst takes one NEIGHBOUR_WINDOW slot and the same
+    car a lap later is its own group. Callers drop the LIBRARY_PREFIX ids from neighbour_aid's result."""
     frames, burst_of, times = dict(frames), dict(burst_of), dict(times)
-    usable = sorted((int(t), str(i), e) for i, t, e in rows
+    usable = sorted((int(t), e, str(i)) for i, t, e in rows
                     if e in entries and str(t).isdigit() and int(t) > 0 and str(i) not in frames)
-    group, last_entry = None, None
-    for t, image_id, eid in usable:
+    group, last_entry, last_t = None, None, 0
+    for t, eid, image_id in usable:
         fid = LIBRARY_PREFIX + image_id
-        if eid != last_entry:
+        if eid != last_entry or t - last_t > NEIGHBOUR_MAX_GAP_S:
             group, last_entry = fid, eid
+        last_t = t
         frames[fid] = [BoxResult(0, "number", eid, confidence=1.0, colour=entries[eid].colour)]
         burst_of[fid] = group
         times[fid] = t
@@ -154,7 +159,10 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
     def window_boxes(g) -> list:
         i = slot[g]
         near = ordered[max(0, i - NEIGHBOUR_WINDOW):i] + ordered[i + 1:i + 1 + NEIGHBOUR_WINDOW]
-        return [hit for n in near if abs(gtimes[n] - gtimes[g]) <= NEIGHBOUR_MAX_GAP_S for hit in seen[n]]
+        first, last = gtimes[g]
+        # the gap between the two groups: the later one's start minus the earlier one's end
+        return [hit for n in near if max(gtimes[n][0] - last, first - gtimes[n][1]) <= NEIGHBOUR_MAX_GAP_S
+                for hit in seen[n]]
 
     def support(eid: str, around: list) -> float:
         p = pos(eid)

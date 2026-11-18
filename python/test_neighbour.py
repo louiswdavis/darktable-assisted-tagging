@@ -124,6 +124,20 @@ def run_tests():
     out = N.neighbour_aid(frames, {"a": "g", "b": "g", "c": "h"}, {"a": 100, "b": 105, "c": 110}, spread, 2, 1.0)
     check("a group's own frames don't support each other", out["b"][0].order_flag, True)
 
+    # The gap runs from the end of the earlier group to the start of the later one, so a long burst
+    # still has the car that followed it as a neighbour, and is one for that car.
+    long_burst = {"a": "g", "b": "g", "c": "g", "d": "h"}
+    long_times = {"a": 100, "b": 115, "c": 130, "d": 135}
+    frames = {"a": [seen("33")], "b": [seen("33")], "c": [seen("33")], "d": [unmatched("36")]}
+    out = N.neighbour_aid(frames, long_burst, long_times, E, 5, 1.0)
+    check("a long burst that ended just before supports the next group", (out["d"][0].method, out["d"][0].entry_id), ("neighbour", "35"))
+    frames = {"a": [unmatched("36")], "b": [unmatched("36")], "c": [unmatched("36")], "d": [seen("33")]}
+    out = N.neighbour_aid(frames, long_burst, long_times, E, 5, 1.0)
+    check("a long burst takes support from the group right after its end", [out[f][0].entry_id for f in "abc"], ["35", "35", "35"])
+    frames = {"a": [seen("33")], "b": [seen("33")], "c": [seen("33")], "d": [unmatched("36")]}
+    out = N.neighbour_aid(frames, long_burst, dict(long_times, d=130 + N.NEIGHBOUR_MAX_GAP_S + 1), E, 5, 1.0)
+    check("a group starting past the gap after a burst's end gets nothing", out["d"][0].method, "none")
+
     # Degenerate sizes don't raise.
     check("no frames", N.neighbour_aid({}, {}, {}, E, 5, 1.0), {})
     frames, burst, times = shoot(unmatched("36"))
@@ -201,6 +215,22 @@ def run_tests():
     _, lb, _ = N.with_library_neighbours(frames, burst, times, rows, E)
     check("consecutive rows of one entry form one group",
           [lb["lib:1"], lb["lib:2"], lb["lib:3"], lb["lib:4"]], ["lib:1", "lib:1", "lib:3", "lib:4"])
+
+    rows = [["1", "180", "34"], ["2", "180", "37"], ["3", "180", "34"]]
+    _, lb, _ = N.with_library_neighbours(frames, burst, times, rows, E)
+    check("rows of one entry in the same second form one group, whatever their ids",
+          [lb["lib:1"], lb["lib:2"], lb["lib:3"]], ["lib:1", "lib:2", "lib:1"])
+
+    # The same car a lap later is a new group: merged, the two passes would be one group spanning the
+    # whole lap and lend its car to everything shot in between.
+    rows = [["1", "100", "33"], ["2", "101", "33"], ["3", str(101 + N.NEIGHBOUR_MAX_GAP_S + 1), "33"]]
+    _, lb, _ = N.with_library_neighbours(frames, burst, times, rows, E)
+    check("rows of one entry past the gap are separate groups", [lb["lib:1"], lb["lib:2"], lb["lib:3"]], ["lib:1", "lib:1", "lib:3"])
+    frames, burst, times = {"7": [unmatched("36")]}, {}, {"7": 300}
+    rows = [["1", "100", "33"], ["2", "500", "33"]]
+    lf, lb, lt = N.with_library_neighbours(frames, burst, times, rows, E)
+    check("a car's two library passes either side of a photo, both far off, lend nothing",
+          N.neighbour_aid(lf, lb, lt, E, 5, 1.0)["7"][0].method, "none")
 
     # A hand-tagged frame supports its neighbours like a number read, and is never re-resolved.
     by_hand = BoxResult(0, "hand", "34", confidence=1.0)

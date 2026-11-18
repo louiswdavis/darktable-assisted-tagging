@@ -18,7 +18,7 @@ from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import match
-from match import Entry, hinted_match, usable_reads
+from match import Entry, hinted_match, usable_reads, without_noise
 from ocr import digit_runs, drop_reason, pick_reads
 
 # --set name → boxes.json thresholds key
@@ -34,11 +34,24 @@ def load_entries(data: dict) -> dict:
             for eid, e in data["entries"].items()}
 
 
-def replay_box(box: dict, entries: dict, knobs: dict) -> tuple:
+def replay_noise(data: dict, entries: dict, knobs: dict) -> dict:
+    """The run's noise numbers under `knobs`, from every box's reads the way identify's match_all
+    feeds match.noise_numbers: each box's OCR regions picked again with the replay's floors (its
+    stored reads when it kept no regions), counted at the replay's min_read. A boxes.json from
+    before noise numbers was matched without them, so its replay has none."""
+    if "noise_numbers" not in data:
+        return {}
+    reads = [pick_reads(box["ocr_regions"], knobs["ocr_min_score"], knobs["number_min_height"])[0]
+             if "ocr_regions" in box else [tuple(c) for c in box["ocr"]]
+             for img in data["images"].values() for box in img["boxes"]]
+    return match.noise_numbers(reads, entries, knobs["min_read"])
+
+
+def replay_box(box: dict, entries: dict, knobs: dict, noise: dict) -> tuple:
     """(BoxResult, accepted reads) for one box, decided from its stored OCR regions the way
-    match_frame decides it, up to hinted_match."""
+    match_frame decides it, up to hinted_match. `noise` is replay_noise's noise numbers."""
     reads, ctc = pick_reads(box["ocr_regions"], knobs["ocr_min_score"], knobs["number_min_height"])
-    reads = usable_reads(reads, ctc, knobs["min_read"])
+    reads = without_noise(usable_reads(reads, ctc, knobs["min_read"]), noise)
     hint = box.get("hint") or {}
     r, _ = hinted_match(box["box"], reads, [tuple(s) for s in box["sims"]], entries,
                         hint.get("prefixes", []), hint.get("source", ""), ctc, knobs["min_read"])
@@ -94,6 +107,7 @@ def main():
     for name in ("NUMBER_LIST_MARGIN", "NUMBER_LIST_FLOOR"):
         setattr(match, name, knobs[KNOBS[name]])
     entries = load_entries(data)
+    noise = replay_noise(data, entries, knobs)
 
     frames, causes, confusion, mismatches = Counter(), Counter(), Counter(), []
     agree = replayed = weak = 0
@@ -113,7 +127,7 @@ def main():
         if "ocr_regions" not in box:
             frames["no OCR regions"] += 1
             continue
-        r, reads = replay_box(box, entries, knobs)
+        r, reads = replay_box(box, entries, knobs, noise)
         read = r.entry_id if r.method == "number" else ""
         replayed += 1
         if read == box["read_entry"]:

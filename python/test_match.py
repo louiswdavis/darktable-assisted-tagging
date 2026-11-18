@@ -552,6 +552,32 @@ def run_tests():
     check("hinted: a weak read outside the tag set doesn't drop the hint",
           Mt.hinted_match(0, [("44", 0.75)], [("E14", 0.9)], nums, ["Rally|Number|14"], "sponsor", None, 0.85)[1]["dropped"], False)
 
+    # Noise numbers: a class "3" on every car, read beside three different start-list numbers
+    grid = numbered("3", "14", "22", "7")
+    with_3 = [[("14", 0.9), ("3", 0.9)], [("22", 0.9), ("3", 0.95)], [("7", 0.9), ("3", 0.9)], [("3", 0.9)]]
+    noise = Mt.noise_numbers(with_3, grid, 0.85)
+    check("noise: a number beside three start-list numbers is noise, with its partner count", noise, {"3": 3})
+    check("noise: the box that also reads 14 is number 14",
+          summary(Mt.match_box(0, Mt.without_noise(with_3[0], noise), [], grid)), ("number", "E14", ""))
+    check("noise: the box that reads only 3 is still number 3",
+          summary(Mt.match_box(0, Mt.without_noise(with_3[3], noise), [], grid)), ("number", "E3", ""))
+    check("noise: two cars sharing a box twice make neither number noise",
+          Mt.noise_numbers([[("14", 0.9), ("22", 0.9)], [("14", 0.95), ("22", 0.9)]], grid, 0.85), {})
+    check("noise: a read under min_read is no partner and gains none",
+          Mt.noise_numbers(with_3[:2] + [[("7", 0.8), ("3", 0.9)], [("3", 0.8), ("7", 0.9)]], grid, 0.85), {})
+    check("noise: a number off the start list is no partner, but can be noise itself",
+          Mt.noise_numbers([[("14", 0.9), ("500", 0.9), ("99", 0.9)], [("22", 0.9), ("500", 0.9)], [("7", 0.9), ("500", 0.9)]],
+                           grid, 0.85), {"500": 3})
+    passed = with_3[:3] + [[("3", 0.9)]] * 3
+    check("noise: a real car beside three others in three boxes, alone in three more, is no noise",
+          Mt.noise_numbers(passed, grid, 0.85), {})
+    check("noise: a class number alone in a few boxes, beside a start-list number in most, stays noise",
+          Mt.noise_numbers(passed[:5], grid, 0.85), {"3": 3})
+    check("noise: boxes that read it under min_read don't count towards the share",
+          Mt.noise_numbers(with_3[:3] + [[("3", 0.9)]] * 2 + [[("3", 0.8)]] * 4, grid, 0.85), {"3": 3})
+    check("noise: a box reading only noise numbers keeps them all",
+          Mt.without_noise([("3", 0.9), ("500", 0.9)], {"3": 3, "500": 4}), [("3", 0.9), ("500", 0.9)])
+
     shown = {"E14": Entry("E14", "14", "", (), shows=("44",)), "E44": Entry("E44", "44", "", ()),
              "E108": Entry("E108", "108", "", (), shows=("808",))}
     check("shows: a shown number held by no other entry identifies by number",

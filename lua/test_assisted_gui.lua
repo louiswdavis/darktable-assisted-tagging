@@ -108,6 +108,8 @@ local prints, dispatched, prefs = {}, {}, {
     ["assisted_plugins/plugins_root"] = ROOT .. "/plugins",
 }
 local PREF_EMPTY = { string = "", directory = "", file = "", integer = 0, float = 0, bool = false }
+local selection, jobs = {}, {}
+local selection_error = nil -- set to make darktable refuse to select images again
 
 local dt = {
     configuration = { tmp_dir = ROOT .. "/tmp", config_dir = ROOT .. "/config", version = "test", running_os = WINDOWS and "windows" or "macos" },
@@ -124,7 +126,15 @@ local dt = {
     print = function(msg) prints[#prints + 1] = msg end,
     print_error = function() end,
     print_hinter = function() end,
-    tags = { get_tags = function(img) return img.tags end },
+    tags = {
+        get_tags = function(img) return img.tags end,
+        find = function(name) return { name = name } end,
+        detach = function(tag, img)
+            for i, t in ipairs(img.tags) do
+                if t.name == tag.name then table.remove(img.tags, i) break end
+            end
+        end,
+    },
     control = {
         sleep = function() end,
         dispatch = function(fn) dispatched[#dispatched + 1] = fn end,
@@ -143,10 +153,17 @@ local dt = {
     gui = {
         libs = {},
         views = { lighttable = {} },
-        selection = function() return {} end,
+        selection = function(images)
+            if images and #images > 0 and selection_error then error(selection_error, 0) end
+            if images then selection = images end
+            return selection
+        end,
         action_images = {},
         current_view = function() return { id = "lighttable" } end,
-        create_job = function() return { valid = true, percent = 0 } end,
+        create_job = function()
+            jobs[#jobs + 1] = { valid = true, percent = 0 }
+            return jobs[#jobs]
+        end,
     },
 }
 package.loaded["darktable"] = dt
@@ -268,6 +285,21 @@ PYTHON.results = "3,no_vehicle,,35\n"
 add({ image(3, "DSC00003.JPG", { "Rallye|35" }) })
 check("add references, no vehicle found: says nothing was added and why",
     last_print(), "Assisted Tagging: no reference added. Left out: 1 had no vehicle found (see log).")
+
+-- Clear tagging marks ---------------------------------------------------------------
+-- darktable refuses to select the images again: the clear still ends, and says so
+local marked = image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red", "Hand|Tag" })
+selection, selection_error, prints = { marked }, "selection refused", {}
+local ok_clear, clear_err = pcall(T.clear_marks, { marked })
+check("clear, selection not restored: the clear doesn't raise", ok_clear and "ok" or tostring(clear_err), "ok")
+check("clear, selection not restored: the tags are cleared", printed("Assisted Tagging: cleared 2 tags from 1 images."), true)
+check("clear, selection not restored: says the selection wasn't restored",
+    printed("Assisted Tagging: couldn't restore the selection: selection refused"), true)
+check("clear, selection not restored: the job bar is closed", jobs[#jobs].valid, false)
+selection_error, prints = nil, {}
+T.clear_marks({ marked })
+check("clear, selection not restored: the next clear runs, the panel isn't left busy",
+    printed("Assisted Tagging: nothing to clear; the selection has no tagging marks."), true)
 
 check("the buttons leave no Lua error", read_file(ROOT .. "/config/assisted_tagging.lua.log"), nil)
 

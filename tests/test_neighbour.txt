@@ -29,6 +29,9 @@ ok   neighbours across a stage break are ignored
 ok   untimed neighbours are ignored
 ok   an untimed photo is left alone
 ok   a group's own frames don't support each other
+ok   a long burst that ended just before supports the next group
+ok   a long burst takes support from the group right after its end
+ok   a group starting past the gap after a burst's end gets nothing
 ok   no frames
 ok   one group, no neighbours
 ok   one entry in the list
@@ -52,6 +55,9 @@ ok   the input dicts are not changed
 ok   library frames carry the prefix
 ok   unknown, untimed and selected rows are dropped
 ok   consecutive rows of one entry form one group
+ok   rows of one entry in the same second form one group, whatever their ids
+ok   rows of one entry past the gap are separate groups
+ok   a car's two library passes either side of a photo, both far off, lend nothing
 ok   a hand result supports a doubtful read
 ok   a hand result is left as it is
 ok   a hand result alone is support enough
