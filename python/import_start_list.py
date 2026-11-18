@@ -5,7 +5,7 @@
   python python/import_start_list.py COLLECTION_DIR --csv START_LIST.csv --header
 
 A CSV has a header row; MAP says which header holds which role, as `role=header` pairs joined
-by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car); `role=` says the
+by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car, section); `role=` says the
 CSV has none. A role left out of MAP is found by its usual names (ALIASES); only `number` is
 required. --header prints the headers and that mapping for the panel's column pickers. Pasted text (an entry list copied from a PDF)
 has one entry per line, number first, then "driver / co-driver"; lines without a leading number
@@ -13,7 +13,11 @@ are skipped and counted. Each entry becomes {"id": number, "number": number, "na
 "co_driver": co-driver, "team": team, "extra": class, "make": make, "model": model}, with the empty fields
 left out; a model needs a make. The Class and Vehicle tag families build the tags from them. A `shares-car` column names the other entry
 driving the same car; both rows must name each other, and the higher number gets `"car": "<lower id>"`.
-Numbers already in entries.json are skipped and listed, never overwritten. The previous file is
+A row whose `section` starts with "Demo" (a demonstration run) gets id `D<number>`, so demo 14 and
+race car 14 are separate entries; in pasted text, a line starting "Demo" marks the lines after it.
+An entry already in entries.json under the bare number with the same driver is renamed to its D id,
+along with its refs folder and refs/sources.json records. Other ids already in entries.json, and
+race numbers another race entry holds, are skipped and listed, never overwritten. The previous file is
 kept as entries.json.bak. A file not in the one-entry-per-line layout is reflowed into it. Exit 2
 with a message on bad input."""
 
@@ -29,7 +33,7 @@ import sys
 from common import atomic_write
 from entries_file import dump
 
-ROLES = ("number", "driver", "co-driver", "team", "class", "make", "model", "shares-car")
+ROLES = ("number", "driver", "co-driver", "team", "class", "make", "model", "shares-car", "section")
 ALIASES = {
     "number": ("number", "no", "no.", "#", "nr", "num", "car", "car no", "car no.", "car number", "start no", "start number"),
     "driver": ("driver", "name", "pilot", "driver name", "competitor"),
@@ -39,7 +43,9 @@ ALIASES = {
     "make": ("make", "manufacturer"),
     "model": ("model",),
     "shares-car": ("shares car with", "shares car", "shared car"),
+    "section": ("section", "entry type"),
 }
+DEMO_ID = re.compile(r"D\d{1,3}")
 _LINE = re.compile(r"^\s*#?(\d{1,3})(?!\d)[\s.:)\-–]*(.*?)\s*$")
 _BAD = re.compile(r'[,;"]')
 _BAD_TAG = re.compile(r'[,;"|]')
@@ -124,17 +130,23 @@ def header_report(text: str) -> str:
 
 
 def rows_from_text(text: str) -> tuple:
-    """Pasted lines → (rows, skipped line count). "12 Smith / Jones" gives driver Smith, co-driver Jones."""
-    rows, skipped = [], 0
+    """Pasted lines → (rows, skipped line count). "12 Smith / Jones" gives driver Smith, co-driver Jones.
+    A line starting "Demo" (a PDF's Demonstrations heading) makes the numbered lines after it demo rows."""
+    rows, skipped, section = [], 0, ""
     for line in text.splitlines():
         if not line.strip():
             continue
         m = _LINE.match(line)
         if not m:
+            if line.strip().lower().startswith("demo"):
+                section = "Demonstration"
             skipped += 1
             continue
         driver, _, co = m.group(2).partition(" / ")
-        rows.append({"number": m.group(1), "driver": driver.strip(), "co-driver": co.strip()})
+        row = {"number": m.group(1), "driver": driver.strip(), "co-driver": co.strip()}
+        if section:
+            row["section"] = section
+        rows.append(row)
     return rows, skipped
 
 
@@ -147,14 +159,16 @@ def entries_from(rows: list) -> tuple:
         if not re.fullmatch(r"\d{1,3}", number):
             raise BadInput(f'row {n}: "{row.get("number", "")}" is not a 1–3 digit number')
         number = str(int(number))
-        if number in seen:
-            raise BadInput(f"number {number} is listed twice")
-        seen.add(number)
+        demo = row.get("section", "").strip().lower().startswith("demo")
+        entry_id = f"D{number}" if demo else number
+        if entry_id in seen:
+            raise BadInput(f"{'demo ' if demo else ''}number {number} is listed twice")
+        seen.add(entry_id)
         name, co_driver, team = (row.get(k, "").strip() for k in ("driver", "co-driver", "team"))
         if _BAD.search(name + co_driver + team):
             cleaned.append(number)
             name, co_driver, team = (_BAD.sub("", v).strip() for v in (name, co_driver, team))
-        entry = {"id": number, "number": number}
+        entry = {"id": entry_id, "number": number}
         if name:
             entry["name"] = name
         if co_driver:
@@ -170,15 +184,17 @@ def entries_from(rows: list) -> tuple:
         entries.append(entry)
     if not entries:
         raise BadInput("no entries found")
-    _pair_cars(entries, rows)
+    _pair_cars([(e, r) for e, r in zip(entries, rows) if e["id"] == e["number"]])
     return entries, cleaned
 
 
-def _pair_cars(entries: list, rows: list):
-    """Sets `car` on the higher number of each pair the shares-car column names. Both rows must
-    name each other; a partner that isn't a listed 1–3 digit number is BadInput."""
+def _pair_cars(pairs: list):
+    """Sets `car` on the higher number of each pair the shares-car column names, over the race
+    entries' (entry, row) pairs. Both rows must name each other; a partner that isn't a listed 1–3
+    digit number is BadInput."""
+    entries = [e for e, _ in pairs]
     partner = {}
-    for entry, row in zip(entries, rows):
+    for entry, row in pairs:
         other = row.get("shares-car", "").strip().lstrip("#")
         if not other:
             continue
@@ -201,8 +217,10 @@ def _pair_cars(entries: list, rows: list):
 
 
 def merge(collection_dir: str, entries: list) -> dict:
-    """Appends the entries whose number (and id) is new. Returns {"added", "skipped", "path"}. A file
-    in dump's layout keeps it; any other layout is reflowed into the canonical one."""
+    """Renames existing entries to their demo id (_rename_demos), then appends the entries whose id
+    is new, and whose race number no existing race entry holds. Returns {"added", "skipped",
+    "renamed", "path"}. A file in dump's layout keeps it; any other layout is reflowed into the
+    canonical one."""
     path = os.path.join(collection_dir, "entries.json")
     if not os.path.exists(path):
         data, text, inline = {"entries": []}, None, False
@@ -214,17 +232,72 @@ def merge(collection_dir: str, entries: list) -> dict:
             raise BadInput(f"{path} is a bare list; make it {{\"entries\": [...]}} first")
         inline = next((i for i in (False, True) if dump(json.loads(text), i).rstrip() == text.rstrip()), None)
     existing = data.setdefault("entries", [])
-    have = {str(e.get("number", "")) for e in existing if isinstance(e, dict)} | {e.get("id") for e in existing if isinstance(e, dict)}
-    new = [e for e in entries if e["number"] not in have and e["id"] not in have]
-    skipped = [e["number"] for e in entries if e["number"] in have or e["id"] in have]
-    if not new:
-        return {"added": 0, "skipped": skipped, "path": path}
+    renamed = _rename_demos(existing, entries)
+    ids = {e.get("id") for e in existing if isinstance(e, dict)}
+    race_numbers = {str(e.get("number", "")) for e in existing
+                    if isinstance(e, dict) and not DEMO_ID.fullmatch(str(e.get("id", "")))}
+    taken = [e for e in entries if e["id"] in ids or (e["id"] == e["number"] and e["number"] in race_numbers)]
+    new = [e for e in entries if e not in taken]
+    skipped = [e["id"] for e in taken if e["id"] not in {n for _, n in renamed}]
+    if not new and not renamed:
+        return {"added": 0, "skipped": skipped, "renamed": [], "path": path}
     existing.extend(new)
     with atomic_write(path) as f:
         f.write(dump(data, bool(inline)))
         if text is not None:
             shutil.copy2(path, path + ".bak")  # the original, before the replace on exit
-    return {"added": len(new), "skipped": skipped, "path": path}
+    for old, new_id in renamed:
+        _rename_refs(collection_dir, old, new_id)
+    return {"added": len(new), "skipped": skipped, "renamed": renamed, "path": path}
+
+
+def _rename_demos(existing: list, entries: list) -> list:
+    """[(old id, demo id)]: each existing entry whose id is the bare number of an imported demo
+    entry, with that number and the same driver (when both name one), takes the demo id; `car`
+    fields naming the old id follow. An existing demo id is left alone."""
+    by_id = {e.get("id"): e for e in existing if isinstance(e, dict)}
+    renamed = []
+    for entry in entries:
+        old = by_id.get(entry["number"])
+        if not DEMO_ID.fullmatch(entry["id"]) or entry["id"] in by_id or old is None:
+            continue
+        if str(old.get("number", "")) != entry["number"]:
+            continue
+        if old.get("name") and entry.get("name") and old["name"] != entry["name"]:
+            continue
+        old["id"] = entry["id"]
+        by_id[entry["id"]] = by_id.pop(entry["number"])
+        renamed.append((entry["number"], entry["id"]))
+    for old_id, new_id in renamed:
+        for e in by_id.values():
+            if e.get("car") == old_id:
+                e["car"] = new_id
+    return renamed
+
+
+def _rename_refs(collection_dir: str, old: str, new: str):
+    """Moves refs/<old>/ to refs/<new>/ and rekeys its refs/sources.json records. A crop already at
+    the new name is kept and the old one left in place."""
+    refs = os.path.join(collection_dir, "refs")
+    src, dst = os.path.join(refs, old), os.path.join(refs, new)
+    if os.path.isdir(src):
+        os.makedirs(dst, exist_ok=True)
+        for name in os.listdir(src):
+            if not os.path.exists(os.path.join(dst, name)):
+                os.replace(os.path.join(src, name), os.path.join(dst, name))
+        if not os.listdir(src):
+            os.rmdir(src)
+    sources = os.path.join(refs, "sources.json")
+    if not os.path.isfile(sources):
+        return
+    with open(sources, encoding="utf-8") as f:
+        records = json.load(f)
+    before, after = f"refs/{old}/", f"refs/{new}/"
+    moved = {(after + rel[len(before):] if rel.startswith(before) and
+              os.path.exists(os.path.join(dst, rel[len(before):])) else rel): rec for rel, rec in records.items()}
+    if moved != records:
+        with atomic_write(sources) as f:
+            json.dump(moved, f, indent=1)
 
 
 def main(argv=None):
@@ -233,7 +306,7 @@ def main(argv=None):
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--csv", help="a start list with a header row")
     src.add_argument("--text", help="pasted lines, number first")
-    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car); role= for none')
+    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car, section); role= for none')
     parser.add_argument("--header", action="store_true", help="with --csv: print the headers and how the usual names map them, write nothing")
     args = parser.parse_args(argv)
     if args.header and not args.csv:
@@ -255,6 +328,9 @@ def main(argv=None):
         print(f"import_start_list: {e}", file=sys.stderr)
         sys.exit(2)
     notes = []
+    if result["renamed"]:
+        notes.append(f"renamed {len(result['renamed'])} to demo ids: "
+                     + ", ".join(f"{o}→{n}" for o, n in result["renamed"]))
     if result["skipped"]:
         notes.append(f"skipped {len(result['skipped'])} already listed: {', '.join(result['skipped'])}")
     if skipped_lines:
