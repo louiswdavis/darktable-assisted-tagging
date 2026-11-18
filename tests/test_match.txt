@@ -191,4 +191,10 @@ ok   burst: a sure read of the winner leaves the fusion on
 ok   burst: one frame with matrices falls back to string agreement
 ok   burst: a colour clash drops the number
 ok   hinted: a weak read outside the tag set doesn't drop the hint
+ok   shows: a shown number held by no other entry identifies by number
+ok   shows: a shown number another entry carries goes to livery (old 44 on car 14)
+ok   shows: the entered car still wins its own number on livery
+ok   shows: the number index lists both cars for a shared number
+ok   shows: list_scores scores shown numbers
+ok   shows: a read of a colour-removed car's number still drops the colour pool
 all tests passed
