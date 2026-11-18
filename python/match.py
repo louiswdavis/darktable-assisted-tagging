@@ -473,6 +473,19 @@ def main_car_only(frames: dict) -> tuple:
     return out, ignored
 
 
+def sure_cars(frames: dict, burst_of: dict, entries: dict, min_read: float) -> dict:
+    """{burst: the cars a number read of `min_read` or more, or the user's own tag, names in it}.
+    A burst fill for one of these cars is backed by that read, so it skips the anchors check: on
+    Rallye 68 of 69 such fills the check dropped were right (a rear view or a blurred pan doesn't
+    look like the anchors)."""
+    out: dict = {}
+    for fid, rs in frames.items():
+        for r in rs:
+            if r.entry_id in entries and (r.method == HAND or r.method == "number" and r.confidence >= min_read):
+                out.setdefault(burst_of.get(fid, fid), set()).add(entries[r.entry_id].car or r.entry_id)
+    return out
+
+
 def closer_car_match(r: BoxResult, own: float, other_car: str, other, entries: dict, margin: float,
                      min_sim: float, taken=()) -> BoxResult:
     """`r`, a match unlike its car's anchors (reference_store.Anchors.unlike gives own, other_car and

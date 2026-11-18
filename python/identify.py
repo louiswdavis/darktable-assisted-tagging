@@ -41,7 +41,7 @@ from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
 from match import (HAND, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads,
-                   burst_colours, burst_consensus, closer_car_match, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera,
+                   burst_colours, burst_consensus, closer_car_match, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera, sure_cars,
                    match_livery, match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
@@ -1512,11 +1512,16 @@ def identify(args, models: dict):
     def check_anchors(frames: dict, stage: str) -> dict:
         if anchors is None:
             return frames
-        out, n, moved = {}, 0, 0
+        out, n, moved, backed = {}, 0, 0, 0
+        sure = sure_cars(frames, burst_of, entries, ANCHOR_MIN_READ)
         for fid, rs in frames.items():
             out[fid] = []
             for r in rs:
-                vec, hist = box_vectors(fid, r.box) if r.method in ANCHOR_CHECKED and r.entry_id else (None, None)
+                check = r.method in ANCHOR_CHECKED and r.entry_id
+                if check and r.method == "burst" \
+                        and (entries[r.entry_id].car or r.entry_id) in sure.get(burst_of.get(fid, fid), ()):
+                    check, backed = False, backed + 1
+                vec, hist = box_vectors(fid, r.box) if check else (None, None)
                 verdict, own, other_car, other = anchors.unlike(r.entry_id, vec, hist) if vec is not None \
                     else ("", None, "", None)
                 if verdict == "unlike":
@@ -1532,7 +1537,8 @@ def identify(args, models: dict):
                     r = checked
                 out[fid].append(r)
         log(f"anchors ({stage}): {n - moved} matches dropped, {moved} moved to the closer car "
-            f"(closer_car_margin {rules.closer_car_margin:g})")
+            f"(closer_car_margin {rules.closer_car_margin:g}); {backed} burst matches not checked "
+            f"(a {ANCHOR_MIN_READ}+ number read or your tag in the burst names the car)")
         return out
 
     if anchors is not None:

@@ -580,6 +580,12 @@ def run_tests():
     check("closer car: a lead of the margin or more moves the match and keeps the flag",
           closer("60", 0.70, 0.86, 0.1), ("livery", "60", "14", 0.86, True, "Blue"))
     check("closer car: a lead of exactly the margin moves", closer("60", 0.761, 0.861, 0.1)[:2], ("livery", "60"))
+    sure_frames = {"a": [BoxResult(0, "number", "808", confidence=0.95)], "b": [BoxResult(0, "number", "60", confidence=0.85)],
+                   "c": [BoxResult(0, Mt.HAND, "14", confidence=1.0)], "d": [BoxResult(0, "livery", "60", confidence=0.99)],
+                   "e": [BoxResult(0, "number", "60", confidence=0.9)]}
+    check("sure cars: a 0.9+ number read (by car) or a hand tag counts, per burst; weak reads and livery don't",
+          Mt.sure_cars(sure_frames, {"a": "1", "b": "1", "c": "2", "d": "2"}, cars, 0.9),
+          {"1": {"108"}, "2": {"14"}, "e": {"60"}})
     check("closer car: a burst or neighbour match never moves",
           [Mt.closer_car_match(replace(doubt, method=m), 0.5, "60", 0.9, cars, 0.1, 0.6).method for m in ("burst", "neighbour")],
           ["none", "none"])

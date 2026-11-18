@@ -434,7 +434,7 @@ Every other setting lives in the collection's `settings.json`, beside `entries.j
 | `tag_none`, `tag_none_name` | *Unidentified* | same | `true`; `Assisted Tagging\|Identification\|Unidentified` | yes |
 | `tag_number_seen`, `tag_number_seen_name` | *Number seen* (the digits are added as a leaf) | same | `true`; `Assisted Tagging\|Identification\|Number seen` | yes |
 | `tag_check_colour`, `tag_check_colour_name` | *Check colour* (needs the Colour family) | same | `true`; `Assisted Tagging\|Identification\|Check colour` | yes |
-| `tag_check_match`, `tag_check_match_name` | *Check match*: a livery, burst or neighbour match unlike its car's anchors, left without an entry tag (or tagged as the closer car, see `closer_car_margin`) | same | `true`; `Assisted Tagging\|Identification\|Check match` | yes |
+| `tag_check_match`, `tag_check_match_name` | *Check match*: a livery, burst or neighbour match unlike its car's anchors, left without an entry tag (or tagged as the closer car, see `closer_car_margin`). A burst match is not checked when a number read of 0.90 or more, or a tag you applied, names that car in the same burst | same | `true`; `Assisted Tagging\|Identification\|Check match` | yes |
 | `tag_shot`, `tag_shot_name` | the *Shot* tag (`Solo` or `Pack` is added as a leaf) | same | `true`; `Assisted Tagging\|Identification\|Shot` | yes |
 | `tag_shot_crowded`, `tag_shot_crowded_name` | *Shot crowded* (leaf `Crowded`) | same | `true`; `Assisted Tagging\|Identification\|Shot`, the same base as `tag_shot_name` | yes |
 
