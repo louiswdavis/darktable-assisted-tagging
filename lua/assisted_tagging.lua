@@ -2624,13 +2624,11 @@ local function write_ledger(ledger, consequence, keep_gone)
     end
 end
 
--- The end of a job: puts the selection back (`selected` nil when none was hidden), closes the
--- job bar and clears busy. A step that raises is reported once busy is clear, and the rest still run.
-local function finish_job(job, selected)
-    local ok_s, err_s = pcall(C.restore_selection, dt, selected)
+-- The end of a job: closes the job bar and clears busy. A close that raises is reported once busy
+-- is clear.
+local function finish_job(job)
     local ok_j, err_j = pcall(end_job, job)
     busy = false
-    if not ok_s then notify_error(_("Assisted Tagging: couldn't restore the selection: ") .. tostring(err_s)) end
     if not ok_j then notify_error(_("Assisted Tagging: couldn't close the job bar: ") .. tostring(err_j)) end
 end
 
@@ -2643,7 +2641,7 @@ function M.clear_marks(images)
     busy = true
     M.cancel_requested = false
     start_log("clear", #images)
-    local job, selected
+    local job
 
     local okr, err = pcall(function()
         job = start_job(_("Clear tagging marks"), #images)
@@ -2664,7 +2662,6 @@ function M.clear_marks(images)
         local plans, stopped = M.plan_clear(records, ledger), false
         local n_writes, done, start = 0, 0, os.time()
         for _, plan in ipairs(plans) do n_writes = n_writes + #plan.detach end
-        selected = C.hide_selection(dt, log)
         for _, plan in ipairs(plans) do
             if M.cancel_requested or not job.valid then
                 stopped = true
@@ -2708,7 +2705,7 @@ function M.clear_marks(images)
             say(string.format(_("Assisted Tagging: cleared %d tags from %d images."), n_tags, n_images))
         end
     end)
-    finish_job(job, selected)
+    finish_job(job)
     if not okr then notify_error(_("Assisted Tagging: couldn't clear tagging marks. ") .. tostring(err)) end
     log("clear finished")
     flush_log()
@@ -2896,8 +2893,6 @@ local function apply_results(run, job)
     -- os.clock is wall time on Windows: call_s is the tag calls (database, undo, sidecar), wait_s is
     -- darktable's panels handling the change signals
     local call_s, wait_s = 0, 0
-    -- restored by the caller, so a stop or error partway still gets it back
-    run.selected = C.hide_selection(dt, log)
     show_stage(job, "writing tags", 0)
     for i, img in ipairs(primaries) do
         -- wait_for_writes runs every WRITE_BUDGET writes, so this count trails darktable by at most that
@@ -3107,7 +3102,6 @@ function M.identify_images(images, replace_manual, verify_only)
     -- this run attached aren't mistaken for the user's next time. Earlier stages leave it as it was.
     -- Each closing step runs under pcall and is reported after busy is clear, so none can leave
     -- the panel busy.
-    local ok_s, err_s = pcall(C.restore_selection, dt, run and run.selected)
     local ok_l, err_l = true, nil
     if run and run.applying then
         ok_l, err_l = pcall(function()
@@ -3132,7 +3126,6 @@ function M.identify_images(images, replace_manual, verify_only)
     log(string.format("finish: button reset, %ds; removing temp files", os.time() - finish_start))
     flush_log()
     if not okr then notify_error(_("Assisted Tagging: couldn't run. ") .. tostring(err)) end
-    if not ok_s then notify_error(_("Assisted Tagging: couldn't restore the selection: ") .. tostring(err_s)) end
     if not ok_l then
         notify_error(_("Assisted Tagging: couldn't save the tag ledger: ") .. tostring(err_l)
             .. ". " .. _("Tags this run attached will count as yours next run."))

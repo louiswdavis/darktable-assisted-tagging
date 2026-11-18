@@ -109,7 +109,7 @@ local prints, dispatched, prefs = {}, {}, {
 }
 local PREF_EMPTY = { string = "", directory = "", file = "", integer = 0, float = 0, bool = false }
 local selection, jobs = {}, {}
-local selection_error = nil -- set to make darktable refuse to select images again
+local selection_sets = 0 -- times the plugin changed the selection
 
 local dt = {
     configuration = { tmp_dir = ROOT .. "/tmp", config_dir = ROOT .. "/config", version = "test", running_os = WINDOWS and "windows" or "macos" },
@@ -154,8 +154,10 @@ local dt = {
         libs = {},
         views = { lighttable = {} },
         selection = function(images)
-            if images and #images > 0 and selection_error then error(selection_error, 0) end
-            if images then selection = images end
+            if images then
+                selection = images
+                selection_sets = selection_sets + 1
+            end
             return selection
         end,
         action_images = {},
@@ -287,19 +289,17 @@ check("add references, no vehicle found: says nothing was added and why",
     last_print(), "Assisted Tagging: no reference added. Left out: 1 had no vehicle found (see log).")
 
 -- Clear tagging marks ---------------------------------------------------------------
--- darktable refuses to select the images again: the clear still ends, and says so
 local marked = image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red", "Hand|Tag" })
-selection, selection_error, prints = { marked }, "selection refused", {}
-local ok_clear, clear_err = pcall(T.clear_marks, { marked })
-check("clear, selection not restored: the clear doesn't raise", ok_clear and "ok" or tostring(clear_err), "ok")
-check("clear, selection not restored: the tags are cleared", printed("Assisted Tagging: cleared 2 tags from 1 images."), true)
-check("clear, selection not restored: says the selection wasn't restored",
-    printed("Assisted Tagging: couldn't restore the selection: selection refused"), true)
-check("clear, selection not restored: the job bar is closed", jobs[#jobs].valid, false)
-selection_error, prints = nil, {}
+selection, prints = { marked }, {}
 T.clear_marks({ marked })
-check("clear, selection not restored: the next clear runs, the panel isn't left busy",
+check("clear: the tags are cleared", printed("Assisted Tagging: cleared 2 tags from 1 images."), true)
+check("clear: the selection stays while the tags are detached", #selection, 1)
+check("clear: the job bar is closed", jobs[#jobs].valid, false)
+prints = {}
+T.clear_marks({ marked })
+check("clear: the next clear runs, the panel isn't left busy",
     printed("Assisted Tagging: nothing to clear; the selection has no tagging marks."), true)
+check("no button changes the selection", selection_sets, 0)
 
 check("the buttons leave no Lua error", read_file(ROOT .. "/config/assisted_tagging.lua.log"), nil)
 
