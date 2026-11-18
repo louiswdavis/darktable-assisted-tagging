@@ -1527,7 +1527,8 @@ def identify(args, models: dict):
                 if verdict == "unlike":
                     closer = f", closer to {other_car}'s {other:.3f}" if other_car else ""
                     checked = closer_car_match(r, own, other_car, other, entries, rules.closer_car_margin, ANCHOR_MIN_SIM,
-                                               {x.entry_id for x in out[fid] + rs[len(out[fid]) + 1:] if x.entry_id})
+                                               {x.entry_id for x in out[fid] + rs[len(out[fid]) + 1:] if x.entry_id},
+                                               sure.get(burst_of.get(fid, fid), ()))
                     moved += bool(checked.entry_id)
                     outcome = f"moved to {checked.entry_id}" if checked.entry_id else "dropped"
                     log(f"{fid}: box {r.box}: {r.entry_id} doesn't look like its anchors (sim {own:.3f}{closer}, "

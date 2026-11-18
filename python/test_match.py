@@ -573,8 +573,8 @@ def run_tests():
             "108": Entry("108", "108", "", (), car="108"), "60": Entry("60", "60", "", ())}
     doubt = BoxResult(0, "livery", "14", confidence=0.7, colour="Blue")
 
-    def closer(other_car, own, other, margin, taken=()):
-        got = Mt.closer_car_match(doubt, own, other_car, other, cars, margin, 0.6, taken)
+    def closer(other_car, own, other, margin, taken=(), sure=()):
+        got = Mt.closer_car_match(doubt, own, other_car, other, cars, margin, 0.6, taken, sure)
         return got.method, got.entry_id, got.alt_entry_id, got.confidence, got.anchor_flag, got.colour
 
     check("closer car: a lead of the margin or more moves the match and keeps the flag",
@@ -595,6 +595,9 @@ def run_tests():
     check("closer car: a double-driven car can't say which driver, so drops", closer("108", 0.50, 0.90, 0.1)[:2], ("none", ""))
     check("closer car: a closer car under the anchor floor drops", closer("60", 0.30, 0.55, 0.1)[:2], ("none", ""))
     check("closer car: the photo's other box is that car already, so drops", closer("60", 0.50, 0.90, 0.1, {"60"})[:2], ("none", ""))
+    check("closer car: the burst's sure cars name another car, so drops", closer("60", 0.50, 0.90, 0.1, sure={"108"})[:2], ("none", ""))
+    check("closer car: the burst's sure cars include the closer car, so moves",
+          closer("60", 0.50, 0.90, 0.1, sure={"108", "60"})[:2], ("livery", "60"))
 
     if failures == 0:
         print("all tests passed")
