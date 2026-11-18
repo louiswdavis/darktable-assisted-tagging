@@ -1,0 +1,246 @@
+-- Run with: lua test_assisted_gui.lua
+-- Runs the darktable half of assisted_tagging.lua for real: the panel is built and the button
+-- functions run as a click runs them. Only the edges are faked: the darktable API, the plugin
+-- folder (empty model files) and the identify.py process (os.execute), which answers from PYTHON below.
+
+package.path = package.path .. ";./?.lua"
+
+local failures = 0
+local function check(name, got, want)
+    if got ~= want then
+        failures = failures + 1
+        print(string.format("FAIL %s: got %s, want %s", name, tostring(got), tostring(want)))
+    else
+        print(string.format("ok   %s", name))
+    end
+end
+
+local WINDOWS = package.config:sub(1, 1) == "\\"
+local real_execute = os.execute
+
+local function make_dir(dir)
+    real_execute(WINDOWS and ('mkdir "' .. dir:gsub("/", "\\") .. '" 2>nul') or ("mkdir -p '" .. dir .. "'"))
+end
+
+local function write_file(path, text)
+    local f = assert(io.open(path, "w"))
+    f:write(text)
+    f:close()
+end
+
+local function read_file(path)
+    local f = io.open(path, "r")
+    if not f then return nil end
+    local text = f:read("a")
+    f:close()
+    return text
+end
+
+-- Folders -------------------------------------------------------------------------
+local ROOT = ((os.getenv("TEMP") or os.getenv("TMPDIR") or "/tmp"):gsub("\\", "/"):gsub("/$", ""))
+    .. "/at_gui_test_" .. os.time() .. "_" .. math.random(100000, 999999)
+local PLUGIN = ROOT .. "/plugins/darktable-assisted-tagging"
+for _, dir in ipairs({ "/tmp", "/config/assisted_tagging", "/collections/Rallye", "/plugins/darktable-assisted-tagging/python",
+    "/plugins/darktable-assisted-tagging/models", "/plugins/darktable-assisted-tagging/.venv/Scripts",
+    "/plugins/darktable-assisted-tagging/.venv/bin" }) do
+    make_dir(ROOT .. dir)
+end
+for _, file in ipairs({ "/python/identify.py", "/.venv/Scripts/python.exe", "/.venv/Scripts/pythonw.exe", "/.venv/bin/python",
+    "/models/dfine_s_coco.onnx", "/models/text_detection_en_ppocrv3_2023may.onnx",
+    "/models/text_recognition_CRNN_EN_2021sep.onnx", "/models/dinov2_small.onnx" }) do
+    write_file(PLUGIN .. file, "")
+end
+write_file(ROOT .. "/collections/Rallye/settings.json", '{"family_colour": true, "family_colour_root": "Colour"}')
+write_file(ROOT .. "/collections/Rallye/entries.json", "[]")
+-- image 1's entry tag was written by Identify; its colour tag was not
+write_file(ROOT .. "/config/assisted_tagging/ledger.csv", "1,Rallye|112\n")
+
+-- identify.py ---------------------------------------------------------------------
+-- What the fake process writes, and what it was last asked.
+local PYTHON = {
+    entries = "112,Team A,112,Rallye|112,Driver A,Co A,Pink\n35,Team B,35,Rallye|35,Driver B,Co B,Blue\n",
+    results = "",
+    runs = {},
+}
+
+local function flag(argv, name)
+    for i, a in ipairs(argv) do
+        if a == name then return argv[i + 1] end
+    end
+    return nil
+end
+
+local function fake_identify(argv, done_path)
+    local run = { argv = argv, manifest = read_file(argv[2]) }
+    PYTHON.runs[#PYTHON.runs + 1] = run
+    if flag(argv, "--entries-out") then write_file(flag(argv, "--entries-out"), PYTHON.entries) end
+    if flag(argv, "--rules-out") then write_file(flag(argv, "--rules-out"), "") end
+    if flag(argv, "--collections-out") then write_file(flag(argv, "--collections-out"), "Rallye\n") end
+    if argv[3] ~= "-" then write_file(argv[3], PYTHON.results) end
+    write_file(done_path, "0\n")
+end
+
+-- The launch as plugin_common.run_async_python writes it: a job file on Windows, a shell line elsewhere.
+os.execute = function(cmd)
+    if not cmd or not cmd:find("identify.py", 1, true) and not cmd:find("launch.py", 1, true) then return real_execute(cmd) end
+    local argv, done_path = {}, nil
+    if WINDOWS then
+        local job
+        for quoted in cmd:gmatch('"([^"]*)"') do job = quoted end
+        local lines = {}
+        for line in (read_file(job) or ""):gmatch("[^\r\n]+") do lines[#lines + 1] = line end
+        done_path = lines[1]
+        for i = 4, #lines do argv[#argv + 1] = lines[i] end
+    else
+        local tokens = {}
+        for quoted in cmd:gmatch("'([^']*)'") do tokens[#tokens + 1] = quoted end
+        done_path = tokens[#tokens]
+        for i = 2, #tokens - 4 do argv[#argv + 1] = tokens[i] end
+    end
+    fake_identify(argv, done_path)
+    return true
+end
+
+-- darktable -----------------------------------------------------------------------
+local prints, dispatched, prefs = {}, {}, {
+    ["assisted_tagging/collections_root"] = ROOT .. "/collections",
+    ["assisted_tagging/last_collection"] = "Rallye",
+    ["assisted_plugins/plugins_root"] = ROOT .. "/plugins",
+}
+local PREF_EMPTY = { string = "", directory = "", file = "", integer = 0, float = 0, bool = false }
+
+local dt = {
+    configuration = { tmp_dir = ROOT .. "/tmp", config_dir = ROOT .. "/config", version = "test", running_os = WINDOWS and "windows" or "macos" },
+    gettext = { gettext = function(msgid) return msgid end },
+    preferences = {
+        register = function() end,
+        read = function(group, name, kind)
+            local value = prefs[group .. "/" .. name]
+            if value == nil then return PREF_EMPTY[kind] end
+            return value
+        end,
+        write = function(group, name, _kind, value) prefs[group .. "/" .. name] = value end,
+    },
+    print = function(msg) prints[#prints + 1] = msg end,
+    print_error = function() end,
+    print_hinter = function() end,
+    tags = { get_tags = function(img) return img.tags end },
+    control = {
+        sleep = function() end,
+        dispatch = function(fn) dispatched[#dispatched + 1] = fn end,
+    },
+    database = { get_image = function() return nil end },
+    register_event = function() end,
+    destroy_event = function() end,
+    register_lib = function() end,
+    -- a widget is its own property table: children in the array part, values as fields
+    new_widget = function(kind)
+        return function(props)
+            props.kind = kind
+            return props
+        end
+    end,
+    gui = {
+        libs = {},
+        views = { lighttable = {} },
+        selection = function() return {} end,
+        action_images = {},
+        current_view = function() return { id = "lighttable" } end,
+        create_job = function() return { valid = true, percent = 0 } end,
+    },
+}
+package.loaded["darktable"] = dt
+package.loaded["lib/dtutils"] = { check_min_api_version = function() end }
+package.loaded["lib/dtutils.file"] = {
+    check_if_bin_exists = function() return false end,
+    -- a rename onto itself succeeds for a file or folder that exists, on every platform
+    test_file = function(path) return os.rename(path, path) and true or false end,
+}
+
+local function image(id, filename, tag_names)
+    local tags = {}
+    for i, name in ipairs(tag_names) do tags[i] = { name = name } end
+    return { id = id, filename = filename, path = "/photos", tags = tags }
+end
+
+local function printed(text)
+    for _, msg in ipairs(prints) do
+        if msg:find(text, 1, true) then return true end
+    end
+    return false
+end
+
+local function last_print()
+    return prints[#prints] or ""
+end
+
+-- Startup -------------------------------------------------------------------------
+local T = require("assisted_tagging")
+check("the panel is installed at startup", T.module_installed, true)
+check("startup has no Lua error", read_file(ROOT .. "/config/assisted_tagging.lua.log"), nil)
+-- darktable runs the dispatched startup load after the script has loaded
+for _, fn in ipairs(dispatched) do fn() end
+check("startup lists the collection's entries", #PYTHON.runs > 0 and PYTHON.runs[1].argv[4], "--list")
+check("the startup load has no Lua error", read_file(ROOT .. "/config/assisted_tagging.lua.log"), nil)
+
+-- Fill entry colours ----------------------------------------------------------------
+local function fill(images)
+    prints, PYTHON.runs = {}, {}
+    T.fill_entry_colours(images)
+    return PYTHON.runs[#PYTHON.runs]
+end
+
+local run = fill({ image(2, "DSC00002.JPG", { "Somewhere|Else" }) })
+check("fill colours, no entry tags: says no image names an entry", printed("no selected image carries all of one entry's tags"), true)
+check("fill colours, no entry tags: no crash", printed("couldn't fill entry colours"), false)
+check("fill colours, no entry tags: identify.py isn't started", run, nil)
+
+PYTHON.results = "1,added,set,112\n"
+run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
+check("fill colours, Identify's entry tag + hand colour: no crash", printed("couldn't fill entry colours"), false)
+check("fill colours, Identify's entry tag + hand colour: the row names the entry and the colour",
+    run and run.manifest, T.csv_line({ 1, "/photos/DSC00001.JPG", "112", "Red" }) .. "\n")
+check("fill colours: runs in colours-only mode", run ~= nil and flag(run.argv, "--add-reference") == "--colours-only", true)
+check("fill colours: reports the entry set", printed("colours set for 1 entries, 0 already set, 0 unread"), true)
+
+-- Identify wrote both tags: nothing by hand names the entry or a colour
+write_file(ROOT .. "/config/assisted_tagging/ledger.csv", "1,Rallye|112\n1,Colour|Red\n")
+run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
+check("fill colours, only Identify's tags: identify.py isn't started", run, nil)
+check("fill colours, only Identify's tags: says no image names an entry", printed("no selected image carries all of one entry's tags"), true)
+
+run = fill({ image(3, "DSC00003.JPG", { "Rallye|35" }) })
+check("fill colours, hand entry tag, no colour tag: the row leaves the colour to the reading",
+    run and run.manifest, T.csv_line({ 3, "/photos/DSC00003.JPG", "35", "" }) .. "\n")
+
+-- Add references ------------------------------------------------------------------
+local function add(images, entry_id)
+    prints, PYTHON.runs = {}, {}
+    T.add_references(images, entry_id)
+    return PYTHON.runs[#PYTHON.runs]
+end
+
+run = add({ image(2, "DSC00002.JPG", { "Somewhere|Else" }) })
+check("add references, no entry tags: no crash", printed("couldn't add references"), false)
+check("add references, no entry tags: identify.py isn't started", run, nil)
+print("     add references, no entry tags, says: " .. last_print())
+
+PYTHON.results = "3,added,,35\n"
+run = add({ image(3, "DSC00003.JPG", { "Rallye|35" }) })
+check("add references, hand entry tag: no crash", printed("couldn't add references"), false)
+check("add references, hand entry tag: the row names the entry", run and run.manifest ~= nil
+    and run.manifest:find(T.csv_line({ 3, "/photos/DSC00003.JPG", "35" }), 1, true) == 1, true)
+print("     add references, hand entry tag, says: " .. last_print())
+
+check("the buttons leave no Lua error", read_file(ROOT .. "/config/assisted_tagging.lua.log"), nil)
+
+real_execute(WINDOWS and ('rmdir /s /q "' .. ROOT:gsub("/", "\\") .. '"') or ("rm -rf '" .. ROOT .. "'"))
+
+print("")
+if failures == 0 then
+    print("all tests passed")
+    os.exit(0)
+else
+    print(failures .. " test(s) failed")
+    os.exit(1)
+end

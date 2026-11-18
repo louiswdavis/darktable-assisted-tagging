@@ -1,0 +1,23 @@
+ok   the panel is installed at startup
+ok   startup has no Lua error
+ok   startup lists the collection's entries
+ok   the startup load has no Lua error
+ok   fill colours, no entry tags: says no image names an entry
+ok   fill colours, no entry tags: no crash
+ok   fill colours, no entry tags: identify.py isn't started
+ok   fill colours, Identify's entry tag + hand colour: no crash
+ok   fill colours, Identify's entry tag + hand colour: the row names the entry and the colour
+ok   fill colours: runs in colours-only mode
+ok   fill colours: reports the entry set
+ok   fill colours, only Identify's tags: identify.py isn't started
+ok   fill colours, only Identify's tags: says no image names an entry
+ok   fill colours, hand entry tag, no colour tag: the row leaves the colour to the reading
+ok   add references, no entry tags: no crash
+ok   add references, no entry tags: identify.py isn't started
+     add references, no entry tags, says: Assisted Tagging: no selected image carries all of one entry's tags, so nothing was added.
+ok   add references, hand entry tag: no crash
+ok   add references, hand entry tag: the row names the entry
+     add references, hand entry tag, says: Assisted Tagging: added 1 references to their entries. Each sample's crop is in Rallye/refs.
+ok   the buttons leave no Lua error
+
+all tests passed

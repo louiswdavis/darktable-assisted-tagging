@@ -812,7 +812,7 @@ For each step that doesn't match, send back:
 
 ### Tests
 
-From the repo root. The Python tests use synthetic images and stub models, so they need no model files. `run_tests.py` runs every `python/test_*.py` and the Lua suite `lua/test_assisted_tagging.lua` (or only the ones named, e.g. `match neighbour assisted_tagging`), prints one summary line each and writes each one's output to `tests/<name>.txt`. The Lua suite uses a `lua` on PATH if there is one, else lupa: run `pip install lupa` in the venv once (Windows has no `lua` by default):
+From the repo root. The Python tests use synthetic images and stub models, so they need no model files. `run_tests.py` runs every `python/test_*.py` and the Lua suites `lua/test_assisted_tagging.lua` (the darktable-independent functions) and `lua/test_assisted_gui.lua` (builds the panel and runs the button functions against a fake darktable and a fake identify.py process) (or only the ones named, e.g. `match neighbour assisted_tagging`), prints one summary line each and writes each one's output to `tests/<name>.txt`. The Lua suite uses a `lua` on PATH if there is one, else lupa: run `pip install lupa` in the venv once (Windows has no `lua` by default):
 
 ```
 # Linux / macOS
