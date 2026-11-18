@@ -1,25 +1,8 @@
-14:41:44 lua: fill entry colours: darktable 5.6.2, 20 images, collection Rallye
-14:41:44 lua: Assisted Tagging: Fill entry colours started on 20 images…
-14:41:53 lua: 10 RAW selections read from their paired JPEG
-14:41:53 lua: entry 87: 10 of its 10 colour-tagged photos are tagged Black, sent as its colour
-14:41:53 lua: vehicles: dfine_x_coco.onnx
-14:41:53 lua: segmenter: image_segmentation_efficientsam_ti_2025april.onnx
-14:41:53 lua: text finder: text_detection_en_ppocrv3_2023may.onnx
-14:41:53 lua: number reader: PP-OCRv5_server_rec.onnx
-14:41:53 lua: livery embedder: dinov2_base.onnx (better, not installed: dinov2_large.onnx)
-14:41:53 lua: box check: siglip2_base_vision.onnx
-14:41:53 lua: face detector: face_detection_yunet_2023mar.onnx
-14:41:53 lua: face recognizer: face_recognition_sface_2021dec.onnx
-14:41:53 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795008241_1_manifest.csv" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795008241_1_results.csv" "--add-reference" "--colours-only" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "Rallye" "--settings" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795008241_1_settings.run.json" "--detections" "C:/Users/Louis/AppData/Local/darktable/assisted_plugins/detections.sqlite" "--detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dfine_x_coco.onnx" "--segmenter" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/image_segmentation_efficientsam_ti_2025april.onnx" "--ocr-det" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/text_detection_en_ppocrv3_2023may.onnx" "--ocr-rec" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/PP-OCRv5_server_rec.onnx" "--embedder" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dinov2_base.onnx" "--siglip" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/siglip2_base_vision.onnx" "--face-detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_detection_yunet_2023mar.onnx" "--face-recognizer" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_recognition_sface_2021dec.onnx" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795008241_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795008241_1_rules.csv" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795008241_1_progress.txt"
-14:41:54 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-14:41:54 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-14:42:04 py: number reader: PaddleOCR (PP-OCRv5_server_rec.onnx); text finder: text_detection_en_ppocrv3_2023may.onnx
-14:42:04 py: box check: on (SigLIP 2); colour reader: SigLIP 2
-14:42:11 py: tag plan: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\Rallye\tag-plan.txt
-14:42:11 lua: identify.py exit 0
-14:42:11 lua: Assisted Tagging: nothing to change, entry 87 already has the right colour. File: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections/Rallye/entries.json
-14:42:11 lua: run finished
-14:50:48 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "-" "-" "--list" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "Rallye" "--collections-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795013442_1_collections.csv" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795013442_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795013442_1_rules.csv" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795013442_1_progress.txt"
-14:50:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-14:50:48 py: tag plan: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\Rallye\tag-plan.txt
-14:50:48 lua: identify.py exit 0
+19:26:43 lua: clear: darktable 5.6.2, 110 images, collection Rallye
+19:26:43 lua: Assisted Tagging: Clear tagging marks started on 110 images…
+19:26:43 lua: selection: 6 images deselected while tags are written
+19:26:52 lua: clear: darktable finished 596 tag writes, 9s
+19:26:52 lua: ledger: dropped 22 images no longer in the library
+19:26:52 lua: ledger: prune took 0s
+19:26:53 lua: Assisted Tagging: cleared 596 tags from 110 images.
+19:26:53 lua: clear finished
