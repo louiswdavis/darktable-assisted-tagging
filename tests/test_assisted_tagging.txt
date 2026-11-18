@@ -5,6 +5,7 @@ ok   parse_csv_line: quoted comma and doubled quote
 ok   parse_csv_line: wrong field count is nil
 ok   lead_rank: full-size JPEG beats RAW
 ok   detections_path: <config_dir>/assisted_plugins/detections.sqlite, backslashes folded
+ok   detections_path: one value, so it can end an argument list
 ok   page_index: out of range falls back to 1
 ok   page_coverage: missing and duplicate keys are named
 ok   page_coverage: complete panel is clean
@@ -13,28 +14,26 @@ ok   sweep_temp: removes only this prefix's stale files
 ok   sweep_temp: newer file kept
 ok   sweep_temp: other prefix kept
 ok   error_guard: results pass through
-Assisted Tagging panel install: test_assisted_tagging.lua:74: boom
+Assisted Tagging panel install: test_assisted_tagging.lua:76: boom
 stack traceback:
 	[C]: in global 'error'
-	test_assisted_tagging.lua:74: in function <test_assisted_tagging.lua:74>
+	test_assisted_tagging.lua:76: in function <test_assisted_tagging.lua:76>
 	[C]: in global 'xpcall'
 	./plugin_common.lua:267: in local 'guard'
-	test_assisted_tagging.lua:74: in main chunk
-	[C]: in global 'dofile'
-	[string "<python>"]:1: in main chunk
+	test_assisted_tagging.lua:76: in main chunk
+	[C]: in ?
 ok   error_guard: error returns nil
 ok   error_guard: log has label and traceback
 ok   error_guard: toast names the log file
-Assisted Tagging button Derive: test_assisted_tagging.lua:79: cb
+Assisted Tagging button Derive: test_assisted_tagging.lua:81: cb
 stack traceback:
 	[C]: in global 'error'
-	test_assisted_tagging.lua:79: in function <test_assisted_tagging.lua:79>
+	test_assisted_tagging.lua:81: in function <test_assisted_tagging.lua:81>
 	[C]: in global 'xpcall'
 	./plugin_common.lua:267: in function <./plugin_common.lua:266>
 	(...tail calls...)
-	test_assisted_tagging.lua:80: in main chunk
-	[C]: in global 'dofile'
-	[string "<python>"]:1: in main chunk
+	test_assisted_tagging.lua:82: in main chunk
+	[C]: in ?
 ok   guarded_widget_maker: callback errors are logged with kind + label
 ok   guarded_widget_maker: other props untouched
 ok   append_error_log: older half dropped at a line start
