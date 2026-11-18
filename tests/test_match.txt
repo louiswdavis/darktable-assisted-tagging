@@ -145,6 +145,7 @@ ok   hinted_match: a sponsor hint still yields to an outside number
 ok   disagrees: a solo shot of another entry
 ok   disagrees: the tagged entry agrees
 ok   disagrees: a team result listing it agrees
+ok   disagrees: a match moved off the tagged entry disagrees
 ok   disagrees: packs and unidentified boxes never disagree
 ok   most_specific: an ancestor prefix is dropped
 ok   hinted_match: a broad tag doesn't widen a team tag
@@ -197,4 +198,13 @@ ok   shows: the entered car still wins its own number on livery
 ok   shows: the number index lists both cars for a shared number
 ok   shows: list_scores scores shown numbers
 ok   shows: a read of a colour-removed car's number still drops the colour pool
+ok   closer car: a lead of the margin or more moves the match and keeps the flag
+ok   closer car: a lead of exactly the margin moves
+ok   closer car: a burst or neighbour match never moves
+ok   closer car: a lead under the margin drops
+ok   closer car: margin 0 never moves
+ok   closer car: no closer car drops
+ok   closer car: a double-driven car can't say which driver, so drops
+ok   closer car: a closer car under the anchor floor drops
+ok   closer car: the photo's other box is that car already, so drops
 all tests passed
