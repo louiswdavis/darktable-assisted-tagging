@@ -405,6 +405,14 @@ def run_tests():
     check("the number gate without SigLIP 2 leaves the cache key as it was", I.frame_key(frame, models), plain_key)
     del models["number_gate"]
     check("no SigLIP leaves the cache key as it was", I.frame_key(frame, models), plain_key)
+    with open(os.path.splitext(frame)[0] + ".json", "w", encoding="utf-8") as f:
+        f.write("{}")
+    models["ocr_second"] = frame
+    check("the second reader joins the cache key with its token, model and .json",
+          I.frame_key(frame, models)[len(plain_key):], ["second-reader-1", *O.parseq_key(frame)])
+    models["ocr_second"] = ""
+    check("no second reader leaves the cache key as it was", I.frame_key(frame, models), plain_key)
+    del models["ocr_second"]
     # ticket 76: the model files are read once per process, the frame's own file every time
     model_file = os.path.join(img, "model.onnx")
     Image.new("RGB", (8, 8), (1, 2, 3)).save(model_file, "PNG")
@@ -455,6 +463,7 @@ def run_tests():
         """Counts crops read; every read is empty."""
         last_trace, last_ctc, calls = [], [], 0
         keep_regions, last_regions, last_turns = False, [], {}
+        second, last_second = None, {}
 
         def read(self, crop):
             self.calls += 1

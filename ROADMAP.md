@@ -205,8 +205,10 @@ nothing tested). Aimed at the `1`/`14`/`44` misreads:
   over a group.
 - **"Readable?" gate.** Built as SigLIP zero-shot (`number_gate`, `NUMBER_GATE_MIN`), off by
   default; awaiting a Windows `eval_numbers.py` run. A small trained head only if that is weak.
-- **Two readers must agree.** PP-OCR and PARSeq both reading the same list entry passes;
-  disagreement becomes Unsure. A wrong tag costs more than a blank one.
+- **Two readers must agree.** Built as `second_reader` (OnnxTR's PARSeq, `ocr.ParseqRecogniser`),
+  off by default: a region's number counts only when PARSeq reads it too (`drop_reason`
+  `"disagree"`), so disagreement becomes Unsure unless the livery decides. Awaiting a Windows run
+  with the model installed. A wrong tag costs more than a blank one.
 - **Several numbers per entry**, plus a filter for digits that repeat unmatched across the shoot
   (sponsor or class numbers on the car). Both built: an entry's `shows` (`match.numbers_of`) and
   `match.noise_numbers`.

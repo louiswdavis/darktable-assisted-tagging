@@ -299,30 +299,84 @@ def recogniser(rec_path: str):
     return PaddleRecogniser(rec_path, dict_path) if os.path.isfile(dict_path) else CrnnRecogniser(rec_path)
 
 
+def parseq_config_path(model_path: str) -> str:
+    """OnnxTR's PARSeq config.json (vocab, mean, std, input_shape), kept beside the model as <model without .onnx>.json."""
+    return os.path.splitext(model_path)[0] + ".json"
+
+
+def parseq_key(model_path: str) -> list:
+    """The second reader's cache key: the model and its .json."""
+    return [file_key(model_path), file_key(parseq_config_path(model_path))]
+
+
+def parseq_input(word_rgb: np.ndarray, config: dict) -> np.ndarray:
+    """A word crop as PARSeq input (OnnxTR): resized to fit input_shape's H × W at its own aspect,
+    zero padded right and below, then (x / 255 - mean) / std; shape 1 × 3 × H × W."""
+    _, th, tw = config["input_shape"]
+    h, w = word_rgb.shape[:2]
+    scale = min(th / max(h, 1), tw / max(w, 1))
+    rw, rh = max(1, min(tw, round(w * scale))), max(1, min(th, round(h * scale)))
+    canvas = np.zeros((th, tw, 3), np.float32)
+    canvas[:rh, :rw] = _resized(word_rgb, (rw, rh))
+    x = (canvas / 255.0 - np.float32(config["mean"])) / np.float32(config["std"])
+    return x.transpose(2, 0, 1)[np.newaxis].astype(np.float32)
+
+
+class ParseqRecogniser:
+    """OnnxTR's PARSeq on onnxruntime, the second reader: colour, its vocab, mean and std from
+    parseq_config_path. Output is one row per step; the class after the vocab ends the text."""
+    name = "PARSeq"
+
+    def __init__(self, model_path: str):
+        import json
+        with open(parseq_config_path(model_path), encoding="utf-8") as f:
+            self.config = json.load(f)
+        self.session, self.input = _onnx_session(model_path)
+
+    def read_word(self, bgr: np.ndarray, quad) -> tuple:
+        """(text, read confidence): the least sure character's probability, 0 with no characters."""
+        word = cv2.cvtColor(quad_word(bgr, quad), cv2.COLOR_BGR2RGB)
+        p = _probs(self.session.run(None, {self.input: parseq_input(word, self.config)})[0][0])
+        vocab, chars, confs = self.config["vocab"], [], []
+        for t, c in enumerate(p.argmax(axis=1)):
+            if c >= len(vocab):
+                break
+            chars.append(vocab[c])
+            confs.append(p[t, c])
+        return "".join(chars), float(min(confs, default=0.0))
+
+
 def drop_reason(region: dict, min_score: float = OCR_MIN_SCORE, min_height: float = NUMBER_MIN_HEIGHT) -> str:
     """Why a text region (NumberReader.last_regions) gives no number: "score" (detection under
-    min_score), "not_digits" (no digit_runs) or "height" (under min_height of the crop), first
-    failing first; "" when it passes."""
+    min_score), "not_digits" (no digit_runs), "height" (under min_height of the crop) or, where the
+    second reader read it (`second`), "disagree" (none of its numbers is one the second reader read
+    too), first failing first; "" when it passes."""
     if region["det"] < min_score:
         return "score"
     if not digit_runs(region["text"]):
         return "not_digits"
     if region["share"] < min_height:
         return "height"
+    if "second" in region and not set(digit_runs(region["text"])) & set(digit_runs(region["second"])):
+        return "disagree"
     return ""
 
 
 def pick_reads(regions: list, min_score: float = OCR_MIN_SCORE, min_height: float = NUMBER_MIN_HEIGHT) -> tuple:
     """([(digits, confidence)] most confident first, {digits: digit matrix}) from text regions
     (NumberReader.last_regions): each distinct number's best passing region, confidence the lower of
-    detection and read. A region with several digit runs gives each one, all with its whole matrix.
-    Shared by NumberReader.read and eval_numbers' replay, so both decide alike."""
+    detection and read. A region with several digit runs gives each one, all with its whole matrix;
+    where the second reader read it, only the runs it read too. Shared by NumberReader.read and
+    eval_numbers' replay, so both decide alike."""
     best, ctc = {}, {}
     for region in regions:
         if drop_reason(region, min_score, min_height):
             continue
         both = min(region["det"], region["rec"])
+        agreed = digit_runs(region["second"]) if "second" in region else None
         for digits in digit_runs(region["text"]):
+            if agreed is not None and digits not in agreed:
+                continue
             if both > best.get(digits, -1.0):
                 best[digits] = both
                 ctc[digits] = region["matrix"]
@@ -330,17 +384,20 @@ def pick_reads(regions: list, min_score: float = OCR_MIN_SCORE, min_height: floa
 
 
 class NumberReader:
-    def __init__(self, det_path: str, rec_path: str, keep_regions: bool = False):
+    def __init__(self, det_path: str, rec_path: str, keep_regions: bool = False, second_path: str = ""):
         self.last_trace: list = []
         self.last_ctc: dict = {}
         self.last_turns: dict = {}
+        self.last_second: dict = {}
         self.keep_regions = keep_regions  # --verify: last_regions holds every region, for eval_numbers
         self.last_regions: list = []
-        for label, p in (("OCR text detection", det_path), ("OCR text recognition", rec_path)):
+        for label, p in (("OCR text detection", det_path), ("OCR text recognition", rec_path),
+                         *([("second reader", second_path)] if second_path else [])):
             if not os.path.isfile(p):
                 raise FileNotFoundError(f"{label} model not found: {p}")
         self.det = text_detector(det_path)
         self.rec = recogniser(rec_path)
+        self.second = ParseqRecogniser(second_path) if second_path else None
 
     def read(self, crop_rgb: np.ndarray) -> list:
         """[(digits, confidence)], distinct numbers, most confident first, for text regions detected at
@@ -352,24 +409,33 @@ class NumberReader:
         regions as [confidence, raw text, height share], accepted or not, so a zero-read crop shows
         what the reader saw, `last_ctc`: each returned number's digit_matrix from its best region,
         and `last_turns`: {"90" | "180" | "270": regions whose turned read won}.
+        With the second reader, each region with digits is read again by it, from the same quad
+        turned the same way, into the region's `second`, and a number counts only when both read it
+        (pick_reads); `last_second` is then {"checked": regions read twice, "disagreed": those
+        dropped as "disagree"}, else {}.
         With keep_regions, `last_regions` holds every detected region as {det, rec, text, share,
-        matrix, dropped} (drop_reason at today's thresholds), else []."""
+        matrix, [second,] dropped} (drop_reason at today's thresholds), else []."""
         h, w = crop_rgb.shape[:2]
         src = cv2.cvtColor(crop_rgb, cv2.COLOR_RGB2BGR)
         quads, confidences = self.det.detect(cv2.cvtColor(_letterbox(crop_rgb, DET_INPUT), cv2.COLOR_RGB2BGR))
         back = max(h, w) / DET_INPUT  # letterbox pixels → crop pixels; the letterbox keeps the crop top-left
         regions, trace, turns = [], [], {}
         for quad, conf in zip(quads, confidences):
-            text, read_conf, matrix, turn = read_turned(self.rec.read_word, src, np.asarray(quad, np.float32).reshape(4, 2) * back)
+            q = np.asarray(quad, np.float32).reshape(4, 2) * back
+            text, read_conf, matrix, turn = read_turned(self.rec.read_word, src, q)
             if turn:
                 turns[str(turn)] = turns.get(str(turn), 0) + 1
             share = height_share(quad, h, w)
             trace.append([min(float(conf), read_conf), text, round(share, 3)])
             regions.append({"det": float(conf), "rec": float(read_conf), "text": text, "share": float(share), "matrix": matrix})
+            if self.second and digit_runs(text):
+                regions[-1]["second"] = self.second.read_word(src, np.roll(q, -(turn // 90), axis=0))[0]
         reads, ctc = pick_reads(regions)
         self.last_trace = sorted(trace, reverse=True)[:5]
         self.last_ctc = ctc
         self.last_turns = turns
+        self.last_second = ({"checked": sum("second" in r for r in regions),
+                             "disagreed": sum(drop_reason(r) == "disagree" for r in regions)} if self.second else {})
         self.last_regions = [dict(r, dropped=drop_reason(r)) for r in regions] if self.keep_regions else []
         return reads
 

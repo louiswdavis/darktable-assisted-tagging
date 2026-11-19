@@ -26,9 +26,14 @@ ok   add references, hand entry tag: the row names the entry
 ok   add references, hand entry tag: reports the reference added
 ok   add references, no vehicle found: says nothing was added and why
 ok   clear: the tags are cleared
+ok   clear: pauses once after the image with writes
+ok   clear: the log has the timing line
 ok   clear: the selection stays while the tags are detached
 ok   clear: the job bar is closed
 ok   clear: the next clear runs, the panel isn't left busy
+ok   clear, cancelled: the first image is cleared, the others keep their tags
+ok   clear, cancelled: says how far it got
+ok   clear, after a cancel: the next clear finishes the rest
 ok   no button changes the selection
 ok   the buttons leave no Lua error
 

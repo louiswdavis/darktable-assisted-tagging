@@ -59,7 +59,7 @@ TOGGLE_KEYS = ("number", "livery", "burst", "pooled", "neighbour", "check_order"
                "number_seen", "check_colour", "check_match", "shot")
 
 MOVED_RULES = ("order_weight", "neighbour_tolerance", "min_read", "colour_weight", "partial_references", "min_sim", "margin", "min_face_px", "burst_livery_pooling",
-               "blur_references", "number_gate")
+               "blur_references", "number_gate", "second_reader")
 
 # Settings that no longer exist -> the family setting that replaced each. A file still holding one stops the load.
 REMOVED_KEYS = {"colour_tags": "family_colour", "tag_colour": "family_colour", "tag_colour_name": "family_colour_root"}
@@ -96,6 +96,7 @@ def _schema() -> tuple:
         Setting("burst_livery_pooling", "bool", False),
         Setting("blur_references", "bool", False),
         Setting("number_gate", "bool", False),
+        Setting("second_reader", "bool", False),
     ]
     for fam in FAMILIES:
         out.append(Setting(switch_key(fam.key), "bool", fam.default_on))

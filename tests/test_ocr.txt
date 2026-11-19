@@ -55,4 +55,17 @@ ok   read_turned: a sure read is not retried
 ok   read_turned: a weak wide quad is retried at 180° only
 ok   read_turned: a weak tall quad is retried at 180°, 90° and 270°
 ok   read_turned: no better read keeps the read as found
+ok   drop_reason: readers that disagree drop the region
+ok   drop_reason: a second read with the number in it passes
+ok   drop_reason: no second read passes as before
+ok   pick_reads: only the runs both readers read count
+ok   parseq_input: 1 × 3 × H × W from input_shape
+ok   parseq_input: the word keeps its aspect, white is (1 - mean) / std
+ok   parseq_input: the rest is zero padding, (0 - mean) / std
+ok   ParseqRecogniser: reads up to the end class
+ok   NumberReader: a second reader that disagrees gives no number
+ok   NumberReader: last_second counts the disagreement
+ok   NumberReader: both readers agreeing gives the number
+ok   NumberReader: last_second counts the check
+ok   NumberReader: no second reader reads as before
 all passed

@@ -1316,6 +1316,17 @@ do -- model auto-pick: first installed file on each job's best-first list
     choice = T.model_choice(box_check, present_of({}), present_of({}))
     check("box check is optional", tostring(choice.file) .. " " .. tostring(choice.err), "nil nil")
 
+    local second = T.MODEL_LISTS["second reader"]
+    check("PARSeq sibling", table.concat(T.model_siblings("m/parseq-00b40714.onnx", second.job), ","),
+        "m/parseq-00b40714.json")
+    on_disk = present_of({ "m/parseq-00b40714.onnx" })
+    choice = T.model_choice(second, function(file) return T.model_present("m/" .. file, second.job, on_disk) end,
+        function(file) return on_disk("m/" .. file) end)
+    check("PARSeq without its .json is an error", choice.err,
+        'Assisted Tagging: parseq-00b40714.onnx needs parseq-00b40714.json beside it in models/ (README, "Models").')
+    choice = T.model_choice(second, present_of({}), present_of({}))
+    check("second reader is optional", tostring(choice.file) .. " " .. tostring(choice.err), "nil nil")
+
     check("pick log line", T.pick_log_line("livery embedder", "dinov2_base.onnx", { "dinov2_large.onnx" }),
         "livery embedder: dinov2_base.onnx (better, not installed: dinov2_large.onnx)")
     check("pick log line, best installed", T.pick_log_line("livery embedder", "dinov2_large.onnx", {}),
@@ -1324,12 +1335,12 @@ do -- model auto-pick: first installed file on each job's best-first list
     local jobs = {}
     for _, item in ipairs(T.MODEL_LISTS) do jobs[#jobs + 1] = item.job end
     check("model jobs in log order", table.concat(jobs, ","),
-        "vehicles,segmenter,text finder,number reader,livery embedder,box check,face detector,face recognizer")
+        "vehicles,segmenter,text finder,number reader,second reader,livery embedder,box check,face detector,face recognizer")
     local bases = {}
     for _, item in ipairs(T.MODEL_LISTS) do bases[#bases + 1] = item.files[#item.files] end
     check("each list ends in today's file or a model on trial", table.concat(bases, ","),
         "object_detection_yolox_2022nov.onnx,image_segmentation_efficientsam_ti_2025april.onnx,"
-        .. "PP-OCRv6_small_det.onnx,PP-OCRv6_small_rec.onnx,dinov2_small.onnx,"
+        .. "PP-OCRv6_small_det.onnx,PP-OCRv6_small_rec.onnx,parseq-00b40714.onnx,dinov2_small.onnx,"
         .. "siglip2_base_vision.onnx,face_detection_yunet_2023mar.onnx,face_recognition_sface_2021dec.onnx")
 end
 

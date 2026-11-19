@@ -35,7 +35,7 @@ from dataclasses import dataclass, field, replace
 from vehicles import HIRES_ASPECT_TOL, HIRES_MIN_GAIN, MAX_BOXES, crop_box, detect, detect_vehicles, load_hires, log, peak_memory_mb
 from vehicle_detect import DetectionCache, boxes_in, decode_rgb, decode_rgb_sized, detect_cached, file_key, load_detector
 from common import atomic_write
-from ocr import NUMBER_MIN_HEIGHT, OCR_CROP_DIM, OCR_MIN_SCORE, NumberReader, ocr_key
+from ocr import NUMBER_MIN_HEIGHT, OCR_CROP_DIM, OCR_MIN_SCORE, NumberReader, ocr_key, parseq_key
 import car_colour
 import entries_file
 from colour import colour_hist
@@ -100,6 +100,7 @@ class Rules:
     blur_references: bool = False
     # Experimental: SigLIP 2 skips OCR on a box that shows no race number (siglip.number_visible).
     number_gate: bool = False
+    second_reader: bool = False
     # ((lowercase keyword, tag prefix), …): a sponsor word read on a car hints its team's prefix
     # (see sponsors.sponsor_prefixes). Empty: off.
     sponsor_keywords: tuple = ()
@@ -532,12 +533,13 @@ def frame_key(filepath: str, models: dict) -> list:
     change to that stage). Entries and references stay out of it. The model files are read once
     per process (_MODEL_KEYS): a model file replaced mid-run keeps its old key until the next run."""
     paths = tuple(models.get(k) for k in ("face_det", "face_rec", "detector", "ocr_det", "ocr_rec", "embedder",
-                                          "segmenter", "siglip"))
+                                          "segmenter", "siglip", "ocr_second"))
     if paths not in _MODEL_KEYS:
         _MODEL_KEYS[paths] = ({"faces": face_model_key(models["face_det"], models["face_rec"])}
                               if models["kind"] == "people" else
                               {"detector": file_key(models["detector"]),
                                "ocr": ocr_key(models["ocr_det"], models["ocr_rec"]),
+                               "second": parseq_key(models["ocr_second"]) if models.get("ocr_second") else None,
                                "embedder": embedder_key(models["embedder"]),
                                "segmenter": file_key(models["segmenter"]) if models.get("segmenter") else None,
                                "siglip": siglip_key(models["siglip"]) if models.get("siglip") else None})
@@ -550,7 +552,8 @@ def frame_key(filepath: str, models: dict) -> list:
             *([SEGMENT_CACHE_TOKEN, keys["segmenter"]] if models.get("segmenter") else []),
             *(keys["siglip"] if models.get("siglip") else []),
             *(number_gate_key() if models.get("number_gate") and models.get("siglip") else []),
-            *(["ocr-regions-1"] if models.get("ocr_regions") else [])]
+            *(["ocr-regions-1"] if models.get("ocr_regions") else []),
+            *(["second-reader-1", *keys["second"]] if models.get("ocr_second") else [])]
 
 
 # ---------------------------------------------------------------- progress
@@ -629,7 +632,8 @@ def _init_worker(models: dict, siglip_texts=None):
     if models["kind"] == "people":
         _W["faces"] = FaceModel(models["face_det"], models["face_rec"])
         return
-    _W["reader"] = NumberReader(models["ocr_det"], models["ocr_rec"], keep_regions=bool(models.get("ocr_regions")))
+    _W["reader"] = NumberReader(models["ocr_det"], models["ocr_rec"], keep_regions=bool(models.get("ocr_regions")),
+                                second_path=models.get("ocr_second", ""))
     _W["embedder"] = Embedder(models["embedder"])
     _W["segmenter"] = Segmenter(models["segmenter"]) if models.get("segmenter") else None
     _siglip(models)  # the detector loads in frame_entry, on the first frame that detects
@@ -708,9 +712,10 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
     gate where the crop read is that same plain crop. With the number gate on, `number_share` holds
     each plain crop's siglip.number_visible (None for the others); a box under NUMBER_GATE_MIN is not
     read: its `ocr` is [] and its `ocr_trace` GATED_TRACE. Under --verify it is still read, for its
-    `ocr_regions` only, so eval_numbers.py can replay another gate."""
+    `ocr_regions` only, so eval_numbers.py can replay another gate. With the second reader on,
+    `ocr_second` sums the reader's last_second over the boxes read."""
     ocr, trace, ctc, emb, pod, hist, overlap, masked, shares, regions, number_shares = [], [], [], [], [], [], [], [], [], [], []
-    turns = {}
+    turns, second = {}, {}
     palette = _W["models"].get("car_colour")
     gate = _W.get("siglip") if _W["models"].get("number_gate") else None
     keep_regions = _W["reader"].keep_regions
@@ -747,6 +752,8 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
             ocr.append([[d, c] for d, c in reads])
             for turn, n in _W["reader"].last_turns.items():
                 turns[turn] = turns.get(turn, 0) + n
+            for key, n in _W["reader"].last_second.items():
+                second[key] = second.get(key, 0) + n
             trace.append(_W["reader"].last_trace)
             ctc.append(_W["reader"].last_ctc)
         if keep_regions:
@@ -767,6 +774,8 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
         out["ocr_regions"] = regions
     if gate:
         out["number_share"] = number_shares
+    if _W["reader"].second:
+        out["ocr_second"] = {"checked": second.get("checked", 0), "disagreed": second.get("disagreed", 0)}
     return out
 
 
@@ -877,7 +886,8 @@ def check_models(models: dict, siglip: bool = True):
         if not models[key] or not os.path.isfile(models[key]):
             raise InputError(f"{label} model not found: {models[key] or '(not set)'}")
     loaders = (("object detector", "detector", lambda: load_detector(models["detector"])),
-               ("OCR", "ocr_det", lambda: NumberReader(models["ocr_det"], models["ocr_rec"])),
+               ("OCR", "ocr_det", lambda: NumberReader(models["ocr_det"], models["ocr_rec"],
+                                                       second_path=models.get("ocr_second", ""))),
                ("embedder", "embedder", lambda: Embedder(models["embedder"])),
                *([("segmenter", "segmenter", lambda: Segmenter(models["segmenter"]))] if models.get("segmenter") else []),
                *([("SigLIP 2", "siglip", lambda: SigLIP(models["siglip"]))] if siglip and models.get("siglip") else []))
@@ -890,6 +900,11 @@ def check_models(models: dict, siglip: bool = True):
                              f"Download it again (see the README).") from e
     log(f"number reader: {loaded['ocr_det'].rec.name} ({os.path.basename(models['ocr_rec'])}); "
         f"text finder: {os.path.basename(models['ocr_det'])}")
+    if models.get("ocr_second"):
+        log(f"second reader: on, {loaded['ocr_det'].second.name} ({os.path.basename(models['ocr_second'])}); "
+            "a number counts only when both readers read it")
+    elif models.get("second_reader"):
+        log("second reader: does nothing (second_reader is on, but no PARSeq model is installed)")
     if not siglip:
         return loaded["embedder"]
     _W["reader"] = loaded["ocr_det"]
@@ -963,7 +978,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, p
     write_progress(progress, done, total, "analysing", cached)
     if not todo:
         log_box_check(out, models)
-        log_turns("analysis", out.values())
+        log_reads("analysis", out.values())
         return out
     workers = pool.size
     hits, detected, started, worker_peak_mb = 0, 0, time.time(), 0.0
@@ -1001,7 +1016,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, p
     if models["kind"] != "people":
         log(f"detections: {hits} cached, {detected} detected")
     log_box_check(out, models)
-    log_turns("analysis", out.values())
+    log_reads("analysis", out.values())
     return out
 
 
@@ -1027,14 +1042,19 @@ def log_box_check(analyses: dict, models: dict):
             f"(number share under {NUMBER_GATE_MIN})")
 
 
-def log_turns(stage: str, analyses):
-    """One run-log line counting the number reads a turned retry won, per turn (ocr.read_turned), over
-    the analyses that carry `ocr_turns`; none when no analysis read numbers."""
-    read = [a["ocr_turns"] for a in analyses if a and "ocr_turns" in a]
+def log_reads(stage: str, analyses):
+    """Run-log lines over the analyses that carry `ocr_turns`, none when no analysis read numbers: the
+    number reads a turned retry won, per turn (ocr.read_turned), and, where the second reader ran
+    (`ocr_second`), how many regions it read and how many it disagreed on."""
+    read = [a for a in analyses if a and "ocr_turns" in a]
     if not read:
         return
-    won = {turn: sum(t.get(turn, 0) for t in read) for turn in ("180", "90", "270")}
+    won = {turn: sum(a["ocr_turns"].get(turn, 0) for a in read) for turn in ("180", "90", "270")}
     log(f"{stage}: turned reads won {sum(won.values())} regions (" + ", ".join(f"{t}° {n}" for t, n in won.items()) + ")")
+    second = [a["ocr_second"] for a in read if "ocr_second" in a]
+    if second:
+        log(f"{stage}: second reader disagreed on {sum(s['disagreed'] for s in second)} of "
+            f"{sum(s['checked'] for s in second)} regions with digits; those give no number")
 
 
 def rescue_frames(rows: list, analyses: dict, models: dict, cache: IdentifyCache, pool: WorkerPool,
@@ -1154,7 +1174,7 @@ def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, p
                     log(f"refining: {done}/{len(todo)} done, {time.time() - started:.0f}s")
     finally:
         cache.close()
-    log_turns("refining", reads.values())
+    log_reads("refining", reads.values())
     out = dict(analyses)
     for p, idx in wanted.items():
         read = reads.get(p)
@@ -1545,6 +1565,8 @@ def identify(args, models: dict):
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
     models["number_gate"] = rules.kind != "people" and rules.number_gate
+    models["second_reader"] = rules.kind != "people" and rules.second_reader
+    models["ocr_second"] = models.get("ocr_second", "") if models["second_reader"] else ""
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     write_progress(args.progress, 0, 1, "loading models")
     embedder = check_models(models)
@@ -2201,6 +2223,8 @@ def main(argv=None):
     parser.add_argument("--segmenter", default="", help="EfficientSAM .onnx (default: next to the detector, if present)")
     parser.add_argument("--ocr-det", default="", help="text detection .onnx: PP-OCRv3 (opencv_zoo) or PaddleOCR (its .yml beside it)")
     parser.add_argument("--ocr-rec", default="", help="text recognition .onnx: PP-OCRv5 (its .yml beside it) or CRNN")
+    parser.add_argument("--ocr-second", default="",
+                        help="second reader .onnx: OnnxTR PARSeq (its config as <model>.json beside it); used when second_reader is on")
     parser.add_argument("--embedder", default="", help="DINOv2 .onnx")
     parser.add_argument("--siglip", default="",
                         help="SigLIP 2 vision .onnx (text model and tokenizer beside it): box check and colour reader")
@@ -2235,7 +2259,7 @@ def main(argv=None):
     parser.add_argument("--verify", action="store_true",
                         help="Also analyse fully tagged images and flag the ones whose result differs from their tags (the plugin then changes no tags)")
     args = parser.parse_args(argv)
-    models = {"detector": args.detector, "ocr_det": args.ocr_det, "ocr_rec": args.ocr_rec,
+    models = {"detector": args.detector, "ocr_det": args.ocr_det, "ocr_rec": args.ocr_rec, "ocr_second": args.ocr_second,
               "embedder": args.embedder, "face_det": args.face_detector, "face_rec": args.face_recognizer,
               "segmenter": args.segmenter, "siglip": args.siglip, "detections": args.detections, "kind": DEFAULT_KIND}
     started = time.time()

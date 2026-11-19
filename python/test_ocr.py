@@ -2,8 +2,10 @@
 # Exercises ocr's decoding, number filter and PaddleOCR input/dictionary helpers on made-up data;
 # NumberReader needs the models. Needs PyYAML (requirements.txt).
 
+import json
 import os
 import sys
+import tempfile
 
 import numpy as np
 
@@ -196,6 +198,84 @@ calls.clear()
 got = O.read_turned(upright_only, np.full((200, 120, 3), 255, np.uint8), box_quad(40, 40, 80, 160))
 check("read_turned: a weak tall quad is retried at 180°, 90° and 270°", len(calls), 4)
 check("read_turned: no better read keeps the read as found", got[3], 0)
+
+# second reader: a region counts only when PARSeq read one of its numbers too
+region = {"det": 0.95, "rec": 0.95, "text": "42", "share": 0.5, "matrix": [], "second": "17"}
+check("drop_reason: readers that disagree drop the region", O.drop_reason(region), "disagree")
+check("drop_reason: a second read with the number in it passes", O.drop_reason(dict(region, second="42.")), "")
+check("drop_reason: no second read passes as before", O.drop_reason({k: v for k, v in region.items() if k != "second"}), "")
+check("pick_reads: only the runs both readers read count",
+      [d for d, _ in O.pick_reads([dict(region, text="42 7", second="42")])[0]], ["42"])
+
+config = {"vocab": "0123456789", "mean": [0.5, 0.5, 0.5], "std": [0.25, 0.25, 0.25], "input_shape": [3, 32, 128]}
+x = O.parseq_input(np.full((10, 20, 3), 255, np.uint8), config)
+check("parseq_input: 1 × 3 × H × W from input_shape", x.shape, (1, 3, 32, 128))
+check("parseq_input: the word keeps its aspect, white is (1 - mean) / std", float(x[0, 0, 31, 63]), 2.0)
+check("parseq_input: the rest is zero padding, (0 - mean) / std", float(x[0, 0, 0, 64]), -2.0)
+
+
+# onnxruntime is the edge: a fake whose session answers by the model file's bytes. The detector
+# finds one wide word, the recogniser reads "42", PARSeq reads `parseq_text`.
+class FakeSession:
+    def __init__(self, model_bytes, opts, providers):
+        self.model = model_bytes.decode()
+
+    def get_inputs(self):
+        return [type("Input", (), {"name": "x"})]
+
+    def run(self, outputs, feed):
+        x = feed["x"]
+        if self.model == "det":
+            prob = np.zeros((1, 1, *x.shape[2:]), np.float32)
+            prob[0, 0, 40:100, 40:400] = 1.0
+            return [prob]
+        if self.model == "rec":
+            out = np.zeros((1, 3, 12), np.float32)
+            for t, c in enumerate((5, 0, 3)):  # 4, blank, 2 with the charset 0-9 after the blank
+                out[0, t, c] = 1.0
+            return [out]
+        out = np.zeros((1, 5, 11), np.float32)
+        for t, ch in enumerate(parseq_text + "$"):
+            out[0, t, 10 if ch == "$" else config["vocab"].index(ch)] = 20.0
+        return [out]
+
+
+fake_ort = type(sys)("onnxruntime")
+fake_ort.set_default_logger_severity = lambda level: None
+fake_ort.SessionOptions = lambda: type("Options", (), {})()
+fake_ort.InferenceSession = FakeSession
+real_ort = sys.modules.get("onnxruntime")
+sys.modules["onnxruntime"] = fake_ort
+models = tempfile.mkdtemp()
+for name in ("det", "rec", "parseq"):
+    with open(os.path.join(models, name + ".onnx"), "w") as f:
+        f.write(name)
+with open(os.path.join(models, "det.yml"), "w") as f:
+    f.write("PreProcess:\n  transform_ops:\n  - NormalizeImage:\n      mean: [0.5, 0.5, 0.5]\n      std: [0.5, 0.5, 0.5]\n"
+            "PostProcess:\n  thresh: 0.3\n  box_thresh: 0.6\n  unclip_ratio: 1.5\n  max_candidates: 10\n")
+with open(os.path.join(models, "rec.yml"), "w") as f:
+    f.write("PostProcess:\n  character_dict: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']\n")
+with open(os.path.join(models, "parseq.json"), "w") as f:
+    json.dump(config, f)
+
+parseq_text = "17"
+text, conf = O.ParseqRecogniser(os.path.join(models, "parseq.onnx")).read_word(np.zeros((40, 100, 3), np.uint8),
+                                                                              box_quad(0, 0, 100, 40))
+check("ParseqRecogniser: reads up to the end class", (text, round(conf, 3)), ("17", 1.0))
+reader = O.NumberReader(os.path.join(models, "det.onnx"), os.path.join(models, "rec.onnx"),
+                        second_path=os.path.join(models, "parseq.onnx"))
+crop = np.zeros((368, 736, 3), np.uint8)
+check("NumberReader: a second reader that disagrees gives no number", reader.read(crop), [])
+check("NumberReader: last_second counts the disagreement", reader.last_second, {"checked": 1, "disagreed": 1})
+parseq_text = "42"
+check("NumberReader: both readers agreeing gives the number", [d for d, _ in reader.read(crop)], ["42"])
+check("NumberReader: last_second counts the check", reader.last_second, {"checked": 1, "disagreed": 0})
+check("NumberReader: no second reader reads as before",
+      [d for d, _ in O.NumberReader(os.path.join(models, "det.onnx"), os.path.join(models, "rec.onnx")).read(crop)], ["42"])
+if real_ort:
+    sys.modules["onnxruntime"] = real_ort
+else:
+    del sys.modules["onnxruntime"]
 
 if failures:
     print(f"{failures} failed")

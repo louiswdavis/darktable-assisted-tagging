@@ -251,7 +251,7 @@ end
 local MOVED_RULES = { order_weight = true, neighbour_tolerance = true, min_read = true,
     colour_weight = true, partial_references = true, min_sim = true,
     margin = true, min_face_px = true, burst_livery_pooling = true, blur_references = true,
-    number_gate = true }
+    number_gate = true, second_reader = true }
 
 -- identify.py's rules.csv (key,value lines) → rules. Besides team_only, unidentified,
 -- diag_<outcome> and family_<key> (the root of a family that is on): each resolved setting as rules.settings[key] (numbers and booleans), and
@@ -1293,6 +1293,7 @@ M.PRESET_SCHEMA = {
     { key = "burst_livery_pooling", kind = "bool", default = false },
     { key = "blur_references", kind = "bool", default = false },
     { key = "number_gate", kind = "bool", default = false },
+    { key = "second_reader", kind = "bool", default = false },
     { key = "family_colour", kind = "bool", default = true },
     { key = "family_colour_root", kind = "string", default = "Assisted Tagging|Motorsport|Colour" },
     { key = "family_number", kind = "bool", default = true },
@@ -1608,7 +1609,8 @@ M.PANEL_PAGES = {
     { number = 6, title = "references", keys = { "suggest_crops", "quarantine" } },
 }
 -- settings.json only, no panel widget
-M.PANEL_OTHER_KEYS = { "closer_car_margin", "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references", "number_gate" }
+M.PANEL_OTHER_KEYS = { "closer_car_margin", "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references", "number_gate",
+    "second_reader" }
 
 -- Model files per job, best first. `base` is the base install (README, "Models"), the last
 -- file when unset; files after it are older fallbacks, then models on trial (PP-OCRv6 small,
@@ -1624,6 +1626,7 @@ M.MODEL_LISTS = {
     { job = "number reader", flag = "--ocr-rec", base = "en_PP-OCRv5_mobile_rec.onnx and its .yml",
         files = { "PP-OCRv5_server_rec.onnx", "en_PP-OCRv5_mobile_rec.onnx", "text_recognition_CRNN_EN_2021sep.onnx",
             "PP-OCRv6_small_rec.onnx" } },
+    { job = "second reader", flag = "--ocr-second", optional = true, files = { "parseq-00b40714.onnx" } },
     { job = "livery embedder", flag = "--embedder", files = { "dinov2_large.onnx", "dinov2_base.onnx", "dinov2_small.onnx" } },
     { job = "box check", flag = "--siglip", optional = true, files = { "siglip2_base_vision.onnx" } },
     { job = "face detector", flag = "--face-detector", optional = true, files = { "face_detection_yunet_2023mar.onnx" } },
@@ -1632,8 +1635,9 @@ M.MODEL_LISTS = {
 for _, item in ipairs(M.MODEL_LISTS) do M.MODEL_LISTS[item.job] = item end
 
 -- Files that must sit beside model file `path` for `job`: SigLIP 2's text model and tokenizer,
--- named after its vision file. Empty for every other job.
+-- named after its vision file, and PARSeq's config as <model>.json. Empty for every other job.
 function M.model_siblings(path, job)
+    if job == "second reader" then return { (path:gsub("%.onnx$", ".json")) } end
     if job ~= "box check" then return {} end
     return { (path:gsub("vision%.onnx$", "text.onnx")), (path:gsub("vision%.onnx$", "tokenizer.json")) }
 end

@@ -177,6 +177,16 @@ The CRNN is the plugin's first reader. It reads grey crops at a smaller size and
 python python/compare_ocr.py --rec models/text_recognition_CRNN_EN_2021sep.onnx --rec models/en_PP-OCRv5_mobile_rec.onnx --out compare.csv <a folder of photos>
 ```
 
+##### Second reader (optional, PARSeq)
+
+`second_reader` in `settings.json` (off by default, not in the panel) reads every text region with digits a second time, with PARSeq, from the same quad turned the same way. A number counts only when both readers read it: a region whose numbers PARSeq did not read too gives no number (its `dropped` in `ocr_regions` is `disagree`), so the photo is Unsure unless the livery decides it. The log counts them (`second reader disagreed on 3 of 41 regions with digits; those give no number`). Turning it on re-reads every photo once. It does nothing in a people collection.
+
+Download the model, and save its `config.json` beside it as `parseq-00b40714.json`; the plugin stops with a message if the `.json` is missing.
+
+| File | Size | Download | Source, licence |
+|---|---|---|---|
+| `parseq-00b40714.onnx` + `.json` | 96.6 MB | `https://github.com/felixdittrich92/OnnxTR/releases/download/v0.0.1/parseq-00b40714.onnx` and `https://huggingface.co/Felix92/onnxtr-parseq/resolve/main/config.json` | OnnxTR (docTR's PARSeq), Apache-2.0 |
+
 #### Trying PP-OCRv6 small
 
 PP-OCRv6 small (text finder and reader, 31 MB together) may read angled numbers better than PP-OCRv3 + PP-OCRv5 mobile. Paddle's own benchmark puts its detection on rotated text at 93.7 against 64.7 and its reading at 81.3 against 73.7; those are the publisher's figures, not measured here. It stays on trial until a measured run on your photos beats today's models. To measure it:
@@ -429,6 +439,7 @@ Every other setting lives in the collection's `settings.json`, beside `entries.j
 | `burst_livery_pooling` | experimental: resolves a burst frame that didn't clear the threshold from the burst's pooled livery similarity (*By pooled burst*). Only a clear pooled match names a car, never a team tie; a burst with a frame read as another car is left alone, and so is a frame whose main box is overlapped, already identified, a team result for another team, or under a tag or sponsor hint that leaves the car out. A frame whose colour read differs from the pooled car's colour is left out of the pool and the fill; the rest are pooled again without it | `true`, `false` | `false` | no |
 | `blur_references` | blurs reference crops before they are compared | `true`, `false` | `false` | no |
 | `number_gate` | experimental: skips the number read on a box where SigLIP 2 sees no number (see [Number gate](#number-gate-experimental-siglip-2)); does nothing without SigLIP 2 | `true`, `false` | `false` | no |
+| `second_reader` | a number counts only when PARSeq reads it too (see [Second reader](#second-reader-optional-parseq)); does nothing without the PARSeq model | `true`, `false` | `false` | no |
 | `family_colour`, `family_number`, `family_team`, `family_driver`, `family_co_driver`, `family_extra`, `family_vehicle`, `family_sponsor` | write that [tag family](#tag-families); `family_colour` also reads each car's paintwork colour, and turning it on re-reads every photo once | `true`, `false` | `true` (`family_sponsor`: `false`) | yes |
 | `family_colour_root`, `family_number_root`, `family_team_root`, `family_driver_root`, `family_co_driver_root`, `family_extra_root`, `family_vehicle_root`, `family_sponsor_root` | the root each family's tags sit under | a tag path | see [Tag families](#tag-families) | yes |
 | `tag_number`, `tag_number_name` | write the *By number* diagnostic; the tag it writes | `true`/`false`; a tag name | `true`; `Assisted Tagging\|Identification\|By number` | yes |
