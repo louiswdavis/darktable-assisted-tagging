@@ -4,7 +4,7 @@ consensus. Pure functions over OCR candidates and similarities."""
 import math
 from dataclasses import dataclass, replace
 
-from car_colour import colour_relation, decide_colour
+from car_colour import colour_relation, decide_colour, overturned_colour
 
 MATCH_MIN_SIM = 0.60
 MATCH_MIN_MARGIN = 0.10  # on centred similarities (reference_store.best_per_entry); eval_matching.py sweeps it
@@ -451,6 +451,24 @@ def colour_check(frames: dict, entries: dict) -> dict:
             return replace(r, colour_flag=True)
         return r
     return {fid: [check(r) for r in rs] for fid, rs in frames.items()}
+
+
+def colour_overturns(frames: dict, entries: dict) -> list:
+    """[(entry id, stored colour, colour seen, boxes seen in it, boxes read)] for each entry whose
+    `number` boxes overturn its colour in entries.json (car_colour.overturned_colour), sorted by
+    entry id. Nothing is changed: the run reports them for the photographer to check."""
+    counts = {}
+    for rs in frames.values():
+        for r in rs:
+            if r.method == "number" and r.colour and r.entry_id in entries:
+                seen = counts.setdefault(r.entry_id, {})
+                seen[r.colour] = seen.get(r.colour, 0) + 1
+    out = []
+    for eid, seen in sorted(counts.items()):
+        colour = overturned_colour(entries[eid].colour, seen)
+        if colour:
+            out.append((eid, entries[eid].colour, colour, seen[colour], sum(seen.values())))
+    return out
 
 
 def burst_colours(frames: dict, burst_of: dict, shares_of: dict) -> tuple:

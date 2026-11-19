@@ -141,6 +141,21 @@ def colour_vote(counts: dict) -> tuple:
     return top, support, total
 
 
+RECOLOUR_MIN_SHARE = 0.9  # an entry's reads overturn its stored colour when this share backs one clashing colour
+RECOLOUR_MIN_PHOTOS = 5  # and at least this many photos were read
+
+
+def overturned_colour(stored: str, counts: dict) -> str:
+    """The colour that overturns an entry's `stored` colour, or "": the colour_vote winner of `counts`
+    ({colour: photos}) when at least RECOLOUR_MIN_PHOTOS were read, it and its NEAR_COLOURS neighbours
+    hold RECOLOUR_MIN_SHARE of them, and it clashes with `stored` (colour_relation -1)."""
+    top, support, total = colour_vote(counts)
+    if top and total >= RECOLOUR_MIN_PHOTOS and support >= total * RECOLOUR_MIN_SHARE \
+            and colour_relation(stored, top) == -1:
+        return top
+    return ""
+
+
 def palette_digest(palette) -> str:
     """Short sha1 over the palette names and bounds and the body-region constants, for the cache key.
     Names count: cached shares are keyed by name, so a rename must re-read."""

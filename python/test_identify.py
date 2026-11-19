@@ -1315,6 +1315,14 @@ def run_tests():
         vcars = I.load_collection(vcoll, "")[0]
         check("a near reading of a coloured entry isn't a difference",
               I.fill_colours(ventries, vcars, vrules, vdone[:2], [[("VER", "Purple", False)], [("VER", "Blue", False)]]), ["", "already"])
+        check("readings clashing with the stored colour in most but not nearly all photos leave it",
+              I.fill_colours(ventries, vcars, vrules, vdone, [[("VER", "Red", False)]] * 3 + [[("VER", "Blue", False)]]),
+              ["differs", "differs", "differs", "already"])
+        check("a clash short of nearly all keeps the stored colour", json.load(open(ventries, encoding="utf-8"))["entries"][0].get("colour"), "Blue")
+        rdone = [(str(n), "added", []) for n in range(1, 6)]
+        check("nearly all photos reading a clashing colour replace the stored colour",
+              I.fill_colours(ventries, vcars, vrules, rdone, [[("VER", "Red", False)]] * 5), ["set"] * 5)
+        check("entries.json holds the overturning colour", json.load(open(ventries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
 
         # --colours-only: the colour alone goes to entries.json, no reference is saved
         ocoll = collection(entries_file.dump({"entries": [VER, TSU]}), root=root, settings=colour_on)

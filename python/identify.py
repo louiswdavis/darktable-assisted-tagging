@@ -42,7 +42,7 @@ from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
 from match import (HAND, IDENTIFIED, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NOISE_MIN_BESIDE_SHARE, NOISE_MIN_PARTNERS, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads, noise_numbers, without_noise, number_index, numbers_of,
-                   burst_colours, burst_consensus, closer_car_match, colour_check, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera, sure_cars,
+                   burst_colours, burst_consensus, closer_car_match, colour_check, colour_overturns, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera, sure_cars,
                    match_livery, match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
@@ -1815,6 +1815,8 @@ def identify(args, models: dict):
         colour_flagged = sum(1 for rs in frames.values() for r in rs if r.colour_flag)
         if colour_flagged:
             log(f"colour: flagged {colour_flagged} number reads whose entry's colour disagrees")
+        for eid, stored, seen, n, total in colour_overturns(frames, entries):
+            log(f"colour: check entry {eid}: {stored} in entries.json, {n} of its {total} number reads see {seen}")
 
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
     # A hand-tagged image's box naming another entry is one too, whatever tags the two entries share;
@@ -1888,16 +1890,18 @@ def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: l
     """Writes the job's colour proposals (`proposed[i]`: [(entry id, colour, by hand)] for row
     `done[i]`; `by hand` may be left out) to entries.json in one entries_file.set_colours call. A
     colour tag the user applied (`by hand`) replaces the entry's colour and is taken before any
-    reading; the first one per entry wins. Colours read from the photos only fill an entry without
+    reading; the first one per entry wins. Colours read from the photos fill an entry without
     one, and they vote: the colour most photos read wins when it and its NEAR_COLOURS neighbours are
-    car_colour.VOTE_MIN_SHARE of the entry's reads. Returns each row's colour_note: "set", "differs",
+    car_colour.VOTE_MIN_SHARE of the entry's reads. They replace a stored colour only when
+    car_colour.overturned_colour says so (nearly all of at least a few photos, clashing). Returns each row's colour_note: "set", "differs",
     "already" (the entry holds that colour) or ""; a row with several outcomes reports the more
     serious (differs, set, then already). A file that can't be written is logged and its rows get
     no note."""
     names = [n for n, _ in rules.colour_palette] + [car_colour.MULTI]
     notes = [""] * len(done)
     chosen, rows_of = {}, {}  # entry id → colour; entry id → rows whose proposal is the chosen one
-    replaced = {}  # entry id → the colour a hand tag replaces
+    replaced = {}  # entry id → the colour a hand tag or an overturn replaces
+    why = {}  # entry id → why its photos' reads overturn its colour
     reads = {}  # entry id → [(row, colour read from the photo)]
 
     def mark(i, note):
@@ -1931,10 +1935,15 @@ def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: l
     for eid, entry_reads in reads.items():
         have = chosen.get(eid) or entries[eid].colour
         where = "from a colour tag in this job" if eid in chosen else "in entries.json"
-        if not have:
-            counts = {}
-            for _, colour in entry_reads:
-                counts[colour] = counts.get(colour, 0) + 1
+        counts = {}
+        for _, colour in entry_reads:
+            counts[colour] = counts.get(colour, 0) + 1
+        overturn = "" if eid in chosen else car_colour.overturned_colour(have, counts)
+        if overturn:
+            why[eid] = f"{counts[overturn]} of {len(entry_reads)} of its photos read {overturn}"
+            replaced[eid], chosen[eid], rows_of[eid] = have, overturn, []
+            have, where = overturn, "from nearly all its photos in this job"
+        elif not have:
             top, support, total = car_colour.colour_vote(counts)
             if not top or support < total * car_colour.VOTE_MIN_SHARE:
                 spread = ", ".join(f"{n} {colour}" for colour, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])))
@@ -1962,7 +1971,7 @@ def fill_colours(path: str, entries: dict, rules: Rules, done: list, proposed: l
     if not written:
         return notes
     for eid, colour in chosen.items():
-        log(f"entry {eid}: colour changed from {replaced[eid]} to {colour} in entries.json (your colour tag)" if eid in replaced
+        log(f"entry {eid}: colour changed from {replaced[eid]} to {colour} in entries.json ({why.get(eid, 'your colour tag')})" if eid in replaced
             else f"entry {eid}: colour set to {colour} in entries.json")
         for i in rows_of[eid]:
             mark(i, "set")

@@ -107,6 +107,13 @@ check("vote: near colours support the leader", C.colour_vote({"Blue": 4, "Purple
 check("vote: an unrelated colour gives no support", C.colour_vote({"Blue": 4, "Red": 3}), ("Blue", 4, 7))
 check("vote: a tie for the most photos names no colour", C.colour_vote({"Blue": 2, "Purple": 2}), ("", 0, 4))
 check("vote: no reads", C.colour_vote({}), ("", 0, 0))
+check("overturn: nearly all of 5+ photos clashing with the stored colour", C.overturned_colour("Pink", {"Blue": 9, "Red": 1}), "Blue")
+check("overturn: near readings count towards the share", C.overturned_colour("Pink", {"Blue": 8, "Purple": 1, "Red": 1}), "Blue")
+check("overturn: 75% isn't nearly all", C.overturned_colour("Pink", {"Blue": 30, "Pink": 10}), "")
+check("overturn: too few photos", C.overturned_colour("Pink", {"Blue": 4}), "")
+check("overturn: a near colour isn't a clash", C.overturned_colour("Purple", {"Blue": 10}), "")
+check("overturn: Multi is never overturned", C.overturned_colour(C.MULTI, {"Blue": 10}), "")
+check("overturn: an entry without a colour has nothing to overturn", C.overturned_colour("", {"Blue": 10}), "")
 
 check("digest is stable", C.palette_digest(C.PALETTE) == C.palette_digest(C.PALETTE), True)
 name, ranges = C.PALETTE[0]

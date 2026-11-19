@@ -300,6 +300,16 @@ def run_tests():
     liv = {"1": [BoxResult(0, "livery", "HAM", "", 0.8, colour="Red")]}
     check("only number results are flagged", Mt.colour_check(liv, coloured("Blue"))["1"][0].colour_flag, False)
 
+    # colour_overturns: nearly all of an entry's number boxes in a clashing colour are reported
+    def boxes(method, colours):
+        return {str(i): [BoxResult(0, method, "HAM", "", 0.99, colour=c)] for i, c in enumerate(colours)}
+    check("nearly all number boxes clashing with the entry's colour are reported",
+          Mt.colour_overturns(boxes("number", ["Red"] * 9 + ["Blue"]), coloured("Blue")), [("HAM", "Blue", "Red", 9, 10)])
+    check("most but not nearly all is not reported",
+          Mt.colour_overturns(boxes("number", ["Red"] * 3 + ["Blue"]), coloured("Blue")), [])
+    check("livery boxes don't count towards an overturn",
+          Mt.colour_overturns(boxes("livery", ["Red"] * 10), coloured("Blue")), [])
+
     # burst_colours: one colour per car per burst, from the mean of its boxes' shares
     red = {"Red": 0.7, "Pink": 0.2, "Multi": 0.1}
     pink = {"Red": 0.35, "Pink": 0.5, "Multi": 0.15}

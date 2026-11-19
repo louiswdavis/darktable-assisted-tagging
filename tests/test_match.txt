@@ -84,6 +84,9 @@ ok   a Blue entry read on a red box is flagged
 ok   no entry colour, no flag
 ok   a Multi entry on a Multi box is not flagged
 ok   only number results are flagged
+ok   nearly all number boxes clashing with the entry's colour are reported
+ok   most but not nearly all is not reported
+ok   livery boxes don't count towards an overturn
 ok   the odd frame takes the car's colour
 ok   the change is listed
 ok   separate bursts keep their own colours
