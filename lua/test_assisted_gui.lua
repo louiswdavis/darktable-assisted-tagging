@@ -338,6 +338,9 @@ local function widget_where(widget, kind, field, value)
     return nil
 end
 
+check("the progress line sits at the foot of the panel, outside the folding pages",
+      panel[#panel].kind, "label")
+
 -- Picks a menu entry by its text, as a click in darktable does.
 local function choose(combo, text)
     for i = 1, #combo do

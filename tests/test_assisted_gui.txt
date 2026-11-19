@@ -36,6 +36,7 @@ ok   clear, cancelled: the first image is cleared, the others keep their tags
 ok   clear, cancelled: says how far it got
 ok   clear, after a cancel: the next clear finishes the rest
 ok   no button changes the selection
+ok   the progress line sits at the foot of the panel, outside the folding pages
 ok   presets: export is offered for the Rallye collection
 ok   presets: export toast
 ok   presets: the bundle carries the entry list

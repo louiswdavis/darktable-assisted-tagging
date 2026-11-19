@@ -1946,7 +1946,7 @@ local queue = {}
 -- models or re-embedding references, so this is generous).
 local STALL_SECONDS = 300
 local verify_button, identify_button, entry_combo, example_combo = nil, nil, nil, nil
-local status_label, status_text = nil, "" -- the progress line under Identify selection
+local status_label, status_text = nil, "" -- the progress line at the foot of the panel
 
 -- Shows a progress line in the panel. Never dt.print_hinter: it sets darktable's hinter label from
 -- the Lua thread without marshalling to the GUI thread, and frequent calls corrupt the label and
@@ -4461,7 +4461,7 @@ local function install_panel()
         },
         tag_rows,
         { new_widget("section_label") { label = _("identify (models; writes tags)") },
-          replace_manual_check, run_tag_combo, verify_button, identify_button, status_label,
+          replace_manual_check, run_tag_combo, verify_button, identify_button,
           new_widget("section_label") { label = _("derive (lookups only; adds tags)") },
           derive_number_button, derive_colour_button,
           new_widget("section_label") { label = _("undo") },
@@ -4530,6 +4530,7 @@ local function install_panel()
         reload_button,
         template_box,
         collection_box,
+        status_label, -- below the pages so every action's progress shows whichever page is open
     }
 
     dt.register_lib(
