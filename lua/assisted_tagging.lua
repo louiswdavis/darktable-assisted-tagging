@@ -1125,6 +1125,20 @@ function M.columns_spec(picked)
     return table.concat(parts, ";")
 end
 
+-- The one-entry tab's roles. No shares-car: the import needs both entries of a shared car in the same list.
+M.ENTRY_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "paddock" }
+
+-- {role = typed text} → (a one-entry start-list CSV, its --columns value), or (nil, problem) when number is blank.
+function M.one_entry_csv(typed)
+    local values, picked = {}, {}
+    for i, role in ipairs(M.ENTRY_ROLES) do
+        values[i] = (typed[role] or ""):match("^%s*(.-)%s*$")
+        picked[role] = role
+    end
+    if values[1] == "" then return nil, "type the entry's number first." end
+    return M.csv_line(M.ENTRY_ROLES) .. "\n" .. M.csv_line(values) .. "\n", M.columns_spec(picked)
+end
+
 -- Tags usable to build an entry: hierarchical (A|B), not the plugin's own
 -- diagnostics, and clean enough for entries.json (no , ; ").
 local ASSISTED_PREFIX = "Assisted Tagging|"
@@ -4231,7 +4245,16 @@ local function install_panel()
         text = "",
         tooltip = _("Paste an entry list here, e.g. copied from a PDF: one entry per line, number first, e.g. 12 Smith / Jones. Lines without a leading number are skipped."),
     }
-    -- File / Paste tabs: a stack shows one source; the open tab's label starts with ●.
+    -- One box per role on the one-entry tab; an entry widget has no label, so the role is its placeholder.
+    local role_entries = {}
+    for i, role in ipairs(M.ENTRY_ROLES) do
+        role_entries[i] = new_widget("entry") {
+            placeholder = role == "number" and _("number (required)") or ROLE_LABELS[role],
+            tooltip = _("Typed into the new entry as its CSV column would be. Blank leaves it out. Demo runs (class starting with Demo) need a paddock id."),
+            text = "",
+        }
+    end
+    -- File / Paste / One entry tabs: a stack shows one source; the open tab's label starts with ●.
     -- text_view has no placeholder, so the paste tab carries its hint as a label.
     local start_list_stack = new_widget("stack") {
         new_widget("box") { orientation = "vertical", start_list_file, table.unpack(column_combos) },
@@ -4240,20 +4263,24 @@ local function install_panel()
             new_widget("label") { label = _("one entry per line, number first, e.g. 12 Smith / Jones"), halign = "start" },
             start_list_text,
         },
+        new_widget("box") { orientation = "vertical", table.unpack(role_entries) },
     }
+    local START_LIST_TAB_NAMES = { _("CSV file"), _("paste text"), _("one entry") }
     local start_list_tabs = {}
     local function show_start_list_tab(index)
         start_list_stack.active = index
-        start_list_tabs[1].label = (index == 1 and "● " or "○ ") .. _("CSV file")
-        start_list_tabs[2].label = (index == 2 and "● " or "○ ") .. _("paste text")
+        for i, name in ipairs(START_LIST_TAB_NAMES) do
+            start_list_tabs[i].label = (index == i and "● " or "○ ") .. name
+        end
     end
-    start_list_tabs[1] = new_widget("button") { clicked_callback = function() show_start_list_tab(1) end }
-    start_list_tabs[2] = new_widget("button") { clicked_callback = function() show_start_list_tab(2) end }
+    for i in ipairs(START_LIST_TAB_NAMES) do
+        start_list_tabs[i] = new_widget("button") { clicked_callback = function() show_start_list_tab(i) end }
+    end
     show_start_list_tab(1)
-    local start_list_tab_box = new_widget("box") { orientation = "horizontal", start_list_tabs[1], start_list_tabs[2] }
+    local start_list_tab_box = new_widget("box") { orientation = "horizontal", table.unpack(start_list_tabs) }
     local import_start_list_button = new_widget("button") {
         label = _("Import start list"),
-        tooltip = _("Add the open tab's entries (the CSV or the pasted text) to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
+        tooltip = _("Add the open tab's entries (the CSV, the pasted text or the one typed entry) to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
         clicked_callback = function()
             if busy or not orphan_gone() then
                 dt.print(_("Assisted Tagging: busy, try again when the current run finishes."))
@@ -4273,6 +4300,20 @@ local function install_panel()
                 end
                 argv[#argv + 1] = "--text"
                 argv[#argv + 1] = path
+            elseif start_list_stack.active == 3 then
+                local typed = {}
+                for i, role in ipairs(M.ENTRY_ROLES) do typed[role] = role_entries[i].text or "" end
+                local text, spec = M.one_entry_csv(typed)
+                if not text then
+                    dt.print("Assisted Tagging: " .. _(spec))
+                    return
+                end
+                local path = TMP_DIR .. "/assisted_tagging_one_entry.csv"
+                if not write_file_atomic(path, text) then
+                    notify_error(_("Assisted Tagging: couldn't write the typed entry to darktable's tmp folder."))
+                    return
+                end
+                argv = { "--csv", path, "--columns", spec }
             elseif (start_list_file.value or "") ~= "" then
                 argv[#argv + 1] = "--csv"
                 argv[#argv + 1] = start_list_file.value
@@ -4296,6 +4337,7 @@ local function install_panel()
                 return
             end
             start_list_text.text = ""
+            for _, e in ipairs(role_entries) do e.text = "" end
             -- quiet reload: the import's own summary is the message to keep on screen
             if reload_lists(true) then dt.print("Assisted Tagging: " .. out) end
         end,

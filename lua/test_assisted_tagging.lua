@@ -735,6 +735,14 @@ do
     check("columns_spec names every role, none as empty",
         T.columns_spec({ number = "Nr", driver = "Pilot" }),
         "number=Nr;driver=Pilot;co-driver=;team=;class=;make=;model=;shares-car=;paddock=")
+    local text, spec = T.one_entry_csv({ number = " 12 ", driver = "Smith", team = 'A, "B" Racing', make = "Ford" })
+    check("one_entry_csv: header row of the typed roles, then the trimmed entry",
+        text, '"number","driver","co-driver","team","class","make","model","paddock"\n'
+            .. '"12","Smith","","A, ""B"" Racing","","Ford","",""\n')
+    check("one_entry_csv: each role maps its own header, shares-car none", spec,
+        "number=number;driver=driver;co-driver=co-driver;team=team;class=class;make=make;model=model;shares-car=;paddock=paddock")
+    local none, why = T.one_entry_csv({ number = "  ", driver = "Smith" })
+    check("one_entry_csv: a blank number is refused", none == nil and why, "type the entry's number first.")
 end
 
 -- ledger / protected tags / shot + conflict handling ---------------------------

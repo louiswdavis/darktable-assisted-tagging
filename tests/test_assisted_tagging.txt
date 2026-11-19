@@ -293,6 +293,9 @@ ok   parse_header_report: headers in order
 ok   parse_header_report: mapped roles
 ok   parse_header_report: empty output
 ok   columns_spec names every role, none as empty
+ok   one_entry_csv: header row of the typed roles, then the trimmed entry
+ok   one_entry_csv: each role maps its own header, shares-car none
+ok   one_entry_csv: a blank number is refused
 ok   ledger round-trips
 ok   ledger output is sorted
 ok   an empty ledger formats to nothing
