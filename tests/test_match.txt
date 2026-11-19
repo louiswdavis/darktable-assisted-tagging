@@ -205,6 +205,8 @@ ok   noise: a box reading only noise numbers keeps them all
 ok   shows: a shown number held by no other entry identifies by number
 ok   shows: a shown number another entry carries goes to livery (old 44 on car 14)
 ok   shows: the entered car still wins its own number on livery
+ok   shows: livery after a shared number picks only between the cars carrying it
+ok   shows: a start-list read of a shared number also limits livery to its cars
 ok   shows: the number index lists both cars for a shared number
 ok   shows: list_scores scores shown numbers
 ok   shows: a read of a colour-removed car's number still drops the colour pool

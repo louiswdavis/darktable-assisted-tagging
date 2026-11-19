@@ -586,6 +586,12 @@ def run_tests():
           summary(Mt.match_box(0, [("44", 0.9)], [("E14", 0.99), ("E44", 0.40)], shown)), ("livery", "E14", ""))
     check("shows: the entered car still wins its own number on livery",
           summary(Mt.match_box(0, [("44", 0.9)], [("E44", 0.99), ("E14", 0.40)], shown)), ("livery", "E44", ""))
+    check("shows: livery after a shared number picks only between the cars carrying it",
+          summary(Mt.match_box(0, [("44", 0.9)], [("E108", 0.99), ("E14", 0.80), ("E44", 0.40)], shown)), ("livery", "E14", ""))
+    read_44 = {"44": [[0.9 if j == c else 0.01 for j in range(11)] for c in (5, 0, 5)]}
+    check("shows: a start-list read of a shared number also limits livery to its cars",
+          summary(Mt.match_box(0, [("44", 0.9)], [("E108", 0.99), ("E14", 0.80), ("E44", 0.40)], shown, read_44)),
+          ("livery", "E14", ""))
     check("shows: the number index lists both cars for a shared number", Mt.number_index(shown)["44"], ["E14", "E44"])
     check("shows: list_scores scores shown numbers",
           sorted(Mt.list_scores([("808", 0.9)], {"808": [[0.9 if j == c else 0.01 for j in range(11)] for c in (9, 0, 1, 0, 9)]}, shown)[0]),

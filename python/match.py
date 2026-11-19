@@ -322,7 +322,8 @@ def match_box(box: int, ocr: list, sims: list, entries: dict, ctc=None) -> BoxRe
     """ocr: [(digits, confidence)]; sims: [(entry_id, similarity)] most similar first; ctc: {digits:
     digit matrix} or None. With every read's matrix the reads are scored against the start list
     (list_read): only a clear winner counts as the number read, and look-alike guessing is skipped.
-    Without, an exact number hit, then one look-alike digit away (_misread_number)."""
+    Without, an exact number hit, then one look-alike digit away (_misread_number). A number
+    several entries carry (shows) sends livery to pick between those entries only."""
     by_number = number_index(entries)
     listed = list_read(ocr, ctc, entries)
     if listed is not None:
@@ -330,7 +331,8 @@ def match_box(box: int, ocr: list, sims: list, entries: dict, ctc=None) -> BoxRe
         hits = by_number.get(listed.winner, []) if listed.winner else []
         if len(hits) == 1 and not _fragment_of_livery(hits[0], [(listed.winner, listed.confidence)], sims, entries):
             return BoxResult(box, "number", hits[0], "", listed.confidence, list_read=listed.text())
-        return replace(match_livery(box, sims, entries, unmatched), list_read=listed.text())
+        pool = {eid: entries[eid] for eid in hits} if len(hits) > 1 else entries
+        return replace(match_livery(box, sims, pool, unmatched), list_read=listed.text())
     hits, best_conf = set(), 0.0
     for digits, conf in ocr:
         for eid in by_number.get(digits, []):
@@ -343,7 +345,7 @@ def match_box(box: int, ocr: list, sims: list, entries: dict, ctc=None) -> BoxRe
         fuzzy = _misread_number(ocr, sims, entries)
         if fuzzy:
             return BoxResult(box, "livery", fuzzy[0], "", fuzzy[1], unmatched)
-    return match_livery(box, sims, entries, unmatched)
+    return match_livery(box, sims, {eid: entries[eid] for eid in hits} if len(hits) > 1 else entries, unmatched)
 
 
 def burst_list_read(ids: list, frames: dict, weak: dict, ctc: dict, entries: dict):
