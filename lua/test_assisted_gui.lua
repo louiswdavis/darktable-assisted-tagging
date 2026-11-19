@@ -355,7 +355,7 @@ check("To check: the row names the action and the count",
 check("To check: the item is saved for a restart",
     (read_file(CHECKS_FILE) or ""):find("Fill entry colours\t1 photos couldn't be read (see log)\t1\n", 1, true) ~= nil, true)
 prints, selection_sets = {}, 0
-(widget_where(to_check, "button", "label", "Select") or { clicked_callback = function() end }).clicked_callback()
+;(widget_where(to_check, "button", "label", "Select") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Select changes the selection", selection_sets, 1)
 check("To check: Select says which photos are gone", printed("1 of these photos are no longer in the library"), true)
 selection_sets = 0
@@ -364,7 +364,7 @@ fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("To check: the next fill colours run replaces its items", (read_file(CHECKS_FILE) or ""):find("Fill entry colours", 1, true), nil)
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
-(widget_where(to_check, "button", "label", "Clear") or { clicked_callback = function() end }).clicked_callback()
+;(widget_where(to_check, "button", "label", "Clear") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Clear empties the box", to_check.visible, false)
 check("To check: Clear empties the saved list", read_file(CHECKS_FILE), "")
 
