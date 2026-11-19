@@ -70,6 +70,23 @@ first. `kind: people` stays separate.
   driver's.
 - **Sponsor**: a sponsor word read on a car becomes a tag, e.g.
   `<sponsor root>|Castrol`.
+- **Sponsor logos with no text.** One-shot matching: the user gives one logo crop per sponsor,
+  the plugin embeds it and matches inside each car box. Catches logos OCR can't read. Use: a
+  per-sponsor delivery set ("every frame where the X logo is visible and sharp"). Leads:
+  open-set logo detection (Logos in the Wild, licence unchecked); ExposureEngine is YOLO-based
+  (AGPL family), so ideas only. Effort M.
+- **Conditions**: `Conditions|Rain`, `|Snow`, `|Night`, `|Dust`, `|Gravel` from SigLIP 2 zero-shot,
+  sharing the model with 1a under Stronger models. ClearVision reports 94% per weather class
+  after fine-tuning (night 85.9%); no zero-shot or road-surface figures found, so run a
+  throwaway prompt test first. Effort S–M once SigLIP 2 is in.
+- **Shot type**: `Shot|Action`, `|Portrait`, `|Podium`, `|Paddock`, `|Detail`, `|Crowd`,
+  `|Incident` from SigLIP 2 zero-shot. Editors ask for that variety, so the user can check a set
+  covers it. Effort M (shares SigLIP 2). Research:
+  `docs/superpowers/research/2026-11-19-motorsport-styles.md`.
+- **Style**: `Style|Panning`, `|Frozen`, `|Zoom burst`, `|Camera movement`, `|Light trails`,
+  `|Environmental`. The streak-based ones from culling's `motion_tiles` (streak direction and
+  shutter), the rest from SigLIP 2 or a Photozilla-style few-shot embedding. Classifiers confuse
+  long exposure with motion blur (AVA), so test on real frames first. Effort M.
 - **Learn colours from your tags**: colour tags you set by hand teach the plugin
   how your camera and light render each colour. Waits until wrong colour tags show up in real
   use.
@@ -250,6 +267,15 @@ per driver with no plugin code. Plugin work shrinks to:
 - a check for photos with two driver tags (double-driven cars, `Also seen`), which the variable
   can't split into two folders
 - the CSV (photo → entry) as a small optional script
+
+## Privacy blur at export
+
+An opt-in export step that blurs spectator faces and road-car plates (service roads, car parks),
+never a competing car's plate or number. Candidates: EgoBlur (Meta; face and plate detectors,
+Apache-2.0, about 400 MB each, trained on egocentric footage, CPU time unknown), deface (face only,
+CenterFace). Tagging already finds people (YuNet), and plate reading is planned (Registration
+plates), so the boxes may already exist: blur the person boxes' faces and any plate not matched
+to the start list. Effort M. Research: `docs/superpowers/research/2026-11-19-new-signals-across-plugins.md` §5.
 
 ## Captions from tags
 
