@@ -24,6 +24,7 @@ ok   add references: says it started as soon as it is clicked
 ok   add references, hand entry tag: no crash
 ok   add references, hand entry tag: the row names the entry
 ok   add references, hand entry tag: reports the reference added
+ok   add references: the run keeps a settings.json-only value
 ok   add references, no vehicle found: says nothing was added and why
 ok   clear: the tags are cleared
 ok   clear: pauses once after the image with writes

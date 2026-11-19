@@ -50,7 +50,8 @@ for _, file in ipairs({ "/python/identify.py", "/.venv/Scripts/python.exe", "/.v
     "/models/text_recognition_CRNN_EN_2021sep.onnx", "/models/dinov2_small.onnx" }) do
     write_file(PLUGIN .. file, "")
 end
-write_file(ROOT .. "/collections/Rallye/settings.json", '{"family_colour": true, "family_colour_root": "Colour", "family_number": true, "family_number_root": "Number"}')
+-- closer_car_margin has no widget on the panel: a run must still carry it
+write_file(ROOT .. "/collections/Rallye/settings.json", '{"family_colour": true, "family_colour_root": "Colour", "family_number": true, "family_number_root": "Number", "closer_car_margin": 0.12}')
 write_file(ROOT .. "/collections/Rallye/entries.json", "[]")
 write_file(ROOT .. "/collections/Rallye/refs/112/1_b0.jpg", "crop")
 write_file(ROOT .. "/collections/Rallye/refs/sources.json", "{}")
@@ -74,7 +75,7 @@ local function flag(argv, name)
 end
 
 local function fake_identify(argv, done_path)
-    local run = { argv = argv, manifest = read_file(argv[2]) }
+    local run = { argv = argv, manifest = read_file(argv[2]), settings = flag(argv, "--settings") and read_file(flag(argv, "--settings")) }
     PYTHON.runs[#PYTHON.runs + 1] = run
     if flag(argv, "--entries-out") then write_file(flag(argv, "--entries-out"), PYTHON.entries) end
     if flag(argv, "--rules-out") then write_file(flag(argv, "--rules-out"), "") end
@@ -287,6 +288,8 @@ check("add references, hand entry tag: the row names the entry", run and run.man
     and run.manifest:find(T.csv_line({ 3, "/photos/DSC00003.JPG", "35" }), 1, true) == 1, true)
 check("add references, hand entry tag: reports the reference added",
     last_print(), "Assisted Tagging: added 1 references to their entries. Crops are in Rallye/refs.")
+check("add references: the run keeps a settings.json-only value", run and run.settings
+    and run.settings:find('"closer_car_margin": 0.12', 1, true) ~= nil, true)
 PYTHON.results = "3,no_vehicle,,35\n"
 add({ image(3, "DSC00003.JPG", { "Rallye|35" }) })
 check("add references, no vehicle found: says nothing was added and why",
