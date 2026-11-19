@@ -37,12 +37,12 @@ ok   clear, cancelled: says how far it got
 ok   clear, after a cancel: the next clear finishes the rest
 ok   no button changes the selection
 ok   the progress line sits at the foot of the panel, outside the folding pages
-FAIL To check sits above the progress line, outside the folding pages: got Open entries.json, want To check
-FAIL To check: a photo fill colours couldn't read shows in the box: got nil, want true
-FAIL To check: the row names the action and the count: got nil, want Fill entry colours: 1 photos couldn't be read (see log)
-FAIL To check: the item is saved for a restart: got false, want true
-FAIL To check: Select changes the selection: got 0, want 1
-FAIL To check: Select says which photos are gone: got false, want true
+ok   To check sits above the progress line, outside the folding pages
+ok   To check: a photo fill colours couldn't read shows in the box
+ok   To check: the row names the action and the count
+ok   To check: the item is saved for a restart
+ok   To check: Select changes the selection
+ok   To check: Select says which photos are gone
 ok   To check: the next fill colours run replaces its items
 
 --- stderr ---
