@@ -633,8 +633,9 @@ Everything in pages 2 to 6 except **Replace manual tags** is saved with the coll
 A box above the progress line lists what a run leaves for you to look at, so a toast that went by unseen isn't lost. It shows only when it has items. Each line reads `<action>: <what happened>`:
 
 - errors from any action;
-- **Identify**: photos tagged by each check tag (Check colour and the others that are on), photos that couldn't be read or updated; with verify only, the photos that differ from their tags;
-- the derive step: photos marked Check colour, skipped, or not tagged;
+- **Identify**: photos tagged by each check tag (Check colour and the others that are on), photos that couldn't be read or updated;
+- **Verify** (verify only): the photos that differ from their tags;
+- **Derive from number**, **Derive from colour**: photos marked Check colour, skipped, or not tagged;
 - **Fill entry colours**: photos that read a different colour from their entry's, and photos that couldn't be read.
 
 - **Select** beside a line selects its photos in the lighttable. Photos removed from the library since are skipped, and a toast counts them. Lines about photos darktable couldn't read or update have no **Select**: those photos may be gone.
