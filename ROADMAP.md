@@ -198,17 +198,18 @@ Ideas from competitor tools (Aftershoot, Narrative Select, Lightroom, Photo Mech
 
 From desk research on bib, jersey-number and plate reading (mostly from search snippets,
 nothing tested). Aimed at the `1`/`14`/`44` misreads:
-- **Closed vocabulary.** Score every start-list number against the reader's per-position
-  probabilities and pick the best entry; abstain when it doesn't beat the runner-up by a margin.
-  Needs the PP-OCR per-character scores exposed. No source documents this for bibs or plates.
-- **Fuse reads across a burst.** Sum each frame's log-probabilities for a car over the burst
-  instead of voting on final strings (SoccerNet jersey-number methods).
-- **"Readable?" gate.** Skip OCR on crops where no number is visible: SigLIP zero-shot first,
-  a small trained head only if that is weak.
+- **Closed vocabulary.** Built: `match.list_read` scores every start-list number against the
+  reader's digit matrix (`ctc_log_likelihood`) and abstains below `NUMBER_LIST_FLOOR` or
+  `NUMBER_LIST_MARGIN`.
+- **Fuse reads across a burst.** Built: `match.burst_list_read` sums the per-frame list scores
+  over a group.
+- **"Readable?" gate.** Built as SigLIP zero-shot (`number_gate`, `NUMBER_GATE_MIN`), off by
+  default; awaiting a Windows `eval_numbers.py` run. A small trained head only if that is weak.
 - **Two readers must agree.** PP-OCR and PARSeq both reading the same list entry passes;
   disagreement becomes Unsure. A wrong tag costs more than a blank one.
 - **Several numbers per entry**, plus a filter for digits that repeat unmatched across the shoot
-  (sponsor or class numbers on the car).
+  (sponsor or class numbers on the car). Both built: an entry's `shows` (`match.numbers_of`) and
+  `match.noise_numbers`.
 - **Group voting.** A number read with confidence in one frame votes for the same car's box in
   every frame of its grouping-plugin group, so frames where the number is hidden still get tagged.
   Burst consensus already does part of this; check what it covers before building. Effort M.
