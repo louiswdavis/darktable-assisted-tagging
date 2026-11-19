@@ -4,12 +4,12 @@ Cars of no known livery, passing in loops, identified by their race number alone
 
 ## Using it
 
-1. Copy this folder's `entries.json` and `settings.json` into a new collection folder, or build one from your own list: put one number per line in a CSV, then run `python python/import_numbers.py numbers.csv entries.json`; this folder's `settings.json` sets `order_weight` to `0.5` and the family roots. It refuses to overwrite an existing file and stops on a duplicate or non-number. A full start list with drivers, teams and classes goes in through the panel's **Import start list** (section **1 collection**) or `python python/import_start_list.py <collection folder> --csv start.csv`.
+1. Copy this folder's `entries.json` and `settings.json` into a new collection folder, or build one from your own list: put one number per line in a CSV, then run `python python/import_numbers.py numbers.csv entries.json`; this folder's `settings.json` sets `order_weight` to `0.5` and the family roots. It refuses to overwrite an existing file and stops on a duplicate or non-number. A full start list with drivers, teams and classes goes in through the panel's **Import start list** (page **1 collection**) or `python python/import_start_list.py <collection folder> --csv start.csv`.
 2. Click **Reload**, then **Identify selection** on the batch.
 
 ## Order weight
 
-`order_weight` in `settings.json` says how much the cars pass in number order. Set it in the panel's **order weight** field (section **3 matching**), a number from 0 to 1, and **update preset** saves it to `settings.json`.
+`order_weight` in `settings.json` says how closely the cars pass in number order. Set it in the panel's **order weight** field (page **3 matching**), a number from 0 to 1, and **update preset** saves it to `settings.json`.
 
 | Weight | Meaning | How far a neighbour can be (tolerance 5) |
 |---|---|---|
@@ -32,4 +32,4 @@ It looks at the three groups shot before and after a doubtful read, within 20 se
 
 A neighbour result then counts like a read number in its group: the rest of the group (frames with no vehicle found included) can take it, see **How it works** in the plugin README.
 
-**Tolerance** is the most list positions away that can count as near; `order_weight` decides how much of it is used. Set it in the panel's **3 matching** section as **neighbour tolerance** (default 5; a whole number). It is saved with the collection's preset.
+**Tolerance** is the most list positions away that can count as near; `order_weight` decides how much of it is used. Set it on the panel's **3 matching** page as **neighbour tolerance** (default 5; a whole number). It is saved with the collection's preset.

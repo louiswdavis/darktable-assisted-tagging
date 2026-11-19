@@ -1529,7 +1529,7 @@ local TAG_TOGGLES = {
     { key = "pooled", kind = "diag", label = "By pooled burst",
       when = "the experimental burst_livery_pooling rule resolved it from its burst's pooled livery similarity." },
     { key = "neighbour", kind = "diag", label = "By neighbour",
-      when = "a doubtful number read was settled by the groups shot just before and after. Needs the collection's order_weight above 0." },
+      when = "a doubtful number read was settled by the groups shot just before and after. Needs order weight (page 3, matching) above 0." },
     { key = "check_order", kind = "check", label = "Check order",
       when = "a low-confidence number read that no neighbouring group supports. The entry tag stays; delete this tag once checked." },
     { key = "team", kind = "diag", label = "Team only", when = "two teammates were too close to call; only their shared tags are added." },
@@ -1539,11 +1539,11 @@ local TAG_TOGGLES = {
     { key = "check_colour", kind = "check", label = "Check colour",
       when = "the number read is confident but the car's colour differs from its entry's. Delete this tag once checked." },
     { key = "check_match", kind = "check", label = "Check match",
-      when = "a livery, burst or neighbour match didn't look like the car's anchors (refs you tagged or picked, or strong number reads), so no entry tag was added. Tag the photo by hand if it is that car. With closer_car_margin above 0, a match clearly closer to another car's anchors is tagged as that car and keeps this tag: check it." },
+      when = "a livery, burst or neighbour match didn't look like the car's anchors (refs you tagged or picked, or strong number reads), so no entry tag was added. Tag the photo by hand if it is that car. With closer_car_margin (settings.json) above 0, a match clearly closer to another car's anchors is tagged as that car and keeps this tag: check it." },
     { key = "shot", kind = "check", label = "Shot",
       when = "Solo: one vehicle found. Pack: two or three." },
     { key = "shot_crowded", kind = "check", label = "Shot crowded",
-      when = "three or more cars were in frame, so the number read may belong to another car: check it by hand." },
+      when = "four vehicles were found, the most a photo is checked for, so more may be in frame and the number read may belong to another one: check it by hand." },
     { key = "derived", kind = "diag", label = "Derived from",
       when = "an entry's tags were added. From identification: Identify's models picked the entry. From number / From driver: your hand tag named it. From colour: Derive from colour found one entry of that colour." },
 }
@@ -2268,7 +2268,7 @@ local function reload_lists(quiet, show_plan, reread_settings)
         lists_loaded, loaded = true, true
         refresh_entry_combo()
         if #names == 0 then
-            say(string.format("Assisted Tagging: no collections yet. Create one under new collection (template selected), "
+            say(string.format("Assisted Tagging: no collections yet. Pick template in the preset list and use new collection, "
                 .. "or a folder with an entries.json in %s (see the README), then click Reload.", collections_root()))
         elseif current_collection() == "" then
             if not quiet then
@@ -3390,7 +3390,7 @@ function M.fill_entry_colours(images)
     end
     if not take_settings() then return end
     if not settings.family_colour then
-        dt.print(_("Assisted Tagging: tick the Colour family (section 4) first."))
+        dt.print(_("Assisted Tagging: tick the Colour family (page 4, tags written) first."))
         return
     end
     busy = true
@@ -3891,8 +3891,8 @@ local function install_panel()
     }
     local example_create_button = new_widget("button") {
         label = _("From example"),
-        tooltip = _("Copy the selected example's entries.json into a new collection with no images needed; "
-            .. "edit it afterward with your own entries"),
+        tooltip = _("Copy the selected example's entries.json, and its settings.json when it has one, into a new collection; "
+            .. "no images needed. Edit the entries afterward with your own"),
         clicked_callback = function()
             M.create_collection_from_example(selected_example(), new_collection_name.text)
         end,
@@ -3905,7 +3905,7 @@ local function install_panel()
     }
     local plan_button = new_widget("button") {
         label = _("Show tag plan"),
-        tooltip = _("Write tag-plan.txt in the collection's folder and open it: the exact tags every entry and outcome (team only, unidentified tags (yours), diagnostics) writes, from its entries.json"),
+        tooltip = _("Write tag-plan.txt in the collection's folder and open it: the exact tags each entry writes, plus the team-only, unidentified and diagnostic tags, from its entries.json and settings"),
         clicked_callback = function()
             if reload_lists(false, true) and current_collection() ~= "" then
                 open_in_app(collections_root() .. "/" .. current_collection() .. "/tag-plan.txt")
@@ -4129,7 +4129,7 @@ local function install_panel()
     }
     local add_button = new_widget("button") {
         label = _("Add as reference"),
-        tooltip = _("Save the largest vehicle in each selected image as a reference sample of the entry above. Also fills the entry's colour in entries.json when read car colour is on."),
+        tooltip = _("Save the largest vehicle in each selected image as a reference sample of the entry above. Also fills the entry's colour in entries.json when the Colour family is on (page 4)."),
         clicked_callback = function()
             local eid = selected_entry_id()
             if not eid then
@@ -4141,17 +4141,17 @@ local function install_panel()
     }
     local add_tagged_button = new_widget("button") {
         label = _("Add tagged images"),
-        tooltip = _("For each selected image that already carries all of one entry's tags, save it as a reference of that entry. Also fills the entry's colour in entries.json when read car colour is on."),
+        tooltip = _("For each selected image that already carries all of one entry's tags, save it as a reference of that entry. Also fills the entry's colour in entries.json when the Colour family is on (page 4)."),
         clicked_callback = function() M.add_references(dt.gui.action_images, nil) end,
     }
     local fill_colours_button = new_widget("button") {
         label = _("Fill entry colours"),
-        tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json when it has none. A colour tag you applied to the image is used instead of the reading, and replaces a colour the entry already has. So does the colour tag Identify wrote, when at least 3 of the entry's selected images carry the same one and they are two thirds of its colour-tagged images (images tagged Check colour don't count). An image is matched to the entry whose tags it carries all of, or the one its number, driver or co-driver tag names. Saves no references. Needs read car colour on."),
+        tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json when it has none. A colour tag you applied to the image is used instead of the reading, and replaces a colour the entry already has. So does the colour tag Identify wrote, when at least 3 of the entry's selected images carry the same one and they are two thirds of its colour-tagged images (images tagged Check colour don't count). An image is matched to the entry whose tags it carries all of, or the one its number, driver or co-driver tag names. Saves no references. Needs the Colour family on (page 4)."),
         clicked_callback = function() M.fill_entry_colours(dt.gui.action_images) end,
     }
     local promote_button = new_widget("button") {
         label = _("Add from last run"),
-        tooltip = _("Save each vehicle the last Identify run was sure of (number read, or a clear livery match) as a reference of the entry it found. Works for pack shots too: only that car's crop is saved. Also fills the entry's colour in entries.json when read car colour is on."),
+        tooltip = _("Save each vehicle the last Identify run identified by its number as a reference of the entry it found. Livery matches are not saved. Works for pack shots too: only that car's crop is saved. Also fills the entry's colour in entries.json when the Colour family is on (page 4)."),
         clicked_callback = function() M.promote_references(dt.gui.action_images) end,
     }
     local audit_button = new_widget("button") {
@@ -4194,13 +4194,13 @@ local function install_panel()
         co_driver = { _("Co-driver"), _("Write an identified entry's co-driver as <root>|<co-driver>. Entries without a co-driver get no tag.") },
         extra = { _("Class"), _("Write an identified entry's class (start-list Class column) as <root>|<class>.") },
         vehicle = { _("Vehicle"), _("Write an identified entry's make and model as <root>|<make>|<model>.") },
-        sponsor = { _("Sponsor"), _("Write each rules.sponsor_keywords word read on a car as <root>|<Word>. Words read outside a vehicle box (banners) and words not listed are never written.\nDefault: off.") },
+        sponsor = { _("Sponsor"), _("Write each rules.sponsor_keywords word read on a car as <root>|<Word>. Words read outside a vehicle box (banners) and words not listed are never written."), _("Default: off.") },
     }
     tag_rows[#tag_rows + 1] = new_widget("section_label") { label = _("tag families") }
     for _i, f in ipairs(M.FAMILIES) do
         local label, what = family_rows[f.key][1], family_rows[f.key][2]
         local c = check("family_" .. f.key, label,
-            what .. "\n" .. _("Off: runs stop writing it.") .. "\n" .. _("Default: on."))
+            what .. "\n" .. _("Off: runs stop writing it.") .. "\n" .. (family_rows[f.key][3] or _("Default: on.")))
         local e = new_widget("entry") {
             placeholder = "blank = " .. f.default_root,
             tooltip = string.format(_("The root the %s tags sit under. Each family needs its own root. Blank = %s."), label, f.default_root),
@@ -4293,12 +4293,12 @@ local function install_panel()
     }
     local tolerance_entry = new_widget("entry") {
         placeholder = _("blank = 5"),
-        tooltip = _("The most places apart in the sorted number list a neighbouring car can be and still support a doubtful read. The collection's order_weight sets how much of it is used: a neighbour up to order_weight × (tolerance + 1) places away counts. A whole number, 0 or more. Only used when order_weight is above 0.\nDefault: 5. Lower it when cars pass in strict number order; raise it when the order is loose."),
+        tooltip = _("The most places apart in the sorted number list a neighbouring car can be and still support a doubtful read. Order weight sets how much of it is used: a neighbour up to order weight × (tolerance + 1) places away counts. A whole number, 0 or more. Only used when order weight is above 0.\nDefault: 5. Lower it when cars pass in strict number order; raise it when the order is loose."),
         text = "",
     }
     local order_weight_entry = new_widget("entry") {
         placeholder = _("blank = 0"),
-        tooltip = _("How far the cars pass in number order, from 0 (random: the neighbour aid is off) to 1 (strictly in order); 0.5 is loose order.\nDefault: 0. Set 0.5 for a rally or club event shot roughly in number order."),
+        tooltip = _("How closely the cars pass in number order, from 0 (random: the neighbour aid is off) to 1 (strictly in order); 0.5 is loose order.\nDefault: 0. Set 0.5 for a rally or club event shot roughly in number order."),
         text = "",
     }
     local min_read_entry = new_widget("entry") {
