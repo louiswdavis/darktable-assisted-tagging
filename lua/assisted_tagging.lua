@@ -282,8 +282,8 @@ function M.parse_rules_csv(text)
 end
 
 -- rows: one image's results ({ box, method, entry_id, alt_entry_id }). Returns the
--- collection tags it should carry (name → true), its diagnostic tags, and whether
--- any vehicle was identified. What each outcome adds comes from `rules`. A row that adds an
+-- collection tags it should carry (name → true), its diagnostic tags, whether any vehicle
+-- was identified, and whether a box was held to the user's hand tags. What each outcome adds comes from `rules`. A row that adds an
 -- entry's tags also adds a "Derived from" marker (rules.diag.derived|<leaf>): `hand_from`
 -- ("From number" or "From driver") for a hand row, "From identification" for the rest.
 function M.wanted_tags(rows, entries, rules, hand_from)
@@ -356,7 +356,7 @@ function M.wanted_tags(rows, entries, rules, hand_from)
         for _, t in ipairs(rules.unidentified) do wanted[t] = true end
         note("none")
     end
-    return wanted, diag, identified
+    return wanted, diag, identified, held
 end
 
 -- Every tag the plugin may detach: the collection's entry and unidentified tags,
@@ -2903,6 +2903,18 @@ local function apply_results(run, job)
         if not settings["tag_" .. t.key] then diag_off[t.key] = true end
     end
     local write_rules = M.mask_diag(named, diag_off)
+    -- the unidentified tags stop holding once a photo is identified, held to its hand tags or
+    -- skipped as fully tagged: they go then, even when hand-applied or missing from the ledger
+    local unidentified = {}
+    for _, t in ipairs(named.unidentified) do unidentified[t] = true end
+    if (named.diag.none or "") ~= "" then unidentified[named.diag.none] = true end
+    local function unprotect_unidentified(protected)
+        local out = {}
+        for name in pairs(protected or {}) do
+            if not unidentified[name] then out[name] = true end
+        end
+        return out
+    end
     -- likewise named.families holds every root; only the families that are on get written
     write_rules.families = M.family_roots(settings)
     -- one stamp per run; never owned, so later runs leave earlier stamps in place. "changed"
@@ -2934,11 +2946,20 @@ local function apply_results(run, job)
         local results = rows_of[tonumber(img.id)]
         if skipped[tonumber(img.id)] then
             n_skipped = n_skipped + 1
+            for _, copy in ipairs(group_of[img.id]) do
+                local _, detach = M.tag_changes(tags_of(copy), {}, unidentified, nil,
+                    unprotect_unidentified(protected_of[copy.id]))
+                if #detach > 0 then
+                    local attach = run_tag and { run_tag } or {}
+                    plans[#plans + 1] = { copy = copy, attach = attach, detach = detach }
+                    n_writes = n_writes + #attach + #detach
+                end
+            end
         elseif not results then
             n_missing = n_missing + 1
             missing_ids[#missing_ids + 1] = img.id
         else
-            local wanted, diag, identified = M.wanted_tags(results, entries, write_rules, run.hand_from_of[img.id])
+            local wanted, diag, identified, held = M.wanted_tags(results, entries, write_rules, run.hand_from_of[img.id])
             if identified then n_tagged = n_tagged + 1 else n_unidentified = n_unidentified + 1 end
             for _, t in ipairs(TAG_TOGGLES) do
                 if t.kind == "check" and t.key ~= "shot" and diag[named.diag[t.key]] then
@@ -2953,8 +2974,10 @@ local function apply_results(run, job)
             for name in pairs(diag) do wanted[name] = true end
             if run_tag and stamp_all then wanted[run_tag] = true end
             for _, copy in ipairs(group_of[img.id]) do
+                local protected = (identified or held) and unprotect_unidentified(protected_of[copy.id])
+                    or protected_of[copy.id]
                 local attach, detach = M.tag_changes(tags_of(copy), wanted, owned, owned_prefixes,
-                    protected_of[copy.id], M.ledgered_owned(ledger[copy.id], owned_roots))
+                    protected, M.ledgered_owned(ledger[copy.id], owned_roots))
                 if run_tag and not stamp_all and (#attach > 0 or #detach > 0) then
                     attach[#attach + 1] = run_tag
                 end

@@ -47,13 +47,44 @@ ok   To check: the next fill colours run replaces its items
 ok   To check: Clear empties the box
 ok   To check: Clear empties the saved list
 ok   To check: a row without a fix has no Fix button
-ok   To check: Verify's differ row shows
-ok   To check: the saved line names its fix
+ok   To check: Verify's differ row reads in full
+ok   To check: the label wraps, no line over 44 characters
+ok   To check: the differ row lists the photo and why
+ok   To check: the photo list is read-only text
+ok   To check: the saved line names its fix and the photo
 ok   To check: the differ row has a Fix button
 ok   To check: Fix starts Identify, not Verify
 ok   To check: Fix runs with replace manual on
 ok   To check: Fix removes its row
 ok   To check: an old 3-field line still loads, with no fix
+ok   To check: a 4-field line loads its fix, no details
+ok   To check: a fix argument and the photo list survive a save and load
+ok   Verify colour: the entry colour row reads in full
+ok   Verify colour: the entry colour row lists the photo and why
+ok   Verify colour: the Colour tag row reads in full
+ok   Verify colour: the Colour tag row lists the photo and why
+ok   Verify colour: the overturn row reads in full
+ok   Verify colour: the overturn row lists the photo
+ok   Verify colour: every colour row has a Fix
+ok   Verify colour: Verify changes no tag
+ok   Colour tag Fix: the Colour tag read replaces the old one
+ok   Colour tag Fix: the car tag stays
+ok   Colour tag Fix: its row is gone
+ok   Check colour Fix: adds the Check colour tag
+ok   Check colour Fix: the car tag stays
+ok   Check colour Fix: its row is gone
+ok   Entry colour Fix: sends the colour read as the entry's colour
+ok   Entry colour Fix: its row is gone
+ok   timeline: one run's items have no Earlier runs line
+ok   timeline: the newest run's item comes first
+ok   timeline: the older run's item moves below it
+ok   timeline: an Earlier runs line sits under the newest run
+ok   timeline: no Earlier runs line under the last item
+ok   timeline: the saved list keeps the order and each run
+ok   stale Unidentified: a photo skipped as tagged by hand loses the earlier run's Unidentified tag
+ok   stale Unidentified: a photo identified now loses an Unidentified tag missing from the ledger
+ok   stale Unidentified: a photo whose hand tags name a car loses it
+ok   stale Unidentified: a hand Unidentified tag stays on a photo still unidentified
 ok   presets: export is offered for the Rallye collection
 ok   presets: export toast
 ok   presets: the bundle carries the entry list

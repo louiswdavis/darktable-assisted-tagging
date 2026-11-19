@@ -549,7 +549,7 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 - If you remove a tag the plugin attached and later apply it again by hand, it counts as yours.
 - After you rename or remove an entry, the next run over those images takes off the old tags the plugin attached. This covers tags under the collection's own top-level tags (e.g. `Motorsport|…`), so tags another collection attached stay.
 - Images tagged by an older version have no ledger, so all their entry tags count as yours.
-- A colour tag you apply by hand is never removed by a run; only the colour tag the plugin attached is replaced. The same goes for a diagnostic, *Unidentified* or *Number seen* tag you applied by hand: it stays (the identifier is not told about it, so it never reads as an entry tag).
+- A colour tag you apply by hand is never removed by a run; only the colour tag the plugin attached is replaced. The same goes for a diagnostic, *Unidentified* or *Number seen* tag you applied by hand: it stays (the identifier is not told about it, so it never reads as an entry tag). The one exception is the *Unidentified* tags: once a run identifies the photo, holds it to your own car tags, or skips it as already carrying all of one entry's tags, they no longer hold and are removed, whoever attached them.
 
 **After culling.** To tag only the keepers, collect by the tag `Assisted Culling|Keeper` in darktable's collections module, select them and click **Identify selection**. Consensus then runs over the keepers alone, so expect more *By livery* and *Unidentified* results; re-run on the full burst to fill them in.
 
@@ -630,11 +630,15 @@ Everything in pages 2 to 6 except **Replace manual tags** is saved with the coll
 
 ### To check
 
-A box above the progress line lists what a run leaves for you to look at, so a toast that went by unseen isn't lost. It shows only when it has items. Each line reads `<action>: <what happened>`:
+A box headed **To check**, above the progress line, lists what a run leaves for you to look at, so a toast that went by unseen isn't lost. It shows only when it has items. Each item reads `<action>: <what happened>` in full, wrapped over as many lines as it needs. Where the run knows which photos and why, a read-only list under it gives one line per photo: `<file>: <reason>`. The buttons sit below. The newest run's items sit on top. Older runs' items move below an *Earlier runs (before HH:MM): may not hold any more* line, since a later run can have settled them; they stay until you remove them, so a Fix still works.
 
 - errors from any action;
 - **Identify**: photos tagged by each check tag (Check colour and the others that are on), photos that couldn't be read or updated;
-- **Verify** (verify only): the photos that differ from their tags. **Fix** runs Identify on just those photos with replace manual on;
+- **Verify** (verify only) checks solo shots of fully tagged photos and changes nothing. One item per kind of problem:
+  - photos that read a different entry from the one their tags name. **Fix** runs Identify on just those photos with replace manual on;
+  - photos that read a different colour from their entry's colour in entries.json. The tag or the entry can be wrong, so **Fix** adds the Check colour tag and leaves the entry tag alone;
+  - photos whose Colour tag differs from the colour read. **Fix** replaces the Colour tag with the colour read;
+  - an entry whose colour most of its photos overturn ("Entry 112 is Pink in entries.json, but 5 of its 6 photos read Blue"). **Fix** sets the entry's colour in entries.json to the colour read. **Identify** lists this item too;
 - **Derive from number**, **Derive from colour**: photos marked Check colour, skipped, or not tagged;
 - **Fill entry colours**: photos that read a different colour from their entry's, and photos that couldn't be read.
 

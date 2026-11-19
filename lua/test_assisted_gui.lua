@@ -80,6 +80,7 @@ local function fake_identify(argv, done_path)
     if flag(argv, "--entries-out") then write_file(flag(argv, "--entries-out"), PYTHON.entries) end
     if flag(argv, "--rules-out") then write_file(flag(argv, "--rules-out"), "") end
     if flag(argv, "--collections-out") then write_file(flag(argv, "--collections-out"), "Rallye\n") end
+    if flag(argv, "--overturns-out") and PYTHON.overturns then write_file(flag(argv, "--overturns-out"), PYTHON.overturns) end
     if argv[3] ~= "-" then write_file(argv[3], PYTHON.results) end
     write_file(done_path, "0\n")
 end
@@ -134,6 +135,13 @@ local dt = {
     tags = {
         get_tags = function(img) return img.tags end,
         find = function(name) return { name = name } end,
+        create = function(name) return { name = name } end,
+        attach = function(tag, img)
+            for _, t in ipairs(img.tags) do
+                if t.name == tag.name then return end
+            end
+            img.tags[#img.tags + 1] = { name = tag.name }
+        end,
         detach = function(tag, img)
             for i, t in ipairs(img.tags) do
                 if t.name == tag.name then table.remove(img.tags, i) break end
@@ -351,9 +359,9 @@ PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("To check: a photo fill colours couldn't read shows in the box", to_check.visible, true)
 check("To check: the row names the action and the count",
-    (to_check[2][1] or {}).label, "Fill entry colours: 1 photos couldn't be read (see log)")
+    ((to_check[2][1] or {}).label or ""):gsub("\n", " "), "Fill entry colours: 1 photos couldn't be read (see log)")
 check("To check: the item is saved for a restart",
-    (read_file(CHECKS_FILE) or ""):find("Fill entry colours\t1 photos couldn't be read (see log)\t1\n", 1, true) ~= nil, true)
+    (read_file(CHECKS_FILE) or ""):find("Fill entry colours\t1 photos couldn't be read (see log)\t1\t", 1, true) ~= nil, true)
 prints, selection_sets = {}, 0
 ;(widget_where(to_check, "button", "label", "Select") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Select changes the selection", selection_sets, 1)
@@ -373,10 +381,14 @@ check("To check: a row without a fix has no Fix button", (widget_where(to_check,
 local tagged = image(1, "DSC00001.JPG", { "Rallye|112" })
 PYTHON.results, PYTHON.runs, prints = "1,0,conflict,35,,0.9,,solo,0,,0,,0\n", {}, {}
 T.identify_images({ tagged }, false, true)
-check("To check: Verify's differ row shows", (to_check[2][1] or {}).label,
-    "Verify: 1 photos differ from their tags (report: conflict section)")
-check("To check: the saved line names its fix",
-    (read_file(CHECKS_FILE) or ""):find("\t1\tidentify_replace\n", 1, true) ~= nil, true)
+check("To check: Verify's differ row reads in full", ((to_check[2][1] or {}).label or ""):gsub("\n", " "),
+    "Verify: 1 photos read a different entry from the one their tags name. Fix runs Identify on them with your tags replaced.")
+check("To check: the label wraps, no line over 44 characters", ((to_check[2][1] or {}).label or ""):find("[^\n]" .. ("[^\n]"):rep(44)), nil)
+check("To check: the differ row lists the photo and why", ((to_check[2][2] or {}).text or ""):gsub("\n%s*", " "),
+    "• DSC00001.JPG: reads entry 35, its tags name 112")
+check("To check: the photo list is read-only text", (to_check[2][2] or {}).kind .. " " .. tostring((to_check[2][2] or {}).editable), "text_view false")
+check("To check: the saved line names its fix and the photo",
+    (read_file(CHECKS_FILE) or ""):find("\t1\tidentify_replace\tDSC00001.JPG: reads entry 35, its tags name 112\t", 1, true) ~= nil, true)
 local fix_button = widget_where(to_check, "button", "label", "Fix") or { clicked_callback = function() end }
 check("To check: the differ row has a Fix button", fix_button.visible, true)
 dt.database.get_image = function(id) return id == 1 and tagged or nil end
@@ -391,6 +403,98 @@ check("To check: Fix runs with replace manual on",
 check("To check: Fix removes its row", (read_file(CHECKS_FILE) or ""):find("identify_replace", 1, true), nil)
 local old_line = require("plugin_common").alerts_parse("Cull\tcouldn't rate\t4,5\n")[1] or { ids = {} }
 check("To check: an old 3-field line still loads, with no fix", #old_line.ids .. "/" .. tostring(old_line.fix), "2/")
+old_line = require("plugin_common").alerts_parse("Cull\tcouldn't rate\t4\tcull\n")[1] or { details = {} }
+check("To check: a 4-field line loads its fix, no details", tostring(old_line.fix) .. "/" .. #(old_line.details or { 0 }), "cull/0")
+local line = "Verify\tN photos\t1 2\tcolour_tag:1=Blue,2=Red\tA.JPG: one\31B.JPG: two\n"
+line = require("plugin_common").alerts_format(require("plugin_common").alerts_parse(line))
+check("To check: a fix argument and the photo list survive a save and load", line,
+    "Verify\tN photos\t1,2\tcolour_tag:1=Blue,2=Red\tA.JPG: one\31B.JPG: two\n")
+
+-- Verify's colour rows: photo 1 is tagged entry 112 (Pink in entries.json) and Colour|Red; it reads Blue
+local blue = image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" })
+PYTHON.results, PYTHON.overturns, PYTHON.runs, prints = "1,0,number,112,,0.9,,solo,0,Blue,1,,0\n",
+    "entry,stored,seen,n,total,ids\n112,Pink,Blue,1,1,1\n", {}, {}
+;(widget_where(to_check, "button", "label", "Clear") or { clicked_callback = function() end }).clicked_callback()
+T.identify_images({ blue }, false, true)
+PYTHON.overturns = nil
+local function row(i) return to_check[i + 1] or { {}, {}, { {}, {} } } end
+local function label_of(i) return ((row(i)[1] or {}).label or ""):gsub("\n", " ") end
+local function details_of(i) return ((row(i)[2] or {}).text or ""):gsub("\n%s*", " ") end
+check("Verify colour: the entry colour row reads in full", label_of(1), "Verify: 1 photos read a different colour from their entry's in "
+    .. "entries.json. The tag or the entry can be wrong. Fix adds the Check colour tag.")
+check("Verify colour: the entry colour row lists the photo and why", details_of(1), "• DSC00001.JPG: reads Blue, entry 112 is Pink in entries.json")
+check("Verify colour: the Colour tag row reads in full", label_of(2),
+    "Verify: 1 photos' Colour tag differs from the colour read. Fix replaces the Colour tag with the colour read.")
+check("Verify colour: the Colour tag row lists the photo and why", details_of(2), "• DSC00001.JPG: Colour tag Red, reads Blue")
+check("Verify colour: the overturn row reads in full", label_of(3),
+    "Verify: Entry 112 is Pink in entries.json, but 1 of its 1 photos read Blue. Fix sets its colour to Blue.")
+check("Verify colour: the overturn row lists the photo", details_of(3), "• DSC00001.JPG: reads Blue")
+check("Verify colour: every colour row has a Fix", tostring(row(1)[3][2].visible) .. tostring(row(2)[3][2].visible)
+    .. tostring(row(3)[3][2].visible), "truetruetrue")
+check("Verify colour: Verify changes no tag", #blue.tags, 2)
+
+dt.database.get_image = function(id) return id == 1 and blue or nil end
+local function has_tag(img, name)
+    for _, t in ipairs(img.tags) do
+        if t.name == name then return true end
+    end
+    return false
+end
+prints = {}
+row(2)[3][2].clicked_callback()
+check("Colour tag Fix: the Colour tag read replaces the old one",
+    tostring(has_tag(blue, "Colour|Blue")) .. " " .. tostring(has_tag(blue, "Colour|Red")), "true false")
+check("Colour tag Fix: the car tag stays", has_tag(blue, "Rallye|112"), true)
+check("Colour tag Fix: its row is gone", (read_file(CHECKS_FILE) or ""):find("colour_tag", 1, true), nil)
+row(1)[3][2].clicked_callback()
+check("Check colour Fix: adds the Check colour tag", has_tag(blue, "Assisted Tagging|Identification|Check colour"), true)
+check("Check colour Fix: the car tag stays", has_tag(blue, "Rallye|112"), true)
+check("Check colour Fix: its row is gone", (read_file(CHECKS_FILE) or ""):find("check_colour", 1, true), nil)
+PYTHON.results, PYTHON.runs = "1,added,set,112\n", {}
+row(1)[3][2].clicked_callback()
+check("Entry colour Fix: sends the colour read as the entry's colour", PYTHON.runs[1] and PYTHON.runs[1].manifest,
+    T.csv_line({ 1, "/photos/DSC00001.JPG", "112", "Blue" }) .. "\n")
+check("Entry colour Fix: its row is gone", (read_file(CHECKS_FILE) or ""):find("entry_colour", 1, true), nil)
+
+-- a timeline: the newest run's items on top, older runs' below an "Earlier runs" line
+;(widget_where(to_check, "button", "label", "Clear") or { clicked_callback = function() end }).clicked_callback()
+PYTHON.results = "1,failed,,112\n"
+fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
+check("timeline: one run's items have no Earlier runs line", row(1)[4] and row(1)[4].visible, false)
+PYTHON.results, PYTHON.runs = "1,0,conflict,35,,0.9,,solo,0,,0,,0\n", {}
+T.identify_images({ image(1, "DSC00001.JPG", { "Rallye|112" }) }, false, true)
+check("timeline: the newest run's item comes first", label_of(1):match("^[^:]*"), "Verify")
+check("timeline: the older run's item moves below it", label_of(2):match("^[^:]*"), "Fill entry colours")
+check("timeline: an Earlier runs line sits under the newest run", row(1)[4] and row(1)[4].visible
+    and row(1)[4].label:find("^Earlier runs %(before %d%d:%d%d%): may not hold any more$") ~= nil, true)
+check("timeline: no Earlier runs line under the last item", row(2)[4] and row(2)[4].visible, false)
+local saved = require("plugin_common").alerts_parse(read_file(CHECKS_FILE))
+check("timeline: the saved list keeps the order and each run", #saved == 2 and saved[1].action .. ">" .. saved[2].action
+    .. " " .. tostring(saved[1].run > saved[2].run), "Verify>Fill entry colours true")
+dt.database.get_image = function() return nil end
+
+-- the Unidentified tag goes once a later run finds the car, written by the plugin or not
+local UNIDENTIFIED = "Assisted Tagging|Identification|Unidentified"
+write_file(ROOT .. "/config/assisted_tagging/ledger.csv", (read_file(ROOT .. "/config/assisted_tagging/ledger.csv") or "")
+    .. "5," .. UNIDENTIFIED .. "\n")
+local hand_tagged = image(5, "DSC00005.JPG", { "Rallye|35", UNIDENTIFIED })
+PYTHON.results = "5,-1,skipped,,,0.000,,,\n"
+T.identify_images({ hand_tagged }, false, false)
+check("stale Unidentified: a photo skipped as tagged by hand loses the earlier run's Unidentified tag",
+    tostring(has_tag(hand_tagged, UNIDENTIFIED)) .. " " .. tostring(has_tag(hand_tagged, "Rallye|35")), "false true")
+local unledgered = image(6, "DSC00006.JPG", { UNIDENTIFIED })
+PYTHON.results = "6,0,number,35,,0.9,,solo,0,,0,,0\n"
+T.identify_images({ unledgered }, false, false)
+check("stale Unidentified: a photo identified now loses an Unidentified tag missing from the ledger",
+    tostring(has_tag(unledgered, UNIDENTIFIED)) .. " " .. tostring(has_tag(unledgered, "Rallye|35")), "false true")
+local held_photo = image(7, "DSC00007.JPG", { "Number|112", UNIDENTIFIED })
+PYTHON.results = "7,0,conflict,35,,0.9,,solo,0,,0,,0\n"
+T.identify_images({ held_photo }, false, false)
+check("stale Unidentified: a photo whose hand tags name a car loses it", has_tag(held_photo, UNIDENTIFIED), false)
+local still_unknown = image(8, "DSC00008.JPG", { UNIDENTIFIED })
+PYTHON.results = "8,-1,no_vehicle,,,0.000,,,\n"
+T.identify_images({ still_unknown }, false, false)
+check("stale Unidentified: a hand Unidentified tag stays on a photo still unidentified", has_tag(still_unknown, UNIDENTIFIED), true)
 
 -- Picks a menu entry by its text, as a click in darktable does.
 local function choose(combo, text)
