@@ -442,32 +442,42 @@ def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict, ctc:
     return out
 
 
-def colour_check(frames: dict, entries: dict) -> dict:
+def colour_check(frames: dict, entries: dict, tagged_of: dict = None) -> dict:
     """`frames` with `colour_flag` set on `number` results whose entry's colour disagrees with the
-    box's colour. The result itself stays; the photographer checks it."""
-    def check(r: BoxResult) -> BoxResult:
-        e = entries.get(r.entry_id)
-        if r.method == "number" and e is not None and colour_relation(e.colour, r.colour) == -1:
+    box's colour. The result itself stays; the photographer checks it. With `tagged_of` (--verify:
+    image id → the entry its tags name), a solo shot's box is checked against that entry instead,
+    whatever its method."""
+    def check(fid: str, r: BoxResult, solo: bool) -> BoxResult:
+        eid = r.entry_id if tagged_of is None else tagged_of.get(fid, "")
+        counted = r.method == "number" if tagged_of is None else solo and r.box >= 0
+        e = entries.get(eid)
+        if counted and e is not None and colour_relation(e.colour, r.colour) == -1:
             return replace(r, colour_flag=True)
         return r
-    return {fid: [check(r) for r in rs] for fid, rs in frames.items()}
+    return {fid: [check(fid, r, sum(1 for b in rs if b.box >= 0) == 1) for r in rs] for fid, rs in frames.items()}
 
 
-def colour_overturns(frames: dict, entries: dict) -> list:
-    """[(entry id, stored colour, colour seen, boxes seen in it, boxes read)] for each entry whose
-    `number` boxes overturn its colour in entries.json (car_colour.overturned_colour), sorted by
-    entry id. Nothing is changed: the run reports them for the photographer to check."""
-    counts = {}
-    for rs in frames.values():
+def colour_overturns(frames: dict, entries: dict, tagged_of: dict = None) -> list:
+    """[(entry id, stored colour, colour seen, boxes seen in it, boxes read, image ids seen in it)]
+    for each entry whose `number` boxes overturn its colour in entries.json
+    (car_colour.overturned_colour), sorted by entry id. With `tagged_of` (--verify: image id → the
+    entry its tags name), each tagged solo shot's box counts for that entry instead. Nothing is
+    changed: the run reports them for the photographer to check."""
+    counts, ids_of = {}, {}
+    for fid, rs in frames.items():
+        solo = sum(1 for b in rs if b.box >= 0) == 1
         for r in rs:
-            if r.method == "number" and r.colour and r.entry_id in entries:
-                seen = counts.setdefault(r.entry_id, {})
+            eid = r.entry_id if tagged_of is None else tagged_of.get(fid, "")
+            counted = r.method == "number" if tagged_of is None else solo and r.box >= 0
+            if counted and r.colour and eid in entries:
+                seen = counts.setdefault(eid, {})
                 seen[r.colour] = seen.get(r.colour, 0) + 1
+                ids_of.setdefault((eid, r.colour), []).append(fid)
     out = []
     for eid, seen in sorted(counts.items()):
         colour = overturned_colour(entries[eid].colour, seen)
         if colour:
-            out.append((eid, entries[eid].colour, colour, seen[colour], sum(seen.values())))
+            out.append((eid, entries[eid].colour, colour, seen[colour], sum(seen.values()), ids_of[eid, colour]))
     return out
 
 

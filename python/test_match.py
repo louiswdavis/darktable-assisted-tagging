@@ -304,11 +304,28 @@ def run_tests():
     def boxes(method, colours):
         return {str(i): [BoxResult(0, method, "HAM", "", 0.99, colour=c)] for i, c in enumerate(colours)}
     check("nearly all number boxes clashing with the entry's colour are reported",
-          Mt.colour_overturns(boxes("number", ["Red"] * 9 + ["Blue"]), coloured("Blue")), [("HAM", "Blue", "Red", 9, 10)])
+          Mt.colour_overturns(boxes("number", ["Red"] * 9 + ["Blue"]), coloured("Blue")),
+          [("HAM", "Blue", "Red", 9, 10, [str(i) for i in range(9)])])
     check("most but not nearly all is not reported",
           Mt.colour_overturns(boxes("number", ["Red"] * 3 + ["Blue"]), coloured("Blue")), [])
     check("livery boxes don't count towards an overturn",
           Mt.colour_overturns(boxes("livery", ["Red"] * 10), coloured("Blue")), [])
+
+    # --verify: the tags name the car, so a solo box is checked against the tagged entry whatever its method
+    tagged = {str(i): "HAM" for i in range(10)}
+    check("verify: livery boxes of tagged solo shots count towards an overturn",
+          Mt.colour_overturns(boxes("livery", ["Red"] * 10), coloured("Blue"), tagged),
+          [("HAM", "Blue", "Red", 10, 10, [str(i) for i in range(10)])])
+    check("verify: an untagged photo doesn't count",
+          Mt.colour_overturns(boxes("livery", ["Red"] * 10), coloured("Blue"), {}), [])
+    out = Mt.colour_check(liv, coloured("Blue"), {"1": "HAM"})["1"][0]
+    check("verify: a tagged solo shot's clashing colour is flagged whatever its method", out.colour_flag, True)
+    other = {"1": [BoxResult(0, "number", "VER", "", 0.99, colour="Red")]}
+    check("verify: the tagged entry is checked, not the one read",
+          Mt.colour_check(other, coloured("Blue"), {"1": "HAM"})["1"][0].colour_flag, True)
+    pack = {"1": [BoxResult(0, "number", "HAM", "", 0.99, colour="Red"), BoxResult(1, "number", "HAM", "", 0.99, colour="Red")]}
+    check("verify: packs stay unchecked",
+          [r.colour_flag for r in Mt.colour_check(pack, coloured("Blue"), {"1": "HAM"})["1"]], [False, False])
 
     # burst_colours: one colour per car per burst, from the mean of its boxes' shares
     red = {"Red": 0.7, "Pink": 0.2, "Multi": 0.1}

@@ -1015,7 +1015,7 @@ def run_tests():
     results = os.path.join(img, "results.csv")
     args = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "progress.txt"), cache="",
                      collections_root=root, collection=os.path.basename(coll), settings="", entries_out=os.path.join(img, "e.csv"),
-                     rules_out=os.path.join(img, "r.csv"), boxes_out="", boxes_in="", report_out="", report_top=20, archive_dir="")
+                     rules_out=os.path.join(img, "r.csv"), boxes_out="", overturns_out="", boxes_in="", report_out="", report_top=20, archive_dir="")
     I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("number reads, burst consensus and no-vehicle rows come out in manifest order (3-column manifest)", rows,
@@ -1192,7 +1192,7 @@ def run_tests():
         f.write(f'"1","{real_jpg}",""\n')
     pargs = Namespace(manifest=manifest, results=results, progress=os.path.join(img, "p2.txt"), cache="",
                       collections_root=root, collection=os.path.basename(coll), settings="", entries_out=args.entries_out,
-                      rules_out=args.rules_out, boxes_out="", boxes_in=promo_boxes)
+                      rules_out=args.rules_out, boxes_out="", overturns_out="", boxes_in=promo_boxes)
     write_promo([100, 50])
     I.promote_boxes(pargs, {"embedder": "fake"})
     check("promote adds a confident box", open(results, encoding="utf-8").read().strip(), "1,added,,VER")
@@ -1262,7 +1262,7 @@ def run_tests():
             f.write(row + "\n")
         job(Namespace(manifest=manifest, results=results, progress=os.path.join(img, "p3.txt"), cache="",
                       collections_root=root, collection=os.path.basename(coll_dir), settings="", entries_out=args.entries_out,
-                      rules_out=args.rules_out, boxes_out="", boxes_in=boxes_in, colours_only=colours_only), dict(vmodels))
+                      rules_out=args.rules_out, boxes_out="", overturns_out="", boxes_in=boxes_in, colours_only=colours_only), dict(vmodels))
         return open(results, encoding="utf-8").read().strip()
 
     try:

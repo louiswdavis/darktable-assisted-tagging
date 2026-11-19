@@ -87,6 +87,11 @@ ok   only number results are flagged
 ok   nearly all number boxes clashing with the entry's colour are reported
 ok   most but not nearly all is not reported
 ok   livery boxes don't count towards an overturn
+ok   verify: livery boxes of tagged solo shots count towards an overturn
+ok   verify: an untagged photo doesn't count
+ok   verify: a tagged solo shot's clashing colour is flagged whatever its method
+ok   verify: the tagged entry is checked, not the one read
+ok   verify: packs stay unchecked
 ok   the odd frame takes the car's colour
 ok   the change is listed
 ok   separate bursts keep their own colours

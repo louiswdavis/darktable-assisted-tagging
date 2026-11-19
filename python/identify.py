@@ -1812,11 +1812,22 @@ def identify(args, models: dict):
         # burst consensus and neighbour aid can fill a smaller box again
         frames = keep_main_cars(frames, "after burst")
         frames = colour_check(frames, entries)
-        colour_flagged = sum(1 for rs in frames.values() for r in rs if r.colour_flag)
-        if colour_flagged:
-            log(f"colour: flagged {colour_flagged} number reads whose entry's colour disagrees")
-        for eid, stored, seen, n, total in colour_overturns(frames, entries):
-            log(f"colour: check entry {eid}: {stored} in entries.json, {n} of its {total} number reads see {seen}")
+        overturns = colour_overturns(frames, entries)
+    else:
+        # --verify checks colour against the car the tags name
+        tagged_of = {i: already_tagged(protected_of[i], entries) for i in fully_tagged}
+        frames = colour_check(frames, entries, tagged_of)
+        overturns = colour_overturns(frames, entries, tagged_of)
+    colour_flagged = sum(1 for rs in frames.values() for r in rs if r.colour_flag)
+    if colour_flagged:
+        log(f"colour: flagged {colour_flagged} reads whose entry's colour disagrees")
+    for eid, stored, seen, n, total, _ids in overturns:
+        log(f"colour: check entry {eid}: {stored} in entries.json, {n} of its {total} reads see {seen}")
+    if args.overturns_out:
+        with atomic_write(args.overturns_out, newline="") as f:
+            out = csv.writer(f)
+            out.writerow(["entry", "stored", "seen", "n", "total", "ids"])
+            out.writerows([eid, stored, seen, n, total, " ".join(ids)] for eid, stored, seen, n, total, ids in overturns)
 
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
     # A hand-tagged image's box naming another entry is one too, whatever tags the two entries share;
@@ -2245,6 +2256,8 @@ def main(argv=None):
     parser.add_argument("--boxes-out", default="", help="Write the run's per-vehicle boxes.json here")
     parser.add_argument("--neighbours", default="",
                         help="CSV of unselected tagged photos (image id, capture epoch, entry id) that lend neighbour-aid support")
+    parser.add_argument("--overturns-out", default="",
+                        help="Write entries whose colour in entries.json the reads overturn here (CSV: entry,stored,seen,n,total,ids)")
     parser.add_argument("--report-out", default="",
                         help="Write the run's debug report to <this>.md and <this>.json")
     parser.add_argument("--archive-dir", default="",
