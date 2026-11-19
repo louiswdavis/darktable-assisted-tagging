@@ -1398,6 +1398,8 @@ end
 -- of the same action or Clear. They are saved to `path`, one item per line
 -- "action<TAB>text<TAB>image id,image id[<TAB>fix]", so a restart keeps them.
 C.ALERT_ROWS = 6
+-- characters per line of an item: darktable's label has no word wrap, so show() breaks the lines
+C.ALERT_WRAP = 44
 
 -- [{ action, text, ids, fix }] from the saved file's text; fix is "" on a line without one.
 function C.alerts_parse(text)
@@ -1433,7 +1435,7 @@ function C.alerts_box(new_widget, path, log, fixes)
     fixes = fixes or {}
     local alerts = { items = C.alerts_parse(C.read_file_or_tmp(path)) }
     local current = ""
-    local header = new_widget("label") { label = "To check", halign = "start" }
+    local header = new_widget("section_label") { label = "To check" }
     local rows, more = {}, new_widget("label") { label = "", halign = "start", visible = false }
     local save
     local function images_of(ids)
@@ -1445,7 +1447,7 @@ function C.alerts_box(new_widget, path, log, fixes)
         return images
     end
     for i = 1, C.ALERT_ROWS do
-        local row = { label = new_widget("label") { label = "", halign = "start", ellipsize = "end" } }
+        local row = { label = new_widget("label") { label = "", halign = "start" } }
         row.button = new_widget("button") {
             label = "Select",
             tooltip = "Select these photos in the lighttable",
@@ -1463,7 +1465,9 @@ function C.alerts_box(new_widget, path, log, fixes)
                 fixes[item.fix](images_of(item.ids))
             end,
         }
-        row.box = new_widget("box") { orientation = "horizontal", row.label, row.button, row.fix }
+        -- the whole text above its buttons, so a long item is read in full
+        row.box = new_widget("box") { orientation = "vertical", row.label,
+            new_widget("box") { orientation = "horizontal", row.button, row.fix } }
         rows[i] = row
     end
     local function show()
@@ -1472,8 +1476,16 @@ function C.alerts_box(new_widget, path, log, fixes)
             local item = items[i]
             row.box.visible = item ~= nil
             if item then
-                row.label.label = (item.action ~= "" and item.action .. ": " or "") .. item.text
-                row.label.tooltip = row.label.label
+                local lines, line = {}, ""
+                for word in ((item.action ~= "" and item.action .. ": " or "") .. item.text):gmatch("%S+") do
+                    if line ~= "" and #line + 1 + #word > C.ALERT_WRAP then
+                        lines[#lines + 1], line = line, word
+                    else
+                        line = line == "" and word or line .. " " .. word
+                    end
+                end
+                lines[#lines + 1] = line
+                row.label.label = table.concat(lines, "\n")
                 row.item = item
                 row.button.visible = #item.ids > 0
                 row.fix.visible = #item.ids > 0 and fixes[item.fix] ~= nil
