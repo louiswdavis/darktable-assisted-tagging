@@ -394,7 +394,16 @@ def run_tests():
           S.siglip_key(frame))
     check("the SigLIP key names the token and every file", (S.siglip_key(frame)[0], len(S.siglip_key(frame))),
           (S.SIGLIP_CACHE_TOKEN, 5))
+    siglip_frame_key = I.frame_key(frame, models)
+    models["number_gate"] = True
+    check("the number gate joins the cache key with its own token and constants", I.frame_key(frame, models)[len(siglip_frame_key):],
+          S.number_gate_key())
+    models["number_gate"] = False
+    check("number_gate off leaves the cache key as it was", I.frame_key(frame, models), siglip_frame_key)
     del models["siglip"]
+    models["number_gate"] = True
+    check("the number gate without SigLIP 2 leaves the cache key as it was", I.frame_key(frame, models), plain_key)
+    del models["number_gate"]
     check("no SigLIP leaves the cache key as it was", I.frame_key(frame, models), plain_key)
     # ticket 76: the model files are read once per process, the frame's own file every time
     model_file = os.path.join(img, "model.onnx")
@@ -658,6 +667,55 @@ def run_tests():
     check("is_what: a split vehicle vote beats a lone person", what_of({"car": 0.10, "truck": 0.10, "person": 0.105})[0], SG.CAR)
     check("is_what: a clear person is dropped with its share", what_of({"person": 0.2, "car": 0.1}), ("person", 0.0))
     check("is_what: a vehicle nearest is a car even at a low share", what_of({"truck": 0.1})[0], SG.CAR)
+    numbers = list(SG.NUMBER_PROMPTS)
+    real.texts[tuple(SG.NUMBER_PROMPTS.items())] = (numbers, np.eye(len(numbers), dtype=np.float32))
+
+    def number_share_of(sims: dict):
+        return real.number_visible(np.array([[sims.get(label, 0.0) for label in numbers]], dtype=np.float32))
+    check("number_visible: the number prompts' summed share", number_share_of({"number side": 0.1, "number bike": 0.1}) > 0.99, True)
+    check("number_visible: a crop nearest a none prompt has a low share", number_share_of({"none far": 0.1}) < 0.01, True)
+    check("number_visible: no prompt nearer than another is an even split", number_share_of({}), 0.5)
+
+    # ---- ticket 71, the number gate: a plain crop under NUMBER_GATE_MIN is not read by OCR
+    class GateSigLIP:
+        """A crop's vector is its box index; its number share is listed per box."""
+        def __init__(self, shares):
+            self.shares = shares
+
+        def number_visible(self, vec):
+            return self.shares[vec]
+
+    apart = [(0, 0, 18, 18, 0.9, 2), (20, 20, 38, 38, 0.9, 2)]
+    under, over = SG.NUMBER_GATE_MIN / 2, SG.NUMBER_GATE_MIN + 0.3
+    gate_w = dict(I._W)
+    I._W.clear()
+    I._W.update(reader=CountingReader(), embedder=OneEmbedder(), siglip=GateSigLIP([under, over]),
+                models={"kind": "motorsport", "number_gate": True})
+    gate_read = I._read_boxes(canvas, apart, vecs=[0, 1])
+    check("number gate: the box under the gate is not read, the box over it is",
+          (I._W["reader"].calls, gate_read["ocr"], gate_read["ocr_trace"], gate_read["ocr_ctc"][0], gate_read["number_share"]),
+          (1, [[], []], [I.GATED_TRACE, []], {}, [under, over]))
+    I._W["reader"] = CountingReader()
+    no_vecs = I._read_boxes(canvas, apart)
+    check("number gate: a box with no box-check vector is read as ever",
+          (I._W["reader"].calls, no_vecs["ocr_trace"], no_vecs["number_share"]), (2, [[], []], [None, None]))
+    I._W["reader"] = CountingReader()
+    I._W["reader"].keep_regions = True
+    verify_read = I._read_boxes(canvas, apart, vecs=[0, 1])
+    check("number gate: --verify still reads a gated box, for its regions only",
+          (I._W["reader"].calls, verify_read["ocr_trace"][0], len(verify_read["ocr_regions"])), (2, I.GATED_TRACE, 2))
+    I._W["reader"] = CountingReader()
+    I._W["models"] = {"kind": "motorsport", "number_gate": False}
+    gate_off = I._read_boxes(canvas, apart, vecs=[0, 1])
+    I._W["siglip"] = None
+    check("number gate: off, the analysis is the one made without it",
+          (I._W["reader"].calls, json.dumps(gate_off, sort_keys=True)),
+          (2, json.dumps(I._read_boxes(canvas, apart), sort_keys=True)))
+    I._W["models"] = {"kind": "motorsport", "number_gate": True}
+    check("number gate: on without SigLIP 2, the analysis is the one made without it",
+          json.dumps(I._read_boxes(canvas, apart), sort_keys=True), json.dumps(gate_off, sort_keys=True))
+    I._W.clear()
+    I._W.update(gate_w)
     lines = []
     real_log, I.log = I.log, lines.append
     try:
@@ -1005,8 +1063,8 @@ def run_tests():
           (run["images"]["9"]["status"], run["images"]["9"]["boxes"][1]["unmatched_number"]), ("ok", ""))
     check("boxes.json carries the thresholds and per-entry facts the report needs",
           (sorted(run["thresholds"]), sorted(run["entries"]["VER"])),
-          (["min_margin", "min_read", "min_sim", "noise_min_beside_share", "noise_min_partners", "number_list_floor", "number_list_margin", "number_min_height",
-            "ocr_min_score", "weak_read_min"],
+          (["min_margin", "min_read", "min_sim", "noise_min_beside_share", "noise_min_partners", "number_gate_min", "number_list_floor", "number_list_margin",
+            "number_min_height", "ocr_min_score", "weak_read_min"],
            ["camera", "car", "colour", "number", "refs", "tags", "team"]))
     readme = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "README.md"), encoding="utf-8").read()
     listed = re.search(r'"thresholds" \(\{([^}]*)\}', readme)

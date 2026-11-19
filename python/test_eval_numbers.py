@@ -99,6 +99,29 @@ def run_tests():
     check("noise: a higher min_read drops the live run's noise number", En.replay_noise(sure, four, dict(KNOBS, min_read=0.95)), {})
     check("noise: a boxes.json from before noise numbers has none",
           En.replay_noise({"images": sure["images"]}, four, KNOBS), {})
+    # ticket 71: a number_gate run stores each box's number share; under the gate the box has no reads
+    shut = dict(box, ocr_regions=[region("14")], number_share=0.05, read_entry="")
+    gate = dict(KNOBS, number_gate_min=0.1)
+    check("gate: a box under the gate replays unread", En.replay_box(shut, entries, gate, {})[0].method != "number", True)
+    check("gate: NUMBER_GATE_MIN=0 replays its regions", En.replay_box(shut, entries, dict(gate, number_gate_min=0.0), {})[0].entry_id, "E14")
+    check("gate: a box with no number share is never gated", En.gated(dict(shut, number_share=None), gate), False)
+    gate_run = {"thresholds": gate, "noise_numbers": {},
+                "entries": {e.id: {"number": e.number, "team": e.team, "tags": list(e.tags)} for e in entries.values()},
+                "images": {"1": {"hand": "E14", "boxes": [shut]}}}
+    with tempfile.TemporaryDirectory() as tmp:
+        path = os.path.join(tmp, "gate.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(gate_run, f)
+        printed, argv = io.StringIO(), sys.argv
+        sys.argv = ["eval_numbers.py", path]
+        try:
+            with contextlib.redirect_stdout(printed):
+                En.main()
+        finally:
+            sys.argv = argv
+    check("main: a gated box is its own cause and agrees with the live run",
+          [ln.strip() for ln in printed.getvalue().splitlines() if ln.strip().startswith(("gated", "replay"))],
+          ["replay agrees with the live run on 1/1 boxes", "gated: 1"])
     with tempfile.TemporaryDirectory() as tmp:
         path = os.path.join(tmp, "boxes.json")
         with open(path, "w", encoding="utf-8") as f:

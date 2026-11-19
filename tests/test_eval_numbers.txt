@@ -29,5 +29,9 @@ ok   noise: a lower min_read finds the number the live run didn't count
 ok   noise: a box that kept no regions counts with its stored reads
 ok   noise: a higher min_read drops the live run's noise number
 ok   noise: a boxes.json from before noise numbers has none
+ok   gate: a box under the gate replays unread
+ok   gate: NUMBER_GATE_MIN=0 replays its regions
+ok   gate: a box with no number share is never gated
+ok   main: a gated box is its own cause and agrees with the live run
 ok   main: --set min_read replays with its own noise numbers
 all tests passed

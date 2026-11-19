@@ -3,10 +3,11 @@ the number path with other thresholds. Run from this folder:
 
   python eval_numbers.py BOXES.json                            # today's thresholds
   python eval_numbers.py BOXES.json --set OCR_MIN_SCORE=0.7    # what a lower detection floor would read
+  python eval_numbers.py BOXES.json --set NUMBER_GATE_MIN=0    # a number_gate run's reads with the gate open
 
 Truth is each image's hand entry, else the entry whose tags it already carries. Only single-box
 frames are scored (which box is the car is unknown otherwise); the rest are counted. A box that is
-not read right gets one cause: no region, region dropped (and why), below min_read, recognised
+not read right gets one cause: gated (the number gate kept it from OCR), no region, region dropped (and why), below min_read, recognised
 wrong, or the right read lost in matching. The replay with no --set must agree with the live run:
 it reports how many boxes do, and lists the ones that don't."""
 
@@ -24,7 +25,7 @@ from ocr import digit_runs, drop_reason, pick_reads
 # --set name → boxes.json thresholds key
 KNOBS = {"OCR_MIN_SCORE": "ocr_min_score", "NUMBER_MIN_HEIGHT": "number_min_height", "min_read": "min_read",
          "WEAK_READ_MIN": "weak_read_min", "NUMBER_LIST_MARGIN": "number_list_margin",
-         "NUMBER_LIST_FLOOR": "number_list_floor"}
+         "NUMBER_LIST_FLOOR": "number_list_floor", "NUMBER_GATE_MIN": "number_gate_min"}
 
 
 def load_entries(data: dict) -> dict:
@@ -41,16 +42,23 @@ def replay_noise(data: dict, entries: dict, knobs: dict) -> dict:
     before noise numbers was matched without them, so its replay has none."""
     if "noise_numbers" not in data:
         return {}
-    reads = [pick_reads(box["ocr_regions"], knobs["ocr_min_score"], knobs["number_min_height"])[0]
+    reads = [[] if gated(box, knobs) else
+             pick_reads(box["ocr_regions"], knobs["ocr_min_score"], knobs["number_min_height"])[0]
              if "ocr_regions" in box else [tuple(c) for c in box["ocr"]]
              for img in data["images"].values() for box in img["boxes"]]
     return match.noise_numbers(reads, entries, knobs["min_read"])
 
 
+def gated(box: dict, knobs: dict) -> bool:
+    """The number gate keeps this box from OCR under `knobs`: its number share (a number_gate run
+    stores one per plain box crop) is under number_gate_min."""
+    return box.get("number_share") is not None and box["number_share"] < knobs["number_gate_min"]
+
+
 def replay_box(box: dict, entries: dict, knobs: dict, noise: dict) -> tuple:
     """(BoxResult, accepted reads) for one box, decided from its stored OCR regions the way
     match_frame decides it, up to hinted_match. `noise` is replay_noise's noise numbers."""
-    reads, ctc = pick_reads(box["ocr_regions"], knobs["ocr_min_score"], knobs["number_min_height"])
+    reads, ctc = ([], {}) if gated(box, knobs) else pick_reads(box["ocr_regions"], knobs["ocr_min_score"], knobs["number_min_height"])
     reads = without_noise(usable_reads(reads, ctc, knobs["min_read"]), noise)
     hint = box.get("hint") or {}
     r, _ = hinted_match(box["box"], reads, [tuple(s) for s in box["sims"]], entries,
@@ -103,7 +111,8 @@ def main():
     if not any("ocr_regions" in b for img in images.values() for b in img["boxes"]):
         sys.exit(f"{args.boxes} has no OCR regions: run identify with --verify and --boxes-out first")
     sets = parse_sets(args.set)
-    knobs = {key: sets.get(name, data["thresholds"][key]) for name, key in KNOBS.items()}
+    thresholds = {"number_gate_min": 0.0, **data["thresholds"]}  # a boxes.json from before the number gate has none
+    knobs = {key: sets.get(name, thresholds[key]) for name, key in KNOBS.items()}
     for name in ("NUMBER_LIST_MARGIN", "NUMBER_LIST_FLOOR"):
         setattr(match, name, knobs[KNOBS[name]])
     entries = load_entries(data)
@@ -140,7 +149,7 @@ def main():
             frames["correct"] += 1
             continue
         frames["wrong entry" if read else "unread"] += 1
-        causes[cause(number, reads, box["ocr_regions"], knobs)] += 1
+        causes["gated" if gated(box, knobs) else cause(number, reads, box["ocr_regions"], knobs)] += 1
         confusion[(number, got or (reads[0][0] if reads else "none"))] += 1
         if not read and weak_read(number, box["ocr_regions"], knobs):
             weak += 1

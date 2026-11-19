@@ -121,6 +121,9 @@ ok   renaming a palette colour changes the cache key
 ok   the segmenter model file joins the cache key
 ok   SigLIP 2 joins the cache key with its three files
 ok   the SigLIP key names the token and every file
+ok   the number gate joins the cache key with its own token and constants
+ok   number_gate off leaves the cache key as it was
+ok   the number gate without SigLIP 2 leaves the cache key as it was
 ok   no SigLIP leaves the cache key as it was
 ok   a model file touched mid-run keeps its key
 ok   the next run reads the model files again
@@ -158,6 +161,14 @@ ok   reference_box: a team reference (no number) reads nothing
 ok   is_what: a split vehicle vote beats a lone person
 ok   is_what: a clear person is dropped with its share
 ok   is_what: a vehicle nearest is a car even at a low share
+ok   number_visible: the number prompts' summed share
+ok   number_visible: a crop nearest a none prompt has a low share
+ok   number_visible: no prompt nearer than another is an even split
+ok   number gate: the box under the gate is not read, the box over it is
+ok   number gate: a box with no box-check vector is read as ever
+ok   number gate: --verify still reads a gated box, for its regions only
+ok   number gate: off, the analysis is the one made without it
+ok   number gate: on without SigLIP 2, the analysis is the one made without it
 ok   the drop log counts per answer and kept reason, and is silent without SigLIP
 ok   the people key carries the fingerprint
 ok   the cache key carries no stray version
@@ -212,7 +223,7 @@ ok   an Orientation-6 JPEG decodes upright (portrait)
 ok   a crop of an upright box keeps the upright aspect
 ok   crops are never upscaled
 ok   box selection clips, filters and sorts
-ok   an ONNX model loads from a non-ASCII path
+skip non-ASCII model load (models/ not downloaded)
 ok   the parent frees SigLIP 2's text model once its vectors are made
 ok   starting the pool hands the workers both prompt sets and frees the parent's text model
 ok   a worker's SigLIP 2 has no text model
@@ -317,388 +328,390 @@ ok   peak memory is this process's real peak, in MB
 all tests passed
 
 --- stderr ---
-23:56:07 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
-23:56:07 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so the face thresholds use defaults
-23:56:07 py: rules.min_sim in entries.json is deprecated; move it to settings.json
-23:56:07 py: rules.margin in entries.json is deprecated; move it to settings.json
-23:56:07 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:07 py: entries.json: 1 entries upgraded (class, make/model → fields)
-23:56:07 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: entries.json: 1 entries upgraded (class, make/model → fields)
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: warning: entries.json has no rules block, so the face thresholds use defaults
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:08 py: rules.order_weight in entries.json is deprecated; move it to settings.json
-23:56:08 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:08 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
-23:56:08 py: rescue: started
-23:56:08 py: C:\Users\Louis\AppData\Local\Temp\tmpsc6vxljk\2.jpg: rescued a vehicle from 1.jpg (crop similarity 4.0)
-23:56:08 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 0 to decode
-23:56:08 py: C:\Users\Louis\AppData\Local\Temp\tmpsc6vxljk\2.jpg: rescued a vehicle from 1.jpg (crop similarity 4.0)
-23:56:08 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
-23:56:08 py: C:\Users\Louis\AppData\Local\Temp\tmpsc6vxljk\2.jpg: rescued a vehicle from 3.jpg (crop similarity 4.0)
-23:56:08 py: rescue: 2 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 1 to decode
-23:56:08 py: C:\Users\Louis\AppData\Local\Temp\tmpsc6vxljk\c2.jpg: couldn't rescue, left as no vehicle (UnidentifiedImageError: cannot identify image file 'C:\\Users\\Louis\\AppData\\Local\\Temp\\tmpsc6vxljk\\c2.jpg')
+00:10:52 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
+00:10:52 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so the face thresholds use defaults
+00:10:52 py: rules.min_sim in entries.json is deprecated; move it to settings.json
+00:10:52 py: rules.margin in entries.json is deprecated; move it to settings.json
+00:10:52 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: entries.json: 1 entries upgraded (class, make/model → fields)
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: entries.json: 1 entries upgraded (class, make/model → fields)
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so the face thresholds use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:52 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:52 py: rules.order_weight in entries.json is deprecated; move it to settings.json
+00:10:52 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:52 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
+00:10:52 py: rescue: started
+00:10:52 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpac15x5xn/2.jpg: rescued a vehicle from 1.jpg (crop similarity 4.0)
+00:10:52 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 0 to decode
+00:10:52 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpac15x5xn/2.jpg: rescued a vehicle from 1.jpg (crop similarity 4.0)
+00:10:52 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
+00:10:52 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpac15x5xn/2.jpg: rescued a vehicle from 3.jpg (crop similarity 4.0)
+00:10:52 py: rescue: 2 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 1 to decode
+00:10:52 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpac15x5xn/c2.jpg: couldn't rescue, left as no vehicle (UnidentifiedImageError: cannot identify image file '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpac15x5xn/c2.jpg')
 Traceback (most recent call last):
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 1052, in rescue_frames
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/identify.py", line 1079, in rescue_frames
     results[job[0]] = fut.result()
                       ~~~~~~~~~~^^
-  File "C:\Python313\Lib\concurrent\futures\_base.py", line 449, in result
+  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py", line 443, in result
     return self.__get_result()
            ~~~~~~~~~~~~~~~~~^^
-  File "C:\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py", line 395, in __get_result
     raise self._exception
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 488, in submit
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_identify.py", line 497, in submit
     fut.set_result(fn(job))
                    ~~^^^^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 774, in rescue_frame
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/identify.py", line 795, in rescue_frame
     rgb = decode_rgb(path)
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicle_detect.py", line 84, in decode_rgb
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 84, in decode_rgb
     return decode_rgb_sized(filepath, fast_jpeg)[0]
            ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicle_detect.py", line 112, in decode_rgb_sized
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 112, in decode_rgb_sized
     rgb, _, full = _open_rgb(filepath, fast_jpeg)
                    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicle_detect.py", line 63, in _open_rgb
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 63, in _open_rgb
     img = Image.open(source)
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\.venv\Lib\site-packages\PIL\Image.py", line 3730, in open
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-culling/.venv/lib/python3.14/site-packages/PIL/Image.py", line 3730, in open
     raise UnidentifiedImageError(msg)
-PIL.UnidentifiedImageError: cannot identify image file 'C:\\Users\\Louis\\AppData\\Local\\Temp\\tmpsc6vxljk\\c2.jpg'
+PIL.UnidentifiedImageError: cannot identify image file '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpac15x5xn/c2.jpg'
 
-23:56:08 py: C:\Users\Louis\AppData\Local\Temp\tmpsc6vxljk\2.jpg: rescued a vehicle from 3.jpg (crop similarity 4.0)
-23:56:28 py: worker pool: 4 workers, models load once per worker for the whole run
-23:56:33 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:33 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:33 py: rescue: done, 25s, peak memory 2915 MB (workers not included)
-23:56:33 py: loading models: started
-23:56:33 py: loading models: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: references: started
-23:56:33 py: collection tmps3u2aghs has no references yet: only numbers can identify a car
-23:56:33 py: references: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: checking cache: started
-23:56:33 py: analysing: 5 frames, 0 from cache, 5 to decode
-23:56:33 py: checking cache: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: analysing: started
-23:56:33 py: analysing: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: starting workers: started
-23:56:33 py: starting workers: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: analysing: started
-23:56:33 py: C:\Users\Louis\AppData\Local\Temp\frames_a0sfk83e/5.jpg: couldn't analyse (FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Louis\\AppData\\Local\\Temp\\frames_a0sfk83e/5.jpg')
+00:10:52 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpac15x5xn/2.jpg: rescued a vehicle from 3.jpg (crop similarity 4.0)
+00:10:57 py: worker pool: 4 workers, models load once per worker for the whole run
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: rescue: done, 6s, peak memory 3829 MB (workers not included)
+00:10:58 py: loading models: started
+00:10:58 py: loading models: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: references: started
+00:10:58 py: collection tmpqb3tu0gg has no references yet: only numbers can identify a car
+00:10:58 py: references: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: checking cache: started
+00:10:58 py: analysing: 5 frames, 0 from cache, 5 to decode
+00:10:58 py: checking cache: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: analysing: started
+00:10:58 py: analysing: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: starting workers: started
+00:10:58 py: starting workers: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: analysing: started
+00:10:58 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/frames_i6ipsj9y/5.jpg: couldn't analyse (FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/frames_i6ipsj9y/5.jpg')
 Traceback (most recent call last):
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 959, in run_frames
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/identify.py", line 982, in run_frames
     out[p] = fut.result()
              ~~~~~~~~~~^^
-  File "C:\Python313\Lib\concurrent\futures\_base.py", line 449, in result
+  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py", line 443, in result
     return self.__get_result()
            ~~~~~~~~~~~~~~~~~^^
-  File "C:\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py", line 395, in __get_result
     raise self._exception
-  File "C:\Python313\Lib\concurrent\futures\thread.py", line 59, in run
-    result = self.fn(*self.args, **self.kwargs)
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 650, in analyse_frame
+  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/thread.py", line 86, in run
+    result = ctx.run(self.task)
+  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/thread.py", line 73, in run
+    return fn(*args, **kwargs)
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/identify.py", line 654, in analyse_frame
     small, (w, h) = decode_rgb_sized(filepath, fast_jpeg=True)
                     ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicle_detect.py", line 112, in decode_rgb_sized
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 112, in decode_rgb_sized
     rgb, _, full = _open_rgb(filepath, fast_jpeg)
                    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicle_detect.py", line 63, in _open_rgb
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 63, in _open_rgb
     img = Image.open(source)
-  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\.venv\Lib\site-packages\PIL\Image.py", line 3654, in open
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-culling/.venv/lib/python3.14/site-packages/PIL/Image.py", line 3654, in open
     fp = builtins.open(filename, "rb")
-FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Louis\\AppData\\Local\\Temp\\frames_a0sfk83e/5.jpg'
+FileNotFoundError: [Errno 2] No such file or directory: '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/frames_i6ipsj9y/5.jpg'
 
-23:56:33 py: analysis: 5 frames in 0s, 5031 frames/min (4 workers), largest worker peak memory 2915 MB
-23:56:33 py: detections: 0 cached, 4 detected
-23:56:33 py: analysis: turned reads won 0 regions (180° 0, 90° 0, 270° 0)
-23:56:33 py: livery: raw similarity (0 references and 3 boxes, under 20)
-23:56:33 py: refining: 1 frames have boxes to re-read at higher detail, 0 from cache, 1 to decode
-23:56:33 py: analysing: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: refining: started
-23:56:33 py: refining: 1/1 done, 0s
-23:56:33 py: refining: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: matching: started
-23:56:33 py: 1: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-23:56:33 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-23:56:33 py: 3: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
-23:56:33 py: 4: no vehicle at 0.2: nothing at 0.03
-23:56:33 py: anchors: 0 refs + 2 number reads of 0.9+ this run; 1 cars have none (their first match is accepted)
-23:56:33 py: anchors (matching): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 0 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
-23:56:33 py: anchors (after burst): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 1 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
-23:56:33 py: 3: box 0: burst VER (0.67 of the burst agrees)
-23:56:33 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:33 py: vehicles by method: burst 1, error 1, none 1, number 2
-23:56:33 py: rules.diagnostics.shot_* in entries.json is deprecated; move it to settings.json
-23:56:33 py: rules.diagnostics.shot_* in entries.json is deprecated; move it to settings.json
-23:56:33 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:33 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:33 py: matching: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: loading models: started
-23:56:33 py: loading models: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: references: started
-23:56:33 py: collection tmps3u2aghs has no references yet: only numbers can identify a car
-23:56:33 py: references: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: checking cache: started
-23:56:33 py: analysing: 5 frames, 0 from cache, 5 to decode
-23:56:33 py: checking cache: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: analysing: started
-23:56:33 py: analysing: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: starting workers: started
-23:56:33 py: starting workers: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: analysing: started
-23:56:33 py: analysis: 5 frames in 0s, 9667 frames/min (4 workers), largest worker peak memory 2915 MB
-23:56:33 py: detections: 0 cached, 5 detected
-23:56:33 py: analysis: turned reads won 0 regions (180° 0, 90° 0, 270° 0)
-23:56:33 py: livery: raw similarity (0 references and 6 boxes, under 20)
-23:56:33 py: refining: 2 frames have boxes to re-read at higher detail, 0 from cache, 2 to decode
-23:56:33 py: analysing: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: refining: started
-23:56:33 py: refining: 2/2 done, 0s
-23:56:33 py: refining: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: matching: started
-23:56:33 py: 1: already carries all of TSU's tags, skipped
-23:56:33 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-23:56:33 py: 6: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-23:56:33 py: 7: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-23:56:33 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
-23:56:33 py: 9: box 0: number VER (OCR 1; livery no references; box 50x50 (50.0% of frame))
-23:56:33 py: 9: box 1: none - (OCR -; livery no references; box 50x50 (50.0% of frame))
-23:56:33 py: anchors: 0 refs + 4 number reads of 0.9+ this run; 1 cars have none (their first match is accepted)
-23:56:33 py: anchors (matching): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 0 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
-23:56:33 py: anchors (after burst): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 1 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
-23:56:33 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
-23:56:33 py: 8: box 0: VER shares no tag with the ones you applied; left as you tagged it
-23:56:33 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:33 py: vehicles by method: conflict 2, none 1, number 3, skipped 1
-23:56:33 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:33 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:33 py: matching: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: loading models: started
-23:56:33 py: loading models: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: references: started
-23:56:33 py: collection tmps3u2aghs has no references yet: only numbers can identify a car
-23:56:33 py: references: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: checking cache: started
-23:56:33 py: analysing: 5 frames, 0 from cache, 5 to decode
-23:56:33 py: checking cache: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: analysing: started
-23:56:33 py: analysing: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: starting workers: started
-23:56:33 py: starting workers: done, 0s, peak memory 2915 MB (workers not included)
-23:56:33 py: analysing: started
-23:56:34 py: analysis: 5 frames in 0s, 12773 frames/min (4 workers), largest worker peak memory 2915 MB
-23:56:34 py: detections: 0 cached, 5 detected
-23:56:34 py: analysis: turned reads won 0 regions (180° 0, 90° 0, 270° 0)
-23:56:34 py: livery: raw similarity (0 references and 6 boxes, under 20)
-23:56:34 py: refining: 2 frames have boxes to re-read at higher detail, 0 from cache, 2 to decode
-23:56:34 py: analysing: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: refining: started
-23:56:34 py: refining: 2/2 done, 0s
-23:56:34 py: refining: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: matching: started
-23:56:34 py: 1: already carries all of TSU's tags, skipped
-23:56:34 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-23:56:34 py: 6: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-23:56:34 py: 7: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-23:56:34 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
-23:56:34 py: 9: box 0: number VER (OCR 1; livery no references; box 50x50 (50.0% of frame))
-23:56:34 py: 9: box 1: none - (OCR -; livery no references; box 50x50 (50.0% of frame))
-23:56:34 py: anchors: 0 refs + 4 number reads of 0.9+ this run; 1 cars have none (their first match is accepted)
-23:56:34 py: anchors (matching): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 0 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
-23:56:34 py: anchors (after burst): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 1 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
-23:56:34 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
-23:56:34 py: 8: box 0: VER shares no tag with the ones you applied; left as you tagged it
-23:56:34 py: report: C:\Users\Louis\AppData\Local\Temp\tmpqv44_wd8\last-run\c.report.md
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:34 py: vehicles by method: conflict 2, none 1, number 3, skipped 1
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:34 py: matching: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: loading models: started
-23:56:34 py: loading models: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: references: started
-23:56:34 py: collection tmps3u2aghs has no references yet: only numbers can identify a car
-23:56:34 py: references: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: checking cache: started
-23:56:34 py: analysing: 5 frames, 0 from cache, 5 to decode
-23:56:34 py: checking cache: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: analysing: started
-23:56:34 py: analysing: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: starting workers: started
-23:56:34 py: starting workers: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: analysing: started
-23:56:34 py: analysis: 5 frames in 0s, 13412 frames/min (4 workers), largest worker peak memory 2915 MB
-23:56:34 py: detections: 0 cached, 5 detected
-23:56:34 py: analysis: turned reads won 0 regions (180° 0, 90° 0, 270° 0)
-23:56:34 py: livery: raw similarity (0 references and 5 boxes, under 20)
-23:56:34 py: refining: 3 frames have boxes to re-read at higher detail, 0 from cache, 3 to decode
-23:56:34 py: analysing: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: refining: started
-23:56:34 py: refining: 3/3 done, 0s
-23:56:34 py: refining: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: matching: started
-23:56:34 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
-23:56:34 py: 3: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
-23:56:34 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
-23:56:34 py: 4: no vehicle at 0.2: nothing at 0.03
-23:56:34 py: 9: box 0: number VER (OCR 1; livery no references; box 50x50 (50.0% of frame))
-23:56:34 py: 9: box 1: none - (OCR -; livery no references; box 50x50 (50.0% of frame))
-23:56:34 py: anchors: 0 refs + 2 number reads of 0.9+ this run; 1 cars have none (their first match is accepted)
-23:56:34 py: anchors (matching): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 0 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
-23:56:34 py: 8: TSU by the tag you applied
-23:56:34 py: 4: TSU by the tag you applied
-23:56:34 py: 9: TSU by the tag you applied
-23:56:34 py: anchors (after burst): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 1 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
-23:56:34 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
-23:56:34 py: 3: box 0: burst TSU (0.50 of the burst agrees)
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:34 py: vehicles by method: burst 1, conflict 1, hand 3, none 1, number 1
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:34 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:34 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:34 py: 1: the file no longer matches the last run (frame size changed), skipped
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:34 py: references: embedding 6 (new or replaced, or the embedder or blur setting changed)
-23:56:34 py: matching: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: references: started
-23:56:34 py: references: 6 had no recorded source; set by file name (_b<n> = number read, else hand)
-23:56:34 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-23:56:34 py: references: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: matching: started
-23:56:34 py: 1: refs/VER/1_b0.jpg is flagged by colour, crop; kept, it's an anchor (check it by hand)
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:34 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-23:56:34 py: 1: refs/VER/1_b0.jpg is flagged by colour, crop; not saved
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:34 py: references: embedding 6 (new or replaced, or the embedder or blur setting changed)
-23:56:34 py: matching: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: references: started
-23:56:34 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-23:56:34 py: references: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: matching: started
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:34 py: references: embedding 6 (new or replaced, or the embedder or blur setting changed)
-23:56:34 py: matching: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: references: started
-23:56:34 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-23:56:34 py: references: done, 0s, peak memory 2915 MB (workers not included)
-23:56:34 py: matching: started
-23:56:34 py: 1: refs/VER/1_b0.jpg is flagged by colour, crop; not saved
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:34 py: 1: reference refs/VER/1.jpg (largest box)
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmps3u2aghs\tag-plan.txt
-23:56:34 py: rules.partial_references in entries.json is deprecated; move it to settings.json
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: 1: reference refs/@team@F1__Red Bull/1.jpg (largest box)
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmprai6iplo\tag-plan.txt
-23:56:34 py: rules.partial_references in entries.json is deprecated; move it to settings.json
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:34 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
-23:56:34 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmprai6iplo\tag-plan.txt
-23:56:34 py: rules.partial_references in entries.json is deprecated; move it to settings.json
-23:56:34 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: 1: reference refs/VER/1.jpg (largest box)
-23:56:35 py: entry VER: colour set to Red in entries.json
-23:56:35 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmprai6iplo\tag-plan.txt
-23:56:35 py: rules.partial_references in entries.json is deprecated; move it to settings.json
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: 1: reference refs/VER/1.jpg (largest box)
-23:56:35 py: entry VER: colour changed from Red to Blue in entries.json (your colour tag)
-23:56:35 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmprai6iplo\tag-plan.txt
-23:56:35 py: rules.partial_references in entries.json is deprecated; move it to settings.json
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: rules.partial_references in entries.json is deprecated; move it to settings.json
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: entry VER: colour is Blue in entries.json, this reference reads Red; left as Blue
-23:56:35 py: entry VER: colour is Red from a colour tag in this job, this reference reads Green; left as Red
-23:56:35 py: entry VER: colour changed from Blue to Red in entries.json (your colour tag)
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: entry VER: its photos' colour reads don't agree enough (1 Blue, 1 Red), so it gets no colour
-23:56:35 py: entry VER: colour is Blue from most of its photos in this job, this reference reads Red; left as Blue
-23:56:35 py: entry VER: colour set to Blue in entries.json
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: entry VER: colour set to Red in entries.json
-23:56:35 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmpi_dj1fhe\tag-plan.txt
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmpi_dj1fhe\tag-plan.txt
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: 1: no vehicle found (no vehicle at 0.2: nothing at 0.03); colour unread
-23:56:35 py: tag plan: C:\Users\Louis\AppData\Local\Temp\collections_p9cyd4i5\tmpi_dj1fhe\tag-plan.txt
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: warning: entries.json has no rules block, so the face thresholds use defaults
-23:56:35 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: matching: done, 1s, peak memory 2915 MB (workers not included)
-23:56:35 py: loading models: started
-23:56:35 py: loading models: done, 0s, peak memory 2915 MB (workers not included)
-23:56:35 py: references: started
-23:56:35 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-23:56:35 py: references: stopped after 1 of 2; the rest are embedded next time
-23:56:35 py: cancelled
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:56:35 py: references: done, 0s, peak memory 2915 MB (workers not included)
-23:56:35 py: analysing: started
-23:56:35 py: analysing: done, 0s, peak memory 2915 MB (workers not included)
+00:10:58 py: analysis: 5 frames in 0s, 15409 frames/min (4 workers), largest worker peak memory 3829 MB
+00:10:58 py: detections: 0 cached, 4 detected
+00:10:58 py: analysis: turned reads won 0 regions (180° 0, 90° 0, 270° 0)
+00:10:58 py: livery: raw similarity (0 references and 3 boxes, under 20)
+00:10:58 py: refining: 1 frames have boxes to re-read at higher detail, 0 from cache, 1 to decode
+00:10:58 py: analysing: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: refining: started
+00:10:58 py: refining: 1/1 done, 0s
+00:10:58 py: refining: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: matching: started
+00:10:58 py: 1: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 3: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 4: no vehicle at 0.2: nothing at 0.03
+00:10:58 py: anchors: 0 refs + 2 number reads of 0.9+ this run; 1 cars have none (their first match is accepted)
+00:10:58 py: anchors (matching): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 0 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
+00:10:58 py: anchors (after burst): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 1 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
+00:10:58 py: 3: box 0: burst VER (0.67 of the burst agrees)
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: vehicles by method: burst 1, error 1, none 1, number 2
+00:10:58 py: rules.diagnostics.shot_* in entries.json is deprecated; move it to settings.json
+00:10:58 py: rules.diagnostics.shot_* in entries.json is deprecated; move it to settings.json
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: matching: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: loading models: started
+00:10:58 py: loading models: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: references: started
+00:10:58 py: collection tmpqb3tu0gg has no references yet: only numbers can identify a car
+00:10:58 py: references: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: checking cache: started
+00:10:58 py: analysing: 5 frames, 0 from cache, 5 to decode
+00:10:58 py: checking cache: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: analysing: started
+00:10:58 py: analysing: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: starting workers: started
+00:10:58 py: starting workers: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: analysing: started
+00:10:58 py: analysis: 5 frames in 0s, 36984 frames/min (4 workers), largest worker peak memory 3829 MB
+00:10:58 py: detections: 0 cached, 5 detected
+00:10:58 py: analysis: turned reads won 0 regions (180° 0, 90° 0, 270° 0)
+00:10:58 py: livery: raw similarity (0 references and 6 boxes, under 20)
+00:10:58 py: refining: 2 frames have boxes to re-read at higher detail, 0 from cache, 2 to decode
+00:10:58 py: analysing: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: refining: started
+00:10:58 py: refining: 2/2 done, 0s
+00:10:58 py: refining: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: matching: started
+00:10:58 py: 1: already carries all of TSU's tags, skipped
+00:10:58 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 6: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 7: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 9: box 0: number VER (OCR 1; livery no references; box 50x50 (50.0% of frame))
+00:10:58 py: 9: box 1: none - (OCR -; livery no references; box 50x50 (50.0% of frame))
+00:10:58 py: anchors: 0 refs + 4 number reads of 0.9+ this run; 1 cars have none (their first match is accepted)
+00:10:58 py: anchors (matching): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 0 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
+00:10:58 py: anchors (after burst): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 1 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
+00:10:58 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
+00:10:58 py: 8: box 0: VER shares no tag with the ones you applied; left as you tagged it
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: vehicles by method: conflict 2, none 1, number 3, skipped 1
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: matching: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: loading models: started
+00:10:58 py: loading models: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: references: started
+00:10:58 py: collection tmpqb3tu0gg has no references yet: only numbers can identify a car
+00:10:58 py: references: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: checking cache: started
+00:10:58 py: analysing: 5 frames, 0 from cache, 5 to decode
+00:10:58 py: checking cache: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: analysing: started
+00:10:58 py: analysing: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: starting workers: started
+00:10:58 py: starting workers: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: analysing: started
+00:10:58 py: analysis: 5 frames in 0s, 43892 frames/min (4 workers), largest worker peak memory 3829 MB
+00:10:58 py: detections: 0 cached, 5 detected
+00:10:58 py: analysis: turned reads won 0 regions (180° 0, 90° 0, 270° 0)
+00:10:58 py: livery: raw similarity (0 references and 6 boxes, under 20)
+00:10:58 py: refining: 2 frames have boxes to re-read at higher detail, 0 from cache, 2 to decode
+00:10:58 py: analysing: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: refining: started
+00:10:58 py: refining: 2/2 done, 0s
+00:10:58 py: refining: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: matching: started
+00:10:58 py: 1: already carries all of TSU's tags, skipped
+00:10:58 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 6: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 7: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 9: box 0: number VER (OCR 1; livery no references; box 50x50 (50.0% of frame))
+00:10:58 py: 9: box 1: none - (OCR -; livery no references; box 50x50 (50.0% of frame))
+00:10:58 py: anchors: 0 refs + 4 number reads of 0.9+ this run; 1 cars have none (their first match is accepted)
+00:10:58 py: anchors (matching): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 0 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
+00:10:58 py: anchors (after burst): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 1 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
+00:10:58 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
+00:10:58 py: 8: box 0: VER shares no tag with the ones you applied; left as you tagged it
+00:10:58 py: report: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmp6t_3dzdl/last-run/c.report.md
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: vehicles by method: conflict 2, none 1, number 3, skipped 1
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: matching: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: loading models: started
+00:10:58 py: loading models: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: references: started
+00:10:58 py: collection tmpqb3tu0gg has no references yet: only numbers can identify a car
+00:10:58 py: references: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: checking cache: started
+00:10:58 py: analysing: 5 frames, 0 from cache, 5 to decode
+00:10:58 py: checking cache: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: analysing: started
+00:10:58 py: analysing: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: starting workers: started
+00:10:58 py: starting workers: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: analysing: started
+00:10:58 py: analysis: 5 frames in 0s, 53581 frames/min (4 workers), largest worker peak memory 3829 MB
+00:10:58 py: detections: 0 cached, 5 detected
+00:10:58 py: analysis: turned reads won 0 regions (180° 0, 90° 0, 270° 0)
+00:10:58 py: livery: raw similarity (0 references and 5 boxes, under 20)
+00:10:58 py: refining: 3 frames have boxes to re-read at higher detail, 0 from cache, 3 to decode
+00:10:58 py: analysing: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: refining: started
+00:10:58 py: refining: 3/3 done, 0s
+00:10:58 py: refining: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: matching: started
+00:10:58 py: 2: box 0: number VER (OCR 1; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 3: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 8: box 0: none - (OCR -; livery no references; box 100x50 (100.0% of frame))
+00:10:58 py: 4: no vehicle at 0.2: nothing at 0.03
+00:10:58 py: 9: box 0: number VER (OCR 1; livery no references; box 50x50 (50.0% of frame))
+00:10:58 py: 9: box 1: none - (OCR -; livery no references; box 50x50 (50.0% of frame))
+00:10:58 py: anchors: 0 refs + 2 number reads of 0.9+ this run; 1 cars have none (their first match is accepted)
+00:10:58 py: anchors (matching): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 0 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
+00:10:58 py: 8: TSU by the tag you applied
+00:10:58 py: 4: TSU by the tag you applied
+00:10:58 py: 9: TSU by the tag you applied
+00:10:58 py: anchors (after burst): 0 matches dropped, 0 moved to the closer car (closer_car_margin 0); 1 burst matches not checked (a 0.9+ number read or your tag in the burst names the car)
+00:10:58 py: 2: box 0: VER shares no tag with the ones you applied; left as you tagged it
+00:10:58 py: 3: box 0: burst TSU (0.50 of the burst agrees)
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: vehicles by method: burst 1, conflict 1, hand 3, none 1, number 1
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: 1: the file no longer matches the last run (frame size changed), skipped
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: references: embedding 6 (new or replaced, or the embedder or blur setting changed)
+00:10:58 py: matching: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: references: started
+00:10:58 py: references: 6 had no recorded source; set by file name (_b<n> = number read, else hand)
+00:10:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+00:10:58 py: references: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: matching: started
+00:10:58 py: 1: refs/VER/1_b0.jpg is flagged by colour, crop; kept, it's an anchor (check it by hand)
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+00:10:58 py: 1: refs/VER/1_b0.jpg is flagged by colour, crop; not saved
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: references: embedding 6 (new or replaced, or the embedder or blur setting changed)
+00:10:58 py: matching: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: references: started
+00:10:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+00:10:58 py: references: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: matching: started
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: references: embedding 6 (new or replaced, or the embedder or blur setting changed)
+00:10:58 py: matching: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: references: started
+00:10:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+00:10:58 py: references: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: matching: started
+00:10:58 py: 1: refs/VER/1_b0.jpg is flagged by colour, crop; not saved
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: 1: reference refs/VER/1.jpg (largest box)
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmpqb3tu0gg/tag-plan.txt
+00:10:58 py: rules.partial_references in entries.json is deprecated; move it to settings.json
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: 1: reference refs/@team@F1__Red Bull/1.jpg (largest box)
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmp12_ldhoj/tag-plan.txt
+00:10:58 py: rules.partial_references in entries.json is deprecated; move it to settings.json
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: 1: box 0 (number) reference refs/VER/1_b0.jpg
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmp12_ldhoj/tag-plan.txt
+00:10:58 py: rules.partial_references in entries.json is deprecated; move it to settings.json
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: 1: reference refs/VER/1.jpg (largest box)
+00:10:58 py: entry VER: colour set to Red in entries.json
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmp12_ldhoj/tag-plan.txt
+00:10:58 py: rules.partial_references in entries.json is deprecated; move it to settings.json
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: 1: reference refs/VER/1.jpg (largest box)
+00:10:58 py: entry VER: colour changed from Red to Blue in entries.json (your colour tag)
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmp12_ldhoj/tag-plan.txt
+00:10:58 py: rules.partial_references in entries.json is deprecated; move it to settings.json
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: rules.partial_references in entries.json is deprecated; move it to settings.json
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: entry VER: colour is Blue in entries.json, this reference reads Red; left as Blue
+00:10:58 py: entry VER: colour is Red from a colour tag in this job, this reference reads Green; left as Red
+00:10:58 py: entry VER: colour changed from Blue to Red in entries.json (your colour tag)
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: entry VER: its photos' colour reads don't agree enough (1 Blue, 1 Red), so it gets no colour
+00:10:58 py: entry VER: colour is Blue from most of its photos in this job, this reference reads Red; left as Blue
+00:10:58 py: entry VER: colour set to Blue in entries.json
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: entry VER: colour set to Red in entries.json
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmp8_s7h4ov/tag-plan.txt
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmp8_s7h4ov/tag-plan.txt
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: 1: no vehicle found (no vehicle at 0.2: nothing at 0.03); colour unread
+00:10:58 py: tag plan: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/collections_9qosjc1n/tmp8_s7h4ov/tag-plan.txt
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: warning: entries.json has no rules block, so the face thresholds use defaults
+00:10:58 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: matching: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: loading models: started
+00:10:58 py: loading models: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: references: started
+00:10:58 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+00:10:58 py: references: stopped after 1 of 2; the rest are embedded next time
+00:10:58 py: cancelled
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:10:58 py: references: done, 0s, peak memory 3829 MB (workers not included)
+00:10:58 py: analysing: started
+00:10:58 py: analysing: done, 0s, peak memory 3829 MB (workers not included)

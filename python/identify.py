@@ -47,7 +47,7 @@ from match import (HAND, IDENTIFIED, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NOISE_MIN_
 from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
 from segment import SEGMENT_CACHE_TOKEN, Segmenter, needs_mask, segmenter_path
-from siglip import BOX_KEEP_SCORE, CAR, SigLIP, siglip_key
+from siglip import BOX_KEEP_SCORE, CAR, NUMBER_GATE_MIN, SigLIP, number_gate_key, siglip_key
 from pod import pod_colour, pod_reading
 from rescue import RESCUE_MIN_SIM, plan_burst
 from sponsors import sponsor_prefixes, sponsor_words
@@ -62,6 +62,7 @@ from people_run import analyse_frame_people, build_boxes_people, match_frame_peo
 MAX_WORKERS = 4  # each worker holds every model plus a full-resolution decode
 CACHE_MAX_AGE_DAYS = 90
 CACHE_COMMIT_EVERY = 50
+GATED_TRACE = [[0.0, "gated"]]  # the ocr_trace of a box the number gate kept from OCR (_read_boxes)
 ANCHOR_CHECKED = ("livery", "pooled", "burst", "neighbour")  # methods whose match must look like the car's anchors; number, hand and team never are
 
 # , ; " break the CSV handoff to Lua; the rest can't appear in a Windows folder name
@@ -97,6 +98,8 @@ class Rules:
     # Experimental: embed references after downscaling-then-upscaling them (embed.degrade),
     # so their embeddings sit closer to a far-away query crop's degraded detail level.
     blur_references: bool = False
+    # Experimental: SigLIP 2 skips OCR on a box that shows no race number (siglip.number_visible).
+    number_gate: bool = False
     # ((lowercase keyword, tag prefix), …): a sponsor word read on a car hints its team's prefix
     # (see sponsors.sponsor_prefixes). Empty: off.
     sponsor_keywords: tuple = ()
@@ -546,6 +549,7 @@ def frame_key(filepath: str, models: dict) -> list:
             *(["car-colour-2", car_colour.palette_digest(models["car_colour"])] if models.get("car_colour") else []),
             *([SEGMENT_CACHE_TOKEN, keys["segmenter"]] if models.get("segmenter") else []),
             *(keys["siglip"] if models.get("siglip") else []),
+            *(number_gate_key() if models.get("number_gate") and models.get("siglip") else []),
             *(["ocr-regions-1"] if models.get("ocr_regions") else [])]
 
 
@@ -700,11 +704,15 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
     sharper decode of the same frame, `rgb` is None and `frame` the preview's (w, h): the crops (OCR,
     embedding, colour) come from `hi`, boxes stay in preview pixels and pod is None. `wanted`, box
     indices, limits the reading to those boxes; the others hold None in every per-box list. `vecs`,
-    the box check's SigLIP 2 vectors of the plain box crops, are reused for colour where the crop read
-    is that same plain crop."""
-    ocr, trace, ctc, emb, pod, hist, overlap, masked, shares, regions = [], [], [], [], [], [], [], [], [], []
+    the box check's SigLIP 2 vectors of the plain box crops, are reused for colour and the number
+    gate where the crop read is that same plain crop. With the number gate on, `number_share` holds
+    each plain crop's siglip.number_visible (None for the others); a box under NUMBER_GATE_MIN is not
+    read: its `ocr` is [] and its `ocr_trace` GATED_TRACE. Under --verify it is still read, for its
+    `ocr_regions` only, so eval_numbers.py can replay another gate."""
+    ocr, trace, ctc, emb, pod, hist, overlap, masked, shares, regions, number_shares = [], [], [], [], [], [], [], [], [], [], []
     turns = {}
     palette = _W["models"].get("car_colour")
+    gate = _W.get("siglip") if _W["models"].get("number_gate") else None
     keep_regions = _W["reader"].keep_regions
     scale = hi.shape[1] / frame[0] if hi is not None else 1.0
     seen_boxes = visible_boxes(boxes)
@@ -713,7 +721,8 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
         overlap.append(state)
         if wanted is not None and i not in wanted:
             for skipped in (pod, masked, ocr, trace, ctc, emb, *([hist] if _W["models"].get("colour") else []),
-                            *([shares] if palette else []), *([regions] if keep_regions else [])):
+                            *([shares] if palette else []), *([regions] if keep_regions else []),
+                            *([number_shares] if gate else [])):
                 skipped.append(None)
             continue
         pod.append(pod_reading(rgb, seen) if hi is None else None)
@@ -724,18 +733,28 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
             cut = _W["segmenter"].cut(src, area, near)
         masked.append(cut is not None)
         crop = crop_box(*cut) if cut else crop_box(src, area)
-        ocr.append([[d, c] for d, c in _W["reader"].read(crop_box(*(cut or (src, area)), OCR_CROP_DIM))])
-        for turn, n in _W["reader"].last_turns.items():
-            turns[turn] = turns.get(turn, 0) + n
-        trace.append(_W["reader"].last_trace)
-        ctc.append(_W["reader"].last_ctc)
+        plain = vecs and hi is None and cut is None and tuple(seen[:4]) == tuple(b[:4])
+        number_share = gate.number_visible(vecs[i]) if gate and plain else None
+        gated = number_share is not None and number_share < NUMBER_GATE_MIN
+        if gate:
+            number_shares.append(number_share)
+        reads = [] if gated and not keep_regions else _W["reader"].read(crop_box(*(cut or (src, area)), OCR_CROP_DIM))
+        if gated:
+            ocr.append([])
+            trace.append(GATED_TRACE)
+            ctc.append({})
+        else:
+            ocr.append([[d, c] for d, c in reads])
+            for turn, n in _W["reader"].last_turns.items():
+                turns[turn] = turns.get(turn, 0) + n
+            trace.append(_W["reader"].last_trace)
+            ctc.append(_W["reader"].last_ctc)
         if keep_regions:
             regions.append(_W["reader"].last_regions)
         emb.append(encode(_W["embedder"].embed(crop)))
         if _W["models"].get("colour"):
             hist.append(encode(colour_hist(crop, masked=cut is not None)))
         if palette:
-            plain = vecs and hi is None and cut is None and tuple(seen[:4]) == tuple(b[:4])
             shares.append({} if state == HIDDEN else colour_read(crop, palette, masked=cut is not None,
                                                                  vec=vecs[i] if plain else None))
     out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "ocr_ctc": ctc, "ocr_turns": turns,
@@ -746,6 +765,8 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
         out["car_colour"] = shares
     if keep_regions:
         out["ocr_regions"] = regions
+    if gate:
+        out["number_share"] = number_shares
     return out
 
 
@@ -877,6 +898,8 @@ def check_models(models: dict, siglip: bool = True):
         log("box check: on (SigLIP 2)" + ("; colour reader: SigLIP 2" if models.get("car_colour") else ""))
     else:
         log("box check: off (no SigLIP 2 model)" + ("; colour reader: HSV rules" if models.get("car_colour") else ""))
+    if models.get("number_gate"):
+        log("number gate: on (SigLIP 2)" if models.get("siglip") else "number gate: does nothing (number_gate is on, but there is no SigLIP 2 model)")
     return loaded["embedder"]
 
 
@@ -898,7 +921,7 @@ class WorkerPool:
             log(f"worker pool: {self.size} workers, models load once per worker for the whole run")
             # SigLIP 2's prompt vectors are worked out here once; this process's text model is freed
             siglip = _W.get("siglip")
-            texts = siglip.prepare_texts(self.models.get("car_colour")) if siglip else None
+            texts = siglip.prepare_texts(self.models.get("car_colour"), bool(self.models.get("number_gate"))) if siglip else None
             self.executor = concurrent.futures.ProcessPoolExecutor(max_workers=self.size, initializer=_init_worker,
                                                                    initargs=(self.models, texts))
         return self.executor
@@ -998,6 +1021,10 @@ def log_box_check(analyses: dict, models: dict):
     counts = ", ".join(f"{what} {n}" for what, n in sorted(dropped.items(), key=lambda p: -p[1]))
     log(f"box check: dropped {sum(dropped.values())} boxes" + (f": {counts}" if counts else "")
         + f"; kept {saved['share']} on vehicle share, {saved['score']} on detector score")
+    if models.get("number_gate"):
+        number_shares = [s for a in analyses.values() for s in (a or {}).get("number_share") or [] if s is not None]
+        log(f"number gate: {sum(s < NUMBER_GATE_MIN for s in number_shares)} of {len(number_shares)} boxes not read "
+            f"(number share under {NUMBER_GATE_MIN})")
 
 
 def log_turns(stage: str, analyses):
@@ -1134,7 +1161,7 @@ def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, p
         if not read:
             continue
         a = dict(analyses[p])
-        for key in ("ocr", "ocr_trace", "ocr_ctc", "ocr_regions", "emb", "hist", "car_colour"):
+        for key in ("ocr", "ocr_trace", "ocr_ctc", "ocr_regions", "emb", "hist", "car_colour", "number_share"):
             if key in a and key in read:
                 a[key] = [read[key][i] if i in idx else v for i, v in enumerate(a[key])]
         a["hires"] = [i in idx for i in range(len(a["boxes"]))]
@@ -1251,6 +1278,8 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
             if "ocr_regions" in b:
                 boxes[-1].update(ocr_regions=b["ocr_regions"], ocr_ctc=b["ocr_ctc"],
                                  sims=[[e, s] for e, s in b["all_sims"]])
+            if "number_share" in b:
+                boxes[-1]["number_share"] = b["number_share"]
         images[image_id] = {"shot": shots[image_id], "status": status, "file": d["file"], "frame": d["frame"],
                             "burst": d["burst"], "time": d["time"], "note": d["note"], "boxes": boxes,
                             "hand": d.get("hand", ""), "tagged": d.get("tagged", "")}
@@ -1260,6 +1289,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                            "ocr_min_score": OCR_MIN_SCORE, "number_min_height": NUMBER_MIN_HEIGHT,
                            "min_read": min_read, "weak_read_min": WEAK_READ_MIN,
                            "number_list_margin": NUMBER_LIST_MARGIN, "number_list_floor": NUMBER_LIST_FLOOR,
+                           "number_gate_min": NUMBER_GATE_MIN,
                            "noise_min_partners": NOISE_MIN_PARTNERS,
                            "noise_min_beside_share": NOISE_MIN_BESIDE_SHARE},
             "noise_numbers": dict(noise or {}),
@@ -1331,6 +1361,8 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
                           "colour_shares": shares, "colour_filter": colour_note, "read_entry": read_entry})
         if "ocr_regions" in a:
             boxes_out[-1].update(ocr_regions=a["ocr_regions"][i], ocr_ctc=ctc, all_sims=sims)
+        if "number_share" in a:
+            boxes_out[-1]["number_share"] = a["number_share"][i]
         if i == 0:
             box0_sims[image_id] = sims
     return results
@@ -1512,6 +1544,7 @@ def identify(args, models: dict):
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
+    models["number_gate"] = rules.kind != "people" and rules.number_gate
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     write_progress(args.progress, 0, 1, "loading models")
     embedder = check_models(models)

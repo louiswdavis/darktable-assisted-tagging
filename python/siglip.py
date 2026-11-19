@@ -34,6 +34,20 @@ VEHICLES = (CAR, "race car", "motorbike", "truck")  # the detector boxes all of 
 BOX_MIN_VEHICLE_SHARE = 0.25
 BOX_KEEP_SCORE = 0.8
 MULTI_PROMPT = "a photo of a multicoloured rally car."
+# The number gate (collection setting number_gate): a plain box crop whose "number …" prompts take
+# less than NUMBER_GATE_MIN of the softmax over NUMBER_PROMPTS is not read by OCR.
+# NUMBER_GATE_MIN is provisional until eval_numbers.py has scored it on a truth set.
+NUMBER = "number"
+NUMBER_PROMPTS = {
+    "number side": "a photo of a race car with a large racing number on its door.",
+    "number front": "a photo of a rally car with a number plate and racing numbers.",
+    "number bike": "a photo of a racing motorbike with a number board.",
+    "none far": "a photo of a distant car, too small to read any number.",
+    "none hidden": "a photo of a car with no number visible.",
+    "none blur": "a blurred photo of a car with no readable text.",
+}
+NUMBER_GATE_MIN = 0.1
+NUMBER_GATE_CACHE_TOKEN = "number-gate-1"
 
 
 def siglip_files(vision_path: str) -> tuple:
@@ -49,6 +63,13 @@ def siglip_key(vision_path: str) -> list:
     consts = hashlib.sha1(repr((TEXT_LEN, IMAGE_SIZE, SCALE, CAR_PROMPTS, MULTI_PROMPT, VEHICLES,
                                 BOX_MIN_VEHICLE_SHARE, BOX_KEEP_SCORE)).encode()).hexdigest()[:8]
     return [SIGLIP_CACHE_TOKEN, consts, *(file_key(p) for p in siglip_files(vision_path))]
+
+
+def number_gate_key() -> list:
+    """Cache key parts of an analysis made with the number gate on: they stay out of siglip_key, so
+    a run with the gate off keeps its cached analyses."""
+    import hashlib
+    return [NUMBER_GATE_CACHE_TOKEN, hashlib.sha1(repr((NUMBER, NUMBER_PROMPTS, NUMBER_GATE_MIN)).encode()).hexdigest()[:8]]
 
 
 def colour_prompts(palette) -> dict:
@@ -82,13 +103,15 @@ class SigLIP:
         self.pad = self.tok.token_to_id("<pad>")
         self.eos = self.tok.token_to_id("<eos>")
 
-    def prepare_texts(self, palette=None) -> dict:
-        """The prompt vectors a run needs (the box check's, and the colour prompts of `palette`), worked
-        out here once; then the text model and tokenizer are freed. Pass the result to the workers'
-        SigLIP."""
+    def prepare_texts(self, palette=None, number_gate: bool = False) -> dict:
+        """The prompt vectors a run needs (the box check's, the colour prompts of `palette` and, with
+        `number_gate`, the number gate's), worked out here once; then the text model and tokenizer
+        are freed. Pass the result to the workers' SigLIP."""
         self._text(CAR_PROMPTS)
         if palette:
             self._text(colour_prompts(palette))
+        if number_gate:
+            self._text(NUMBER_PROMPTS)
         self.text = self.tok = None
         return self.texts
 
@@ -123,6 +146,16 @@ class SigLIP:
         share = round(float(sum(p[i] for i, label in enumerate(labels) if label in VEHICLES)), 3)
         label = labels[int(logits.argmax())]
         return (CAR if label in VEHICLES or share >= BOX_MIN_VEHICLE_SHARE else label), share
+
+    def number_visible(self, image_vec) -> float:
+        """The number gate's view of a crop: the "number …" prompts' summed softmax share of
+        NUMBER_PROMPTS, 3 places."""
+        import numpy as np
+        labels, vecs = self._text(NUMBER_PROMPTS)
+        logits = SCALE * (vecs @ image_vec[0])
+        p = np.exp(logits - logits.max())
+        p /= p.sum()
+        return round(float(sum(p[i] for i, label in enumerate(labels) if label.split()[0] == NUMBER)), 3)
 
     def _text(self, prompts: dict) -> tuple:
         key = tuple(prompts.items())

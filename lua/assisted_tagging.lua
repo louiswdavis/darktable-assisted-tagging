@@ -250,7 +250,8 @@ end
 -- The collection settings identify.py writes into rules.csv (python/settings.py MOVED_RULES).
 local MOVED_RULES = { order_weight = true, neighbour_tolerance = true, min_read = true,
     colour_weight = true, partial_references = true, min_sim = true,
-    margin = true, min_face_px = true, burst_livery_pooling = true, blur_references = true }
+    margin = true, min_face_px = true, burst_livery_pooling = true, blur_references = true,
+    number_gate = true }
 
 -- identify.py's rules.csv (key,value lines) → rules. Besides team_only, unidentified,
 -- diag_<outcome> and family_<key> (the root of a family that is on): each resolved setting as rules.settings[key] (numbers and booleans), and
@@ -1291,6 +1292,7 @@ M.PRESET_SCHEMA = {
     { key = "min_face_px", kind = "number", default = 48 },
     { key = "burst_livery_pooling", kind = "bool", default = false },
     { key = "blur_references", kind = "bool", default = false },
+    { key = "number_gate", kind = "bool", default = false },
     { key = "family_colour", kind = "bool", default = true },
     { key = "family_colour_root", kind = "string", default = "Assisted Tagging|Motorsport|Colour" },
     { key = "family_number", kind = "bool", default = true },
@@ -1606,7 +1608,7 @@ M.PANEL_PAGES = {
     { number = 6, title = "references", keys = { "suggest_crops", "quarantine" } },
 }
 -- settings.json only, no panel widget
-M.PANEL_OTHER_KEYS = { "closer_car_margin", "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references" }
+M.PANEL_OTHER_KEYS = { "closer_car_margin", "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references", "number_gate" }
 
 -- Model files per job, best first. `base` is the base install (README, "Models"), the last
 -- file when unset; files after it are older fallbacks, then models on trial (PP-OCRv6 small,
