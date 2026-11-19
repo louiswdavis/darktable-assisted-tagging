@@ -2,6 +2,8 @@
 
 Ideas worth doing deliberately later, not bolted onto whatever's being fixed today.
 
+A desk-research pass on 2026-11-19 added items from the off-road racer-number paper (Tyo et al., arXiv 2402.08025) and race-photo services that pair number reading with faces. Vendor figures are claims, not checked.
+
 ## Generalize beyond motorsport
 
 `Entry` (`match.py`), the OCR number lookup, and the "team" tie-break in `match_box`
@@ -193,6 +195,9 @@ Ideas from competitor tools (Aftershoot, Narrative Select, Lightroom, Photo Mech
   with one entry, numbers with no driver. Folds in the "0 refs" notice.
 - **"Checked" marker.** A tag the user sets on photos whose tags they confirmed. Those photos
   become the truth set the model measuring in "Stronger models" waits for.
+- **Confirm per cluster.** Show every crop tagged with one number side by side, so the user
+  confirms or removes them in one pass. Tyo et al. (arXiv 2402.08025) seeded identity clusters
+  from read numbers and cut checking time from over 30 minutes to under 10 per rider.
 
 ## Number reading against the start list
 
@@ -215,6 +220,13 @@ nothing tested). Aimed at the `1`/`14`/`44` misreads:
 - **Group voting.** A number read with confidence in one frame votes for the same car's box in
   every frame of its grouping-plugin group, so frames where the number is hidden still get tagged.
   Burst consensus already does part of this; check what it covers before building. Effort M.
+- **Rotated numbers.** A car on its side, a roof number or a tilted crop reads badly. When a
+  crop gives no list match, read it again at 90°, 180° and 270° and keep the best list score.
+  Tyo et al. list odd orientations after crashes among the main misreads. Effort S.
+- **Measure reads by condition.** Tyo et al.'s off-road number reading dropped from 0.599 F1 on
+  clean numbers to 0.470 with mud (44% of their test images) and 0.289 with glare. Split
+  `eval_numbers.py` results by `Conditions|` tag (once built) so mud and glare are measured
+  apart, and lean on livery and burst votes when a crop is muddy.
 
 ## The car the shooter aimed at
 
@@ -349,6 +361,73 @@ or the importer's **Shares Car With** column), since the car alone can't tell th
 runs come at set points in the running order, so photo timestamps against the published order (or
 the gap between the two drivers' consecutive runs) could pick the driver. Needs a running-order
 input and per-event timing; aimed at shooters who deliver per-driver galleries.
+
+## Driver portraits get the car's tag
+
+Race-photo services pair bib reading with face matching, so a runner's photos without a visible
+bib still reach them (FotoOwl's 2026 workflow; vendor description). For motorsport: a frame where
+a confidently read car and a face appear together (driver at the car, helmet off) links that face
+to the entry. Later paddock and podium frames with the same face (SFace embedding, from the
+`people` kind) get the entry's driver tag. Needs the people thresholds from `eval_people.py`
+first; a double-driven car links two faces. Effort M.
+
+## Export and import presets
+
+Asked for 2026-11-19: hand a working setup to another machine or another shooter. Today a preset
+lives only where it was saved: tagging's in the collection folder (`settings.json` next to
+`entries.json`), grouping's in `<config dir>/assisted_grouping/presets/`, culling's in
+`<config dir>/assisted_culling/presets/`. Not to be confused with darktable's own export presets.
+
+**Export dialog.** An **Export preset…** action next to *store new preset…* opens a dialog with
+one tick box per layer, and shows each layer's file count and size before writing:
+
+| Layer | Files | Default | Notes |
+|---|---|---|---|
+| 1. Panel settings | preset JSON | on | small; all three plugins have it |
+| 2. Entry list | `entries.json` | on | tagging only; the start list plus tag families |
+| 3. References | `refs/<entry>/*.jpg`, `refs/sources.json` | off | the big one (hundreds of MB for a season); see below |
+| 4. Run caches | `.boxes.json`, `index.npz`, `frame-share-cache.json` | never offered | see below |
+| + other plugins | grouping and culling presets of the same name | off | the "rally set" from grouping's WORKFLOW.md in one bundle |
+
+**References (layer 3)** are the reason to export at all when handing a collection over, and the
+riskiest:
+- size: show it, and offer "only entries in the start list" to drop old cars
+- `people` refs are photos of faces: a separate tick box, off, with a line saying what it holds
+- photos are the shooter's own work: the dialog says the refs go out as full JPG crops
+- refs are named by darktable image id, which means nothing in another library; on import keep
+  the names (they're only unique keys) and record the origin in `sources.json`
+- skip `index.npz`: import runs **Audit references**, which re-embeds `refs/` with the
+  receiver's embedder, so a different model or version never meets stale vectors
+
+**Run caches (layer 4) stay out.** Boxes are keyed by image id and detector version, so they're
+wrong in another library and stale after a model change; the frame-share cache rebuilds itself.
+
+**Bundle format.** A plain folder `<name>.atpreset/` with a `manifest.json` (plugin, layers,
+plugin version, preset schema version, export date, files with sizes). Lua has no zip; a folder
+copies with Explorer and needs no new code. A zip is a later option through the Python side
+(`zipfile`).
+
+**Import** (**Import preset…**, pick the folder or its manifest):
+- runs old keys through the existing upgrade path (`upgrade_preset_text` in grouping, culling's
+  equivalent) and refuses a newer schema with the version it needs
+- a preset name that exists already asks: replace or keep both (`name (2)`)
+- entries: replace (old saved as `entries.json.bak`, as the start-list import does) or merge
+  (add entries whose id is new; list clashes, as the importer does)
+- refs: copy into `refs/<entry>/`, never overwrite a same-named file, then audit
+
+**Paths inside settings.** Any setting holding a file path (model files, face detector) is
+written relative to the plugin folder when it sits under it, otherwise flagged in the export
+message, so the bundle carries no `C:\Users\<name>` paths that break on the next machine.
+
+**Where the code goes.** The manifest writer, folder copy and import prompts belong in
+`plugin_common.lua` so the three panels behave the same: one edit across all three repos with
+COMMON_HASH updated. Layers 2 and 3 are tagging-only code on top.
+
+Open choices (recommendation first):
+- refs default **off**, faces a separate box: size and privacy beat convenience
+- folder bundle **before** zip: zero new dependencies
+- cross-plugin bundle as a **later step**: layer 1 per plugin first
+Effort M for layers 1–2 in all three plugins; M again for refs with import + audit.
 
 ## Smaller known gaps
 
