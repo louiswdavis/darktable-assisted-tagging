@@ -634,11 +634,12 @@ A box above the progress line lists what a run leaves for you to look at, so a t
 
 - errors from any action;
 - **Identify**: photos tagged by each check tag (Check colour and the others that are on), photos that couldn't be read or updated;
-- **Verify** (verify only): the photos that differ from their tags;
+- **Verify** (verify only): the photos that differ from their tags. **Fix** runs Identify on just those photos with replace manual on;
 - **Derive from number**, **Derive from colour**: photos marked Check colour, skipped, or not tagged;
 - **Fill entry colours**: photos that read a different colour from their entry's, and photos that couldn't be read.
 
 - **Select** beside a line selects its photos in the lighttable. Photos removed from the library since are skipped, and a toast counts them. Lines about photos darktable couldn't read or update have no **Select**: those photos may be gone.
+- **Fix** beside a line makes the change that line describes, to its photos only, and removes the line. Lines without a fix have no **Fix**.
 - The next run of the same action replaces that action's lines; other actions' lines stay. **Clear** empties the box.
 - Six lines show; more add `and N more (see the log)`. The list is saved to `assisted_tagging.checks.txt` in darktable's config folder, so it survives a restart.
 

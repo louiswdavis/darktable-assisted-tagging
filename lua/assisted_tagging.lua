@@ -1922,8 +1922,9 @@ local function say(msg)
     log(msg)
 end
 
--- the "To check" box above the progress line
-local alerts = C.alerts_box(new_widget, dt.configuration.config_dir .. "/assisted_tagging.checks.txt", log)
+-- the "To check" box above the progress line; `fixes` is filled once the actions exist
+local fixes = {}
+local alerts = C.alerts_box(new_widget, dt.configuration.config_dir .. "/assisted_tagging.checks.txt", log, fixes)
 
 -- dt.print_error only writes to darktable's log (-d lua); users never see it. Errors also go to To check.
 local function notify_error(msg)
@@ -2849,7 +2850,8 @@ local function apply_results(run, job)
         table.sort(differ_ids)
         say(string.format("Assisted Tagging: verify only, no tags changed. %d images checked, %d differ from their tags (see the report's conflict section).", n_checked, #differ_ids))
         if #differ_ids > 0 then
-            alerts.add(string.format("%d photos differ from their tags (report: conflict section)", #differ_ids), differ_ids)
+            alerts.add(string.format("%d photos differ from their tags (report: conflict section)", #differ_ids), differ_ids,
+                "identify_replace")
         end
         return
     end
@@ -3183,6 +3185,9 @@ function M.identify_images(images, replace_manual, verify_only)
     flush_log()
     run_next()
 end
+
+-- Fix on a "differ from their tags" row: Identify those photos again, hand tags replaced
+fixes.identify_replace = function(images) M.identify_images(images, true, false) end
 
 -- Writes the manifest and runs identify.py in a reference mode (`mode_args`) under state.job, which
 -- the action started. Returns results.csv's text, or nil once a cancel, stall or failure has been reported.

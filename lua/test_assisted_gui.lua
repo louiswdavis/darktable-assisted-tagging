@@ -367,6 +367,30 @@ fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 ;(widget_where(to_check, "button", "label", "Clear") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Clear empties the box", to_check.visible, false)
 check("To check: Clear empties the saved list", read_file(CHECKS_FILE), "")
+check("To check: a row without a fix has no Fix button", (widget_where(to_check, "button", "label", "Fix") or {}).visible, false)
+
+-- Verify's "differ" row, then its Fix: Identify again on those photos with replace manual on
+local tagged = image(1, "DSC00001.JPG", { "Rallye|112" })
+PYTHON.results, PYTHON.runs, prints = "1,0,conflict,35,,0.9,,solo,0,,0,,0\n", {}, {}
+T.identify_images({ tagged }, false, true)
+check("To check: Verify's differ row shows", (to_check[2][1] or {}).label,
+    "Verify: 1 photos differ from their tags (report: conflict section)")
+check("To check: the saved line names its fix",
+    (read_file(CHECKS_FILE) or ""):find("\t1\tidentify_replace\n", 1, true) ~= nil, true)
+local fix_button = widget_where(to_check, "button", "label", "Fix") or { clicked_callback = function() end }
+check("To check: the differ row has a Fix button", fix_button.visible, true)
+dt.database.get_image = function(id) return id == 1 and tagged or nil end
+PYTHON.results, PYTHON.runs = "", {}
+fix_button.clicked_callback()
+dt.database.get_image = function() return nil end
+local fix_run = PYTHON.runs[#PYTHON.runs]
+check("To check: Fix starts Identify, not Verify", fix_run ~= nil and flag(fix_run.argv, "--verify") == nil
+    and not table.concat(fix_run.argv, " "):find("--verify", 1, true), true)
+check("To check: Fix runs with replace manual on",
+    (read_file(ROOT .. "/config/assisted_tagging.log") or ""):find("settings: replace manual true", 1, true) ~= nil, true)
+check("To check: Fix removes its row", (read_file(CHECKS_FILE) or ""):find("identify_replace", 1, true), nil)
+local old_line = require("plugin_common").alerts_parse("Cull\tcouldn't rate\t4,5\n")[1] or { ids = {} }
+check("To check: an old 3-field line still loads, with no fix", #old_line.ids .. "/" .. tostring(old_line.fix), "2/")
 
 -- Picks a menu entry by its text, as a click in darktable does.
 local function choose(combo, text)

@@ -46,6 +46,14 @@ ok   To check: Select says which photos are gone
 ok   To check: the next fill colours run replaces its items
 ok   To check: Clear empties the box
 ok   To check: Clear empties the saved list
+ok   To check: a row without a fix has no Fix button
+ok   To check: Verify's differ row shows
+ok   To check: the saved line names its fix
+ok   To check: the differ row has a Fix button
+ok   To check: Fix starts Identify, not Verify
+ok   To check: Fix runs with replace manual on
+ok   To check: Fix removes its row
+ok   To check: an old 3-field line still loads, with no fix
 ok   presets: export is offered for the Rallye collection
 ok   presets: export toast
 ok   presets: the bundle carries the entry list
