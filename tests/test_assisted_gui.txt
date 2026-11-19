@@ -37,38 +37,16 @@ ok   clear, cancelled: says how far it got
 ok   clear, after a cancel: the next clear finishes the rest
 ok   no button changes the selection
 ok   the progress line sits at the foot of the panel, outside the folding pages
-ok   To check sits above the progress line, outside the folding pages
-ok   To check: a photo fill colours couldn't read shows in the box
-ok   To check: the row names the action and the count
-ok   To check: the item is saved for a restart
-ok   To check: Select changes the selection
-ok   To check: Select says which photos are gone
+FAIL To check sits above the progress line, outside the folding pages: got Open entries.json, want To check
+FAIL To check: a photo fill colours couldn't read shows in the box: got nil, want true
+FAIL To check: the row names the action and the count: got nil, want Fill entry colours: 1 photos couldn't be read (see log)
+FAIL To check: the item is saved for a restart: got false, want true
+FAIL To check: Select changes the selection: got 0, want 1
+FAIL To check: Select says which photos are gone: got false, want true
 ok   To check: the next fill colours run replaces its items
-ok   To check: Clear empties the box
-ok   To check: Clear empties the saved list
-ok   presets: export is offered for the Rallye collection
-ok   presets: export toast
-ok   presets: the bundle carries the entry list
-ok   presets: the bundle carries the settings
-ok   presets: the manifest lists both files
-ok   presets: unticked references stay behind
-ok   presets: the references box shows the size
-ok   presets: ticked references are exported
-ok   presets: sources.json goes with them
-ok   presets: index.npz stays behind
-ok   presets: the manifest lists refs
-ok   presets: the references box is unticked when export opens again
-ok   presets: import is offered
-ok   presets: import adds Rallye (2)
-ok   presets: Rallye (2) holds the bundle's entry list
-ok   presets: Rallye (2) holds the settings
-ok   presets: Rallye keeps its own entry list
-ok   presets: a bundle without refs imports none
-ok   presets: the refs bundle imports as Rallye (3)
-ok   presets: Rallye (3) holds the references
-ok   presets: Rallye (3) holds sources.json
-ok   presets: a bundle without entries.json is refused
-ok   presets: the refused import leaves no folder
-ok   the buttons leave no Lua error
 
-all tests passed
+--- stderr ---
+/opt/homebrew/bin/lua: test_assisted_gui.lua:367: attempt to call a table value
+stack traceback:
+	test_assisted_gui.lua:367: in main chunk
+	[C]: in ?
