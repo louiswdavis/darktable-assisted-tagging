@@ -568,7 +568,7 @@ In Assisted Tagging each collection is a preset: the **preset** picker at the to
 
 ## Panel options
 
-At the top: the **preset** picker and **actions** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json` and `settings.json`. On `template` the panel shows only **new collection**. On a collection it shows **Open entries.json** and **Open settings.json** (see [1 collection](#1-collection)), then the page buttons **1 collection ▸**, **2 bursts ▸**, **3 matching ▸**, **4 tags written ▸**, **5 run ▸** and **6 references ▸**: clicking one opens its contents below it (its label ends in **▾**) and folds the others; clicking the open one folds it. The open page is remembered across restarts. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
+At the top: the **preset** picker and **actions** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json` and `settings.json`. On `template` the panel shows only **new collection**. On a collection it shows **Open entries.json** and **Open settings.json** (see [1 collection](#1-collection)), then the page buttons **1 collection ▸**, **2 bursts ▸**, **3 matching ▸**, **4 tags written ▸**, **5 run ▸** and **6 references ▸**: clicking one opens its contents below it (its label ends in **▾**) and folds the others; clicking the open one folds it. The open page is remembered across restarts. Below the pages sit the [To check](#to-check) box and the progress line. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
 
 ### new collection
 
@@ -627,6 +627,19 @@ The page has three sections. Only the first uses the **entry** list.
 See [Building references](#building-references) for each action. The three add actions also fill the entry's colour in `entries.json` when the **Colour** family is on, and a colour tag you applied replaces the stored one.
 
 Everything in pages 2 to 6 except **Replace manual tags** is saved with the collection by **update preset**. **Replace manual tags** is saved in darktable's preferences instead, so it carries across collections and restarts.
+
+### To check
+
+A box above the progress line lists what a run leaves for you to look at, so a toast that went by unseen isn't lost. It shows only when it has items. Each line reads `<action>: <what happened>`:
+
+- errors from any action;
+- **Identify**: photos tagged by each check tag (Check colour and the others that are on), photos that couldn't be read or updated; with verify only, the photos that differ from their tags;
+- the derive step: photos marked Check colour, skipped, or not tagged;
+- **Fill entry colours**: photos that read a different colour from their entry's, and photos that couldn't be read.
+
+- **Select** beside a line selects its photos in the lighttable. Photos removed from the library since are skipped, and a toast counts them. Lines about photos darktable couldn't read or update have no **Select**: those photos may be gone.
+- The next run of the same action replaces that action's lines; other actions' lines stay. **Clear** empties the box.
+- Six lines show; more add `and N more (see the log)`. The list is saved to `assisted_tagging.checks.txt` in darktable's config folder, so it survives a restart.
 
 ## Preferences
 
