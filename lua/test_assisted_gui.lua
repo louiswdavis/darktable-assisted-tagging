@@ -110,6 +110,7 @@ local prints, dispatched, prefs = {}, {}, {
 local PREF_EMPTY = { string = "", directory = "", file = "", integer = 0, float = 0, bool = false }
 local selection, jobs = {}, {}
 local selection_sets = 0 -- times the plugin changed the selection
+local panel -- the widget register_lib receives
 
 local dt = {
     configuration = { tmp_dir = ROOT .. "/tmp", config_dir = ROOT .. "/config", version = "test", running_os = WINDOWS and "windows" or "macos" },
@@ -142,7 +143,7 @@ local dt = {
     database = { get_image = function() return nil end },
     register_event = function() end,
     destroy_event = function() end,
-    register_lib = function() end,
+    register_lib = function(...) panel = select(select("#", ...), ...) end,
     -- a widget is its own property table: children in the array part, values as fields
     new_widget = function(kind)
         return function(props)
@@ -319,6 +320,59 @@ dt.control.sleep = function() end
 T.clear_marks({ first, second, third })
 check("clear, after a cancel: the next clear finishes the rest", #second.tags + #third.tags, 0)
 check("no button changes the selection", selection_sets, 0)
+
+-- Export and import presets ---------------------------------------------------------
+local function widget_where(widget, kind, field, value)
+    if type(widget) ~= "table" then return nil end
+    if widget.kind == kind and widget[field] == value then return widget end
+    for _, child in ipairs(widget) do
+        local found = widget_where(child, kind, field, value)
+        if found then return found end
+    end
+    return nil
+end
+
+-- Picks a menu entry by its text, as a click in darktable does.
+local function choose(combo, text)
+    for i = 1, #combo do
+        if combo[i] == text then
+            combo.selected, combo.value = i, text
+            combo.changed_callback(combo)
+            return true
+        end
+    end
+    return false
+end
+
+local actions = widget_where(panel, "combobox", "label", "actions")
+local out = ROOT .. "/export"
+make_dir(out)
+check("presets: export is offered for the Rallye collection", choose(actions, "export preset…"), true)
+widget_where(panel, "file_chooser_button", "title", "folder to export the preset into").value = out
+prints = {}
+widget_where(panel, "button", "label", "Export").clicked_callback()
+check("presets: export toast", last_print():find('preset "Rallye" exported to ' .. out .. "/Rallye.atpreset", 1, true) ~= nil, true)
+check("presets: the bundle carries the entry list", read_file(out .. "/Rallye.atpreset/entries.json"), "[]")
+check("presets: the bundle carries the settings", read_file(out .. "/Rallye.atpreset/preset.json") ~= nil, true)
+check("presets: the manifest lists both files",
+    (read_file(out .. "/Rallye.atpreset/manifest.json") or ""):find('"files": "preset.json,entries.json"', 1, true) ~= nil, true)
+
+check("presets: import is offered", choose(actions, "import preset…"), true)
+widget_where(panel, "file_chooser_button", "title", "preset bundle (.atpreset folder)").value = out .. "/Rallye.atpreset"
+write_file(out .. "/Rallye.atpreset/entries.json", '[{"entry": "112"}]')
+prints = {}
+widget_where(panel, "button", "label", "Import").clicked_callback()
+check("presets: import adds Rallye (2)", last_print():find('imported "Rallye (2)"', 1, true) ~= nil, true)
+check("presets: Rallye (2) holds the bundle's entry list", read_file(ROOT .. "/collections/Rallye (2)/entries.json"), '[{"entry": "112"}]')
+check("presets: Rallye (2) holds the settings", read_file(ROOT .. "/collections/Rallye (2)/settings.json") ~= nil, true)
+check("presets: Rallye keeps its own entry list", read_file(ROOT .. "/collections/Rallye/entries.json"), "[]")
+
+write_file(out .. "/Rallye.atpreset/manifest.json",
+    '{"version": 1, "plugin": "assisted_tagging", "preset": "Hill", "files": "preset.json"}')
+prints = {}
+widget_where(panel, "button", "label", "Import").clicked_callback()
+check("presets: a bundle without entries.json is refused", last_print():find("the bundle has no entries.json", 1, true) ~= nil, true)
+check("presets: the refused import leaves no folder", read_file(ROOT .. "/collections/Hill/settings.json"), nil)
 
 check("the buttons leave no Lua error", read_file(ROOT .. "/config/assisted_tagging.lua.log"), nil)
 

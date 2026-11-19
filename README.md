@@ -829,6 +829,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 
 14. **Old settings.** Remove `tag_shot_crowded` and `tag_shot_crowded_name` from a collection's `settings.json` (keep `tag_shot` off), then click **Reload**. *Expect:* the log shows `settings.json: tag_shot_crowded, tag_shot_crowded_name copied from the Shot switch (old settings)`, and *Shot crowded* is off in **4 tags written**.
 15. **Clear tagging marks.** Identify a burst, then add `Rally|2026|12` to one image by hand. Select the burst and click **Clear tagging marks**. *Expect:* "Assisted Tagging: cleared N tags from M images."; every tag the plugin attached is gone, the hand tag stays, and a later **Identify selection** treats the images as fresh. Click it again on the same selection. *Expect:* "Assisted Tagging: nothing to clear; the selection has no tagging marks."
+16. **Export and import a collection.** With a collection that has entries picked, choose **export preset…** in the actions menu, an empty folder, then **Export**. *Expect:* `preset "<name>" exported to <folder>\<name>.atpreset`; the bundle holds `manifest.json`, `preset.json` and `entries.json`, and no `refs` folder. Pick **import preset…**, choose that bundle, click **Import**. *Expect:* `imported "<name> (2)" …`; a `<name> (2)` folder appears under the collections folder with `settings.json` and `entries.json`, and picking it in the collection list shows the same entries (references are empty until you add some).
 
 ### Report what breaks
 

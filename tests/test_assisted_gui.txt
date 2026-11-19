@@ -35,6 +35,18 @@ ok   clear, cancelled: the first image is cleared, the others keep their tags
 ok   clear, cancelled: says how far it got
 ok   clear, after a cancel: the next clear finishes the rest
 ok   no button changes the selection
+ok   presets: export is offered for the Rallye collection
+ok   presets: export toast
+ok   presets: the bundle carries the entry list
+ok   presets: the bundle carries the settings
+ok   presets: the manifest lists both files
+ok   presets: import is offered
+ok   presets: import adds Rallye (2)
+ok   presets: Rallye (2) holds the bundle's entry list
+ok   presets: Rallye (2) holds the settings
+ok   presets: Rallye keeps its own entry list
+ok   presets: a bundle without entries.json is refused
+ok   presets: the refused import leaves no folder
 ok   the buttons leave no Lua error
 
 all tests passed

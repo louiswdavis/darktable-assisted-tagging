@@ -3856,6 +3856,24 @@ collection_store = function()
         if not ok or not file_exists(dir(to) .. "/entries.json") then return false, "copy to " .. dir(to) .. " failed" end
         return true
     end
+    -- An exported collection carries its entry list; references stay behind.
+    function store.export_files(name)
+        return { { name = "entries.json", path = dir(name) .. "/entries.json" } }
+    end
+    -- An imported collection is a new folder holding the bundle's entries.json.
+    function store.import_files(name, bundle, files)
+        if run_busy() then return false, "a run is using the collections, import when the run finishes" end
+        local has_entries = false
+        for _i, f in ipairs(files) do has_entries = has_entries or f == "entries.json" end
+        if not has_entries then return false, "the bundle has no entries.json" end
+        local text = C.read_file(bundle .. "/entries.json")
+        if not text then return false, "couldn't read " .. bundle .. "/entries.json" end
+        if C.path_exists(dir(name)) then return false, dir(name) .. " already exists" end
+        C.make_dir(dir(name))
+        local ok, err = write_file_atomic(dir(name) .. "/entries.json", text)
+        if not ok then return false, err end
+        return true
+    end
     return store
 end
 
@@ -4458,6 +4476,7 @@ local function install_panel()
 
     preset_ctl = make_preset_controls({
         prefix = "Assisted Tagging",
+        plugin = "assisted_tagging",
         schema = M.PRESET_SCHEMA,
         store = collection_store(),
         read_panel = read_panel,
