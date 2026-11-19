@@ -1396,20 +1396,26 @@ end
 -- What runs leave for the user to look at (failures, photos a run flagged), in a box above the
 -- progress line, so a toast that went by unseen isn't lost. A run's items stay until the next run
 -- of the same action or Clear. They are saved to `path`, one item per line
--- "action<TAB>text<TAB>image id,image id[<TAB>fix]", so a restart keeps them.
+-- "action<TAB>text<TAB>image id,image id[<TAB>fix[<TAB>detail<US>detail]]" (US = \31), so a restart
+-- keeps them.
 C.ALERT_ROWS = 6
 -- characters per line of an item: darktable's label has no word wrap, so show() breaks the lines
 C.ALERT_WRAP = 44
+-- detail lines (one per photo or burst) shown under an item; Select reaches the rest
+C.ALERT_DETAILS = 8
 
--- [{ action, text, ids, fix }] from the saved file's text; fix is "" on a line without one.
+-- [{ action, text, ids, fix, details }] from the saved file's text; fix is "" and details {} on a
+-- line without them.
 function C.alerts_parse(text)
     local items = {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local action, item, ids_text, fix = line:match("^([^\t]*)\t([^\t]*)\t?([^\t]*)\t?([^\t]*)$")
+        local action, item, ids_text, fix, details_text =
+            line:match("^([^\t]*)\t([^\t]*)\t?([^\t]*)\t?([^\t]*)\t?([^\t]*)$")
         if action then
-            local ids = {}
+            local ids, details = {}, {}
             for id in ids_text:gmatch("%d+") do ids[#ids + 1] = tonumber(id) end
-            items[#items + 1] = { action = action, text = item, ids = ids, fix = fix }
+            for detail in details_text:gmatch("[^\31]+") do details[#details + 1] = detail end
+            items[#items + 1] = { action = action, text = item, ids = ids, fix = fix, details = details }
         end
     end
     return items
@@ -1419,16 +1425,21 @@ function C.alerts_format(items)
     local lines = {}
     for _, item in ipairs(items) do
         local fields = {}
-        for i, field in ipairs({ item.action, item.text, item.fix or "" }) do fields[i] = field:gsub("[\t\r\n]+", " ") end
+        local details = table.concat(item.details or {}, "\31")
+        for i, field in ipairs({ item.action, item.text, item.fix or "", details }) do
+            fields[i] = field:gsub("[\t\r\n]+", " ")
+        end
         lines[#lines + 1] = fields[1] .. "\t" .. fields[2] .. "\t" .. table.concat(item.ids, ",")
-            .. (fields[3] ~= "" and "\t" .. fields[3] or "")
+            .. ((fields[3] ~= "" or fields[4] ~= "") and "\t" .. fields[3] or "")
+            .. (fields[4] ~= "" and "\t" .. fields[4] or "")
     end
     return #lines > 0 and table.concat(lines, "\n") .. "\n" or ""
 end
 
 -- alerts.widget is the box; alerts.begin(action) starts a run of `action`, dropping its earlier
--- items; alerts.add(text, ids, fix) adds an item to the run begun last, with a Select button when
--- `ids` (image ids) has any, and a Fix button when `fix` names a function in `fixes`. Fix removes
+-- items; alerts.add(text, ids, fix, details) adds an item to the run begun last, with a Select button
+-- when `ids` (image ids) has any, and a Fix button when `fix` names a function in `fixes`. `details`:
+-- one line per photo or burst, "<name>: <why it is listed>", shown under the item's text. Fix removes
 -- the item, then calls fixes[fix](images). `fixes` may be filled after this call. `new_widget` is
 -- the plugin's widget maker; `log` gets save failures.
 function C.alerts_box(new_widget, path, log, fixes)
@@ -1445,6 +1456,19 @@ function C.alerts_box(new_widget, path, log, fixes)
             dt.print(string.format("%d of these photos are no longer in the library", #ids - #images))
         end
         return images
+    end
+    -- `text` broken into lines of C.ALERT_WRAP characters at most; lines after the first start with `indent`
+    local function wrap(text, indent)
+        local lines, line = {}, ""
+        for word in text:gmatch("%S+") do
+            if line ~= "" and #line + 1 + #word > C.ALERT_WRAP then
+                lines[#lines + 1], line = line, indent .. word
+            else
+                line = line == "" and word or line .. " " .. word
+            end
+        end
+        lines[#lines + 1] = line
+        return table.concat(lines, "\n")
     end
     for i = 1, C.ALERT_ROWS do
         local row = { label = new_widget("label") { label = "", halign = "start" } }
@@ -1476,15 +1500,14 @@ function C.alerts_box(new_widget, path, log, fixes)
             local item = items[i]
             row.box.visible = item ~= nil
             if item then
-                local lines, line = {}, ""
-                for word in ((item.action ~= "" and item.action .. ": " or "") .. item.text):gmatch("%S+") do
-                    if line ~= "" and #line + 1 + #word > C.ALERT_WRAP then
-                        lines[#lines + 1], line = line, word
-                    else
-                        line = line == "" and word or line .. " " .. word
+                local lines = { wrap((item.action ~= "" and item.action .. ": " or "") .. item.text, "") }
+                for k, detail in ipairs(item.details) do
+                    if k > C.ALERT_DETAILS then
+                        lines[#lines + 1] = string.format("  and %d more (Select shows them all)", #item.details - C.ALERT_DETAILS)
+                        break
                     end
+                    lines[#lines + 1] = wrap("• " .. detail, "    ")
                 end
-                lines[#lines + 1] = line
                 row.label.label = table.concat(lines, "\n")
                 row.item = item
                 row.button.visible = #item.ids > 0
@@ -1509,8 +1532,9 @@ function C.alerts_box(new_widget, path, log, fixes)
         alerts.items = kept
         save()
     end
-    function alerts.add(text, ids, fix)
-        alerts.items[#alerts.items + 1] = { action = current, text = text, ids = ids or {}, fix = fix or "" }
+    function alerts.add(text, ids, fix, details)
+        alerts.items[#alerts.items + 1] = { action = current, text = text, ids = ids or {}, fix = fix or "",
+                                            details = details or {} }
         save()
     end
     local clear = new_widget("button") {
