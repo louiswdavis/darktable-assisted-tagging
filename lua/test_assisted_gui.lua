@@ -341,6 +341,33 @@ end
 check("the progress line sits at the foot of the panel, outside the folding pages",
       panel[#panel].kind, "label")
 
+-- To check ------------------------------------------------------------------------
+local to_check = panel[#panel - 1]
+check("To check sits above the progress line, outside the folding pages",
+    type(to_check) == "table" and to_check[1] and to_check[1][1] and to_check[1][1].label, "To check")
+to_check = type(to_check) == "table" and to_check[1] and to_check[1][1] and to_check[1][1].label == "To check" and to_check or { {}, {} }
+local CHECKS_FILE = ROOT .. "/config/assisted_tagging.checks.txt"
+PYTHON.results = "1,failed,,112\n"
+fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
+check("To check: a photo fill colours couldn't read shows in the box", to_check.visible, true)
+check("To check: the row names the action and the count",
+    (to_check[2][1] or {}).label, "Fill entry colours: 1 photos couldn't be read (see log)")
+check("To check: the item is saved for a restart",
+    (read_file(CHECKS_FILE) or ""):find("Fill entry colours\t1 photos couldn't be read (see log)\t1\n", 1, true) ~= nil, true)
+prints, selection_sets = {}, 0
+widget_where(to_check, "button", "label", "Select").clicked_callback()
+check("To check: Select changes the selection", selection_sets, 1)
+check("To check: Select says which photos are gone", printed("1 of these photos are no longer in the library"), true)
+selection_sets = 0
+PYTHON.results = "1,added,set,112\n"
+fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
+check("To check: the next fill colours run replaces its items", (read_file(CHECKS_FILE) or ""):find("Fill entry colours", 1, true), nil)
+PYTHON.results = "1,failed,,112\n"
+fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
+widget_where(to_check, "button", "label", "Clear").clicked_callback()
+check("To check: Clear empties the box", to_check.visible, false)
+check("To check: Clear empties the saved list", read_file(CHECKS_FILE), "")
+
 -- Picks a menu entry by its text, as a click in darktable does.
 local function choose(combo, text)
     for i = 1, #combo do

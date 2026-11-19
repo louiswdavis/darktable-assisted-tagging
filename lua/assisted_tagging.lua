@@ -1922,11 +1922,15 @@ local function say(msg)
     log(msg)
 end
 
--- dt.print_error only writes to darktable's log (-d lua); users never see it.
+-- the "To check" box above the progress line
+local alerts = C.alerts_box(new_widget, dt.configuration.config_dir .. "/assisted_tagging.checks.txt", log)
+
+-- dt.print_error only writes to darktable's log (-d lua); users never see it. Errors also go to To check.
 local function notify_error(msg)
     dt.print(msg)
     dt.print_error(msg)
     log(msg)
+    alerts.add((msg:gsub("^Assisted Tagging: ", "")))
 end
 
 local function tags_of(img)
@@ -2365,8 +2369,10 @@ end
 
 -- Puts `what` on darktable's job list and says it has started, before the action's first slow
 -- read: reading the tags and film rolls of a large selection takes long enough that a click
--- looked ignored. n: the images selected, 0 for an action that reads none.
+-- looked ignored. n: the images selected, 0 for an action that reads none. The action's earlier
+-- To check items go.
 local function start_job(what, n)
+    alerts.begin(what)
     local job = dt.gui.create_job("Assisted Tagging: " .. what, true, stop_job)
     job.percent = 0.0
     say(string.format("Assisted Tagging: %s started%s…", what,
@@ -2748,6 +2754,7 @@ function M.derive_images(images, mode)
                         check_colour = s.tag_check_colour and named.diag.check_colour or "" }
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         local n_derived, n_skipped, n_check, n_tags, writes, failed, stopped = 0, 0, 0, 0, 0, 0, false
+        local check_ids, skipped_ids, failed_ids = {}, {}, {} -- for To check
         local start = os.time()
         for i, img in ipairs(images) do
             if M.cancel_requested or not job.valid then
@@ -2761,6 +2768,7 @@ function M.derive_images(images, mode)
             local plan = M.derive_plan(have, ledger[tonumber(img.id)], entries, entry_order, roots, mode, names)
             if plan.reason ~= "" then
                 n_skipped = n_skipped + 1
+                skipped_ids[#skipped_ids + 1] = img.id
                 log(string.format("derive %s: %s skipped, %s", mode, img.filename, plan.reason))
             else
                 n_derived = n_derived + 1
@@ -2768,7 +2776,10 @@ function M.derive_images(images, mode)
             end
             if names.check_colour ~= "" and not have[names.check_colour] then
                 for _, name in ipairs(plan.attach) do
-                    if name == names.check_colour then n_check = n_check + 1 end
+                    if name == names.check_colour then
+                        n_check = n_check + 1
+                        check_ids[#check_ids + 1] = img.id
+                    end
                 end
             end
             local mine = ledger[tonumber(img.id)] or {}
@@ -2782,6 +2793,7 @@ function M.derive_images(images, mode)
             ledger[tonumber(img.id)] = next(mine) and mine or nil
             if not okw then
                 failed = failed + 1
+                failed_ids[#failed_ids + 1] = img.id
                 log(string.format("derive %s: %s couldn't be tagged: %s", mode, C.image_label(img), tostring(werr)))
             end
             writes = writes + #plan.attach
@@ -2806,6 +2818,9 @@ function M.derive_images(images, mode)
         if failed > 0 then left[#left + 1] = string.format("%d couldn't be tagged", failed) end
         if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (reasons in the log)." end
         say(msg)
+        if #check_ids > 0 then alerts.add(string.format("%d photos marked Check colour", #check_ids), check_ids) end
+        if #skipped_ids > 0 then alerts.add(string.format("%d photos skipped (reasons in the log)", #skipped_ids), skipped_ids) end
+        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log)", #failed_ids), failed_ids) end
     end)
     finish_job(job)
     if not okr then notify_error(_("Assisted Tagging: couldn't derive tags. ") .. tostring(err)) end
@@ -2824,14 +2839,18 @@ local function apply_results(run, job)
     -- an image identify.py couldn't analyse has no rows, so its tags are left alone
     local rows_of, _errors, skipped = M.read_results(read_file(RESULTS_PATH))
     if run.verify_only then
-        local n_checked, n_differ = 0, 0
-        for _, results in pairs(rows_of) do
+        local n_checked, differ_ids = 0, {}
+        for id, results in pairs(rows_of) do
             n_checked = n_checked + 1
             for _, r in ipairs(results) do
-                if r.method == "conflict" then n_differ = n_differ + 1; break end
+                if r.method == "conflict" then differ_ids[#differ_ids + 1] = id; break end
             end
         end
-        say(string.format("Assisted Tagging: verify only, no tags changed. %d images checked, %d differ from their tags (see the report's conflict section).", n_checked, n_differ))
+        table.sort(differ_ids)
+        say(string.format("Assisted Tagging: verify only, no tags changed. %d images checked, %d differ from their tags (see the report's conflict section).", n_checked, #differ_ids))
+        if #differ_ids > 0 then
+            alerts.add(string.format("%d photos differ from their tags (report: conflict section)", #differ_ids), differ_ids)
+        end
         return
     end
 
@@ -2868,6 +2887,8 @@ local function apply_results(run, job)
     for _, img in ipairs(primaries) do n_copies = n_copies + #group_of[img.id] end
     -- every copy's changes are worked out before the first write, so the counter has a known total
     local plans_of, n_writes = {}, 0
+    -- To check: check tag key → the photos this run gives it; plus unreadable and failed photos
+    local flagged, missing_ids, failed_ids = {}, {}, {}
     for i, img in ipairs(primaries) do
         local plans = {}
         plans_of[i] = plans
@@ -2876,9 +2897,16 @@ local function apply_results(run, job)
             n_skipped = n_skipped + 1
         elseif not results then
             n_missing = n_missing + 1
+            missing_ids[#missing_ids + 1] = img.id
         else
             local wanted, diag, identified = M.wanted_tags(results, entries, write_rules, run.hand_from_of[img.id])
             if identified then n_tagged = n_tagged + 1 else n_unidentified = n_unidentified + 1 end
+            for _, t in ipairs(TAG_TOGGLES) do
+                if t.kind == "check" and t.key ~= "shot" and diag[named.diag[t.key]] then
+                    flagged[t.key] = flagged[t.key] or {}
+                    table.insert(flagged[t.key], img.id)
+                end
+            end
             for _, r in ipairs(results) do
                 if by_method[r.method] and entries[r.entry_id] then by_method[r.method] = by_method[r.method] + 1 end
                 if r.method == "conflict" then n_conflict = n_conflict + 1 end
@@ -2929,6 +2957,7 @@ local function apply_results(run, job)
             ledger[copy.id] = next(mine) and mine or nil
             if not okw then
                 failed = failed + 1
+                failed_ids[#failed_ids + 1] = copy.id
                 first_error = first_error or tostring(werr)
                 log(C.image_label(copy) .. ": tag writes failed: " .. tostring(werr))
             end
@@ -2973,6 +3002,12 @@ local function apply_results(run, job)
     if failed > 0 then msg = msg .. string.format(", %d couldn't be updated (see log)", failed) end
     say(msg)
     if first_error then log("first tag write error: " .. first_error) end
+    for _, t in ipairs(TAG_TOGGLES) do
+        local ids = flagged[t.key]
+        if ids then alerts.add(string.format("%d photos tagged %s", #ids, t.label), ids) end
+    end
+    if #missing_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log)", #missing_ids), missing_ids) end
+    if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be updated (see log)", #failed_ids), failed_ids) end
 end
 
 -- replace_manual: lift the protection of tags the user applied by hand.
@@ -3479,6 +3514,15 @@ function M.fill_entry_colours(images)
         local set_ids, already_ids, n_unread, n_failed = M.colour_summary(parsed)
         say(string.format("Assisted Tagging: %s File: %s",
             M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_failed, notes.differs), entries_json_path()))
+        local differ_ids, failed_ids = {}, {}
+        for _, p in ipairs(parsed) do
+            if p[3] == "differs" then differ_ids[#differ_ids + 1] = tonumber(p[1])
+            elseif p[2] == "failed" then failed_ids[#failed_ids + 1] = tonumber(p[1]) end
+        end
+        if #differ_ids > 0 then
+            alerts.add(string.format("%d photos read a different colour from their entry's", #differ_ids), differ_ids)
+        end
+        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log)", #failed_ids), failed_ids) end
     end)
     finish_reference_job(state, okr, err, "couldn't fill entry colours.")
 end
@@ -4530,6 +4574,7 @@ local function install_panel()
         reload_button,
         template_box,
         collection_box,
+        alerts.widget,
         status_label, -- below the pages so every action's progress shows whichever page is open
     }
 
