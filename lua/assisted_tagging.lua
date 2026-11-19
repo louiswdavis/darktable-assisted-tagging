@@ -1737,6 +1737,7 @@ end
 -- after a budget of writes the run waits for darktable to catch up (wait_for_writes).
 local WRITE_BUDGET = 12
 local WRITE_SLEEP_MS = 20
+local WRITE_PAUSE_MAX_MS = 300 -- Clear pauses as long as darktable took to catch up, at most this
 
 local IS_WINDOWS = C.IS_WINDOWS
 
@@ -2652,15 +2653,20 @@ function M.clear_marks(images)
             say(_("Assisted Tagging: nothing to clear; the selection has no tagging marks."))
             return
         end
-        local n_tags, n_images, writes = 0, 0, 0
+        local n_tags, n_images = 0, 0
         local plans, stopped = M.plan_clear(records, ledger), false
-        local n_writes, done, start = 0, 0, os.time()
+        local n_writes, done, reached, start = 0, 0, 0, os.time()
+        local write_s, wait_s, pause_s = 0, 0, 0
         for _, plan in ipairs(plans) do n_writes = n_writes + #plan.detach end
+        -- Each detach makes darktable rebuild its tagging lists (about 100ms). After each image
+        -- the run waits for darktable to catch up, then pauses as long again, so the backlog
+        -- can't grow over thousands of images and the UI keeps up.
         for _, plan in ipairs(plans) do
             if M.cancel_requested or not job.valid then
                 stopped = true
                 break
             end
+            local write_start = os.clock()
             -- the row is rebuilt from the failures, so ledger tags no longer on the image go too
             local left = {}
             for _, name in ipairs(plan.detach) do
@@ -2671,13 +2677,7 @@ function M.clear_marks(images)
                 else
                     left[name] = true
                 end
-                writes, done = writes + 1, done + 1
-                if writes >= WRITE_BUDGET then
-                    writes = 0
-                    wait_for_writes()
-                    job.percent = done / n_writes
-                    show_count("removing tags", done, n_writes, start)
-                end
+                done = done + 1
             end
             if next(left) then
                 ledger[plan.id] = left
@@ -2686,10 +2686,22 @@ function M.clear_marks(images)
                 ledger[plan.id] = nil
                 n_images = n_images + 1
             end
+            reached = reached + 1
+            write_s = write_s + os.clock() - write_start
+            if #plan.detach > 0 then
+                local wait_start = os.clock()
+                wait_for_writes()
+                local waited_s = os.clock() - wait_start
+                local pause_ms = math.max(WRITE_SLEEP_MS, math.min(WRITE_PAUSE_MAX_MS, math.floor(waited_s * 1000)))
+                dt.control.sleep(pause_ms)
+                wait_s, pause_s = wait_s + waited_s, pause_s + pause_ms / 1000
+                job.percent = done / n_writes
+                show_count("removing tags", done, n_writes, start)
+            end
         end
-        wait_for_writes()
         show_status("")
-        log(string.format("clear: darktable finished %d tag writes, %ds", done, os.time() - start))
+        log(string.format("clear: timing: %d of %d images in %ds; %.1fs in tag writes, %.1fs waiting for darktable, %.1fs paused; %d tag writes%s",
+            reached, #plans, os.time() - start, write_s, wait_s, pause_s, done, stopped and ", stopped at the job bar" or ""))
         write_ledger(ledger, _("The cleared images keep their old ledger rows, so tags you add to them by hand "
             .. "can be removed by the next run or clear."))
         if stopped then

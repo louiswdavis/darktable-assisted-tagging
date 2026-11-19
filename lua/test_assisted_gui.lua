@@ -291,14 +291,33 @@ check("add references, no vehicle found: says nothing was added and why",
 -- Clear tagging marks ---------------------------------------------------------------
 local marked = image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red", "Hand|Tag" })
 selection, prints = { marked }, {}
+local sleeps = {}
+dt.control.sleep = function(ms) sleeps[#sleeps + 1] = ms end
 T.clear_marks({ marked })
 check("clear: the tags are cleared", printed("Assisted Tagging: cleared 2 tags from 1 images."), true)
+check("clear: pauses once after the image with writes", #sleeps == 1 and sleeps[1] >= 20, true)
+check("clear: the log has the timing line", (read_file(ROOT .. "/config/assisted_tagging.log") or ""):find(
+    "clear: timing: 1 of 1 images in %d+s; [%d.]+s in tag writes, [%d.]+s waiting for darktable, [%d.]+s paused; 2 tag writes\n") ~= nil, true)
 check("clear: the selection stays while the tags are detached", #selection, 1)
 check("clear: the job bar is closed", jobs[#jobs].valid, false)
 prints = {}
 T.clear_marks({ marked })
 check("clear: the next clear runs, the panel isn't left busy",
     printed("Assisted Tagging: nothing to clear; the selection has no tagging marks."), true)
+
+-- the x on the job bar, clicked during the pause after the first image
+local first, second, third = image(2, "DSC00002.JPG", { "Rallye|112", "Colour|Red" }),
+    image(3, "DSC00003.JPG", { "Rallye|112", "Colour|Red" }), image(4, "DSC00004.JPG", { "Rallye|112", "Colour|Red" })
+prints = {}
+dt.control.sleep = function() jobs[#jobs].valid = false end
+T.clear_marks({ first, second, third })
+check("clear, cancelled: the first image is cleared, the others keep their tags",
+    #first.tags .. " " .. #second.tags .. " " .. #third.tags, "0 2 2")
+check("clear, cancelled: says how far it got", last_print(),
+    "Assisted Tagging: stopped; cleared 2 tags from 1 images. The rest keep their marks, clear again to finish.")
+dt.control.sleep = function() end
+T.clear_marks({ first, second, third })
+check("clear, after a cancel: the next clear finishes the rest", #second.tags + #third.tags, 0)
 check("no button changes the selection", selection_sets, 0)
 
 check("the buttons leave no Lua error", read_file(ROOT .. "/config/assisted_tagging.lua.log"), nil)
