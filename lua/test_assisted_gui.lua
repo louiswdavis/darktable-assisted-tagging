@@ -40,7 +40,7 @@ end
 local ROOT = ((os.getenv("TEMP") or os.getenv("TMPDIR") or "/tmp"):gsub("\\", "/"):gsub("/$", ""))
     .. "/at_gui_test_" .. os.time() .. "_" .. math.random(100000, 999999)
 local PLUGIN = ROOT .. "/plugins/darktable-assisted-tagging"
-for _, dir in ipairs({ "/tmp", "/config/assisted_tagging", "/collections/Rallye", "/plugins/darktable-assisted-tagging/python",
+for _, dir in ipairs({ "/tmp", "/config/assisted_tagging", "/collections/Rallye/refs/112", "/plugins/darktable-assisted-tagging/python",
     "/plugins/darktable-assisted-tagging/models", "/plugins/darktable-assisted-tagging/.venv/Scripts",
     "/plugins/darktable-assisted-tagging/.venv/bin" }) do
     make_dir(ROOT .. dir)
@@ -52,6 +52,9 @@ for _, file in ipairs({ "/python/identify.py", "/.venv/Scripts/python.exe", "/.v
 end
 write_file(ROOT .. "/collections/Rallye/settings.json", '{"family_colour": true, "family_colour_root": "Colour", "family_number": true, "family_number_root": "Number"}')
 write_file(ROOT .. "/collections/Rallye/entries.json", "[]")
+write_file(ROOT .. "/collections/Rallye/refs/112/1_b0.jpg", "crop")
+write_file(ROOT .. "/collections/Rallye/refs/sources.json", "{}")
+write_file(ROOT .. "/collections/Rallye/index.npz", "vectors")
 -- image 1's entry tag was written by Identify; its colour tag was not
 write_file(ROOT .. "/config/assisted_tagging/ledger.csv", "1,Rallye|112\n")
 
@@ -356,6 +359,24 @@ check("presets: the bundle carries the entry list", read_file(out .. "/Rallye.at
 check("presets: the bundle carries the settings", read_file(out .. "/Rallye.atpreset/preset.json") ~= nil, true)
 check("presets: the manifest lists both files",
     (read_file(out .. "/Rallye.atpreset/manifest.json") or ""):find('"files": "preset.json,entries.json"', 1, true) ~= nil, true)
+check("presets: unticked references stay behind", read_file(out .. "/Rallye.atpreset/refs/sources.json"), nil)
+
+-- references, ticked: refs/ goes whole, index.npz beside it stays behind
+local refs_out = ROOT .. "/export-refs"
+make_dir(refs_out)
+choose(actions, "export preset…")
+local refs_box = widget_where(panel, "check_button", "tooltip", "Also export refs/ (the reference crops and sources.json). They go out as full JPG crops of your photos: in a people collection they are face photos. Run caches and refs-quarantine never go.")
+check("presets: the references box shows the size", refs_box.label:match("^references %(2 files, ") ~= nil, true)
+refs_box.value = true
+widget_where(panel, "file_chooser_button", "title", "folder to export the preset into").value = refs_out
+widget_where(panel, "button", "label", "Export").clicked_callback()
+check("presets: ticked references are exported", read_file(refs_out .. "/Rallye.atpreset/refs/112/1_b0.jpg"), "crop")
+check("presets: sources.json goes with them", read_file(refs_out .. "/Rallye.atpreset/refs/sources.json"), "{}")
+check("presets: index.npz stays behind", read_file(refs_out .. "/Rallye.atpreset/index.npz"), nil)
+check("presets: the manifest lists refs",
+    (read_file(refs_out .. "/Rallye.atpreset/manifest.json") or ""):find('"files": "preset.json,entries.json,refs"', 1, true) ~= nil, true)
+choose(actions, "export preset…")
+check("presets: the references box is unticked when export opens again", refs_box.value, false)
 
 check("presets: import is offered", choose(actions, "import preset…"), true)
 widget_where(panel, "file_chooser_button", "title", "preset bundle (.atpreset folder)").value = out .. "/Rallye.atpreset"
@@ -366,9 +387,19 @@ check("presets: import adds Rallye (2)", last_print():find('imported "Rallye (2)
 check("presets: Rallye (2) holds the bundle's entry list", read_file(ROOT .. "/collections/Rallye (2)/entries.json"), '[{"entry": "112"}]')
 check("presets: Rallye (2) holds the settings", read_file(ROOT .. "/collections/Rallye (2)/settings.json") ~= nil, true)
 check("presets: Rallye keeps its own entry list", read_file(ROOT .. "/collections/Rallye/entries.json"), "[]")
+check("presets: a bundle without refs imports none", read_file(ROOT .. "/collections/Rallye (2)/refs/sources.json"), nil)
+
+choose(actions, "import preset…")
+widget_where(panel, "file_chooser_button", "title", "preset bundle (.atpreset folder)").value = refs_out .. "/Rallye.atpreset"
+prints = {}
+widget_where(panel, "button", "label", "Import").clicked_callback()
+check("presets: the refs bundle imports as Rallye (3)", last_print():find('imported "Rallye (3)"', 1, true) ~= nil, true)
+check("presets: Rallye (3) holds the references", read_file(ROOT .. "/collections/Rallye (3)/refs/112/1_b0.jpg"), "crop")
+check("presets: Rallye (3) holds sources.json", read_file(ROOT .. "/collections/Rallye (3)/refs/sources.json"), "{}")
 
 write_file(out .. "/Rallye.atpreset/manifest.json",
     '{"version": 1, "plugin": "assisted_tagging", "preset": "Hill", "files": "preset.json"}')
+widget_where(panel, "file_chooser_button", "title", "preset bundle (.atpreset folder)").value = out .. "/Rallye.atpreset"
 prints = {}
 widget_where(panel, "button", "label", "Import").clicked_callback()
 check("presets: a bundle without entries.json is refused", last_print():find("the bundle has no entries.json", 1, true) ~= nil, true)

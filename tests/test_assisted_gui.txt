@@ -40,11 +40,22 @@ ok   presets: export toast
 ok   presets: the bundle carries the entry list
 ok   presets: the bundle carries the settings
 ok   presets: the manifest lists both files
+ok   presets: unticked references stay behind
+ok   presets: the references box shows the size
+ok   presets: ticked references are exported
+ok   presets: sources.json goes with them
+ok   presets: index.npz stays behind
+ok   presets: the manifest lists refs
+ok   presets: the references box is unticked when export opens again
 ok   presets: import is offered
 ok   presets: import adds Rallye (2)
 ok   presets: Rallye (2) holds the bundle's entry list
 ok   presets: Rallye (2) holds the settings
 ok   presets: Rallye keeps its own entry list
+ok   presets: a bundle without refs imports none
+ok   presets: the refs bundle imports as Rallye (3)
+ok   presets: Rallye (3) holds the references
+ok   presets: Rallye (3) holds sources.json
 ok   presets: a bundle without entries.json is refused
 ok   presets: the refused import leaves no folder
 ok   the buttons leave no Lua error

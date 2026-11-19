@@ -373,11 +373,15 @@ first; a double-driven car links two faces. Effort M.
 
 ## Export and import presets
 
-**Status (2026-11-19):** layers 1 and 2 built, awaiting the Windows run (README acceptance step 16).
+**Status (2026-11-19):** layers 1–3 built, awaiting the Windows run (README acceptance step 16).
 **export preset…** and **import preset…** in the actions menu write and read a `<name>.atpreset`
-folder: `manifest.json`, `preset.json` (the collection's `settings.json`) and `entries.json`. Import
-never overwrites: a taken name becomes `<name> (2)`. Not built yet: the tick-box dialog, refs (layer
-3), faces, zip bundles and the cross-plugin rally set. The design below still holds for those.
+folder: `manifest.json`, `preset.json` (the collection's `settings.json`) and `entries.json`. A
+**references** tick box (off each time the box opens, label shows file count and MB) adds the whole
+`refs/` folder; `index.npz` stays behind and the import's first run embeds the copied crops. Faces
+have no box of their own: in a people collection the refs are the faces, and the tooltip says so.
+Import never overwrites: a taken name becomes `<name> (2)`. Not built yet: refs for start-list
+entries only, replace/merge on import, zip bundles and the cross-plugin rally set. The design below
+still holds for those.
 
 Asked for 2026-11-19: hand a working setup to another machine or another shooter. Today a preset
 lives only where it was saved: tagging's in the collection folder (`settings.json` next to

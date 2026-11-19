@@ -3845,31 +3845,41 @@ collection_store = function()
     function store.copy(from, to)
         if run_busy() then return false, "a run is using it, store a new one when the run finishes" end
         if df.test_file(dir(to), "e") then return false, dir(to) .. " already exists" end
-        local ok, _how, code
-        if IS_WINDOWS then
-            ok, _how, code = os.execute('robocopy ' .. shell_quote((dir(from):gsub("/", "\\"))) .. ' '
-                .. shell_quote((dir(to):gsub("/", "\\"))) .. ' /E /NFL /NDL /NJH /NJS /NP >nul')
-            ok = code ~= nil and code < 8 -- robocopy: 0-7 success, 8+ failure
-        else
-            ok = os.execute("cp -R " .. shell_quote(dir(from)) .. " " .. shell_quote(dir(to)))
+        if not C.copy_tree(dir(from), dir(to)) or not file_exists(dir(to) .. "/entries.json") then
+            return false, "copy to " .. dir(to) .. " failed"
         end
-        if not ok or not file_exists(dir(to) .. "/entries.json") then return false, "copy to " .. dir(to) .. " failed" end
         return true
     end
-    -- An exported collection carries its entry list; references stay behind.
-    function store.export_files(name)
-        return { { name = "entries.json", path = dir(name) .. "/entries.json" } }
+    -- An exported collection carries its entry list, and its references when ticked. index.npz
+    -- stays behind: it sits beside refs/, and the receiver's first run re-embeds refs/.
+    store.export_options = { {
+        key = "refs",
+        label = "references",
+        tooltip = "Also export refs/ (the reference crops and sources.json). They go out as full JPG crops of your photos: in a people collection they are face photos. Run caches and refs-quarantine never go.",
+    } }
+    function store.export_label(name, _key)
+        local files, bytes = tree_size(dir(name) .. "/refs")
+        return string.format("references (%d files, %.1f MB)", files, bytes / 1048576)
     end
-    -- An imported collection is a new folder holding the bundle's entries.json.
+    function store.export_files(name, picked)
+        local files = { { name = "entries.json", path = dir(name) .. "/entries.json" } }
+        if picked.refs and C.path_exists(dir(name) .. "/refs") then files[#files + 1] = { name = "refs", dir = dir(name) .. "/refs" } end
+        return files
+    end
+    -- An imported collection is a new folder holding the bundle's entry list and references.
+    -- entries.json is written last, so a failed refs copy leaves a folder that isn't a collection.
     function store.import_files(name, bundle, files)
         if run_busy() then return false, "a run is using the collections, import when the run finishes" end
-        local has_entries = false
-        for _i, f in ipairs(files) do has_entries = has_entries or f == "entries.json" end
-        if not has_entries then return false, "the bundle has no entries.json" end
+        local has = {}
+        for _i, f in ipairs(files) do has[f] = true end
+        if not has["entries.json"] then return false, "the bundle has no entries.json" end
         local text = C.read_file(bundle .. "/entries.json")
         if not text then return false, "couldn't read " .. bundle .. "/entries.json" end
         if C.path_exists(dir(name)) then return false, dir(name) .. " already exists" end
         C.make_dir(dir(name))
+        if has.refs and not C.copy_tree(bundle .. "/refs", dir(name) .. "/refs") then
+            return false, "copying " .. bundle .. "/refs to " .. dir(name) .. " failed"
+        end
         local ok, err = write_file_atomic(dir(name) .. "/entries.json", text)
         if not ok then return false, err end
         return true
