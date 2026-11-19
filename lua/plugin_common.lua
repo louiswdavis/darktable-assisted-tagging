@@ -1401,8 +1401,6 @@ end
 C.ALERT_ROWS = 6
 -- characters per line of an item: darktable's label has no word wrap, so show() breaks the lines
 C.ALERT_WRAP = 44
--- detail lines (one per photo or burst) shown under an item; Select reaches the rest
-C.ALERT_DETAILS = 8
 
 -- [{ action, text, ids, fix, details }] from the saved file's text; fix is "" and details {} on a
 -- line without them.
@@ -1438,9 +1436,9 @@ end
 
 -- alerts.widget is the box; alerts.begin(action) starts a run of `action`, dropping its earlier
 -- items; alerts.add(text, ids, fix, details) adds an item to the run begun last, with a Select button
--- when `ids` (image ids) has any, and a Fix button when `fix` names a function in `fixes`. `details`:
--- one line per photo or burst, "<name>: <why it is listed>", shown under the item's text. Fix removes
--- the item, then calls fixes[fix](images). `fixes` may be filled after this call. `new_widget` is
+-- when `ids` (image ids) has any, and a Fix button when `fix` ("key" or "key:arg") names a function in `fixes`. `details`:
+-- one line per photo or burst, "<name>: <why it is listed>", shown read-only under the item's text. Fix removes
+-- the item, then calls fixes[key](images, arg). `fixes` may be filled after this call. `new_widget` is
 -- the plugin's widget maker; `log` gets save failures.
 function C.alerts_box(new_widget, path, log, fixes)
     fixes = fixes or {}
@@ -1471,7 +1469,8 @@ function C.alerts_box(new_widget, path, log, fixes)
         return table.concat(lines, "\n")
     end
     for i = 1, C.ALERT_ROWS do
-        local row = { label = new_widget("label") { label = "", halign = "start" } }
+        local row = { label = new_widget("label") { label = "", halign = "start" },
+                      details = new_widget("text_view") { editable = false, text = "" } }
         row.button = new_widget("button") {
             label = "Select",
             tooltip = "Select these photos in the lighttable",
@@ -1486,11 +1485,12 @@ function C.alerts_box(new_widget, path, log, fixes)
                     if other == item then table.remove(alerts.items, k) break end
                 end
                 save()
-                fixes[item.fix](images_of(item.ids))
+                local key, arg = item.fix:match("^([^:]*):?(.*)$")
+                fixes[key](images_of(item.ids), arg)
             end,
         }
         -- the whole text above its buttons, so a long item is read in full
-        row.box = new_widget("box") { orientation = "vertical", row.label,
+        row.box = new_widget("box") { orientation = "vertical", row.label, row.details,
             new_widget("box") { orientation = "horizontal", row.button, row.fix } }
         rows[i] = row
     end
@@ -1500,18 +1500,14 @@ function C.alerts_box(new_widget, path, log, fixes)
             local item = items[i]
             row.box.visible = item ~= nil
             if item then
-                local lines = { wrap((item.action ~= "" and item.action .. ": " or "") .. item.text, "") }
-                for k, detail in ipairs(item.details) do
-                    if k > C.ALERT_DETAILS then
-                        lines[#lines + 1] = string.format("  and %d more (Select shows them all)", #item.details - C.ALERT_DETAILS)
-                        break
-                    end
-                    lines[#lines + 1] = wrap("• " .. detail, "    ")
-                end
-                row.label.label = table.concat(lines, "\n")
+                row.label.label = wrap((item.action ~= "" and item.action .. ": " or "") .. item.text, "")
+                local lines = {}
+                for _, detail in ipairs(item.details) do lines[#lines + 1] = wrap("• " .. detail, "    ") end
+                row.details.text = table.concat(lines, "\n")
+                row.details.visible = #lines > 0
                 row.item = item
                 row.button.visible = #item.ids > 0
-                row.fix.visible = #item.ids > 0 and fixes[item.fix] ~= nil
+                row.fix.visible = #item.ids > 0 and fixes[item.fix:match("^[^:]*")] ~= nil
             end
         end
         more.visible = #items > #rows

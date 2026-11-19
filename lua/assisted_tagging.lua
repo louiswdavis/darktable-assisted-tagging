@@ -1753,6 +1753,8 @@ C.sweep_temp(TMP_DIR, "dt_assisted_tagging_", 86400)
 local TMP_BASE = C.temp_base(TMP_DIR, "dt_assisted_tagging_")
 local MANIFEST_PATH = TMP_BASE .. "manifest.csv"
 local RESULTS_PATH = TMP_BASE .. "results.csv"
+-- entries whose colour in entries.json the run's reads overturn (identify.py --overturns-out)
+local OVERTURNS_PATH = TMP_BASE .. "overturns.csv"
 local NEIGHBOURS_PATH = TMP_BASE .. "neighbours.csv"
 local ENTRIES_PATH = TMP_BASE .. "entries.csv"
 local RULES_PATH = TMP_BASE .. "rules.csv"
@@ -2210,7 +2212,7 @@ end
 local function cleanup_tmp()
     -- An orphaned identify.py still needs its cancel flag, so leave the files until it exits.
     if orphan then return end
-    for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", NEIGHBOURS_PATH, DONE_PATH, DONE_PATH .. ".job",
+    for _, p in ipairs({ MANIFEST_PATH, RESULTS_PATH, RESULTS_PATH .. ".tmp", OVERTURNS_PATH, NEIGHBOURS_PATH, DONE_PATH, DONE_PATH .. ".job",
         PROGRESS_PATH, CANCEL_PATH, RUN_SETTINGS_PATH }) do
         pcall(os.remove, p)
     end
@@ -2840,18 +2842,53 @@ local function apply_results(run, job)
     -- an image identify.py couldn't analyse has no rows, so its tags are left alone
     local rows_of, _errors, skipped = M.read_results(read_file(RESULTS_PATH))
     if run.verify_only then
-        local n_checked, differ_ids = 0, {}
-        for id, results in pairs(rows_of) do
-            n_checked = n_checked + 1
-            for _, r in ipairs(results) do
-                if r.method == "conflict" then differ_ids[#differ_ids + 1] = id; break end
+        local img_of = {}
+        for _, img in ipairs(primaries) do img_of[tonumber(img.id)] = img end
+        local colour_root = M.family_roots(settings).colour
+        local ids = {}
+        for id in pairs(rows_of) do ids[#ids + 1] = id end
+        table.sort(ids)
+        -- one list per row: ids, a reason per photo, and for the Colour tag row the colour read per id
+        local differ, clash, tag_clash, read_of = { ids = {}, why = {} }, { ids = {}, why = {} }, { ids = {}, why = {} }, {}
+        local function list(found, id, why)
+            found.ids[#found.ids + 1] = id
+            found.why[#found.why + 1] = img_of[id].filename .. ": " .. why
+        end
+        for _, id in ipairs(ids) do
+            local have = tags_of(img_of[id])
+            local tagged = M.entry_for_tags(have, entries, entry_order, nil)
+            local boxes = {}
+            for _, r in ipairs(rows_of[id]) do
+                if r.box >= 0 then boxes[#boxes + 1] = r end
+            end
+            for _, r in ipairs(boxes) do
+                if r.method == "conflict" then
+                    list(differ, id, string.format("reads entry %s, its tags name %s", r.entry_id, tagged or "no single entry"))
+                    break
+                end
+            end
+            local r = boxes[1]
+            if #boxes == 1 and r.colour_flag and tagged then
+                list(clash, id, string.format("reads %s, entry %s is %s in entries.json", r.colour, tagged, entries[tagged].colour))
+            end
+            local tag_colour = colour_root and M.hand_value(have, nil, colour_root)
+            if #boxes == 1 and tag_colour and M.colour_relation(tag_colour, r.colour) == -1 then
+                list(tag_clash, id, string.format("Colour tag %s, reads %s", tag_colour, r.colour))
+                read_of[#read_of + 1] = id .. "=" .. r.colour
             end
         end
-        table.sort(differ_ids)
-        say(string.format("Assisted Tagging: verify only, no tags changed. %d images checked, %d differ from their tags (see the report's conflict section).", n_checked, #differ_ids))
-        if #differ_ids > 0 then
-            alerts.add(string.format("%d photos differ from their tags (report: conflict section)", #differ_ids), differ_ids,
-                "identify_replace")
+        say(string.format("Assisted Tagging: verify only, no tags changed. %d images checked, %d differ from their tags (see the report's conflict section).", #ids, #differ.ids))
+        if #differ.ids > 0 then
+            alerts.add(string.format("%d photos read a different entry from the one their tags name. Fix runs Identify on them with your tags replaced.",
+                #differ.ids), differ.ids, "identify_replace", differ.why)
+        end
+        if #clash.ids > 0 then
+            alerts.add(string.format("%d photos read a different colour from their entry's in entries.json. The tag or the entry can be wrong. Fix adds the Check colour tag.",
+                #clash.ids), clash.ids, "check_colour", clash.why)
+        end
+        if #tag_clash.ids > 0 then
+            alerts.add(string.format("%d photos' Colour tag differs from the colour read. Fix replaces the Colour tag with the colour read.",
+                #tag_clash.ids), tag_clash.ids, "colour_tag:" .. table.concat(read_of, ","), tag_clash.why)
         end
         return
     end
@@ -3098,6 +3135,7 @@ function M.identify_images(images, replace_manual, verify_only)
         flush_log()
         run.verify_only = verify_only
         pcall(os.remove, RESULTS_PATH)
+        pcall(os.remove, OVERTURNS_PATH)
         pcall(os.remove, ENTRIES_PATH)
         pcall(os.remove, RULES_PATH)
         if not write_rows(MANIFEST_PATH, rows) then
@@ -3126,6 +3164,7 @@ function M.identify_images(images, replace_manual, verify_only)
                 "--cache", CACHE_PATH,
                 "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH,
                 "--boxes-out", boxes_path(),
+                "--overturns-out", OVERTURNS_PATH,
                 "--report-out", report_prefix(),
                 "--archive-dir", RUNS_DIR,
             }),
@@ -3144,6 +3183,21 @@ function M.identify_images(images, replace_manual, verify_only)
             return
         end
         apply_results(run, job)
+        -- overturns.csv: entry,stored,seen,n,total,ids (space-separated)
+        local name_of = {}
+        for _, img in ipairs(run.primaries) do name_of[tostring(img.id)] = img.filename end
+        for line in (read_file(OVERTURNS_PATH) or ""):gmatch("[^\r\n]+") do
+            local p = M.parse_csv_line(line, 6)
+            if p and p[1] ~= "entry" then
+                local ids, why = {}, {}
+                for id in p[6]:gmatch("%d+") do
+                    ids[#ids + 1] = tonumber(id)
+                    why[#why + 1] = string.format("%s: reads %s", name_of[id], p[3])
+                end
+                alerts.add(string.format("Entry %s is %s in entries.json, but %s of its %s photos read %s. Fix sets its colour to %s.",
+                    p[1], p[2], p[4], p[5], p[3], p[3]), ids, "entry_colour:" .. p[1] .. "=" .. p[3], why)
+            end
+        end
     end)
 
     -- Saved once tags may have changed, even if the apply stopped or errored partway, so the tags
@@ -3185,9 +3239,6 @@ function M.identify_images(images, replace_manual, verify_only)
     flush_log()
     run_next()
 end
-
--- Fix on a "differ from their tags" row: Identify those photos again, hand tags replaced
-fixes.identify_replace = function(images) M.identify_images(images, true, false) end
 
 -- Writes the manifest and runs identify.py in a reference mode (`mode_args`) under state.job, which
 -- the action started. Returns results.csv's text, or nil once a cancel, stall or failure has been reported.
@@ -3437,8 +3488,9 @@ function M.add_found_entries(ticked, image_of)
     return true
 end
 
-function M.fill_entry_colours(images)
-    if queue_if_busy(_("Fill entry colours"), images and #images > 0, function() M.fill_entry_colours(images) end) then return end
+-- colour_of (optional): entry id → colour, sent as that entry's hand colour (a To check Fix)
+function M.fill_entry_colours(images, colour_of)
+    if queue_if_busy(_("Fill entry colours"), images and #images > 0, function() M.fill_entry_colours(images, colour_of) end) then return end
     if not can_start(images) then return end
     if #entry_order == 0 then
         dt.print(_("Assisted Tagging: the collection has no entries yet. Add them to its entries.json, then click Reload."))
@@ -3478,6 +3530,7 @@ function M.fill_entry_colours(images)
             if eid then
                 if not sent[src.id] then
                     sent[src.id] = true
+                    hand_colour = colour_of and colour_of[eid] or hand_colour
                     rows[#rows + 1] = { src.id, src.path .. "/" .. src.filename, eid, hand_colour or "" }
                     local tag_colour = M.hand_value(have, nil, colour_base)
                     if hand_colour then
@@ -3530,6 +3583,89 @@ function M.fill_entry_colours(images)
         if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log)", #failed_ids), failed_ids) end
     end)
     finish_reference_job(state, okr, err, "couldn't fill entry colours.")
+end
+
+-- To check fixes ------------------------------------------------------------------
+-- Runs a fix that writes tags: plan(img, have) returns the names to attach and the names to detach.
+-- Tags it attaches go in the ledger as the plugin's.
+local function fix_tags(label, images, plan)
+    if queue_if_busy(label, #images > 0, function() fix_tags(label, images, plan) end) then return end
+    if not can_start(images) or not take_settings() then return end
+    busy = true
+    M.cancel_requested = false
+    start_log(label, #images)
+    local job
+    local okr, err = C.logged_call(log, label, function()
+        job = start_job(label, #images)
+        load_entries_csv()
+        local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
+        local n_tags, writes, failed_ids = 0, 0, {}
+        for i, img in ipairs(images) do
+            job.percent = (i - 1) / #images
+            local attach, detach = plan(img, tags_of(img))
+            local mine = ledger[tonumber(img.id)] or {}
+            local okw, werr = pcall(function()
+                for _, name in ipairs(detach) do
+                    tags.detach(tags.create(name), img)
+                    mine[name] = nil
+                end
+                for _, name in ipairs(attach) do
+                    tags.attach(tags.create(name), img)
+                    mine[name] = true
+                end
+            end)
+            ledger[tonumber(img.id)] = next(mine) and mine or nil
+            if okw then
+                n_tags = n_tags + #attach + #detach
+            else
+                failed_ids[#failed_ids + 1] = img.id
+                log(string.format("%s: %s couldn't be tagged: %s", label, C.image_label(img), tostring(werr)))
+            end
+            writes = writes + #attach + #detach
+            if writes >= WRITE_BUDGET then
+                writes = 0
+                wait_for_writes()
+            end
+        end
+        wait_for_writes()
+        write_ledger(ledger)
+        say(string.format("Assisted Tagging: %s done, %d tag changes on %d photos.", label, n_tags, #images - #failed_ids))
+        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log)", #failed_ids), failed_ids) end
+    end)
+    finish_job(job)
+    if not okr then notify_error(string.format("Assisted Tagging: %s failed. %s", label, tostring(err))) end
+    flush_log()
+    run_next()
+end
+
+-- "differ from their tags": Identify those photos again, hand tags replaced
+fixes.identify_replace = function(images) M.identify_images(images, true, false) end
+
+-- "a different colour from their entry's": the Check colour tag; the car tag stays
+fixes.check_colour = function(images)
+    fix_tags(_("Mark Check colour"), images, function()
+        return { M.named_rules(rules, settings).diag.check_colour }, {}
+    end)
+end
+
+-- "Colour tag differs": arg "id=Colour,id=Colour", the colour read per photo, replaces its Colour tags
+fixes.colour_tag = function(images, arg)
+    local read_of = {}
+    for id, colour in arg:gmatch("(%d+)=([^,]+)") do read_of[id] = colour end
+    fix_tags(_("Replace Colour tag"), images, function(img, have)
+        local root = M.family_roots(settings).colour
+        local detach = {}
+        for name in pairs(have) do
+            if name:sub(1, #root + 1) == root .. "|" then detach[#detach + 1] = name end
+        end
+        return { root .. "|" .. read_of[tostring(img.id)] }, detach
+    end)
+end
+
+-- "entries.json says X, N photos read Y": arg "entry=Colour" becomes that entry's colour
+fixes.entry_colour = function(images, arg)
+    local eid, colour = arg:match("^(.-)=(.*)$")
+    M.fill_entry_colours(images, { [eid] = colour })
 end
 
 -- Saves the confident vehicles (number-read, or a clear livery match) that the last
