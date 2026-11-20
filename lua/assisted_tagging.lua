@@ -3438,6 +3438,7 @@ function M.identify_images(images, replace_manual, verify_only, only_entries)
         end
         apply_results(run, job)
         if only_entries then
+            say(_("Assisted Tagging: Checking which entries are still missing…"))
             local still = missing_in(dt.collection)
             if #still == 0 then
                 say(string.format(_("Assisted Tagging: Found all %d missing entries."), #only_entries))
@@ -4413,6 +4414,7 @@ local function start_identify_missing()
         dt.print(_("Assisted Tagging: The collection has no entries yet. Add them to its entries.json, then click Reload."))
         return
     end
+    dt.print(_("Assisted Tagging: Reading the collection's tags to find the missing entries…"))
     local missing = missing_in(dt.collection)
     if #missing == 0 then
         dt.print(_("Assisted Tagging: Every entry has a photo."))
@@ -4711,7 +4713,7 @@ local function install_panel()
         new_widget("box") { orientation = "vertical", start_list_file, table.unpack(column_combos) },
         new_widget("box") { orientation = "vertical", table.unpack(role_entries) },
     }
-    local START_LIST_TAB_NAMES = { _("CSV file"), _("one entry") }
+    local START_LIST_TAB_NAMES = { _("CSV File"), _("Single Entry") }
     local start_list_tabs = {}
     -- darktable's stack.active need not read back as the index set, so the open tab is tracked here
     local open_start_list_tab = 1
