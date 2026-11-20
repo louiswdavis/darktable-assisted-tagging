@@ -316,6 +316,21 @@ do
     check("derive colour: a locked photo gets nothing",
         plan({ ["M|Colour|Red"] = true, [T.LOCKED_TAG or "Assisted Tagging|Locked"] = true }, "colour"), " / its tags are locked")
     check("LOCKED_TAG: Assisted Tagging|Locked", T.LOCKED_TAG, "Assisted Tagging|Locked")
+    -- a shared car: entries.csv's 8th column names the car (the lower entry's id) on both entries,
+    -- whose tags are already the union of the two
+    local se, sorder = T.parse_entries_csv(table.concat({
+        "30,Alpha,30,M|Number|30;M|Driver|Ames;M|Number|730;M|Driver|Cole,Ames,,Red,30",
+        "730,Alpha,730,M|Number|30;M|Driver|Ames;M|Number|730;M|Driver|Cole,Cole,,Red,30",
+        "31,Alpha,31,M|Number|31;M|Driver|Fay,Fay,,,",
+    }, "\n"))
+    check("parse_entries_csv: the 8th column is the shared car", se["730"].car .. "/" .. se["31"].car, "30/")
+    check("hand_entry: both numbers of a shared car name the car",
+        T.hand_entry({ ["M|Number|30"] = true, ["M|Number|730"] = true }, nil, se, { number = "M|Number" }), "30")
+    check("hand_entry: numbers of two different cars still disagree",
+        select(2, T.hand_entry({ ["M|Number|30"] = true, ["M|Number|31"] = true }, nil, se, { number = "M|Number" })), "disagree")
+    check("derive number: a shared car's two number tags add both crews' tags",
+        table.concat(T.derive_plan({ ["M|Number|30"] = true, ["M|Number|730"] = true }, nil, se, sorder, roots, "number", names).attach, ";"),
+        "AT|Derived|From number;M|Colour|Red;M|Driver|Ames;M|Driver|Cole")
     check("derive number: a ledgered (plugin) number tag is not the user's",
         plan({ ["M|Number|2"] = true }, "number", { ["M|Number|2"] = true }), " / no number tag of yours names an entry")
     check("derive number: colour that differs adds Check colour",

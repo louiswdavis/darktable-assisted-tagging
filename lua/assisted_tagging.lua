@@ -233,15 +233,16 @@ local function split(s, sep)
     return out
 end
 
--- identify.py's entries.csv (id,team,number,tag;tag…,name,co_driver,colour) → entries by id, and the ids in file order.
+-- identify.py's entries.csv (id,team,number,tag;tag…,name,co_driver,colour,car) → entries by id, and the ids in
+-- file order. car: the id both entries of a shared car name ("" when unshared).
 function M.parse_entries_csv(text)
     local entries, order = {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 7) or M.parse_csv_line(line, 6) or M.parse_csv_line(line, 5)
+        local p = M.parse_csv_line(line, 8) or M.parse_csv_line(line, 7) or M.parse_csv_line(line, 6) or M.parse_csv_line(line, 5)
             or M.parse_csv_line(line, 4)
         if p and p[1] ~= "" and p[4] ~= "" and not entries[p[1]] then
             entries[p[1]] = { id = p[1], team = p[2], number = p[3], tags = split(p[4], ";"), name = p[5] or "",
-                              co_driver = p[6] or "", colour = p[7] or "" }
+                              co_driver = p[6] or "", colour = p[7] or "", car = p[8] or "" }
             order[#order + 1] = p[1]
         end
     end
@@ -603,10 +604,12 @@ M.COLOUR_TAG_MIN_SHARE = 2 / 3
 -- The entry the user's hand tags name: a number tag (`roots.number`|<n>) names the entry with that
 -- number, a driver tag (`roots.driver`|<name>) the entry with that name, a co-driver tag
 -- (`roots.co_driver`|<name>) the entry with that co_driver. A value two or more entries share names
--- none of them by itself. Returns the id; or nil, "ambiguous" when the tags only
--- narrow it to several entries; or nil, "disagree" when they name different entries. Team and
--- colour tags never name an entry. `roots`: family key → root of the families switched on.
+-- none of them by itself. The two entries of a shared car (`car`) count as one, named by the car's
+-- id, so a photo tagged with both crews' numbers names it. Returns the id; or nil, "ambiguous" when
+-- the tags only narrow it to several entries; or nil, "disagree" when they name different entries.
+-- Team and colour tags never name an entry. `roots`: family key → root of the families switched on.
 function M.hand_entry(have, ledger_set, entries, roots)
+    local function car_of(id) return (entries[id].car or "") ~= "" and entries[id].car or id end
     local named, shared = {}, {}
     for _, f in ipairs({ { root = roots.number, field = "number" }, { root = roots.driver, field = "name" },
                          { root = roots.co_driver, field = "co_driver" } }) do
@@ -615,7 +618,7 @@ function M.hand_entry(have, ledger_set, entries, roots)
             for id, e in pairs(entries) do
                 if e[f.field] == value then ids[#ids + 1] = id end
             end
-            if #ids == 1 then named[ids[1]] = true elseif #ids > 1 then shared[#shared + 1] = ids end
+            if #ids == 1 then named[car_of(ids[1])] = true elseif #ids > 1 then shared[#shared + 1] = ids end
         end
     end
     local id = next(named)
@@ -623,7 +626,7 @@ function M.hand_entry(have, ledger_set, entries, roots)
     if next(named, id) then return nil, "disagree" end
     for _, ids in ipairs(shared) do
         local among = false
-        for _, other in ipairs(ids) do if other == id then among = true end end
+        for _, other in ipairs(ids) do if car_of(other) == id then among = true end end
         if not among then return nil, "disagree" end
     end
     return id
