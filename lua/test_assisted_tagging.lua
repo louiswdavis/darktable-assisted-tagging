@@ -17,7 +17,7 @@ end
 -- plugin_common.lua ---------------------------------------------------------------
 -- The same file in all three plugin repos; COMMON_HASH pins it. After changing it, copy it to the
 -- other two repos and put the hash this prints into their tests too.
-local COMMON_HASH = "6850b432"
+local COMMON_HASH = "c89a581a"
 local script_dir = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
 local PC = dofile(script_dir .. "/plugin_common.lua")
 local function fnv1a(text)
@@ -725,13 +725,13 @@ local shared_entries = {
 local shared_order = { "90", "790", "12" }
 check("missing_entries: an entry one image carries is not missing",
     table.concat(T.missing_entries({ { ["Rally|12"] = true } }, shared_entries, shared_order), ","), "90,790")
-check("missing_entries: a image of 90 carries the shared car, so 790 is not missing either",
+check("missing_entries: an image of 90 carries the shared car, so 790 is not missing either",
     table.concat(T.missing_entries({ { ["Rally|90"] = true, ["Rally|90|Driver A"] = true } }, shared_entries, shared_order), ","), "12")
 check("missing_entries: no image of the shared car lists both its entries, in start-list order",
     table.concat(T.missing_entries({}, shared_entries, shared_order), ","), "90,790,12")
 check("missing_entries: hand-added tags (no ledger) count as carried",
     #T.missing_entries({ tsu_tags }, { TSU = { car = "", tags = { "F1|Red Bull", "F1|Red Bull|Tsunoda" } } }, { "TSU" }), 0)
-check("missing_entries: a image carrying two entries' tags carries neither",
+check("missing_entries: an image carrying two entries' tags carries neither",
     table.concat(T.missing_entries({ { ["Rally|12"] = true, ["Rally|90"] = true, ["Rally|90|Driver A"] = true } },
         shared_entries, shared_order), ","), "90,790,12")
 local lock_roots = { number = "Rally|Number" }

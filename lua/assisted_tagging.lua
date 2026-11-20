@@ -4417,7 +4417,7 @@ local function start_identify_missing()
     dt.print(_("Assisted Tagging: Reading the collection's tags to find the missing entries…"))
     local missing = missing_in(dt.collection)
     if #missing == 0 then
-        dt.print(_("Assisted Tagging: Every entry has a image."))
+        dt.print(_("Assisted Tagging: Every entry has an image."))
         return
     end
     -- a photo that already carries an entry (an earlier run's tags included) is not rerun: its
@@ -4867,7 +4867,7 @@ local function install_panel()
     }
     local copy_group_button = new_widget("button") {
         label = _("Copy Tags to Group"),
-        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other image in the group, so the group matches. When the copy names an entry, Check match goes, and a image that had no entry also loses Unidentified and Number seen. Other diagnostics, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. A selected image missing a tag gets it filled in. Asks first only when a group's selected images hold different tags of one family, such as two colours."),
+        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other image in the group, so the group matches. When the copy names an entry, Check match goes, and an image that had no entry also loses Unidentified and Number seen. Other diagnostics, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. A selected image missing a tag gets it filled in. Asks first only when a group's selected images hold different tags of one family, such as two colours."),
         clicked_callback = function()
             copy_confirm_box.visible = false
             M.copy_tags_to_group(dt.gui.action_images, function(text, go)
@@ -4879,7 +4879,7 @@ local function install_panel()
     }
     local copy_selection_button = new_widget("button") {
         label = _("Copy Tags to Selection"),
-        tooltip = _("Merge the selected images' entry and family tags (number, colour, team…) across all of them, so each one fills in the tags it lacks. Images outside the selection, group mates too, are untouched. When the copy names an entry, Check match goes, and a image that had no entry also loses Unidentified and Number seen. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. Asks first only when the selected images hold different tags of one family, such as two colours."),
+        tooltip = _("Merge the selected images' entry and family tags (number, colour, team…) across all of them, so each one fills in the tags it lacks. Images outside the selection, group mates too, are untouched. When the copy names an entry, Check match goes, and an image that had no entry also loses Unidentified and Number seen. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. Asks first only when the selected images hold different tags of one family, such as two colours."),
         clicked_callback = function()
             copy_confirm_box.visible = false
             M.copy_tags_to_selection(dt.gui.action_images, function(text, go)

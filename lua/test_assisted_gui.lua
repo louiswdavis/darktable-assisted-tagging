@@ -251,7 +251,7 @@ check("fill colours: reports the entry set", printed("Assisted Tagging: Colour s
 local red = image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" })
 PYTHON.results = "1,read,set,112,Blue\n"
 fill({ red })
-check("derive colour: a image that has a colour tag keeps it and gets no other", #red.tags .. " " .. red.tags[2].name, "2 Colour|Red")
+check("derive colour: an image that has a colour tag keeps it and gets no other", #red.tags .. " " .. red.tags[2].name, "2 Colour|Red")
 
 -- Identify wrote every tag: one photo's colour tag is not enough to replace the entry's colour
 local ledger_text = ""
@@ -293,7 +293,7 @@ check("derive colour, entry and no colour tag: the entry's colour is saved too",
 PYTHON.results = ""
 run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }), image(4, "DSC00004.JPG", { "Rallye|112", "Colour|Red" }),
     image(6, "DSC00006.JPG", { "Rallye|112", "Colour|Red" }), image(10, "DSC00010.JPG", { "Rallye|112" }) })
-check("derive colour, agreed colour: a image without a colour tag is read, not given the agreed colour", run and run.manifest,
+check("derive colour, agreed colour: an image without a colour tag is read, not given the agreed colour", run and run.manifest,
     T.csv_line({ 1, "/images/DSC00001.JPG", "112", "Red" }) .. "\n" .. T.csv_line({ 4, "/images/DSC00004.JPG", "112", "Red" }) .. "\n"
     .. T.csv_line({ 6, "/images/DSC00006.JPG", "112", "Red" }) .. "\n" .. T.csv_line({ 10, "/images/DSC00010.JPG", "112", "" }) .. "\n")
 
@@ -437,7 +437,7 @@ check("To check: Clear list is the box's last line, not beside the heading",
 local CHECKS_FILE = ROOT .. "/config/assisted_tagging.checks.txt"
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
-check("To check: a image fill colours couldn't read shows in the box", to_check.visible, true)
+check("To check: an image fill colours couldn't read shows in the box", to_check.visible, true)
 check("To check: the row names the action and the count",
     (to_check[2][1] or {}).text, "Identify Colour: 1 image couldn't be read (see log).")
 check("To check: the item is saved for a restart",
@@ -445,7 +445,7 @@ check("To check: the item is saved for a restart",
 prints, selection_sets = {}, 0
 ;(widget_where(to_check, "button", "label", "Select") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Select changes the selection", selection_sets, 1)
-check("To check: Select says which images are gone", printed("Couldn't open 1 image: no longer in the library."), true)
+check("To check: Select says which images are gone", printed("Assisted Tagging: Couldn't open 1 image, no longer in the library."), true)
 selection_sets = 0
 PYTHON.results = "1,added,set,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
@@ -562,21 +562,21 @@ write_file(ROOT .. "/config/assisted_tagging/ledger.csv", (read_file(ROOT .. "/c
 local hand_tagged = image(5, "DSC00005.JPG", { "Rallye|35", UNIDENTIFIED })
 PYTHON.results = "5,-1,skipped,,,0.000,,,\n"
 T.identify_images({ hand_tagged }, false, false)
-check("stale Unidentified: a image skipped as tagged by hand loses the earlier run's Unidentified tag",
+check("stale Unidentified: an image skipped as tagged by hand loses the earlier run's Unidentified tag",
     tostring(has_tag(hand_tagged, UNIDENTIFIED)) .. " " .. tostring(has_tag(hand_tagged, "Rallye|35")), "false true")
 local unledgered = image(6, "DSC00006.JPG", { UNIDENTIFIED })
 PYTHON.results = "6,0,number,35,,0.9,,solo,0,,0,,0\n"
 T.identify_images({ unledgered }, false, false)
-check("stale Unidentified: a image identified now loses an Unidentified tag missing from the ledger",
+check("stale Unidentified: an image identified now loses an Unidentified tag missing from the ledger",
     tostring(has_tag(unledgered, UNIDENTIFIED)) .. " " .. tostring(has_tag(unledgered, "Rallye|35")), "false true")
 local held_photo = image(7, "DSC00007.JPG", { "Number|112", UNIDENTIFIED })
 PYTHON.results = "7,0,conflict,35,,0.9,,solo,0,,0,,0\n"
 T.identify_images({ held_photo }, false, false)
-check("stale Unidentified: a image whose hand tags name a car loses it", has_tag(held_photo, UNIDENTIFIED), false)
+check("stale Unidentified: an image whose hand tags name a car loses it", has_tag(held_photo, UNIDENTIFIED), false)
 local still_unknown = image(8, "DSC00008.JPG", { UNIDENTIFIED })
 PYTHON.results = "8,-1,no_vehicle,,,0.000,,,\n"
 T.identify_images({ still_unknown }, false, false)
-check("stale Unidentified: a hand Unidentified tag stays on a image still unidentified", has_tag(still_unknown, UNIDENTIFIED), true)
+check("stale Unidentified: a hand Unidentified tag stays on an image still unidentified", has_tag(still_unknown, UNIDENTIFIED), true)
 
 -- Identify Missing Entries --------------------------------------------------------
 -- The collection's entries are 112 and 35 (PYTHON.entries); missing = no photo in dt.collection carries it.
@@ -585,7 +585,7 @@ dt.collection = { image(21, "DSC00021.JPG", { "Rallye|112" }), image(22, "DSC000
 dt.gui.action_images = dt.collection
 PYTHON.runs, prints = {}, {}
 missing_button.clicked_callback()
-check("missing: with every entry carried, says so", printed("Assisted Tagging: Every entry has a image."), true)
+check("missing: with every entry carried, says so", printed("Assisted Tagging: Every entry has an image."), true)
 check("missing: with every entry carried, identify.py does not run", #PYTHON.runs, 0)
 local unnamed_a, unnamed_b = image(23, "DSC00023.JPG", {}), image(24, "DSC00024.JPG", {})
 dt.collection = { unnamed_a, unnamed_b }
@@ -607,7 +607,7 @@ dt.collection = { run_tagged, unnamed_c }
 dt.gui.action_images = dt.collection
 PYTHON.results, PYTHON.runs, prints = "25,-1,no_vehicle,,,0.000,,,\n26,0,number,35,,0.9,,solo,0,,0,,1\n", {}, {}
 missing_button.clicked_callback()
-check("missing: a image an earlier run tagged keeps its entry", has_tag(run_tagged, "Rallye|112"), true)
+check("missing: an image an earlier run tagged keeps its entry", has_tag(run_tagged, "Rallye|112"), true)
 dt.collection = { run_tagged, image(27, "DSC00027.JPG", {}) } -- 35 missing again
 dt.gui.action_images = { run_tagged }
 PYTHON.runs, prints = {}, {}
@@ -671,7 +671,7 @@ check("identify colour for group: the mate's tag is the plugin's in the ledger",
 prints, PYTHON.runs = {}, {}
 -- darktable puts every photo in a group, a lone photo leads its own
 T.derive_colour({ grouped(721, "DSC00721.JPG", {}, 721) }, nil, true)
-check("identify colour for group: a image in no group says so", printed("None of the selected images is in a darktable group with other images."), true)
+check("identify colour for group: an image in no group says so", printed("None of the selected images is in a darktable group with other images."), true)
 for _, id in ipairs({ 701, 702, 703, 704, 711, 721 }) do grouped_by_id[id] = nil end
 
 local source = grouped(101, "DSC00101.JPG", { "Rallye|112", "Colour|Red", "Number|112" }, 101)
@@ -705,7 +705,7 @@ check("copy to group, nothing selected: asks for a selection", last_print(), "As
 local alone = grouped(401, "DSC00401.JPG", { "Rallye|112" }, 401)
 prints, dt.gui.action_images = {}, { alone }
 ;(copy_button or { clicked_callback = function() end }).clicked_callback()
-check("copy to group, a image alone in its group: says so, writes nothing", last_print(),
+check("copy to group, an image alone in its group: says so, writes nothing", last_print(),
     "Assisted Tagging: None of the selected images is in a darktable group with other images.")
 
 local differ_a = grouped(301, "DSC00301.JPG", { "Rallye|112", "Colour|Red" }, 301)
