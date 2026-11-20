@@ -373,7 +373,7 @@ def main(argv=None):
         notes.append(f"{skipped_lines} line(s) without a leading number ignored")
     if cleaned:
         notes.append(f', ; and " removed from the names of {", ".join(cleaned)}')
-    print(f"added {result['added']} entries to {result['path']}" + ("; " + "; ".join(notes) if notes else ""))
+    print(f"added {result['added']} {'entry' if result['added'] == 1 else 'entries'} to {os.path.basename(result['path'])}" +("; " + "; ".join(notes) if notes else ""))
 
 
 if __name__ == "__main__":
