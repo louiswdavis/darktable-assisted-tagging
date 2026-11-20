@@ -1897,8 +1897,8 @@ def identify(args, models: dict):
             else r.entry_id != hand_of.get(image_id) and conflicts(r.entry_id, protected_of[image_id], entries, n_boxes == 1)
             or image_id in hand_of and disagrees(r, hand_of[image_id], n_boxes == 1, entries)) else r for r in results]
     if pool is not None:
-        # Identify Missing Entries: every name it gives is a guess at a car no photo carried, so each gets Check match
-        frames = {i: [replace(r, anchor_flag=True) if r.entry_id else r for r in rs] for i, rs in frames.items()}
+        # Identify Missing Entries: every name it gives is a guess at a car no photo carried, so each gets Check match (the user's own hand tag is no guess)
+        frames = {i: [replace(r, anchor_flag=True) if r.entry_id and r.method != HAND else r for r in rs] for i, rs in frames.items()}
 
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:
