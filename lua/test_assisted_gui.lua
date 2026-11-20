@@ -838,7 +838,7 @@ check("presets: export is offered for the Rallye collection", choose(actions, "e
 widget_where(panel, "file_chooser_button", "title", "Folder to Export the Preset Into").value = out
 prints = {}
 widget_where(panel, "button", "label", "Export").clicked_callback()
-check("presets: export toast", last_print():find('preset "Rallye" exported to ' .. out .. "/Rallye.atpreset", 1, true) ~= nil, true)
+check("presets: export toast", last_print():find('Preset "Rallye" exported to ' .. out .. "/Rallye.atpreset", 1, true) ~= nil, true)
 check("presets: the bundle carries the entry list", read_file(out .. "/Rallye.atpreset/entries.json"), "[]")
 check("presets: the bundle carries the settings", read_file(out .. "/Rallye.atpreset/preset.json") ~= nil, true)
 check("presets: the manifest lists both files",
@@ -867,7 +867,7 @@ widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Fo
 write_file(out .. "/Rallye.atpreset/entries.json", '[{"entry": "112"}]')
 prints = {}
 widget_where(panel, "button", "label", "Import").clicked_callback()
-check("presets: import adds Rallye (2)", last_print():find('imported "Rallye (2)"', 1, true) ~= nil, true)
+check("presets: import adds Rallye (2)", last_print():find('Imported "Rallye (2)"', 1, true) ~= nil, true)
 check("presets: Rallye (2) holds the bundle's entry list", read_file(ROOT .. "/collections/Rallye (2)/entries.json"), '[{"entry": "112"}]')
 check("presets: Rallye (2) holds the settings", read_file(ROOT .. "/collections/Rallye (2)/settings.json") ~= nil, true)
 check("presets: Rallye keeps its own entry list", read_file(ROOT .. "/collections/Rallye/entries.json"), "[]")
@@ -877,7 +877,7 @@ choose(actions, "import preset…")
 widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Folder)").value = refs_out .. "/Rallye.atpreset"
 prints = {}
 widget_where(panel, "button", "label", "Import").clicked_callback()
-check("presets: the refs bundle imports as Rallye (3)", last_print():find('imported "Rallye (3)"', 1, true) ~= nil, true)
+check("presets: the refs bundle imports as Rallye (3)", last_print():find('Imported "Rallye (3)"', 1, true) ~= nil, true)
 check("presets: Rallye (3) holds the references", read_file(ROOT .. "/collections/Rallye (3)/refs/112/1_b0.jpg"), "crop")
 check("presets: Rallye (3) holds sources.json", read_file(ROOT .. "/collections/Rallye (3)/refs/sources.json"), "{}")
 
