@@ -334,12 +334,15 @@ ok   reference results: a 3-column row reads an empty entry id
 ok   reference results: a 2-column row reads an empty note
 ok   reference results: colour notes are counted
 ok   reference results: the done message names each count
+ok   reference results: a 5-column row keeps the colour read
+ok   reference results: a 4-column row reads an empty colour
 ok   reference results: no colour notes, nothing to add
 ok   colour_summary: distinct entries per note
 ok   colour_summary: nothing read, all zero
 ok   colour_done_message: saved, with one already right
 ok   colour_done_message: nothing to change, with what was left out
 ok   colour_done_message: nothing saved
+ok   colour_done_message: the photos tagged come first
 ok   colour_summary: failed rows are counted
 ok   protected: an entry tag not in the ledger is the user's
 ok   protected: a ledgered tag is the plugin's

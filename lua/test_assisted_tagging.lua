@@ -870,6 +870,9 @@ do
     check("reference results: colour notes are counted", notes.set .. "," .. notes.differs .. "," .. notes.already, "2,1,1")
     check("reference results: the done message names each count", table.concat(T.colour_note_extras(notes), "; "),
         "2 entries got a colour; 1 colour readings differ from entries.json (see log)")
+    local derived = T.parse_reference_results("7,read,,,Blue\n8,read,set,VER,Red\n")
+    check("reference results: a 5-column row keeps the colour read", derived[1][4] .. "|" .. derived[1][5] .. "|" .. derived[2][5], "|Blue|Red")
+    check("reference results: a 4-column row reads an empty colour", rows[1][5], "")
     local _, none = T.parse_reference_results("1,added\n")
     check("reference results: no colour notes, nothing to add", #T.colour_note_extras(none), 0)
 end
@@ -890,7 +893,9 @@ do
         .. "2 photos read as a different colour from the saved one, which was kept (see log).")
     check("colour_done_message: nothing saved",
         T.colour_done_message({}, {}, 3, 2, 1, 0),
-        "No colour saved. Left out: colour not read on 3 photos; 2 photos skipped, no single entry matches the tags; 1 photo failed (see log).")
+        "No entry colour saved. Left out: colour not read on 3 photos; 2 photos already had a colour tag and match no single entry; 1 photo failed (see log).")
+    check("colour_done_message: the photos tagged come first",
+        T.colour_done_message({ "35" }, {}, 0, 0, 0, 0, 3), "Colour tag added to 3 photos. Colour saved for entry 35.")
     local failed = T.parse_reference_results("1,failed,,\n2,read,set,VER\n")
     check("colour_summary: failed rows are counted", table.concat({ #T.colour_summary(failed), select(3, T.colour_summary(failed)) }, ","), "1,0,1")
 end

@@ -215,20 +215,31 @@ for _, fn in ipairs(dispatched) do fn() end
 check("startup lists the collection's entries", #PYTHON.runs > 0 and PYTHON.runs[1].argv[4], "--list")
 check("the startup load has no Lua error", read_file(ROOT .. "/config/assisted_tagging.lua.log"), nil)
 
--- Fill Entry Colours ----------------------------------------------------------------
+-- Derive Colour -------------------------------------------------------------------
 local function fill(images)
     prints, PYTHON.runs = {}, {}
-    T.fill_entry_colours(images)
+    T.derive_colour(images)
     return PYTHON.runs[#PYTHON.runs]
 end
 
-local run = fill({ image(2, "DSC00002.JPG", { "Somewhere|Else" }) })
-check("fill colours, no entry tags: says no image names an entry", printed("No selected image carries all of one entry's tags"), true)
-check("fill colours, no entry tags: no crash", printed("couldn't fill entry colours"), false)
-check("fill colours: says it started as soon as it is clicked", printed("Assisted Tagging: Fill Entry Colours started on 1 image…"), true)
-check("fill colours, no entry tags: identify.py isn't started", run, nil)
-check("fill colours, no entry tags: the log says why", (read_file(ROOT .. "/config/assisted_tagging.log") or "")
-    :find("DSC00002.JPG: skipped, its tags match no single entry: it carries no entry's tags", 1, true) ~= nil, true)
+local run = fill({ image(2, "DSC00002.JPG", { "Somewhere|Else", "Colour|Red" }) })
+check("derive colour, colour tag and no entry: says there is nothing to read", printed("Every selected photo already has a colour tag and none names one entry"), true)
+check("derive colour, colour tag and no entry: no crash", printed("couldn't derive colours"), false)
+check("derive colour: says it started as soon as it is clicked", printed("Assisted Tagging: Derive Colour started on 1 image…"), true)
+check("derive colour, colour tag and no entry: identify.py isn't started", run, nil)
+check("derive colour, colour tag and no entry: the log says why", (read_file(ROOT .. "/config/assisted_tagging.log") or "")
+    :find("DSC00002.JPG: skipped, it has a colour tag and its tags match no single entry: it carries no entry's tags", 1, true) ~= nil, true)
+
+-- no entry and no colour tag: the photo is read, and the colour read becomes its tag
+local plain = image(2, "DSC00002.JPG", { "Somewhere|Else" })
+PYTHON.results = "2,read,,,Blue\n"
+run = fill({ plain })
+check("derive colour, no entry, no colour tag: the photo is sent with no entry",
+    run and run.manifest, T.csv_line({ 2, "/photos/DSC00002.JPG", "", "" }) .. "\n")
+check("derive colour, no entry, no colour tag: the colour read is tagged", plain.tags[#plain.tags].name, "Colour|Blue")
+check("derive colour: the tag it adds is the plugin's in the ledger",
+    (read_file(ROOT .. "/config/assisted_tagging/ledger.csv") or ""):find("2,Colour|Blue", 1, true) ~= nil, true)
+check("derive colour: the done message counts the photos tagged", printed("Assisted Tagging: Colour tag added to 1 photo. No entry colour saved."), true)
 
 PYTHON.results = "1,added,set,112\n"
 run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
@@ -237,6 +248,10 @@ check("fill colours, Identify's entry tag + hand colour: the row names the entry
     run and run.manifest, T.csv_line({ 1, "/photos/DSC00001.JPG", "112", "Red" }) .. "\n")
 check("fill colours: runs in colours-only mode", run ~= nil and flag(run.argv, "--add-reference") == "--colours-only", true)
 check("fill colours: reports the entry set", printed("Assisted Tagging: Colour saved for entry 112. File:"), true)
+local red = image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" })
+PYTHON.results = "1,read,set,112,Blue\n"
+fill({ red })
+check("derive colour: a photo that has a colour tag keeps it and gets no other", #red.tags .. " " .. red.tags[2].name, "2 Colour|Red")
 
 -- Identify wrote every tag: one photo's colour tag is not enough to replace the entry's colour
 local ledger_text = ""
@@ -265,9 +280,22 @@ run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }), image(4, 
 check("fill colours, Identify's colour tags split: no colour is sent",
     run and run.manifest ~= nil and run.manifest:find("Red", 1, true) == nil and run.manifest:find("Brown", 1, true) == nil, true)
 
-run = fill({ image(3, "DSC00003.JPG", { "Rallye|35" }) })
+local untagged35 = image(3, "DSC00003.JPG", { "Rallye|35" })
+PYTHON.results = "3,read,set,35,Blue\n"
+run = fill({ untagged35 })
 check("fill colours, hand entry tag, no colour tag: the row leaves the colour to the reading",
     run and run.manifest, T.csv_line({ 3, "/photos/DSC00003.JPG", "35", "" }) .. "\n")
+check("derive colour, entry and no colour tag: the photo gets the colour read", untagged35.tags[#untagged35.tags].name, "Colour|Blue")
+check("derive colour, entry and no colour tag: the entry's colour is saved too",
+    printed("Assisted Tagging: Colour tag added to 1 photo. Colour saved for entry 35."), true)
+
+-- three photos agree on Red: the fourth, with no colour tag, is still read for itself
+PYTHON.results = ""
+run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }), image(4, "DSC00004.JPG", { "Rallye|112", "Colour|Red" }),
+    image(6, "DSC00006.JPG", { "Rallye|112", "Colour|Red" }), image(10, "DSC00010.JPG", { "Rallye|112" }) })
+check("derive colour, agreed colour: a photo without a colour tag is read, not given the agreed colour", run and run.manifest,
+    T.csv_line({ 1, "/photos/DSC00001.JPG", "112", "Red" }) .. "\n" .. T.csv_line({ 4, "/photos/DSC00004.JPG", "112", "Red" }) .. "\n"
+    .. T.csv_line({ 6, "/photos/DSC00006.JPG", "112", "Red" }) .. "\n" .. T.csv_line({ 10, "/photos/DSC00010.JPG", "112", "" }) .. "\n")
 
 -- a number tag alone names the entry, though the photo lacks the entry's other tags
 run = fill({ image(7, "DSC00007.JPG", { "Number|112", "Colour|Red" }), image(8, "DSC00008.JPG", { "Number|112", "Colour|Red" }),
@@ -362,9 +390,9 @@ PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("To check: a photo fill colours couldn't read shows in the box", to_check.visible, true)
 check("To check: the row names the action and the count",
-    (to_check[2][1] or {}).text, "Fill Entry Colours: 1 photos couldn't be read (see log)")
+    (to_check[2][1] or {}).text, "Derive Colour: 1 photos couldn't be read (see log)")
 check("To check: the item is saved for a restart",
-    (read_file(CHECKS_FILE) or ""):find("Fill Entry Colours\t1 photos couldn't be read (see log)\t1\t", 1, true) ~= nil, true)
+    (read_file(CHECKS_FILE) or ""):find("Derive Colour\t1 photos couldn't be read (see log)\t1\t", 1, true) ~= nil, true)
 prints, selection_sets = {}, 0
 ;(widget_where(to_check, "button", "label", "Select") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Select changes the selection", selection_sets, 1)
@@ -372,7 +400,7 @@ check("To check: Select says which photos are gone", printed("1 of these photos 
 selection_sets = 0
 PYTHON.results = "1,added,set,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
-check("To check: the next fill colours run replaces its items", (read_file(CHECKS_FILE) or ""):find("Fill Entry Colours", 1, true), nil)
+check("To check: the next fill colours run replaces its items", (read_file(CHECKS_FILE) or ""):find("Derive Colour", 1, true), nil)
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 ;(widget_where(to_check, "button", "label", "Clear List") or { clicked_callback = function() end }).clicked_callback()
@@ -469,13 +497,13 @@ check("timeline: one run's items have no Earlier runs line", row(1)[4] and row(1
 PYTHON.results, PYTHON.runs = "1,0,conflict,35,,0.9,,solo,0,,0,,0\n", {}
 T.identify_images({ image(1, "DSC00001.JPG", { "Rallye|112" }) }, false, true)
 check("timeline: the newest run's item comes first", label_of(1):match("^[^:]*"), "Verify")
-check("timeline: the older run's item moves below it", label_of(2):match("^[^:]*"), "Fill Entry Colours")
+check("timeline: the older run's item moves below it", label_of(2):match("^[^:]*"), "Derive Colour")
 check("timeline: an Earlier runs line sits under the newest run", row(1)[4] and row(1)[4].visible
     and row(1)[4].label:find("^Earlier runs %(before %d%d:%d%d%): may not hold any more$") ~= nil, true)
 check("timeline: no Earlier runs line under the last item", row(2)[4] and row(2)[4].visible, false)
 local saved = require("plugin_common").alerts_parse(read_file(CHECKS_FILE))
 check("timeline: the saved list keeps the order and each run", #saved == 2 and saved[1].action .. ">" .. saved[2].action
-    .. " " .. tostring(saved[1].run > saved[2].run), "Verify>Fill Entry Colours true")
+    .. " " .. tostring(saved[1].run > saved[2].run), "Verify>Derive Colour true")
 dt.database.get_image = function() return nil end
 
 -- the Unidentified tag goes once a later run finds the car, written by the plugin or not

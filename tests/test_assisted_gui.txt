@@ -2,20 +2,28 @@ ok   the panel is installed at startup
 ok   startup has no Lua error
 ok   startup lists the collection's entries
 ok   the startup load has no Lua error
-ok   fill colours, no entry tags: says no image names an entry
-ok   fill colours, no entry tags: no crash
-ok   fill colours: says it started as soon as it is clicked
-ok   fill colours, no entry tags: identify.py isn't started
-ok   fill colours, no entry tags: the log says why
+ok   derive colour, colour tag and no entry: says there is nothing to read
+ok   derive colour, colour tag and no entry: no crash
+ok   derive colour: says it started as soon as it is clicked
+ok   derive colour, colour tag and no entry: identify.py isn't started
+ok   derive colour, colour tag and no entry: the log says why
+ok   derive colour, no entry, no colour tag: the photo is sent with no entry
+ok   derive colour, no entry, no colour tag: the colour read is tagged
+ok   derive colour: the tag it adds is the plugin's in the ledger
+ok   derive colour: the done message counts the photos tagged
 ok   fill colours, Identify's entry tag + hand colour: no crash
 ok   fill colours, Identify's entry tag + hand colour: the row names the entry and the colour
 ok   fill colours: runs in colours-only mode
 ok   fill colours: reports the entry set
+ok   derive colour: a photo that has a colour tag keeps it and gets no other
 ok   fill colours, one photo with Identify's tags: the row leaves the colour to the reading
 ok   fill colours, Identify's colour tag on 3 of 4 photos: every row carries it
 ok   fill colours, Check colour photos don't count: no colour is sent
 ok   fill colours, Identify's colour tags split: no colour is sent
 ok   fill colours, hand entry tag, no colour tag: the row leaves the colour to the reading
+ok   derive colour, entry and no colour tag: the photo gets the colour read
+ok   derive colour, entry and no colour tag: the entry's colour is saved too
+ok   derive colour, agreed colour: a photo without a colour tag is read, not given the agreed colour
 ok   fill colours, number tag only: the rows name the entry and the agreed colour
 ok   add references, no entry tags: no crash
 ok   add references, no entry tags: identify.py isn't started
