@@ -4724,7 +4724,10 @@ local function install_panel()
     }
     local START_LIST_TAB_NAMES = { _("CSV file"), _("paste text"), _("one entry") }
     local start_list_tabs = {}
+    -- darktable's stack.active need not read back as the index set, so the open tab is tracked here
+    local open_start_list_tab = 1
     local function show_start_list_tab(index)
+        open_start_list_tab = index
         start_list_stack.active = index
         for i, name in ipairs(START_LIST_TAB_NAMES) do
             start_list_tabs[i].label = (index == i and "● " or "○ ") .. name
@@ -4745,7 +4748,7 @@ local function install_panel()
             end
             local argv = {}
             local pasted = start_list_text.text or ""
-            if start_list_stack.active == 2 then
+            if open_start_list_tab == 2 then
                 if not pasted:match("%S") then
                     dt.print(_("Assisted Tagging: Paste the entries first."))
                     return
@@ -4757,7 +4760,7 @@ local function install_panel()
                 end
                 argv[#argv + 1] = "--text"
                 argv[#argv + 1] = path
-            elseif start_list_stack.active == 3 then
+            elseif open_start_list_tab == 3 then
                 local typed = {}
                 for i, role in ipairs(M.ENTRY_ROLES) do typed[role] = role_entries[i].text or "" end
                 local text, spec = M.one_entry_csv(typed)

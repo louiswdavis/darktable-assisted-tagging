@@ -1596,7 +1596,7 @@ def identify(args, models: dict):
         log(f"only entries: {','.join(eid for eid in only if eid in entries)}")
         unknown = [eid for eid in only if eid not in entries]
         if unknown:
-            log(f"only entries: not in the start list, dropped: {','.join(unknown)}")
+            log(f"only entries: not in the start list, dropped: {','.join(unknown)} (Reload, then run again)")
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     verify = getattr(args, "verify", False)
