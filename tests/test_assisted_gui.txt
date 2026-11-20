@@ -102,6 +102,7 @@ ok   copy to group, selected photos differ: nothing is written before the confir
 ok   copy to group, Cancel: the box hides and nothing is written
 ok   copy to group, Merge and copy: every photo gets the merged tags
 ok   copy to group, Merge and copy: the confirm box hides
+ok   copy to group, a selected photo missing the colour: copies without the confirm
 ok   presets: export is offered for the Rallye collection
 ok   presets: export toast
 ok   presets: the bundle carries the entry list

@@ -489,18 +489,51 @@ function M.group_sync_tags(have, entries, rules)
 end
 
 -- One group's source for Copy tags to group: the union of its selected photos' synced tags
--- (`synced`: one M.group_sync_tags set per selected photo), and whether those photos differ.
-function M.group_source(synced)
-    local source, differs = {}, false
-    for _, set in ipairs(synced) do
-        for name in pairs(set) do source[name] = true end
+-- (`synced`: one M.group_sync_tags set per selected photo; `roots`: family key → root), and the
+-- sorted tags that clash. A tag's family is the family root it sits under, else its parent path.
+-- Two photos clash when both hold tags of one family and those tags differ; a photo with none of
+-- a family's tags only gets them filled in.
+function M.group_source(synced, roots)
+    local prefixes = {}
+    for _, root in pairs(roots or {}) do
+        if root ~= "" then prefixes[#prefixes + 1] = root .. "|" end
     end
-    for _, set in ipairs(synced) do
-        for name in pairs(source) do
-            if not set[name] then differs = true end
+    local function family_of(name)
+        local best = nil
+        for _, p in ipairs(prefixes) do
+            if name:sub(1, #p) == p and (not best or #p > #best) then best = p end
+        end
+        return best or name:match("^(.*)|[^|]*$") or name
+    end
+    local source, by_family = {}, {}
+    for i, set in ipairs(synced) do
+        for name in pairs(set) do
+            source[name] = true
+            local family = family_of(name)
+            by_family[family] = by_family[family] or {}
+            by_family[family][i] = by_family[family][i] or {}
+            by_family[family][i][#by_family[family][i] + 1] = name
         end
     end
-    return source, differs
+    local clash_set = {}
+    for _, per_photo in pairs(by_family) do
+        local first = nil
+        for _, names in pairs(per_photo) do
+            table.sort(names)
+            local key = table.concat(names, "\n")
+            if first and key ~= first then
+                for _, names_again in pairs(per_photo) do
+                    for _, name in ipairs(names_again) do clash_set[name] = true end
+                end
+                break
+            end
+            first = first or key
+        end
+    end
+    local clashes = {}
+    for name in pairs(clash_set) do clashes[#clashes + 1] = name end
+    table.sort(clashes)
+    return source, clashes
 end
 
 -- The values the user set by hand under `root`, sorted. Empty for no root.
@@ -3778,13 +3811,14 @@ function M.copy_tags_to_group(images, ask)
         local synced = selected_of[leader_id].synced
         synced[#synced + 1] = M.group_sync_tags(tags_of(img), entries, named)
     end
-    local source_of, members, n_merged = {}, {}, 0
+    local source_of, members, n_merged, clash_names = {}, {}, 0, {}
     for _, leader_id in ipairs(order) do
         local group = selected_of[leader_id]
         local group_members = group.img:get_group_members()
         if #group_members > 1 then
-            local source, differs = M.group_source(group.synced)
-            if differs then n_merged = n_merged + 1 end
+            local source, clashes = M.group_source(group.synced, named.families)
+            if #clashes > 0 then n_merged = n_merged + 1 end
+            for _, name in ipairs(clashes) do clash_names[name] = true end
             for _, member in ipairs(group_members) do
                 source_of[member.id] = source
                 members[#members + 1] = member
@@ -3811,8 +3845,12 @@ function M.copy_tags_to_group(images, ask)
         end)
     end
     if n_merged > 0 then
-        ask(string.format(_("The selected photos in %d groups have different tags. Copy merges them: every photo in those groups gets all of their tags."),
-            n_merged), go)
+        local names = {}
+        for name in pairs(clash_names) do names[#names + 1] = name end
+        table.sort(names)
+        local shown = table.concat(names, ", ", 1, math.min(#names, 4)) .. (#names > 4 and ", …" or "")
+        ask(string.format(_("The selected photos in %d groups hold different tags of one family (%s). Copy merges them, so every photo in those groups gets all of them."),
+            n_merged, shown), go)
         return
     end
     go()
@@ -4539,7 +4577,7 @@ local function install_panel()
     }
     local copy_group_button = new_widget("button") {
         label = _("Copy tags to group"),
-        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other photo in the group, so the group matches. Diagnostics, unidentified tags, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace manual tags is ticked. When a group's selected images differ, asks before merging their tags."),
+        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other photo in the group, so the group matches. Diagnostics, unidentified tags, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace manual tags is ticked. A selected image missing a tag gets it filled in. Asks first only when a group's selected images hold different tags of one family, such as two colours."),
         clicked_callback = function()
             copy_confirm_box.visible = false
             M.copy_tags_to_group(dt.gui.action_images, function(text, go)

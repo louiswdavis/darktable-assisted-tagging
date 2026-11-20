@@ -589,14 +589,24 @@ table.sort(synced_names)
 check("group_sync_tags: entry, number and switched-off colour tags only", table.concat(synced_names, ", "),
     "Assisted Tagging|Motorsport|Colour|Red, Num|112, Rallye|112")
 
--- group_source: the union of the selected photos' synced tags, and whether they differ
-local union, differs = T.group_source({ { a = true, b = true }, { b = true, c = true } })
-check("group_source: differing photos give the union and differ", tostring(union.a and union.b and union.c) .. " "
-    .. tostring(differs), "true true")
-local _, same = T.group_source({ { a = true }, { a = true } })
-local _, single = T.group_source({ { a = true } })
-check("group_source: matching photos or one photo don't differ", tostring(same) .. " " .. tostring(single), "false false")
-check("group_source: a photo with no synced tags beside a tagged one differs", select(2, T.group_source({ {}, { a = true } })), true)
+-- group_source: the union of the selected photos' synced tags, and the tags that clash (two photos
+-- holding different tags of one family); a photo missing a family's tag fills in, no clash
+local source_roots = { colour = "Motorsport|Colour", number = "Num" }
+local union, clashes = T.group_source({ { ["Motorsport|Colour|Red"] = true, ["Num|12"] = true },
+    { ["Motorsport|Colour|Blue"] = true, ["Num|12"] = true } }, source_roots)
+check("group_source: different colours give the union and clash on them",
+    tostring(union["Motorsport|Colour|Red"] and union["Motorsport|Colour|Blue"] and union["Num|12"]) .. " "
+    .. table.concat(clashes, ", "), "true Motorsport|Colour|Blue, Motorsport|Colour|Red")
+local filled, none = T.group_source({ { ["Motorsport|Colour|Red"] = true, ["Num|12"] = true }, { ["Num|12"] = true },
+    {} }, source_roots)
+check("group_source: photos missing the colour or every tag fill in without a clash",
+    tostring(filled["Motorsport|Colour|Red"]) .. " " .. #none, "true 0")
+check("group_source: different entry tags under one parent clash",
+    table.concat(select(2, T.group_source({ { ["Rallye|112"] = true }, { ["Rallye|35"] = true } }, source_roots)), ", "),
+    "Rallye|112, Rallye|35")
+local _, same = T.group_source({ { ["Num|12"] = true }, { ["Num|12"] = true } }, source_roots)
+local _, single = T.group_source({ { ["Num|12"] = true } }, source_roots)
+check("group_source: matching photos or one photo don't clash", #same .. " " .. #single, "0 0")
 
 -- owned_tags / tag_changes (Review Focus 5) ---------------------------------
 local owned = T.owned_tags(entries, rules)

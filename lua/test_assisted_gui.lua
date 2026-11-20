@@ -567,7 +567,7 @@ check("copy to group, a photo alone in its group: says so, writes nothing", last
     "Assisted Tagging: none of the selected photos is in a darktable group with other photos.")
 
 local differ_a = grouped(301, "DSC00301.JPG", { "Rallye|112", "Colour|Red" }, 301)
-local differ_b = grouped(302, "DSC00302.JPG", { "Number|112" }, 301)
+local differ_b = grouped(302, "DSC00302.JPG", { "Number|112", "Colour|Green" }, 301)
 local differ_c = grouped(303, "DSC00303.JPG", { "Colour|Blue" }, 301)
 prints, dt.gui.action_images = {}, { differ_a, differ_b }
 ;(copy_button or { clicked_callback = function() end }).clicked_callback()
@@ -586,7 +586,7 @@ find_confirm(panel)
 check("copy to group, selected photos differ: the confirm box shows", confirm_box and confirm_box.visible, true)
 check("copy to group, selected photos differ: the confirm names the count",
     confirm_box and confirm_box[1].label:gsub("\n", " "),
-    "The selected photos in 1 groups have different tags. Copy merges them: every photo in those groups gets all of their tags.")
+    "The selected photos in 1 groups hold different tags of one family (Colour|Green, Colour|Red). Copy merges them, so every photo in those groups gets all of them.")
 check("copy to group, selected photos differ: nothing is written before the confirm", tag_list(differ_c), "Colour|Blue")
 ;(widget_where(confirm_box or {}, "button", "label", "Cancel") or { clicked_callback = function() end }).clicked_callback()
 check("copy to group, Cancel: the box hides and nothing is written",
@@ -595,8 +595,18 @@ check("copy to group, Cancel: the box hides and nothing is written",
 ;(copy_confirm or { clicked_callback = function() end }).clicked_callback()
 check("copy to group, Merge and copy: every photo gets the merged tags",
     tag_list(differ_a) .. " / " .. tag_list(differ_b) .. " / " .. tag_list(differ_c),
-    "Colour|Red, Number|112, Rallye|112 / Colour|Red, Number|112, Rallye|112 / Colour|Red, Number|112, Rallye|112")
+    "Colour|Green, Colour|Red, Number|112, Rallye|112 / Colour|Green, Colour|Red, Number|112, Rallye|112 / Colour|Green, Colour|Red, Number|112, Rallye|112")
 check("copy to group, Merge and copy: the confirm box hides", confirm_box and confirm_box.visible, false)
+
+-- a selected photo missing the colour tag only gets it filled in: no confirm
+local fill_a = grouped(311, "DSC00311.JPG", { "Rallye|112", "Colour|Red" }, 311)
+local fill_b = grouped(312, "DSC00312.JPG", { "Rallye|112" }, 311)
+local fill_c = grouped(313, "DSC00313.JPG", { "Colour|Blue" }, 311)
+dt.gui.action_images = { fill_a, fill_b }
+;(copy_button or { clicked_callback = function() end }).clicked_callback()
+check("copy to group, a selected photo missing the colour: copies without the confirm",
+    tostring(confirm_box and confirm_box.visible) .. " " .. tag_list(fill_b) .. " / " .. tag_list(fill_c),
+    "false Colour|Red, Rallye|112 / Colour|Red, Rallye|112")
 dt.gui.action_images = {}
 
 -- Picks a menu entry by its text, as a click in darktable does.
