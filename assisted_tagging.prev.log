@@ -1,8 +1,4 @@
-19:26:43 lua: clear: darktable 5.6.2, 110 images, collection Rallye
-19:26:43 lua: Assisted Tagging: Clear tagging marks started on 110 images…
-19:26:43 lua: selection: 6 images deselected while tags are written
-19:26:52 lua: clear: darktable finished 596 tag writes, 9s
-19:26:52 lua: ledger: dropped 22 images no longer in the library
-19:26:52 lua: ledger: prune took 0s
-19:26:53 lua: Assisted Tagging: cleared 596 tags from 110 images.
-19:26:53 lua: clear finished
+20:18:36 lua: Lock In Tags: darktable 5.6.2, 4160 images, collection Rallye
+20:18:36 lua: Assisted Tagging: Lock In Tags started on 4160 images…
+20:47:35 lua: ledger: prune took 1s
+20:47:35 lua: Assisted Tagging: Lock In Tags done, 4160 tag changes on 4160 photos.

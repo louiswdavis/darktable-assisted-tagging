@@ -1,0 +1,29 @@
+19:10:18 lua: identify started: darktable 5.6.2, 4160 images, collection Rallye
+19:10:18 lua: settings: replace manual false, cars per photo solo, team hints false, tag each run none, grouping support native, node (blank), neighbour tolerance 3, order weight 0.7
+19:10:18 lua: Assisted Tagging: Identify started on 4160 images…
+19:10:18 lua: stage: preparing
+19:10:18 lua: prepare: reading tags of the selection
+19:10:19 lua: group support native: 2040 of 2082 photos in groups of 2+
+19:10:21 lua: prepare: done, 2082 rows, 3s
+19:10:22 lua: stage: neighbours
+19:10:22 lua: neighbour: reading the film rolls of the selection
+19:10:27 lua: neighbour: 0 unselected tagged photos shot near the selection, 5s
+19:10:27 lua: vehicles: dfine_x_coco.onnx
+19:10:27 lua: segmenter: image_segmentation_efficientsam_ti_2025april.onnx
+19:10:27 lua: text finder: text_detection_en_ppocrv3_2023may.onnx
+19:10:27 lua: number reader: PP-OCRv5_server_rec.onnx
+19:10:27 lua: second reader: none installed
+19:10:27 lua: livery embedder: dinov2_base.onnx (better, not installed: dinov2_large.onnx)
+19:10:27 lua: box check: siglip2_base_vision.onnx
+19:10:27 lua: face detector: face_detection_yunet_2023mar.onnx
+19:10:27 lua: face recognizer: face_recognition_sface_2021dec.onnx
+19:10:27 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_manifest.csv" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_results.csv" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "Rallye" "--settings" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_settings.run.json" "--detections" "C:/Users/Louis/AppData/Local/darktable/assisted_plugins/detections.sqlite" "--detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dfine_x_coco.onnx" "--segmenter" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/image_segmentation_efficientsam_ti_2025april.onnx" "--ocr-det" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/text_detection_en_ppocrv3_2023may.onnx" "--ocr-rec" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/PP-OCRv5_server_rec.onnx" "--embedder" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dinov2_base.onnx" "--siglip" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/siglip2_base_vision.onnx" "--face-detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_detection_yunet_2023mar.onnx" "--face-recognizer" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_recognition_sface_2021dec.onnx" "--cache" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/cache.sqlite" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_rules.csv" "--boxes-out" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/last-run/Rallye.boxes.json" "--overturns-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_overturns.csv" "--report-out" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/last-run/Rallye.report" "--archive-dir" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/runs" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_progress.txt"
+19:10:28 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+19:10:28 py: loading models: started
+19:10:37 py: number reader: PaddleOCR (PP-OCRv5_server_rec.onnx); text finder: text_detection_en_ppocrv3_2023may.onnx
+19:10:37 py: box check: on (SigLIP 2); colour reader: SigLIP 2
+19:10:37 py: loading models: done, 9s, peak memory 3671 MB (workers not included)
+19:10:37 py: references: started
+19:10:37 py: cancelled
+19:10:37 py: references: done, 0s, peak memory 3671 MB (workers not included)
+19:10:37 py: run: 9s in total, peak memory 3671 MB (workers not included)

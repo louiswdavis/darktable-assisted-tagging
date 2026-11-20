@@ -1,0 +1,19 @@
+19:15:50 lua: audit references: darktable 5.6.2, 0 images, collection Rallye
+19:15:50 lua: Assisted Tagging: Audit References started…
+19:15:50 lua: vehicles: dfine_x_coco.onnx
+19:15:50 lua: segmenter: image_segmentation_efficientsam_ti_2025april.onnx
+19:15:50 lua: text finder: text_detection_en_ppocrv3_2023may.onnx
+19:15:50 lua: number reader: PP-OCRv5_server_rec.onnx
+19:15:50 lua: second reader: none installed
+19:15:50 lua: livery embedder: dinov2_base.onnx (better, not installed: dinov2_large.onnx)
+19:15:50 lua: box check: siglip2_base_vision.onnx
+19:15:50 lua: face detector: face_detection_yunet_2023mar.onnx
+19:15:50 lua: face recognizer: face_recognition_sface_2021dec.onnx
+19:15:50 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_manifest.csv" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_results.csv" "--audit-refs" "--quarantine" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "Rallye" "--settings" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_settings.run.json" "--detections" "C:/Users/Louis/AppData/Local/darktable/assisted_plugins/detections.sqlite" "--detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dfine_x_coco.onnx" "--segmenter" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/image_segmentation_efficientsam_ti_2025april.onnx" "--ocr-det" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/text_detection_en_ppocrv3_2023may.onnx" "--ocr-rec" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/PP-OCRv5_server_rec.onnx" "--embedder" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dinov2_base.onnx" "--siglip" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/siglip2_base_vision.onnx" "--face-detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_detection_yunet_2023mar.onnx" "--face-recognizer" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_recognition_sface_2021dec.onnx" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_rules.csv" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795200714_1_progress.txt"
+19:15:51 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+19:15:53 py: number reader: PaddleOCR (PP-OCRv5_server_rec.onnx); text finder: text_detection_en_ppocrv3_2023may.onnx
+20:11:54 py: reference audit: {'references': 2140, 'mislabel': 33, 'copies': 0, 'outliers': 289, 'colour': 232, 'crops': 56, 'attractors': 15, 'frames': 14, 'strongest': 0, 'doubtful_anchors': 140, 'unanchored': 0, 'suggested': 0, 'quarantined': 0}; wrote C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\Rallye\ref-audit.txt
+20:11:54 py: run: 3364s in total, peak memory 1765 MB (workers not included)
+20:11:55 lua: identify.py exit 0
+20:11:55 lua: Assisted Tagging: Audit done, 2140 references checked, flagged: 33 mislabel suspects, 0 cross-entry copies, 289 outliers, 232 colour outliers, 56 odd crops; 0 flagged by 2+ checks (start there). 140 anchors look doubtful (never moved; check them by hand). 0 cars have no anchor. Details in C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\Rallye\ref-audit.txt.
+20:11:55 lua: run finished
