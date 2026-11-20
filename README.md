@@ -381,9 +381,10 @@ A family is one kind of tag the plugin writes. Each has a switch and a root in t
 | Co-driver | the entry's `co_driver` | `family_co_driver` | `family_co_driver_root` | `Assisted Tagging\|Motorsport\|Co-driver` |
 | Class | the entry's `extra` | `family_extra` | `family_extra_root` | `Assisted Tagging\|Motorsport\|Class` |
 | Vehicle | the entry's `make` and `model`, as `<make>\|<model>` | `family_vehicle` | `family_vehicle_root` | `Assisted Tagging\|Motorsport\|Vehicle` |
+| Paddock | the entry's `paddock` id | `family_paddock` | `family_paddock_root` | `Assisted Tagging\|Motorsport\|Paddock` |
 | Sponsor | each [`sponsor_keywords`](#rules) word read inside a vehicle box, title-cased (`castrol` → `Castrol`) unless [`sponsor_names`](#rules) spells it; words read on banners or not listed are never written. Off by default | `family_sponsor` | `family_sponsor_root` | `Assisted Tagging\|Motorsport\|Sponsor` |
 
-All eight are on by default except Sponsor. An identified entry gets one tag per family that is on and that it has a value for, then its own `tags`. An entry that builds no tag at all stops the run.
+All nine are on by default except Sponsor. An identified entry gets one tag per family that is on and that it has a value for, then its own `tags`. An entry that builds no tag at all stops the run.
 
 An older entries.json may hold `Motorsport|Class|…` and `Motorsport|Vehicle|…` entry tags from an earlier start-list import. The next reload moves them into the `extra`, `make` and `model` fields and keeps the previous file as `entries.json.bak`. A field that disagrees with its tag, or a tag deeper than `Motorsport|Class|<class>` or `Motorsport|Vehicle|<make>|<model>`, stops the load and names the entry; fix it by hand.
 

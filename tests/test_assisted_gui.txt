@@ -7,23 +7,23 @@ ok   derive colour, colour tag and no entry: no crash
 ok   derive colour: says it started as soon as it is clicked
 ok   derive colour, colour tag and no entry: identify.py isn't started
 ok   derive colour, colour tag and no entry: the log says why
-ok   derive colour, no entry, no colour tag: the photo is sent with no entry
+ok   derive colour, no entry, no colour tag: the image is sent with no entry
 ok   derive colour, no entry, no colour tag: the colour read is tagged
 ok   derive colour: the tag it adds is the plugin's in the ledger
-ok   derive colour: the done message counts the photos tagged
+ok   derive colour: the done message counts the images tagged
 ok   fill colours, Identify's entry tag + hand colour: no crash
 ok   fill colours, Identify's entry tag + hand colour: the row names the entry and the colour
 ok   fill colours: runs in colours-only mode
 ok   fill colours: reports the entry set
-ok   derive colour: a photo that has a colour tag keeps it and gets no other
-ok   fill colours, one photo with Identify's tags: the row leaves the colour to the reading
-ok   fill colours, Identify's colour tag on 3 of 4 photos: every row carries it
-ok   fill colours, Check colour photos don't count: no colour is sent
+ok   derive colour: an image that has a colour tag keeps it and gets no other
+ok   fill colours, one image with Identify's tags: the row leaves the colour to the reading
+ok   fill colours, Identify's colour tag on 3 of 4 images: every row carries it
+ok   fill colours, Check colour images don't count: no colour is sent
 ok   fill colours, Identify's colour tags split: no colour is sent
 ok   fill colours, hand entry tag, no colour tag: the row leaves the colour to the reading
-ok   derive colour, entry and no colour tag: the photo gets the colour read
+ok   derive colour, entry and no colour tag: the image gets the colour read
 ok   derive colour, entry and no colour tag: the entry's colour is saved too
-ok   derive colour, agreed colour: a photo without a colour tag is read, not given the agreed colour
+ok   derive colour, agreed colour: an image without a colour tag is read, not given the agreed colour
 ok   fill colours, number tag only: the rows name the entry and the agreed colour
 ok   identify colour for selection: two of three read Blue, all three get Blue
 ok   identify colour for selection: a split vote tags nothing
@@ -56,33 +56,33 @@ ok   the progress line sits at the foot of the panel, outside the folding pages
 ok   To check sits above the progress line, outside the folding pages
 ok   To check: a blank line sits above the heading
 ok   To check: Clear list is the box's last line, not beside the heading
-ok   To check: a photo fill colours couldn't read shows in the box
+ok   To check: an image fill colours couldn't read shows in the box
 ok   To check: the row names the action and the count
 ok   To check: the item is saved for a restart
 ok   To check: Select changes the selection
-ok   To check: Select says which photos are gone
+ok   To check: Select says which images are gone
 ok   To check: the next fill colours run replaces its items
 ok   To check: Clear empties the box
 ok   To check: Clear empties the saved list
 ok   To check: a row without a fix has no Fix button
 ok   To check: Verify's differ row reads in full
 ok   To check: the row text is a read-only text view with no hand line breaks, so it wraps at the panel's width
-ok   To check: the differ row lists the photo and why
-ok   To check: the photo list is read-only text
-ok   To check: the saved line names its fix and the photo
+ok   To check: the differ row lists the image and why
+ok   To check: the image list is read-only text
+ok   To check: the saved line names its fix and the image
 ok   To check: the differ row has a Fix button
 ok   To check: Fix starts Identify, not Verify
 ok   To check: Fix runs with replace manual on
 ok   To check: Fix removes its row
 ok   To check: an old 3-field line still loads, with no fix
 ok   To check: a 4-field line loads its fix, no details
-ok   To check: a fix argument and the photo list survive a save and load
+ok   To check: a fix argument and the image list survive a save and load
 ok   Verify colour: the entry colour row reads in full
-ok   Verify colour: the entry colour row lists the photo and why
+ok   Verify colour: the entry colour row lists the image and why
 ok   Verify colour: the Colour tag row reads in full
-ok   Verify colour: the Colour tag row lists the photo and why
+ok   Verify colour: the Colour tag row lists the image and why
 ok   Verify colour: the overturn row reads in full
-ok   Verify colour: the overturn row lists the photo
+ok   Verify colour: the overturn row lists the image
 ok   Verify colour: every colour row has a Fix
 ok   Verify colour: Verify changes no tag
 ok   Colour tag Fix: the Colour tag read replaces the old one
@@ -99,26 +99,26 @@ ok   timeline: the older run's item moves below it
 ok   timeline: an Earlier runs line sits under the newest run
 ok   timeline: no Earlier runs line under the last item
 ok   timeline: the saved list keeps the order and each run
-ok   stale Unidentified: a photo skipped as tagged by hand loses the earlier run's Unidentified tag
-ok   stale Unidentified: a photo identified now loses an Unidentified tag missing from the ledger
-ok   stale Unidentified: a photo whose hand tags name a car loses it
-ok   stale Unidentified: a hand Unidentified tag stays on a photo still unidentified
+ok   stale Unidentified: an image skipped as tagged by hand loses the earlier run's Unidentified tag
+ok   stale Unidentified: an image identified now loses an Unidentified tag missing from the ledger
+ok   stale Unidentified: an image whose hand tags name a car loses it
+ok   stale Unidentified: a hand Unidentified tag stays on an image still unidentified
 ok   missing: with every entry carried, says so
 ok   missing: with every entry carried, identify.py does not run
 ok   missing: identify.py gets the missing entries in start-list order
 ok   missing: the log lists the missing entries
-ok   missing: a found photo carries its entry and Check match
+ok   missing: a found image carries its entry and Check match
 ok   missing: the done message counts found and still missing
-ok   missing: a photo an earlier run tagged keeps its entry
-ok   missing: a selection with every photo named does not run
-ok   missing: a selection with every photo named says so
-ok   identify colour for group: only the selected photo is read
-ok   identify colour for group: the selected photo and its untagged mate get the colour
+ok   missing: an image an earlier run tagged keeps its entry
+ok   missing: a selection with every image named does not run
+ok   missing: a selection with every image named says so
+ok   identify colour for group: only the selected image is read
+ok   identify colour for group: the selected image and its untagged mate get the colour
 ok   identify colour for group: a mate with a colour tag keeps it
 ok   identify colour for group: a locked mate is left alone
 ok   identify colour for group: another group is untouched
 ok   identify colour for group: the mate's tag is the plugin's in the ledger
-ok   identify colour for group: a photo in no group says so
+ok   identify colour for group: an image in no group says so
 ok   copy to group: the button is on the panel
 ok   copy to group: the source's tags replace the member's entry and family tags
 ok   copy to group: a member with no tags gets them all
@@ -129,40 +129,40 @@ ok   copy to group: the copies are the user's, the ledger has no row for them
 ok   copy to group: the end message
 ok   copy to group: Identify reading another car keeps the copied tags
 ok   copy to group, nothing selected: asks for a selection
-ok   copy to group, a photo alone in its group: says so, writes nothing
-ok   copy to group, selected photos differ: the confirm box shows
-ok   copy to group, selected photos differ: the confirm names the count
-ok   copy to group, selected photos differ: nothing is written before the confirm
+ok   copy to group, an image alone in its group: says so, writes nothing
+ok   copy to group, selected images differ: the confirm box shows
+ok   copy to group, selected images differ: the confirm names the count
+ok   copy to group, selected images differ: nothing is written before the confirm
 ok   copy to group, Cancel: the box hides and nothing is written
-ok   copy to group, Merge and Copy: every photo gets the merged tags
+ok   copy to group, Merge and Copy: every image gets the merged tags
 ok   copy to group, Merge and Copy: the confirm box hides
-ok   copy to group, a selected photo missing the colour: copies without the confirm
+ok   copy to group, a selected image missing the colour: copies without the confirm
 ok   copy to group: an unidentified member drops Unidentified, Check match and Number seen
 ok   copy to group: an identified member keeps Number seen, drops Check match
 ok   copy to selection: the button is on the panel
-ok   copy to selection: each selected photo's blanks fill from the others
-ok   copy to selection: other tags stay on the photo that had them
-ok   copy to selection: unselected photos, group mates too, are untouched
+ok   copy to selection: each selected image's blanks fill from the others
+ok   copy to selection: other tags stay on the image that had them
+ok   copy to selection: unselected images, group mates too, are untouched
 ok   copy to selection: the end message
-ok   copy to selection, photos differ: the confirm names the clash
-ok   copy to selection, photos differ: nothing is written before the confirm
-ok   copy to selection, Merge and Copy: both photos get the merged tags
-ok   copy to selection, one photo: asks for two
+ok   copy to selection, images differ: the confirm names the clash
+ok   copy to selection, images differ: nothing is written before the confirm
+ok   copy to selection, Merge and Copy: both images get the merged tags
+ok   copy to selection, one image: asks for two
 ok   lock: the buttons are on the panel
-ok   lock: the photo gets the Locked tag and keeps its tags
+ok   lock: the image gets the Locked tag and keeps its tags
 ok   lock: its tags leave the ledger, the Locked tag never joins it
-ok   lock: other photos keep their ledger rows
+ok   lock: other images keep their ledger rows
 ok   lock, copy to group: a locked group mate keeps its own tags
-ok   lock, copy to group: the end message counts the locked photo
-ok   lock, copy to selection: a locked photo is a source
+ok   lock, copy to group: the end message counts the locked image
+ok   lock, copy to selection: a locked image is a source
 ok   lock, copy to selection: the locked source takes nothing back
-ok   lock, derive from number: a locked photo gets nothing
-ok   lock, derive colour: a locked photo gets no colour tag
-ok   lock, identify with Replace Manual Tags: the manifest marks the photo locked
+ok   lock, derive from number: a locked image gets nothing
+ok   lock, derive colour: a locked image gets no colour tag
+ok   lock, identify with Replace Manual Tags: the manifest marks the image locked
 ok   lock, identify with Replace Manual Tags: the row names its entry
 ok   lock, identify with Replace Manual Tags: its tags are sent as protected
 ok   lock, identify with Replace Manual Tags: the tags stay
-ok   lock, identify: an unlocked photo's row has an empty locked field
+ok   lock, identify: an unlocked image's row has an empty locked field
 ok   unlock: the Locked tag goes, the tags stay
 ok   unlock: the tags stay yours
 ok   presets: export is offered for the Rallye collection

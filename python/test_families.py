@@ -38,9 +38,9 @@ def resolve_error(**over) -> str:
 
 def test_order():
     check("family order", [f.key for f in F.FAMILIES],
-          ["colour", "number", "team", "driver", "co_driver", "extra", "vehicle", "sponsor"])
+          ["colour", "number", "team", "driver", "co_driver", "extra", "vehicle", "paddock", "sponsor"])
     check("family sources", [f.sources for f in F.FAMILIES],
-          [(), ("number",), ("team",), ("name",), ("co_driver",), ("extra",), ("make", "model"), ()])
+          [(), ("number",), ("team",), ("name",), ("co_driver",), ("extra",), ("make", "model"), ("paddock",), ()])
     check("only the sponsor family is off by default", [f.key for f in F.FAMILIES if not f.default_on], ["sponsor"])
     check("setting keys", (F.switch_key("team"), F.root_key("team")), ("family_team", "family_team_root"))
     check("family_tag", F.family_tag("Assisted Tagging|Motorsport|Team", "Ferrari"), "Assisted Tagging|Motorsport|Team|Ferrari")
@@ -55,8 +55,9 @@ def test_resolve_defaults():
         "colour": "Assisted Tagging|Motorsport|Colour", "number": "Assisted Tagging|Motorsport|Number",
         "team": "Assisted Tagging|Motorsport|Team", "driver": "Assisted Tagging|Motorsport|Driver",
         "co_driver": "Assisted Tagging|Motorsport|Co-driver",
-        "extra": "Assisted Tagging|Motorsport|Class", "vehicle": "Assisted Tagging|Motorsport|Vehicle"})
-    check("resolve: family order", list(roots), ["colour", "number", "team", "driver", "co_driver", "extra", "vehicle"])
+        "extra": "Assisted Tagging|Motorsport|Class", "vehicle": "Assisted Tagging|Motorsport|Vehicle",
+        "paddock": "Assisted Tagging|Motorsport|Paddock"})
+    check("resolve: family order", list(roots), ["colour", "number", "team", "driver", "co_driver", "extra", "vehicle", "paddock"])
     check("resolve: custom root", F.resolve(defaults(family_team_root="Cars|Team"))["team"], "Cars|Team")
     check("resolve: sibling roots are fine",
           resolve_error(family_number_root="Cars|Number", family_team_root="Cars|Numbers"), "(no error)")
@@ -64,10 +65,10 @@ def test_resolve_defaults():
 
 def test_resolve_off():
     roots = F.resolve(defaults(family_colour=False, family_driver=False))
-    check("resolve: off families left out", list(roots), ["number", "team", "co_driver", "extra", "vehicle"])
+    check("resolve: off families left out", list(roots), ["number", "team", "co_driver", "extra", "vehicle", "paddock"])
     check("resolve: all off", F.resolve(defaults(family_colour=False, family_number=False,
                                                  family_team=False, family_driver=False, family_co_driver=False,
-                                                 family_extra=False, family_vehicle=False)), {})
+                                                 family_extra=False, family_vehicle=False, family_paddock=False)), {})
     check("resolve: a switched-off family's root is not checked",
           F.resolve(defaults(family_driver=False, family_driver_root=""))["team"], "Assisted Tagging|Motorsport|Team")
     check("resolve: a switched-off family's root can overlap",

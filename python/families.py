@@ -1,5 +1,5 @@
 """Tag families: each is one kind of tag the plugin writes (a car's colour, number, team, driver,
-co-driver, class, make/model and sponsor),
+co-driver, class, make/model, paddock id and sponsor),
 with a switch and a root tag in settings.json. M.FAMILIES in lua/assisted_tagging.lua mirrors the
 table. Stdlib only."""
 
@@ -26,6 +26,7 @@ FAMILIES = (
     Family("co_driver", ("co_driver",), "Assisted Tagging|Motorsport|Co-driver"),
     Family("extra", ("extra",), "Assisted Tagging|Motorsport|Class"),
     Family("vehicle", ("make", "model"), "Assisted Tagging|Motorsport|Vehicle"),
+    Family("paddock", ("paddock",), "Assisted Tagging|Motorsport|Paddock"),
     # a rules.sponsor_keywords word read inside a vehicle box; off by default
     Family("sponsor", (), "Assisted Tagging|Motorsport|Sponsor", default_on=False),
 )

@@ -163,6 +163,7 @@ ok   hinted_match: low restricted similarity drops the hint
 ok   hinted_match: a weak livery under a tag gives the team
 ok   hinted_match: the pod then picks the driver
 ok   hinted_match: a number inside the tagged set still wins
+ok   only-entries: a clear read of a carried car under a tag gives no team of the pool's entries
 ok   hinted_match: a weak sponsor hint is still dropped
 ok   hinted_match: a number outside the set drops the hint
 ok   hinted_match: a number outside is ignored when the livery clearly points inside a tagged set

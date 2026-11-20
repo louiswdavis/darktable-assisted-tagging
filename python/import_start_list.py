@@ -103,9 +103,9 @@ def map_header(header: list, columns: dict, need_number: bool = True) -> dict:
             hit = next((i for i, h in enumerate(lowered) if h in ALIASES[role]), None)
             if hit is not None and hit not in found.values():
                 found[role] = hit
-    if need_number and "number" not in found:
-        raise BadInput(f'no number column found in the header ({", ".join(h.strip() for h in header)}); '
-                       'name it with --columns "number=<header>"')
+    if need_number and "number" not in found and "paddock" not in found:
+        raise BadInput(f'no number or paddock column found in the header ({", ".join(h.strip() for h in header)}); '
+                       'name one with --columns "number=<header>"')
     return found
 
 
@@ -163,19 +163,22 @@ def entries_from(rows: list) -> tuple:
     entries, cleaned, seen = [], [], set()
     for n, row in enumerate(rows, 1):
         number = row.get("number", "").strip().lstrip("#")
-        if not re.fullmatch(r"\d{1,3}", number):
-            raise BadInput(f'row {n}: "{row.get("number", "")}" is not a 1–3 digit number')
-        number = str(int(number))
         demo = row.get("class", "").strip().lower().startswith("demo")
-        entry_id = demo_id(row, n) if demo else number
+        if number or demo:
+            if not re.fullmatch(r"\d{1,3}", number):
+                raise BadInput(f'row {n}: "{row.get("number", "")}" is not a 1–3 digit number')
+            number = str(int(number))
+        entry_id = demo_id(row, n) if demo or not number else number
         if entry_id in seen:
-            raise BadInput(f"{'demo paddock' if demo else 'number'} {entry_id} is listed twice")
+            raise BadInput(f"{'paddock id' if entry_id != number else 'number'} {entry_id} is listed twice")
         seen.add(entry_id)
         name, co_driver, team = (row.get(k, "").strip() for k in ("driver", "co-driver", "team"))
         if _BAD.search(name + co_driver + team):
-            cleaned.append(number)
+            cleaned.append(entry_id)
             name, co_driver, team = (_BAD.sub("", v).strip() for v in (name, co_driver, team))
-        entry = {"id": entry_id, "number": number}
+        entry = {"id": entry_id}
+        if number:
+            entry["number"] = number
         if name:
             entry["name"] = name
         if co_driver:
@@ -193,7 +196,7 @@ def entries_from(rows: list) -> tuple:
         entries.append(entry)
     if not entries:
         raise BadInput("no entries found")
-    _pair_cars([(e, r) for e, r in zip(entries, rows) if e["id"] == e["number"]])
+    _pair_cars([(e, r) for e, r in zip(entries, rows) if e["id"] == e.get("number")])
     return entries, cleaned
 
 
@@ -255,7 +258,7 @@ def merge(collection_dir: str, entries: list) -> dict:
     ids = {e.get("id") for e in existing if isinstance(e, dict)}
     race_numbers = {str(e.get("number", "")) for e in existing
                     if isinstance(e, dict) and not is_demo_id(e.get("id", ""))}
-    taken = [e for e in entries if e["id"] in ids or (e["id"] == e["number"] and e["number"] in race_numbers)]
+    taken = [e for e in entries if e["id"] in ids or (e["id"] == e.get("number") and e["number"] in race_numbers)]
     new = [e for e in entries if e not in taken]
     skipped = [e["id"] for e in taken if e["id"] not in {n for _, n in renamed}]
     if not new and not renamed and not filled:
@@ -278,7 +281,7 @@ def _rename_demos(existing: list, entries: list) -> list:
     by_id = {e.get("id"): e for e in existing if isinstance(e, dict)}
     renamed = []
     for entry in entries:
-        if not is_demo_id(entry["id"]) or entry["id"] in by_id:
+        if not is_demo_id(entry["id"]) or entry["id"] in by_id or not entry.get("number"):
             continue
         old_id = next((i for i in (f"D{entry['number']}", entry["number"]) if i in by_id), None)
         if old_id is None:

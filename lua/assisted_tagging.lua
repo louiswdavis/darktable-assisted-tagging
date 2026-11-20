@@ -83,6 +83,7 @@ M.FAMILIES = {
     { key = "co_driver", sources = { "co_driver" }, default_root = "Assisted Tagging|Motorsport|Co-driver" },
     { key = "extra", sources = { "extra" }, default_root = "Assisted Tagging|Motorsport|Class" },
     { key = "vehicle", sources = { "make", "model" }, default_root = "Assisted Tagging|Motorsport|Vehicle" },
+    { key = "paddock", sources = { "paddock" }, default_root = "Assisted Tagging|Motorsport|Paddock" },
     { key = "sponsor", sources = {}, default_root = "Assisted Tagging|Motorsport|Sponsor" },
 }
 
@@ -102,18 +103,7 @@ function M.open_command(path, os_name)
     return (os_name == "macos" and "open " or "xdg-open ") .. C.shell_quote(path, false)
 end
 
-function M.exif_time_to_epoch(s)
-    if not s then return nil end
-    local y, mo, d, h, mi, se = s:match("(%d+):(%d+):(%d+) (%d+):(%d+):(%d+)")
-    -- Before 1970 (a zero date, an old scan) os.time raises on Windows: undated.
-    if not y or tonumber(y) < 1970 then return nil end
-    local ok, epoch = pcall(os.time, {
-        year = tonumber(y), month = tonumber(mo), day = tonumber(d),
-        hour = tonumber(h), min = tonumber(mi), sec = tonumber(se),
-        isdst = false, -- constant offset, so a DST change can't split a burst
-    })
-    return ok and epoch or nil
-end
+M.exif_time_to_epoch = C.exif_time_to_epoch
 
 M.NEIGHBOUR_MAX_GAP_S = 20 -- python/neighbour.py's NEIGHBOUR_MAX_GAP_S
 
@@ -969,6 +959,30 @@ function M.tag_changes(have, wanted, owned, owned_prefixes, protected, also_owne
     return attach, detach
 end
 
+-- The check tags that no longer apply to an image holding the tag set `after` (what it will hold once
+-- a run's changes land), sorted: Unidentified (both the entries.json tags and the diagnostic) goes
+-- once the image holds a number tag or an entry's tags, hand-applied or not. Check match stays (with
+-- closer_car_margin it rides on an entry tag on purpose), as do Check order, Check colour and
+-- Number seen: they doubt an entry, or may name a second car.
+-- `rules` is M.named_rules, `roots` is M.family_roots.
+function M.stale_checks(after, rules, entries, order, roots)
+    local prefix = roots and roots.number and roots.number .. "|"
+    local identified = M.entry_for_tags(after, entries, order) ~= nil
+    for name in pairs(after) do
+        if prefix and name:sub(1, #prefix) == prefix then identified = true end
+    end
+    if not identified then return {} end
+    local stale = {}
+    for _, t in ipairs(rules.unidentified) do stale[t] = true end
+    if (rules.diag.none or "") ~= "" then stale[rules.diag.none] = true end
+    local out = {}
+    for name in pairs(after) do
+        if stale[name] then out[#out + 1] = name end
+    end
+    table.sort(out)
+    return out
+end
+
 -- Ledger: the tags the plugin attached, per image id, persisted as `<library>,id,tag` lines. A
 -- tag on an image that's not in its ledger was applied by the user. `library` is C.library_key:
 -- image ids restart in every library, so only library `lib`'s lines are parsed (keyed by id);
@@ -1210,6 +1224,18 @@ function M.missing_entries(tag_sets, entries, order, roots)
     return missing
 end
 
+-- True when the photo's tag set `have` has no tag under the Number family root (`roots`,
+-- M.family_roots), locked or not. With the Number family off there is no such tag to look for, so
+-- false.
+function M.lacks_number_tag(have, roots)
+    if not roots or not roots.number then return false end
+    local prefix = roots.number .. "|"
+    for tag in pairs(have) do
+        if tag:sub(1, #prefix) == prefix then return false end
+    end
+    return true
+end
+
 -- Why entry_for_tags named no entry for `have`, for the log: the entries whose tags it carries all
 -- of when several do, else the entry it carries most tags of and the tags of that entry it lacks.
 function M.entry_tags_note(have, entries, order)
@@ -1321,7 +1347,7 @@ function M.one_entry_csv(typed)
         values[i] = (typed[role] or ""):match("^%s*(.-)%s*$")
         picked[role] = role
     end
-    if values[1] == "" then return nil, "Type the entry's number first." end
+    if values[1] == "" and (typed.paddock or ""):match("^%s*$") then return nil, "Type the entry's number or paddock id first." end
     return M.csv_line(M.ENTRY_ROLES) .. "\n" .. M.csv_line(values) .. "\n", M.columns_spec(picked)
 end
 
@@ -1508,6 +1534,8 @@ M.PRESET_SCHEMA = {
     { key = "family_extra_root", kind = "string", default = "Assisted Tagging|Motorsport|Class" },
     { key = "family_vehicle", kind = "bool", default = true },
     { key = "family_vehicle_root", kind = "string", default = "Assisted Tagging|Motorsport|Vehicle" },
+    { key = "family_paddock", kind = "bool", default = true },
+    { key = "family_paddock_root", kind = "string", default = "Assisted Tagging|Motorsport|Paddock" },
     { key = "family_sponsor", kind = "bool", default = false },
     { key = "family_sponsor_root", kind = "string", default = "Assisted Tagging|Motorsport|Sponsor" },
     { key = "tag_number", kind = "bool", default = true },
@@ -2016,29 +2044,9 @@ local function identify_script()
     return found or (THIS_DIR .. "/identify.py")
 end
 
-local function plugin_root(script)
-    local folder = plugin_folder_pref()
-    if folder ~= "" then return folder end
-    local script_dir = (script and script:match("^(.*)[/\\]")) or THIS_DIR
-    return script_dir:match("^(.*)[/\\]python$") or script_dir
-end
+local function plugin_root(script) return C.plugin_root(plugin_folder_pref(), script, THIS_DIR) end
 
-local function python_bin(script)
-    local root = plugin_root(script)
-    local found = first_existing({
-        root .. "/.venv/Scripts/python.exe",
-        root .. "/.venv/bin/python",
-        THIS_DIR .. "/../.venv/Scripts/python.exe",
-        THIS_DIR .. "/../.venv/bin/python",
-    })
-    if found then return found end
-
-    local v = df.check_if_bin_exists(IS_WINDOWS and "python" or "python3")
-    if not v then
-        v = IS_WINDOWS and "python" or "python3"
-    end
-    return v
-end
+local function python_bin(script) return C.python_bin(plugin_root(script), THIS_DIR, IS_WINDOWS, df) end
 
 -- A model in the plugin folder's models/. A missing file is passed through
 -- as-is, so identify.py names it in its error.
@@ -2105,11 +2113,7 @@ local function read_log_tail()
     return t
 end
 
-local function fmt_eta(elapsed, done, total)
-    if elapsed < 3 or done <= 0 or done >= total then return "" end
-    local remaining = math.ceil(elapsed * (total - done) / done)
-    return string.format(" | ~%dm %02ds left", remaining // 60, remaining % 60)
-end
+local fmt_eta = C.fmt_eta
 
 -- Each line is written as it is logged, so a crash leaves the last step in the file.
 -- Lines wait only while identify.py appends its stderr to the same file (run_log.hold to
@@ -2142,11 +2146,7 @@ local function notify_error(msg)
     alerts.add((msg:gsub("^Assisted Tagging: ", "")))
 end
 
-local function tags_of(img)
-    local have = {}
-    for _, t in ipairs(tags.get_tags(img)) do have[t.name] = true end
-    return have
-end
+local function tags_of(img) return C.tags_of(tags, img) end
 
 -- One identify.py process at a time: runs share the tmp files and the job file.
 -- `orphan` is a cancelled or stalled process that hadn't exited when its run gave up
@@ -2422,6 +2422,19 @@ local function load_entries_csv()
     refresh_tag_tooltips()
 end
 
+-- Creates every loaded entry's tags in darktable's tag list, attached to nothing, so they are there to
+-- pick by hand before any run writes them. Safe to repeat (tags.create returns an existing tag).
+-- Returns how many tags it ensured.
+local function create_entry_tags()
+    local n = 0
+    for _, id in ipairs(entry_order) do
+        for _, name in ipairs(entries[id].tags) do
+            if pcall(tags.create, name) then n = n + 1 end
+        end
+    end
+    return n
+end
+
 local function cleanup_tmp()
     -- An orphaned identify.py still needs its cancel flag, so leave the files until it exits.
     if orphan then return end
@@ -2492,6 +2505,9 @@ local function reload_lists(quiet, show_plan, reread_settings)
         end
         lists_loaded, loaded = true, true
         refresh_entry_combo()
+        local made = current_collection() ~= "" and create_entry_tags() or 0
+        log(string.format("reload: %d entry tags ensured in darktable", made))
+        local made_note = made > 0 and string.format(" %s ready in darktable's tag list.", C.count(made, "entry tag")) or ""
         if #names == 0 then
             say(string.format("Assisted Tagging: No collections yet. Pick the template preset and click New collection, "
                 .. "or add a folder with an entries.json in %s (see the README), then click Reload.", collections_root()))
@@ -2500,11 +2516,11 @@ local function reload_lists(quiet, show_plan, reread_settings)
                 say(string.format("Assisted Tagging: %d collections. Pick one in the preset list.", #names))
             end
         elseif show_plan then
-            say(string.format("Assisted Tagging: The tags each outcome writes in %s are listed in %s/%s/tag-plan.txt.",
-                current_collection(), collections_root(), current_collection()))
+            say(string.format("Assisted Tagging: The tags each outcome writes in %s are listed in %s/%s/tag-plan.txt.%s",
+                current_collection(), collections_root(), current_collection(), made_note))
         elseif not quiet then
-            say(string.format("Assisted Tagging: %d collections; %s has %d entries.", #names,
-                current_collection(), #entry_order))
+            say(string.format("Assisted Tagging: %d collections; %s has %d entries.%s", #names,
+                current_collection(), #entry_order, made_note))
         end
     end)
     busy = false
@@ -2597,13 +2613,7 @@ local function start_job(what, n)
     return job
 end
 
-local function write_rows(path, rows)
-    local f = io.open(path, "w")
-    if not f then return false end
-    for _, r in ipairs(rows) do f:write(M.csv_line(r), "\n") end
-    f:close()
-    return true
-end
+local write_rows = C.write_rows
 
 local write_file_atomic = C.write_file_atomic
 
@@ -2818,13 +2828,7 @@ end
 
 -- Whether image `id` is still in the library. A get_image error counts as gone, as does a
 -- stale image whose fields can't be read; ledger_prune skips the prune when nothing resolves.
-local function image_exists(id)
-    local ok, name = pcall(function()
-        local img = dt.database.get_image(id)
-        return img and img.filename
-    end)
-    return ok and name ~= nil
-end
+local function image_exists(id) return C.image_exists(dt, id) end
 
 -- Writes the ledger of the tags this plugin attached, first dropping the rows of images no
 -- longer in the library. A failed write is tried once more, then reported on screen with
@@ -2976,7 +2980,7 @@ function M.derive_images(images, mode)
         local names = { derived = s.tag_derived and named.diag.derived or "",
                         check_colour = s.tag_check_colour and named.diag.check_colour or "" }
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
-        local n_derived, n_skipped, n_check, n_tags, writes, failed, stopped = 0, 0, 0, 0, 0, 0, false
+        local n_derived, n_skipped, n_check, n_tags, n_stale, writes, failed, stopped = 0, 0, 0, 0, 0, 0, 0, false
         local check_ids, skipped_ids, failed_ids = {}, {}, {} -- for To check
         local start = os.time()
         for i, img in ipairs(images) do
@@ -3006,11 +3010,20 @@ function M.derive_images(images, mode)
                 end
             end
             local mine = ledger[tonumber(img.id)] or {}
+            local after = {}
+            for name in pairs(have) do after[name] = true end
+            for _, name in ipairs(plan.attach) do after[name] = true end
+            local stale = M.is_locked(have) and {} or M.stale_checks(after, named, entries, entry_order, roots)
             local okw, werr = pcall(function()
                 for _, name in ipairs(plan.attach) do
                     tags.attach(tags.create(name), img)
                     mine[name] = true
                     n_tags = n_tags + 1
+                end
+                for _, name in ipairs(stale) do
+                    tags.detach(tags.create(name), img)
+                    mine[name] = nil
+                    n_stale = n_stale + 1
                 end
             end)
             ledger[tonumber(img.id)] = next(mine) and mine or nil
@@ -3019,7 +3032,7 @@ function M.derive_images(images, mode)
                 failed_ids[#failed_ids + 1] = img.id
                 log(string.format("derive %s: %s couldn't be tagged: %s", mode, C.image_label(img), tostring(werr)))
             end
-            writes = writes + #plan.attach
+            writes = writes + #plan.attach + #stale
             if writes >= WRITE_BUDGET then
                 writes = 0
                 wait_for_writes()
@@ -3036,6 +3049,7 @@ function M.derive_images(images, mode)
             msg = msg .. (stopped and " stopped early: no image derived." or ": no image derived.")
         end
         if n_check > 0 then msg = msg .. string.format(" %d marked Check colour.", n_check) end
+        if n_stale > 0 then msg = msg .. string.format(" %s removed (Unidentified).", C.count(n_stale, "tag")) end
         local left = {}
         if n_skipped > 0 then left[#left + 1] = string.format("%d skipped", n_skipped) end
         if failed > 0 then left[#left + 1] = string.format("%d couldn't be tagged", failed) end
@@ -3135,6 +3149,22 @@ local function apply_results(run, job)
         end
         return out
     end
+    -- once a copy holds a number tag or an entry's tags after this run, Unidentified goes
+    -- too (M.stale_checks), whoever applied them; `detach` gains them in place
+    local stale_roots = M.family_roots(settings)
+    local function add_stale(detach, have, attach, into)
+        local after = {}
+        for name in pairs(have) do after[name] = true end
+        for _, name in ipairs(attach) do after[name] = true end
+        for _, name in ipairs(detach) do after[name] = nil end
+        for _, name in ipairs(M.stale_checks(after, named, entries, entry_order, stale_roots)) do
+            into[#into + 1] = name
+            for i = #attach, 1, -1 do
+                if attach[i] == name then table.remove(attach, i) end
+            end
+        end
+        table.sort(into)
+    end
     -- likewise named.families holds every root; only the families that are on get written
     write_rules.families = M.family_roots(settings)
     -- one stamp per run; never owned, so later runs leave earlier stamps in place. "changed"
@@ -3167,8 +3197,10 @@ local function apply_results(run, job)
         if skipped[tonumber(img.id)] then
             n_skipped = n_skipped + 1
             for _, copy in ipairs(group_of[img.id]) do
-                local _, detach = M.tag_changes(tags_of(copy), {}, unidentified, nil,
+                local have = tags_of(copy)
+                local _, detach = M.tag_changes(have, {}, unidentified, nil,
                     unprotect_unidentified(protected_of[copy.id]))
+                add_stale(detach, have, {}, detach)
                 if #detach > 0 then
                     local attach = run_tag and { run_tag } or {}
                     plans[#plans + 1] = { copy = copy, attach = attach, detach = detach }
@@ -3196,8 +3228,10 @@ local function apply_results(run, job)
             for _, copy in ipairs(group_of[img.id]) do
                 local protected = (identified or held) and unprotect_unidentified(protected_of[copy.id])
                     or protected_of[copy.id]
-                local attach, detach = M.tag_changes(tags_of(copy), wanted, owned, owned_prefixes,
+                local have = tags_of(copy)
+                local attach, detach = M.tag_changes(have, wanted, owned, owned_prefixes,
                     protected, M.ledgered_owned(ledger[copy.id], owned_roots))
+                add_stale(detach, have, attach, detach)
                 if run_tag and not stamp_all and (#attach > 0 or #detach > 0) then
                     attach[#attach + 1] = run_tag
                 end
@@ -3361,7 +3395,7 @@ function M.identify_images(images, replace_manual, verify_only, only_entries)
     identify_cancellable = true
     if identify_button then identify_button.label = _("Cancel") end
     if only_entries and missing_button then missing_button.label = _("Identifying missing entries…") end
-    start_log(verify_only and "verify started" or "identify started", #images)
+    start_log(verify_only and "verify started" or only_entries and "identify missing entries started" or "identify started", #images)
     log(string.format("settings: replace manual %s, cars per image %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s, order weight %s",
         tostring(replace_manual and true or false),
         tostring(settings.cars_per_photo),
@@ -4426,16 +4460,18 @@ local function start_identify_missing()
         dt.print(_("Assisted Tagging: Every entry has an image."))
         return
     end
-    -- a photo that already carries an entry (an earlier run's tags included) is not rerun: its
-    -- entry is outside the pool, so the run would replace it
-    local leftovers = {}
+    -- a photo with a Number tag (an earlier run's, a hand tag, a locked photo's) is not rerun; one
+    -- without is, locked or not. With the Number family off, a photo naming no entry is rerun.
+    local leftovers, roots = {}, M.family_roots(settings)
     for _, img in ipairs(dt.gui.action_images) do
-        if not M.entry_for_tags(tags_of(img), entries, entry_order) then leftovers[#leftovers + 1] = img end
+        local have = tags_of(img)
+        local flagged = roots.number and M.lacks_number_tag(have, roots) or not roots.number and not M.entry_for_tags(have, entries, entry_order)
+        if flagged then leftovers[#leftovers + 1] = img end
     end
     if #dt.gui.action_images > 0 and #leftovers == 0 then
         set_idle_label()
         show_status("")
-        dt.print(_("Assisted Tagging: Every selected image already has an entry."))
+        dt.print(_("Assisted Tagging: Every selected image already has a number tag."))
         return
     end
     M.identify_images(leftovers, false, false, missing)
@@ -4712,7 +4748,7 @@ local function install_panel()
     for i, role in ipairs(M.ENTRY_ROLES) do
         role_entries[i] = new_widget("entry") {
             placeholder = role == "number" and _("number (required)") or ROLE_LABELS[role],
-            tooltip = _("Typed into the new entry as its CSV column would be. Blank leaves it out. Demo runs (class starting with Demo) need a paddock id."),
+            tooltip = _("Typed into the new entry as its CSV column would be. Blank leaves it out. A car with no visible number needs a paddock id instead; demo runs (class starting with Demo) need one too."),
             text = "",
         }
     end
@@ -5001,6 +5037,7 @@ local function install_panel()
         co_driver = { _("Co-driver"), _("Write an identified entry's co-driver as <root>|<co-driver>. Entries without a co-driver get no tag.") },
         extra = { _("Class"), _("Write an identified entry's class (start-list Class column) as <root>|<class>.") },
         vehicle = { _("Vehicle"), _("Write an identified entry's make and model as <root>|<make>|<model>.") },
+        paddock = { _("Paddock"), _("Write an identified entry's paddock id as <root>|<paddock id>. Entries without a paddock id get no tag.") },
         sponsor = { _("Sponsor"), _("Write each rules.sponsor_keywords word read on a car as <root>|<Word>. Words read outside a vehicle box (banners) and words not listed are never written."), _("Default: off.") },
     }
     tag_rows[#tag_rows + 1] = new_widget("section_label") { label = _("Tag Families") }

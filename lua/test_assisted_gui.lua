@@ -107,6 +107,7 @@ os.execute = function(cmd)
 end
 
 -- darktable -----------------------------------------------------------------------
+local created_tags = {}
 local prints, dispatched, prefs = {}, {}, {
     ["assisted_tagging/collections_root"] = ROOT .. "/collections",
     ["assisted_tagging/last_collection"] = "Rallye",
@@ -135,7 +136,7 @@ local dt = {
     tags = {
         get_tags = function(img) return img.tags end,
         find = function(name) return { name = name } end,
-        create = function(name) return { name = name } end,
+        create = function(name) created_tags[#created_tags + 1] = name; return { name = name } end,
         attach = function(tag, img)
             for _, t in ipairs(img.tags) do
                 if t.name == tag.name then return end
@@ -578,6 +579,14 @@ PYTHON.results = "8,-1,no_vehicle,,,0.000,,,\n"
 T.identify_images({ still_unknown }, false, false)
 check("stale Unidentified: a hand Unidentified tag stays on an image still unidentified", has_tag(still_unknown, UNIDENTIFIED), true)
 
+-- Reload creates every entry's tags in darktable's tag list
+local reload_button = widget_where(panel, "button", "label", "Reload") or { clicked_callback = function() end }
+created_tags = {}
+reload_button.clicked_callback()
+local made = {}
+for _, name in ipairs(created_tags) do made[name] = true end
+check("reload: the entry's number tags are created in darktable", made["Rallye|112"] and made["Rallye|35"] or false, true)
+
 -- Identify Missing Entries --------------------------------------------------------
 -- The collection's entries are 112 and 35 (PYTHON.entries); missing = no photo in dt.collection carries it.
 local missing_button = widget_where(panel, "button", "label", "Identify Missing Entries") or { clicked_callback = function() end }
@@ -602,7 +611,7 @@ check("missing: the done message counts found and still missing",
     printed("Assisted Tagging: Found 1 of 2 missing entries; still missing: 112."), true)
 -- a photo an earlier run tagged (ledgered tags) is not rerun: its own entry is outside the pool
 write_file(ROOT .. "/config/assisted_tagging/ledger.csv", (read_file(ROOT .. "/config/assisted_tagging/ledger.csv") or "") .. "25,Rallye|112\n")
-local run_tagged, unnamed_c = image(25, "DSC00025.JPG", { "Rallye|112" }), image(26, "DSC00026.JPG", {})
+local run_tagged, unnamed_c = image(25, "DSC00025.JPG", { "Rallye|112", "Number|112" }), image(26, "DSC00026.JPG", {})
 dt.collection = { run_tagged, unnamed_c }
 dt.gui.action_images = dt.collection
 PYTHON.results, PYTHON.runs, prints = "25,-1,no_vehicle,,,0.000,,,\n26,0,number,35,,0.9,,solo,0,,0,,1\n", {}, {}
@@ -613,7 +622,7 @@ dt.gui.action_images = { run_tagged }
 PYTHON.runs, prints = {}, {}
 missing_button.clicked_callback()
 check("missing: a selection with every image named does not run", #PYTHON.runs, 0)
-check("missing: a selection with every image named says so", printed("Assisted Tagging: Every selected image already has an entry."), true)
+check("missing: a selection with every image named says so", printed("Assisted Tagging: Every selected image already has a number tag."), true)
 dt.collection, dt.gui.action_images = nil, {}
 
 -- Copy Tags to Group -----------------------------------------------------------------

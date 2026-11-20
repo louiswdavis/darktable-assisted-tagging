@@ -56,6 +56,7 @@ def defaults_match_spec():
         "family_co_driver": True, "family_co_driver_root": "Assisted Tagging|Motorsport|Co-driver",
         "family_extra": True, "family_extra_root": "Assisted Tagging|Motorsport|Class",
         "family_vehicle": True, "family_vehicle_root": "Assisted Tagging|Motorsport|Vehicle",
+        "family_paddock": True, "family_paddock_root": "Assisted Tagging|Motorsport|Paddock",
         "family_sponsor": False, "family_sponsor_root": "Assisted Tagging|Motorsport|Sponsor"})
 
 

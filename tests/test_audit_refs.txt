@@ -1,16 +1,6 @@
-ok   Identify's load: one thread, its worker pool supplies the parallelism
-ok   audit's load: every core (onnxruntime 0), nothing else detects alongside it
-ok   progress: cached refs counted before any detection
-ok   progress: only the new ref is detected
-ok   shares stay aligned with path
-ok   boxes stay aligned with path
-ok   progress: all cached gives one done tick
-ok   progress: all cached detects nothing
-ok   cancel raises AuditCancelled
-all tests passed
 
 --- stderr ---
-22:20:11 py: checking frames: 2 cached, 1 to detect
-22:20:12 py: checking frames: 1 detected in 0s (0.04 s each)
-22:20:12 py: checking frames: 3 cached, 0 to detect
-22:20:12 py: checking frames: 0 cached, 2 to detect
+Traceback (most recent call last):
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_audit_refs.py", line 9, in <module>
+    import numpy as np
+ModuleNotFoundError: No module named 'numpy'

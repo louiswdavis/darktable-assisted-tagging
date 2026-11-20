@@ -98,6 +98,20 @@ def run_tests():
         check("map_header: a role given as none skips its alias",
               M.map_header(["No.", "Driver", "Team"], {"team": ""}), {"number": 0, "driver": 1})
         check("map_header: need_number=False allows no number", M.map_header(["Pilot"], {}, need_number=False), {"driver": 0})
+        check("map_header: a paddock column alone is enough", M.map_header(["Pilot", "Paddock"], {}), {"driver": 0, "paddock": 1})
+        check("entries_from: a row with a paddock id and no number is keyed by the paddock id",
+              M.entries_from([{"number": "", "paddock": "Z 5", "driver": "Smith"}])[0],
+              [{"id": "Z5", "name": "Smith", "paddock": "Z 5"}])
+        try:
+            M.entries_from([{"number": "", "driver": "Smith"}])
+            check("entries_from: no number and no paddock id is refused", None, "BadInput")
+        except M.BadInput:
+            check("entries_from: no number and no paddock id is refused", "BadInput", "BadInput")
+        try:
+            M.entries_from([{"number": "", "paddock": "Z5"}, {"number": "", "paddock": "Z5"}])
+            check("entries_from: a repeated paddock id is refused", None, "BadInput")
+        except M.BadInput:
+            check("entries_from: a repeated paddock id is refused", "BadInput", "BadInput")
         check("rows_from_csv splits a shared driver cell with no co-driver column",
               M.rows_from_csv("No.,Driver\n5,Smith / Jones\n", {})[0], {"number": "5", "driver": "Smith", "co-driver": "Jones"})
         check("rows_from_csv keeps the cell when a co-driver column exists",

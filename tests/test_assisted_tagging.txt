@@ -1,4 +1,8 @@
 ok   plugin_common.lua matches COMMON_HASH (copy it to the other repos after a change)
+ok   count: 0 is plural
+ok   count: 1 is singular
+ok   count: 2 is plural
+ok   count: an irregular plural
 ok   shell_quote: Windows escapes quotes, keeps %
 ok   shell_quote: POSIX escapes single quotes
 ok   parse_csv_line: quoted comma and doubled quote
@@ -14,28 +18,26 @@ ok   sweep_temp: removes only this prefix's stale files
 ok   sweep_temp: newer file kept
 ok   sweep_temp: other prefix kept
 ok   error_guard: results pass through
-Assisted Tagging panel install: test_assisted_tagging.lua:76: boom
+Assisted Tagging panel install: test_assisted_tagging.lua:80: boom
 stack traceback:
 	[C]: in global 'error'
-	test_assisted_tagging.lua:76: in function <test_assisted_tagging.lua:76>
+	test_assisted_tagging.lua:80: in function <test_assisted_tagging.lua:80>
 	[C]: in global 'xpcall'
-	./plugin_common.lua:341: in local 'guard'
-	test_assisted_tagging.lua:76: in main chunk
-	[C]: in global 'dofile'
-	[string "<python>"]:1: in main chunk
+	./plugin_common.lua:346: in local 'guard'
+	test_assisted_tagging.lua:80: in main chunk
+	[C]: in ?
 ok   error_guard: error returns nil
 ok   error_guard: log has label and traceback
 ok   error_guard: toast names the log file
-Assisted Tagging button Derive: test_assisted_tagging.lua:81: cb
+Assisted Tagging button Derive: test_assisted_tagging.lua:85: cb
 stack traceback:
 	[C]: in global 'error'
-	test_assisted_tagging.lua:81: in function <test_assisted_tagging.lua:81>
+	test_assisted_tagging.lua:85: in function <test_assisted_tagging.lua:85>
 	[C]: in global 'xpcall'
-	./plugin_common.lua:341: in function <./plugin_common.lua:340>
+	./plugin_common.lua:346: in function <./plugin_common.lua:345>
 	(...tail calls...)
-	test_assisted_tagging.lua:82: in main chunk
-	[C]: in global 'dofile'
-	[string "<python>"]:1: in main chunk
+	test_assisted_tagging.lua:86: in main chunk
+	[C]: in ?
 ok   guarded_widget_maker: callback errors are logged with kind + label
 ok   guarded_widget_maker: other props untouched
 ok   append_error_log: older half dropped at a line start
@@ -58,17 +60,17 @@ ok   near_in_time ignores untimed candidates and selected times
 ok   near_in_time with no timed selection is empty
 ok   latest_group_tag picks the greatest stamp
 ok   latest_group_tag ignores other tags and the bare node
-ok   latest_group_keys keeps each photo's own run
+ok   latest_group_keys keeps each image's own run
 ok   latest_group_keys counts runs
-ok   latest_group_keys leaves untagged photos out
+ok   latest_group_keys leaves untagged images out
 ok   latest_group_keys -> two groups plus a single
 ok   group_tags_hint fires when native found nothing but tags exist
 ok   group_tags_hint silent when native groups exist
 ok   group_tags_hint silent without grouping tags
 ok   tag_group_keys reads immediate children only
 ok   tag_group_keys takes the first child by name
-ok   tag_group_keys reports the photo
-ok   tag_group_keys leaves unmatched photos out
+ok   tag_group_keys reports the image
+ok   tag_group_keys leaves unmatched images out
 ok   native_group_keys maps leaders
 ok   number_groups shares and separates
 ok   number_groups with no keys at all
@@ -110,14 +112,14 @@ ok   colour_relation: Pink/Red near is 0
 ok   colour_relation: Green/Purple differ
 ok   colour_vote: near colours support the leader
 ok   colour_vote: an unrelated colour gives no support
-ok   colour_vote: a tie for the most photos names no colour
+ok   colour_vote: a tie for the most images names no colour
 ok   derive number: hand number adds the entry's tags and From number
 ok   derive number: an entry with no colour adds no colour tag
 ok   derive number: a colour tag matching the entry gets no second one
 ok   derive number: colour family off adds no colour tag
 ok   derive number: entry tags already on, colour missing, adds only the colour
-ok   derive number: a locked photo gets nothing
-ok   derive colour: a locked photo gets nothing
+ok   derive number: a locked image gets nothing
+ok   derive colour: a locked image gets nothing
 ok   LOCKED_TAG: Assisted Tagging|Locked
 ok   parse_entries_csv: the 8th column is the shared car
 ok   hand_entry: both numbers of a shared car name the car
@@ -241,12 +243,12 @@ ok   named_rules: an off family keeps its root
 ok   named_rules: leaves the rules it was given alone
 ok   group_sync_tags: entry, number and switched-off colour tags only
 ok   group_source: different colours give the union and clash on them
-ok   group_source: photos missing the colour or every tag fill in without a clash
+ok   group_source: images missing the colour or every tag fill in without a clash
 ok   group_source: different entry tags under one parent clash
-ok   group_source: matching photos or one photo don't clash
-ok   group_source: a number on one photo and a colour on another merge without a clash
-ok   group_source: a double-driven car's two numbers clash when separate photos hold them
-ok   group_source: photos all holding both numbers of a car don't clash
+ok   group_source: matching images or one image don't clash
+ok   group_source: a number on one image and a colour on another merge without a clash
+ok   group_source: a double-driven car's two numbers clash when separate images hold them
+ok   group_source: images all holding both numbers of a car don't clash
 ok   group_stale_checks: an unidentified member loses Unidentified, Check match and Number seen
 ok   group_stale_checks: an identified member keeps Number seen, loses Check match
 ok   group_stale_checks: a copy with no entry tag clears nothing
@@ -269,11 +271,13 @@ ok   tags the plugin wrote (in the ledger) map to no one
 ok   tags the user added by hand still map with a ledger
 ok   entry_tags_note: several full matches are listed
 ok   entry_tags_note: a partial match names the entry and the tags it lacks
-ok   missing_entries: an entry one photo carries is not missing
-ok   missing_entries: a photo of 90 carries the shared car, so 790 is not missing either
-ok   missing_entries: no photo of the shared car lists both its entries, in start-list order
+ok   missing_entries: an entry one image carries is not missing
+ok   missing_entries: an image of 90 carries the shared car, so 790 is not missing either
+ok   missing_entries: no image of the shared car lists both its entries, in start-list order
 ok   missing_entries: hand-added tags (no ledger) count as carried
-ok   missing_entries: a photo carrying two entries' tags carries neither
+ok   missing_entries: an image carrying two entries' tags carries neither
+ok   missing_entries: a locked image with only a number tag carries that entry
+ok   missing_entries: an unlocked number-only image carries nothing
 ok   entry_tags_note: no entry tag at all
 ok   results group by image id
 ok   a no-vehicle frame has a row
@@ -306,11 +310,11 @@ ok   mask_diag: check_match off blanks it
 ok   owned: match check tag
 ok   14-column row carries its new numbers
 ok   13-column row has no new number
-ok   a new number on a matched photo adds Number seen and keeps the match
+ok   a new number on a matched image adds Number seen and keeps the match
 ok   new numbers and an unmatched read each add Number seen
 ok   new number alert text
-ok   new number alert photos in run order
-ok   new number alert photo lines
+ok   new number alert images in run order
+ok   new number alert image lines
 ok   no new numbers, no alert
 ok   owned_prefixes: no colour root, no colour prefix
 ok   owned_prefixes includes the colour base
@@ -332,7 +336,8 @@ ok   parse_header_report: empty output
 ok   columns_spec names every role, none as empty
 ok   one_entry_csv: header row of the typed roles, then the trimmed entry
 ok   one_entry_csv: each role maps its own header, shares-car none
-ok   one_entry_csv: a blank number is refused
+ok   one_entry_csv: a blank number and paddock is refused
+ok   one_entry_csv: a paddock id alone is accepted
 ok   ledger round-trips
 ok   ledger output is sorted
 ok   an empty ledger formats to nothing
@@ -368,7 +373,7 @@ ok   colour_summary: nothing read, all zero
 ok   colour_done_message: saved, with one already right
 ok   colour_done_message: nothing to change, with what was left out
 ok   colour_done_message: nothing saved
-ok   colour_done_message: the photos tagged come first
+ok   colour_done_message: the images tagged come first
 ok   colour_summary: failed rows are counted
 ok   protected: an entry tag not in the ledger is the user's
 ok   protected: a ledgered tag is the plugin's
@@ -403,12 +408,12 @@ ok   new entries: an unlisted hand number makes a row; read too counts as hand
 ok   new entries: hand team and driver on entry 12 make field rows
 ok   new entries: a field row carries its entry
 ok   new entries: a field the entry has makes no row
-ok   new entries: most photos first, then number
+ok   new entries: most images first, then number
 ok   new entries: a ledgered team tag makes no row
 ok   new entries: an entry's id or a 4-digit number makes no row
 ok   new entries: a team or driver holding , ; or " makes no row
 ok   candidate_label: read
-ok   candidate_label: both ways, one photo
+ok   candidate_label: both ways, one image
 ok   candidate_label: field
 ok   check_additions: two teams for one entry
 ok   check_additions: number family off
@@ -548,6 +553,7 @@ ok   family driver defaults
 ok   family co_driver defaults
 ok   family extra defaults
 ok   family vehicle defaults
+ok   family paddock defaults
 ok   family sponsor defaults
 ok   tagging defaults
 ok   every tag switch defaults on

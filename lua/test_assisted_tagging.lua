@@ -17,7 +17,7 @@ end
 -- plugin_common.lua ---------------------------------------------------------------
 -- The same file in all three plugin repos; COMMON_HASH pins it. After changing it, copy it to the
 -- other two repos and put the hash this prints into their tests too.
-local COMMON_HASH = "c89a581a"
+local COMMON_HASH = "6a57e7b8"
 local script_dir = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
 local PC = dofile(script_dir .. "/plugin_common.lua")
 local function fnv1a(text)
@@ -33,6 +33,32 @@ check("count: 0 is plural", PC.count(0, "image"), "0 images")
 check("count: 1 is singular", PC.count(1, "image"), "1 image")
 check("count: 2 is plural", PC.count(2, "image"), "2 images")
 check("count: an irregular plural", PC.count(2, "entry", "entries"), "2 entries")
+check("exif_time_to_epoch: nil, malformed and pre-1970 are undated",
+    tostring(PC.exif_time_to_epoch(nil)) .. tostring(PC.exif_time_to_epoch("junk")) .. tostring(PC.exif_time_to_epoch("0000:00:00 00:00:00")), "nilnilnil")
+check("exif_time_to_epoch: seconds apart", PC.exif_time_to_epoch("2026:11:20 10:00:05") - PC.exif_time_to_epoch("2026:11:20 10:00:00"), 5)
+check("fmt_eta: too early, no progress and finished are blank",
+    PC.fmt_eta(1, 1, 10) .. PC.fmt_eta(10, 0, 10) .. PC.fmt_eta(10, 10, 10), "")
+check("fmt_eta: 10 of 20 after 60s leaves 1m 00s", PC.fmt_eta(60, 10, 20), " | ~1m 00s left")
+check("image_exists: found, nil and erroring lookups",
+    tostring(PC.image_exists({ database = { get_image = function() return { filename = "a.jpg" } end } }, 1))
+    .. tostring(PC.image_exists({ database = { get_image = function() return nil end } }, 1))
+    .. tostring(PC.image_exists({ database = { get_image = function() error("stale") end } }, 1)), "truefalsefalse")
+check("tags_of: names become keys",
+    (function() local h = PC.tags_of({ get_tags = function() return { { name = "a|b" }, { name = "c" } } end }, {}); return tostring(h["a|b"]) .. tostring(h.c) .. tostring(h.d) end)(),
+    "truetruenil")
+do
+    local path = os.tmpname()
+    check("write_rows: writes one CSV line per row", PC.write_rows(path, { { "a", "b,c" }, { "d", "e" } }), true)
+    local f = assert(io.open(path, "r")); local text = f:read("a"); f:close(); os.remove(path)
+    check("write_rows: content", text, PC.csv_line({ "a", "b,c" }) .. "\n" .. PC.csv_line({ "d", "e" }) .. "\n")
+    check("write_rows: unwritable path is false", PC.write_rows("/nonexistent-dir/x.csv", { { "a" } }), false)
+end
+check("plugin_root: preference wins", PC.plugin_root("/pref", "/a/python/x.py", "/d"), "/pref")
+check("plugin_root: python/ folder's parent", PC.plugin_root("", "/a/b/python/x.py", "/d"), "/a/b")
+check("plugin_root: plain script folder", PC.plugin_root("", "/a/b/x.py", "/d"), "/a/b")
+check("plugin_root: no script uses this_dir", PC.plugin_root("", nil, "/d/lua"), "/d/lua")
+check("python_bin: falls back to system python3", PC.python_bin("/no/root", "/no/dir", false, { check_if_bin_exists = function() return nil end }), "python3")
+check("python_bin: uses the bin darktable finds", PC.python_bin("/no/root", "/no/dir", true, { check_if_bin_exists = function(n) return "C:/" .. n .. ".exe" end }), "C:/python.exe")
 check("shell_quote: Windows escapes quotes, keeps %", PC.shell_quote('C:\\x %y% "z"', true), '"C:\\x %y% \\"z\\""')
 check("shell_quote: POSIX escapes single quotes", PC.shell_quote("a'b", false), "'a'\\''b'")
 check("parse_csv_line: quoted comma and doubled quote", PC.parse_csv_line('1,"a ""x"", b.jpg",3\r', 3)[2], 'a "x", b.jpg')
@@ -400,7 +426,7 @@ check("rules: an off family has no line and no root", fam_rules.families.number,
 do
     local keys_in_order = {}
     for _, f in ipairs(T.FAMILIES) do keys_in_order[#keys_in_order + 1] = f.key end
-    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver,co_driver,extra,vehicle,sponsor")
+    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver,co_driver,extra,vehicle,paddock,sponsor")
     local fs = T.preset_defaults(T.PRESET_SCHEMA)
     local roots = T.family_roots(fs)
     check("family_roots: every family on by default", roots.colour .. " " .. roots.number .. " " .. roots.team .. " " .. roots.driver,
@@ -890,7 +916,29 @@ do
     check("one_entry_csv: each role maps its own header, shares-car none", spec,
         "number=number;driver=driver;co-driver=co-driver;team=team;class=class;make=make;model=model;colour=colour;shares-car=;paddock=paddock")
     local none, why = T.one_entry_csv({ number = "  ", driver = "Smith" })
-    check("one_entry_csv: a blank number is refused", none == nil and why, "Type the entry's number first.")
+    check("one_entry_csv: a blank number and paddock is refused", none == nil and why, "Type the entry's number or paddock id first.")
+    local pad = T.one_entry_csv({ number = "", paddock = "A11", driver = "Smith" })
+    check("lacks_number_tag: no tags", T.lacks_number_tag({}, { number = "N" }), true)
+    check("lacks_number_tag: a colour tag only", T.lacks_number_tag({ ["C|Red"] = true }, { number = "N" }), true)
+    check("lacks_number_tag: a locked photo with no number tag", T.lacks_number_tag({ [T.LOCKED_TAG] = true }, { number = "N" }), true)
+    check("lacks_number_tag: a number tag", T.lacks_number_tag({ ["N|14"] = true }, { number = "N" }), false)
+    check("lacks_number_tag: number family off", T.lacks_number_tag({}, {}), false)
+    check("one_entry_csv: a paddock id alone is accepted", pad ~= nil, true)
+end
+do -- stale_checks: Unidentified goes once a number tag or an entry's tags are held
+    local named = T.named_rules(T.default_rules(), T.preset_defaults(T.PRESET_SCHEMA))
+    local se, so = T.parse_entries_csv("12,Team,12,M|Number|12,Smith")
+    local roots = { number = "M|Number" }
+    local none, cm = named.diag.none, named.diag.check_match
+    local function stale(have, r) return table.concat(T.stale_checks(have, named, se, so, r), ";") end
+    check("stale_checks: a number tag clears Unidentified, keeps Check match",
+        stale({ ["M|Number|99"] = true, [none] = true, [cm] = true }, roots),
+        none)
+    check("stale_checks: an entry's tags clear it with no number root",
+        stale({ ["M|Number|12"] = true, [none] = true }, nil), none)
+    check("stale_checks: no number tag and no entry keeps Unidentified", stale({ [none] = true, [cm] = true }, roots), "")
+    check("stale_checks: Check colour and Number seen stay",
+        stale({ ["M|Number|12"] = true, [named.diag.check_colour] = true, [named.diag.number_seen .. "|7"] = true }, roots), "")
 end
 
 -- ledger / protected tags / shot + conflict handling ---------------------------
