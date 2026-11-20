@@ -58,6 +58,13 @@ ok   vote: near colours support the leader
 ok   vote: an unrelated colour gives no support
 ok   vote: a tie for the most photos names no colour
 ok   vote: no reads
+ok   overturn: nearly all of 5+ photos clashing with the stored colour
+ok   overturn: near readings count towards the share
+ok   overturn: 75% isn't nearly all
+ok   overturn: too few photos
+ok   overturn: a near colour isn't a clash
+ok   overturn: Multi is never overturned
+ok   overturn: an entry without a colour has nothing to overturn
 ok   digest is stable
 ok   digest changes with a bound
 ok   digest changes with a name
