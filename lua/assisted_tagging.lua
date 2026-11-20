@@ -457,7 +457,7 @@ function M.hand_family_tags(have, ledger_set, roots)
     return out
 end
 
--- The tags in `have` that Copy tags to group syncs: entry tags and tags under a family root (every
+-- The tags in `have` that Copy Tags to Group syncs: entry tags and tags under a family root (every
 -- family, on or off; `rules` from M.named_rules). Never diagnostics, unidentified tags, run stamps or
 -- the user's other tags.
 function M.group_sync_tags(have, entries, rules)
@@ -488,7 +488,7 @@ function M.group_sync_tags(have, entries, rules)
     return out
 end
 
--- One group's source for Copy tags to group: the union of its selected photos' synced tags
+-- One group's source for Copy Tags to Group: the union of its selected photos' synced tags
 -- (`synced`: one M.group_sync_tags set per selected photo; `roots`: family key → root), and the
 -- sorted tags that clash. A tag's family is the family root it sits under, else its parent path.
 -- Two photos clash when both hold tags of one family and those tags differ; a photo with none of
@@ -584,7 +584,7 @@ function M.hand_value(have, ledger_set, root)
     return #values == 1 and values[1] or nil
 end
 
--- Fill entry colours: colour tags Identify wrote replace an entry's stored colour when at least
+-- Fill Entry Colours: colour tags Identify wrote replace an entry's stored colour when at least
 -- this many of the entry's selected photos carry the leading colour or a near one (M.colour_vote),
 -- and that is this share of its colour-tagged selected photos.
 M.COLOUR_TAG_MIN_PHOTOS = 3
@@ -673,7 +673,7 @@ end
 -- What a Derive button adds to one image, by lookup only. `mode` "number": the entry the user's
 -- hand number tags name (M.hand_entry). `mode` "colour": the one entry whose colour equals the
 -- image's single colour tag, narrowed by hand team tags; an image whose hand number names an entry
--- is left to Derive from number. `names`: { derived = marker base, check_colour = tag } ("" = off).
+-- is left to Derive from Number. `names`: { derived = marker base, check_colour = tag } ("" = off).
 -- Returns { entry_id, attach = sorted tag names, reason = why nothing was added ("" when added) };
 -- attach can hold only the Check colour tag when the number's entry and the colour tag differ.
 function M.derive_plan(have, ledger_set, entries, order, roots, mode, names)
@@ -695,7 +695,7 @@ function M.derive_plan(have, ledger_set, entries, order, roots, mode, names)
                 or "no number tag of yours names an entry"
         end
     elseif number_id then
-        plan.reason = "it has a number tag: use Derive from number"
+        plan.reason = "it has a number tag: use Derive from Number"
     elseif M.entry_for_tags(have, entries, order) then
         plan.reason = "it already has an entry's tags"
     elseif #colours ~= 1 then
@@ -752,7 +752,7 @@ local function by_number_first(a, b)
     return a < b
 end
 
--- Find new entries: what the selected photos show that entries.json lacks. `images`: list of
+-- Find New Entries: what the selected photos show that entries.json lacks. `images`: list of
 -- { id, have, ledger_set }. A `<seen_base>|<digits>` tag whose digits are no entry's number makes a
 -- `number` row (image in `read`); a hand tag `<number root>|<n>` with n unlisted makes one too
 -- (image in `hand`, never also in `read`). Unlisted means no entry has n as its number or id, and n
@@ -846,7 +846,7 @@ function M.new_entry_candidates(images, entries, roots, seen_base)
     return rows
 end
 
--- The check-button text of a Find new entries row.
+-- The check-button text of a Find New Entries row.
 function M.candidate_label(row)
     local function photos(n) return n == 1 and "1 photo" or (n .. " photos") end
     local seen
@@ -1030,7 +1030,7 @@ function M.colour_summary(rows)
     return set_ids, already_ids, unread, failed
 end
 
--- The Fill entry colours done-message: the outcome first (saved, nothing to change, or nothing
+-- The Fill Entry Colours done-message: the outcome first (saved, nothing to change, or nothing
 -- saved), then what was left out, only the non-zero counts.
 function M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_failed, n_differs)
     local function named(ids)
@@ -1671,7 +1671,7 @@ local TAG_TOGGLES = {
     { key = "shot_crowded", kind = "check", label = "Shot crowded",
       when = "four vehicles were found, the most a photo is checked for, so more may be in frame and the number read may belong to another one: check it by hand." },
     { key = "derived", kind = "diag", label = "Derived from",
-      when = "an entry's tags were added. From identification: Identify's models picked the entry. From number / From driver: your hand tag named it. From colour: Derive from colour found one entry of that colour." },
+      when = "an entry's tags were added. From identification: Identify's models picked the entry. From number / From driver: your hand tag named it. From colour: Derive from Colour found one entry of that colour." },
 }
 M.TAG_TOGGLES = TAG_TOGGLES
 
@@ -1699,8 +1699,8 @@ end
 
 -- Headings of the tags-written page, in order; each TAG_TOGGLES row's `kind` is one of these.
 M.TAG_KINDS = {
-    { kind = "check", label = "checks" },
-    { kind = "diag", label = "how it decided" },
+    { kind = "check", label = "Checks" },
+    { kind = "diag", label = "How It Decided" },
 }
 
 -- TAG_TOGGLES rows grouped by TAG_KINDS order, file order within a kind.
@@ -1725,13 +1725,13 @@ for _i, t in ipairs(TAG_TOGGLES) do
     tag_page_keys[#tag_page_keys + 1] = "tag_" .. t.key .. "_name"
 end
 M.PANEL_PAGES = {
-    { number = 1, title = "collection", keys = {} },
-    { number = 2, title = "bursts", keys = { "group_support", "group_node" } },
-    { number = 3, title = "matching", keys = { "cars_per_photo", "use_hints",
+    { number = 1, title = "Collection", keys = {} },
+    { number = 2, title = "Bursts", keys = { "group_support", "group_node" } },
+    { number = 3, title = "Matching", keys = { "cars_per_photo", "use_hints",
         "neighbour_tolerance", "order_weight", "min_read", "colour_weight", "partial_references" } },
-    { number = 4, title = "tags written", keys = tag_page_keys },
-    { number = 5, title = "run", keys = { "run_tag" } },
-    { number = 6, title = "references", keys = { "suggest_crops", "quarantine" } },
+    { number = 4, title = "Tags Written", keys = tag_page_keys },
+    { number = 5, title = "Run", keys = { "run_tag" } },
+    { number = 6, title = "References", keys = { "suggest_crops", "quarantine" } },
 }
 -- settings.json only, no panel widget
 M.PANEL_OTHER_KEYS = { "closer_car_margin", "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references", "number_gate",
@@ -2451,7 +2451,7 @@ end
 
 local function set_idle_label()
     identify_cancellable = false
-    if identify_button then identify_button.label = _("Identify selection") end
+    if identify_button then identify_button.label = _("Identify Selection") end
 end
 
 -- Each tag write queues a TAG_CHANGED event on darktable's GUI thread. A Lua widget update is
@@ -2571,7 +2571,7 @@ local function can_start(images, needs_no_images)
     return true
 end
 
--- Where a run leaves its per-vehicle records, for "Add from last run".
+-- Where a run leaves its per-vehicle records, for "Add from Last Run".
 local function boxes_path()
     return LAST_RUN_DIR .. "/" .. current_collection() .. ".boxes.json"
 end
@@ -2769,7 +2769,7 @@ end
 -- collection's roots, then drops their ledger rows. Hand-applied tags and run stamps stay.
 -- A tag that fails to detach keeps its place in the row, so clearing again retries it.
 function M.clear_marks(images)
-    if queue_if_busy(_("Clear tagging marks"), images and #images > 0, function() M.clear_marks(images) end) then return end
+    if queue_if_busy(_("Clear Tagging Marks"), images and #images > 0, function() M.clear_marks(images) end) then return end
     if not can_start(images) then return end
     busy = true
     M.cancel_requested = false
@@ -2777,7 +2777,7 @@ function M.clear_marks(images)
     local job
 
     local okr, err = C.logged_call(log, "clear tagging marks", function()
-        job = start_job(_("Clear tagging marks"), #images)
+        job = start_job(_("Clear Tagging Marks"), #images)
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
         local records, img_of = {}, {}
         for _, img in ipairs(images) do
@@ -2856,11 +2856,11 @@ function M.clear_marks(images)
     run_next()
 end
 
--- Derive from number (`mode` "number") or colour ("colour"): adds the entry tags M.derive_plan
+-- Derive from Number (`mode` "number") or colour ("colour"): adds the entry tags M.derive_plan
 -- looks up for each selected image, plus its "Derived from" marker, and records them in the
 -- ledger. Lookups only: no model runs, and no tag is ever detached.
 function M.derive_images(images, mode)
-    local label = mode == "number" and _("Derive from number") or _("Derive from colour")
+    local label = mode == "number" and _("Derive from Number") or _("Derive from Colour")
     if queue_if_busy(label, images and #images > 0, function() M.derive_images(images, mode) end) then return end
     if not can_start(images) or not take_settings() then return end
     busy = true
@@ -3528,7 +3528,7 @@ end
 -- Reads the paintwork colour of each selected image's car and writes it as that entry's colour
 -- in entries.json, saving no references. Mirrors M.add_references(images, nil): the entry comes
 -- from the image's tags, a hand-applied colour tag wins over the reading.
--- After Find new entries adds numbers: each image that read one (`read`), and its unselected
+-- After Find New Entries adds numbers: each image that read one (`read`), and its unselected
 -- copies still carrying <seen_base>|<n> (M.shot_copies), gets the number tag <number root>|<n>
 -- in place of <seen_base>|<n>, both recorded as the plugin's in the ledger. Hand-tagged images
 -- keep their tags. `image_of`: image id → image. Returns the images retagged.
@@ -3574,11 +3574,11 @@ local function retag_added_numbers(rows, image_of, number_root, seen_base)
     return n_images
 end
 
--- Find new entries: the rows for the selected images (see M.new_entry_candidates), with the
+-- Find New Entries: the rows for the selected images (see M.new_entry_candidates), with the
 -- images by id. nil when the run can't start (the reason is already on screen).
 function M.find_new_entries(images)
     if not can_start(images) or not take_settings() then return nil end
-    say(string.format("Assisted Tagging: Find new entries started on %s…", #images == 1 and "1 image" or #images .. " images"))
+    say(string.format("Assisted Tagging: Find New Entries started on %s…", #images == 1 and "1 image" or #images .. " images"))
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
     local list, image_of = {}, {}
     for _, img in ipairs(images) do
@@ -3589,7 +3589,7 @@ function M.find_new_entries(images)
     return M.new_entry_candidates(list, entries, roots, M.named_rules(rules, settings).diag.number_seen), image_of
 end
 
--- Adds the ticked Find new entries rows to entries.json (entries_file.py, which keeps a .bak),
+-- Adds the ticked Find New Entries rows to entries.json (entries_file.py, which keeps a .bak),
 -- reloads the lists, then retags the images that read an added number. Returns true when
 -- entries.json was written; on false the message is already on screen.
 function M.add_found_entries(ticked, image_of)
@@ -3638,7 +3638,7 @@ end
 
 -- colour_of (optional): entry id → colour, sent as that entry's hand colour (a To check Fix)
 function M.fill_entry_colours(images, colour_of)
-    if queue_if_busy(_("Fill entry colours"), images and #images > 0, function() M.fill_entry_colours(images, colour_of) end) then return end
+    if queue_if_busy(_("Fill Entry Colours"), images and #images > 0, function() M.fill_entry_colours(images, colour_of) end) then return end
     if not can_start(images) then return end
     if #entry_order == 0 then
         dt.print(_("Assisted Tagging: The collection has no entries yet. Add them to its entries.json, then click Reload."))
@@ -3655,7 +3655,7 @@ function M.fill_entry_colours(images, colour_of)
 
     local state = {}
     local okr, err = C.logged_call(log, "fill entry colours", function()
-        state.job = start_job(_("Fill entry colours"), #images)
+        state.job = start_job(_("Fill Entry Colours"), #images)
         local rows, n_skipped, sent = {}, 0, {}
         local pick_of = select(2, with_paired_jpegs(images))
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
@@ -3818,51 +3818,23 @@ fixes.entry_colour = function(images, arg)
     M.fill_entry_colours(images, { [eid] = colour })
 end
 
--- Copy tags to group: in each darktable group holding selected photos, the selected photos' synced
--- tags (M.group_sync_tags) overwrite every member's, as hand tags: they leave the ledger, so Identify
--- keeps them. Tags never cross groups. When a group's selected photos differ, their tags are merged,
--- so ask(text, go) is called instead and go() copies once the user confirms.
-function M.copy_tags_to_group(images, ask)
-    if not images or #images == 0 then
-        dt.print(_("Assisted Tagging: Select some images first."))
-        return
-    end
-    -- a running job reads settings, entries and rules, so they are not reloaded under it
-    if queue_if_busy(_("Copy tags to group"), true, function() M.copy_tags_to_group(images, ask) end) then return end
-    if not take_settings() then return end
-    load_entries_csv()
-    local named = M.named_rules(rules, settings)
-    -- group leader id → the first selected photo in it and each selected photo's synced tags
-    local selected_of, order = {}, {}
-    for _, img in ipairs(images) do
-        local leader_id = (img.group_leader or img).id
-        if not selected_of[leader_id] then
-            selected_of[leader_id] = { img = img, synced = {} }
-            order[#order + 1] = leader_id
-        end
-        local synced = selected_of[leader_id].synced
-        synced[#synced + 1] = M.group_sync_tags(tags_of(img), entries, named)
-    end
+-- Copies tags across each unit ({ synced = one M.group_sync_tags set per source photo, members =
+-- the photos that get them }): the union of a unit's synced tags overwrites every member's, as hand
+-- tags: they leave the ledger, so Identify keeps them. When a unit's sources clash, ask(ask_text(
+-- n_clashing, shown), go) is called instead and go() copies once the user confirms.
+local function copy_merged(title, units, ask, ask_text, entries, named)
     local source_of, members, n_merged, clash_names = {}, {}, 0, {}
-    for _, leader_id in ipairs(order) do
-        local group = selected_of[leader_id]
-        local group_members = group.img:get_group_members()
-        if #group_members > 1 then
-            local source, clashes = M.group_source(group.synced, named.families)
-            if #clashes > 0 then n_merged = n_merged + 1 end
-            for _, name in ipairs(clashes) do clash_names[name] = true end
-            for _, member in ipairs(group_members) do
-                source_of[member.id] = source
-                members[#members + 1] = member
-            end
+    for _, unit in ipairs(units) do
+        local source, clashes = M.group_source(unit.synced, named.families)
+        if #clashes > 0 then n_merged = n_merged + 1 end
+        for _, name in ipairs(clashes) do clash_names[name] = true end
+        for _, member in ipairs(unit.members) do
+            source_of[member.id] = source
+            members[#members + 1] = member
         end
-    end
-    if #members == 0 then
-        dt.print(_("Assisted Tagging: None of the selected photos is in a darktable group with other photos."))
-        return
     end
     local function go()
-        fix_tags(_("Copy tags to group"), members, function(img, have)
+        fix_tags(title, members, function(img, have)
             local source = source_of[img.id]
             local attach, detach = {}, {}
             for name in pairs(source) do
@@ -3883,12 +3855,68 @@ function M.copy_tags_to_group(images, ask)
         local names = {}
         for name in pairs(clash_names) do names[#names + 1] = name end
         table.sort(names)
-        local shown = table.concat(names, ", ", 1, math.min(#names, 4)) .. (#names > 4 and ", …" or "")
-        ask(string.format(_("The selected photos in %d groups hold different tags of one family (%s). Copy merges them, so every photo in those groups gets all of them."),
-            n_merged, shown), go)
+        ask(ask_text(n_merged, table.concat(names, ", ", 1, math.min(#names, 4)) .. (#names > 4 and ", …" or "")), go)
         return
     end
     go()
+end
+
+-- Copy Tags to Group: in each darktable group holding selected photos, the selected photos' synced
+-- tags (M.group_sync_tags) overwrite every member's (copy_merged). Tags never cross groups.
+function M.copy_tags_to_group(images, ask)
+    if not images or #images == 0 then
+        dt.print(_("Assisted Tagging: Select some images first."))
+        return
+    end
+    -- a running job reads settings, entries and rules, so they are not reloaded under it
+    if queue_if_busy(_("Copy Tags to Group"), true, function() M.copy_tags_to_group(images, ask) end) then return end
+    if not take_settings() then return end
+    load_entries_csv()
+    local named = M.named_rules(rules, settings)
+    -- group leader id → the first selected photo in it and each selected photo's synced tags
+    local selected_of, order = {}, {}
+    for _, img in ipairs(images) do
+        local leader_id = (img.group_leader or img).id
+        if not selected_of[leader_id] then
+            selected_of[leader_id] = { img = img, synced = {} }
+            order[#order + 1] = leader_id
+        end
+        local synced = selected_of[leader_id].synced
+        synced[#synced + 1] = M.group_sync_tags(tags_of(img), entries, named)
+    end
+    local units = {}
+    for _, leader_id in ipairs(order) do
+        local group = selected_of[leader_id]
+        local group_members = group.img:get_group_members()
+        if #group_members > 1 then units[#units + 1] = { synced = group.synced, members = group_members } end
+    end
+    if #units == 0 then
+        dt.print(_("Assisted Tagging: None of the selected photos is in a darktable group with other photos."))
+        return
+    end
+    copy_merged(_("Copy Tags to Group"), units, ask, function(n_merged, shown)
+        return string.format(_("The selected photos in %d groups hold different tags of one family (%s). Copy merges them, so every photo in those groups gets all of them."),
+            n_merged, shown)
+    end, entries, named)
+end
+
+-- Copy Tags to Selection: the selected photos' synced tags merge across all of them (copy_merged),
+-- so each fills in the tags it lacks. Photos outside the selection, group mates too, are untouched.
+function M.copy_tags_to_selection(images, ask)
+    if not images or #images < 2 then
+        dt.print(_("Assisted Tagging: Select two or more images to copy tags between them."))
+        return
+    end
+    if queue_if_busy(_("Copy Tags to Selection"), true, function() M.copy_tags_to_selection(images, ask) end) then return end
+    if not take_settings() then return end
+    load_entries_csv()
+    local named = M.named_rules(rules, settings)
+    local synced = {}
+    for _, img in ipairs(images) do synced[#synced + 1] = M.group_sync_tags(tags_of(img), entries, named) end
+    copy_merged(_("Copy Tags to Selection"), { { synced = synced, members = images } }, ask, function(n_merged, shown)
+        return string.format(_("The selected photos hold different tags of one family (%s). Copy merges them, so every selected photo gets all of them."),
+            shown)
+    end, entries, named)
 end
 
 -- Saves the confident vehicles (number-read, or a clear livery match) that the last
@@ -3908,7 +3936,7 @@ function M.promote_references(images)
 
     local state = {}
     local okr, err = C.logged_call(log, "add from last run", function()
-        state.job = start_job(_("Add from last run"), #images)
+        state.job = start_job(_("Add from Last Run"), #images)
         -- Identify recorded boxes for the JPEG of a RAW+JPEG pair, so a selected RAW reads its JPEG's
         local rows = {}
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
@@ -3942,7 +3970,7 @@ end
 -- Refreshes the collection's reference index from refs/ and writes ref-audit.txt beside it.
 -- Needs no selected images.
 function M.audit_references()
-    if queue_if_busy(_("Audit references"), true, M.audit_references) then return end
+    if queue_if_busy(_("Audit References"), true, M.audit_references) then return end
     if not can_start(nil, true) then return end
     if not take_settings() then return end
     busy = true
@@ -3951,7 +3979,7 @@ function M.audit_references()
 
     local state = {}
     local okr, err = C.logged_call(log, "audit references", function()
-        state.job = start_job(_("Audit references"), 0)
+        state.job = start_job(_("Audit References"), 0)
         local suggest = settings.suggest_crops
         local quarantine = settings.quarantine
         local results = run_reference_job(state, {}, args_of({ "--audit-refs" }, suggest and { "--suggest-crops" } or {},
@@ -4132,7 +4160,7 @@ function M.create_collection(images, raw_name)
 
     if not open_new_collection(name) then
         notify_error(string.format(_("Assisted Tagging: Created %s but couldn't load it, so no references were added. "
-            .. "Click Reload, then \"Add tagged images\" with the same images selected (why: assisted_tagging.log)."), name))
+            .. "Click Reload, then \"Add Tagged Images\" with the same images selected (why: assisted_tagging.log)."), name))
         return
     end
     local active_images = {}
@@ -4262,7 +4290,7 @@ collection_store = function()
     -- stays behind: it sits beside refs/, and the receiver's first run re-embeds refs/.
     store.export_options = { {
         key = "refs",
-        label = "references",
+        label = "References",
         tooltip = "Also export refs/ (the reference crops and sources.json). They go out as full JPG crops of your photos: in a people collection they are face photos. Run caches and refs-quarantine never go.",
     } }
     function store.export_label(name, _key)
@@ -4314,7 +4342,7 @@ local function install_panel()
         text = "",
     }
     local new_collection_button = new_widget("button") {
-        label = _("From tagged images"),
+        label = _("From Tagged Images"),
         tooltip = _("Build a new collection from the selected images' existing tags: images carrying the "
             .. "same hierarchical tags (e.g. Series|Team|Driver) become one entry, then each image is "
             .. "added as that entry's reference. A tag only " .. (M.MIN_REFS_PER_ENTRY - 1)
@@ -4325,12 +4353,12 @@ local function install_panel()
         end,
     }
     example_combo = new_widget("combobox") {
-        label = _("example"),
+        label = _("Example"),
         tooltip = _("A collection template shipped in the repo's examples folder, with placeholder entries and no references"),
         _("(no examples)"),
     }
     local example_view_button = new_widget("button") {
-        label = _("View example"),
+        label = _("View Example"),
         tooltip = _("Open the selected example's entries.json in your editor, to read or copy from"),
         clicked_callback = function()
             local example = selected_example()
@@ -4342,7 +4370,7 @@ local function install_panel()
         end,
     }
     local example_create_button = new_widget("button") {
-        label = _("From example"),
+        label = _("From Example"),
         tooltip = _("Copy the selected example's entries.json, and its settings.json when it has one, into a new collection; "
             .. "no images needed. Edit the entries afterward with your own"),
         clicked_callback = function()
@@ -4356,7 +4384,7 @@ local function install_panel()
         clicked_callback = function() reload_lists(false, false, true) end,
     }
     local plan_button = new_widget("button") {
-        label = _("Show tag plan"),
+        label = _("Show Tag Plan"),
         tooltip = _("Write tag-plan.txt in the collection's folder and open it: the exact tags each entry writes, plus the team-only, unidentified and diagnostic tags, from its entries.json and settings"),
         clicked_callback = function()
             if reload_lists(false, true) and current_collection() ~= "" then
@@ -4389,8 +4417,8 @@ local function install_panel()
         return p:close(), out
     end
     -- One picker per role: (none) + the chosen CSV's headers, preset to the usual names.
-    local ROLE_LABELS = { number = _("number"), driver = _("driver"), ["co-driver"] = _("co-driver"), team = _("team"),
-        class = _("class"), make = _("make"), model = _("model"), ["shares-car"] = _("shares car with"), paddock = _("paddock") }
+    local ROLE_LABELS = { number = _("Number"), driver = _("Driver"), ["co-driver"] = _("Co-Driver"), team = _("Team"),
+        class = _("Class"), make = _("Make"), model = _("Model"), ["shares-car"] = _("Shares Car With"), paddock = _("Paddock") }
     local column_headers = {} -- the chosen CSV's headers; {} until one is read
     local column_combos = {}
     for i, role in ipairs(M.IMPORT_ROLES) do
@@ -4465,7 +4493,7 @@ local function install_panel()
     show_start_list_tab(1)
     local start_list_tab_box = new_widget("box") { orientation = "horizontal", table.unpack(start_list_tabs) }
     local import_start_list_button = new_widget("button") {
-        label = _("Import start list"),
+        label = _("Import Start List"),
         tooltip = _("Add the open tab's entries (the CSV, the pasted text or the one typed entry) to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
         clicked_callback = function()
             if busy or not orphan_gone() then
@@ -4532,7 +4560,7 @@ local function install_panel()
     local found_title = new_widget("label") { label = "", halign = "start" }
     local found_box = new_widget("box") { orientation = "vertical" }
     local add_found_button = new_widget("button") {
-        label = _("Add ticked to entries.json"),
+        label = _("Add Ticked to entries.json"),
         tooltip = _("Add the ticked numbers as new entries and the ticked teams, drivers and co-drivers to their entries; a ticked split turns a \"Driver / Co-driver\" name into a driver and a co-driver. The previous file is saved as entries.json.bak. Photos that read an added number get its number tag."),
         visible = false,
         clicked_callback = function() end,
@@ -4556,7 +4584,7 @@ local function install_panel()
         if M.add_found_entries(ticked, found.image_of) then clear_found() end
     end)
     local find_button = new_widget("button") {
-        label = _("Find new entries"),
+        label = _("Find New Entries"),
         tooltip = _("List the numbers the selected photos read or carry by hand that entries.json lacks, the teams, drivers and co-drivers you tagged by hand on entries that have none, and entries whose name still holds \"Driver / Co-driver\" to split. Nothing is added until you tick it."),
         clicked_callback = function()
             local images = dt.gui.action_images
@@ -4571,26 +4599,26 @@ local function install_panel()
         end,
     }
     identify_button = new_widget("button") {
-        label = _("Identify selection"),
+        label = _("Identify Selection"),
         tooltip = _("Identify the vehicles in the selected images with the models (number reading, livery, colour) and tag them with their entries' tags, plus Derived|From identification (or From number / From driver when your own tag named the car). Writes darktable tags, the tag ledger, boxes.json and report.md. Never writes entries.json."),
         clicked_callback = function() start_identify(true) end,
     }
     local clear_marks_button = new_widget("button") {
-        label = _("Clear tagging marks"),
+        label = _("Clear Tagging Marks"),
         tooltip = _("Removes every tag this plugin attached to the selected images (entries, colours, diagnostics, unidentified) and forgets them in the ledger. Tags you applied by hand and run stamps stay."),
         clicked_callback = function() M.clear_marks(dt.gui.action_images) end,
     }
     local derive_number_button = new_widget("button") {
-        label = _("Derive from number"),
+        label = _("Derive from Number"),
         tooltip = _("For each selected image whose number tag (added by you) names one entry, add that entry's tags and Derived|From number. Lookup only: no model runs, nothing is removed. Adds Check colour too when the image's colour tag differs from the entry's colour. Writes darktable tags and the tag ledger only."),
         clicked_callback = function() M.derive_images(dt.gui.action_images, "number") end,
     }
     local derive_colour_button = new_widget("button") {
-        label = _("Derive from colour"),
-        tooltip = _("For each selected image with one colour tag, add the tags of the one entry with that colour (narrowed by your team tags) and Derived|From colour. Skips the image when several entries or none have that colour, or when it has a number tag (use Derive from number). Lookup only: no model runs, nothing is removed. Needs entry colours in entries.json (Fill entry colours). Writes darktable tags and the tag ledger only."),
+        label = _("Derive from Colour"),
+        tooltip = _("For each selected image with one colour tag, add the tags of the one entry with that colour (narrowed by your team tags) and Derived|From colour. Skips the image when several entries or none have that colour, or when it has a number tag (use Derive from Number). Lookup only: no model runs, nothing is removed. Needs entry colours in entries.json (Fill Entry Colours). Writes darktable tags and the tag ledger only."),
         clicked_callback = function() M.derive_images(dt.gui.action_images, "colour") end,
     }
-    -- Copy tags to group asks here before merging differing photos (darktable Lua has no dialog)
+    -- Copy Tags to Group/selection ask here before merging differing photos (darktable Lua has no dialog)
     -- a read-only text view wraps at the panel's width; a label can't wrap
     local copy_confirm_label = new_widget("text_view") { editable = false, text = "" }
     local copy_confirm_go
@@ -4602,7 +4630,7 @@ local function install_panel()
         new_widget("box") {
             orientation = "horizontal",
             new_widget("button") {
-                label = _("Merge and copy"),
+                label = _("Merge and Copy"),
                 clicked_callback = function()
                     copy_confirm_box.visible = false
                     copy_confirm_go()
@@ -4612,8 +4640,8 @@ local function install_panel()
         },
     }
     local copy_group_button = new_widget("button") {
-        label = _("Copy tags to group"),
-        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other photo in the group, so the group matches. When the copy names an entry, Check match goes, and a photo that had no entry also loses Unidentified and Number seen. Other diagnostics, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace manual tags is ticked. A selected image missing a tag gets it filled in. Asks first only when a group's selected images hold different tags of one family, such as two colours."),
+        label = _("Copy Tags to Group"),
+        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other photo in the group, so the group matches. When the copy names an entry, Check match goes, and a photo that had no entry also loses Unidentified and Number seen. Other diagnostics, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. A selected image missing a tag gets it filled in. Asks first only when a group's selected images hold different tags of one family, such as two colours."),
         clicked_callback = function()
             copy_confirm_box.visible = false
             M.copy_tags_to_group(dt.gui.action_images, function(text, go)
@@ -4623,25 +4651,37 @@ local function install_panel()
             end)
         end,
     }
+    local copy_selection_button = new_widget("button") {
+        label = _("Copy Tags to Selection"),
+        tooltip = _("Merge the selected images' entry and family tags (number, colour, team…) across all of them, so each one fills in the tags it lacks. Photos outside the selection, group mates too, are untouched. When the copy names an entry, Check match goes, and a photo that had no entry also loses Unidentified and Number seen. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. Asks first only when the selected images hold different tags of one family, such as two colours."),
+        clicked_callback = function()
+            copy_confirm_box.visible = false
+            M.copy_tags_to_selection(dt.gui.action_images, function(text, go)
+                copy_confirm_label.text = text
+                copy_confirm_go = go
+                copy_confirm_box.visible = true
+            end)
+        end,
+    }
     status_label = new_widget("label") { label = "", halign = "start" }
     replace_manual_check = new_widget("check_button") {
-        label = _("Replace manual tags"),
+        label = _("Replace Manual Tags"),
         tooltip = _("Normally tags you applied by hand are never removed, and images already carrying all of one entry's tags are skipped. Tick this to let runs replace them. It stays ticked until you untick it."),
         value = dt.preferences.read("assisted_tagging", "replace_manual", "bool"),
         clicked_callback = function(w) dt.preferences.write("assisted_tagging", "replace_manual", "bool", w.value) end,
     }
     verify_button = new_widget("button") {
-        label = _("Verify selection"),
+        label = _("Verify Selection"),
         tooltip = _("Identify the selected images, fully tagged ones included, and report where the result differs from your tags (boxes.json and report.md). No tags are changed."),
         clicked_callback = function() start_identify(false, true) end,
     }
     entry_combo = new_widget("combobox") {
-        label = _("entry"),
-        tooltip = _("The entry Add as reference saves the selected images under"),
+        label = _("Entry"),
+        tooltip = _("The entry Add as Reference saves the selected images under"),
         _("(no entries)"),
     }
     local add_button = new_widget("button") {
-        label = _("Add as reference"),
+        label = _("Add as Reference"),
         tooltip = _("Save the largest vehicle in each selected image as a reference sample of the entry above. Also fills the entry's colour in entries.json when the Colour family is on (page 4)."),
         clicked_callback = function()
             local eid = selected_entry_id()
@@ -4653,22 +4693,22 @@ local function install_panel()
         end,
     }
     local add_tagged_button = new_widget("button") {
-        label = _("Add tagged images"),
+        label = _("Add Tagged Images"),
         tooltip = _("For each selected image that already carries all of one entry's tags, save it as a reference of that entry. Also fills the entry's colour in entries.json when the Colour family is on (page 4)."),
         clicked_callback = function() M.add_references(dt.gui.action_images, nil) end,
     }
     local fill_colours_button = new_widget("button") {
-        label = _("Fill entry colours"),
+        label = _("Fill Entry Colours"),
         tooltip = _("Read the paintwork colour of each selected image's car and write it as that entry's colour in entries.json when it has none. A colour tag you applied to the image is used instead of the reading, and replaces a colour the entry already has. So does the colour tag Identify wrote, when at least 3 of the entry's selected images carry the same one and they are two thirds of its colour-tagged images (images tagged Check colour don't count). An image is matched to the entry whose tags it carries all of, or the one its number, driver or co-driver tag names. Saves no references. Needs the Colour family on (page 4)."),
         clicked_callback = function() M.fill_entry_colours(dt.gui.action_images) end,
     }
     local promote_button = new_widget("button") {
-        label = _("Add from last run"),
+        label = _("Add from Last Run"),
         tooltip = _("Save each vehicle the last Identify run identified by its number as a reference of the entry it found. Livery matches are not saved. Works for pack shots too: only that car's crop is saved. Also fills the entry's colour in entries.json when the Colour family is on (page 4)."),
         clicked_callback = function() M.promote_references(dt.gui.action_images) end,
     }
     local audit_button = new_widget("button") {
-        label = _("Audit references"),
+        label = _("Audit References"),
         tooltip = _("Refresh the collection's reference index from refs/, then write ref-audit.txt in the collection folder listing refs that look wrongly filed. Nothing is moved or deleted."),
         clicked_callback = function() M.audit_references() end,
     }
@@ -4687,20 +4727,20 @@ local function install_panel()
         return c
     end
 
-    local use_hints_check = check("use_hints", _("Use team tags as hints"),
+    local use_hints_check = check("use_hints", _("Use Team Tags as Hints"),
         _("On: a team tag you applied by hand to a solo shot limits matching to that team's entries. Off: team tags are ignored, so the run can override them; a team tag you applied stays on the image next to whatever the run adds. Driver tags still protect their images either way.\nDefault: on. Turn off when your team tags are unreliable and the run should overrule them."))
-    local suggest_crops_check = check("suggest_crops", _("Audit: suggest re-crops"),
+    local suggest_crops_check = check("suggest_crops", _("Audit: Suggest Re-Crops"),
         _("Also write re-cut copies of wide references (one car found) into ref-audit-crops in the collection folder, for you to review. Nothing in refs/ is changed. The first audit with this ticked is slow (about 8 minutes for 2000 refs); later ones are fast.\nDefault: off. Turn on when the audit flags wide refs you want re-cut."))
-    local quarantine_check = check("quarantine", _("Audit: quarantine poor refs"),
+    local quarantine_check = check("quarantine", _("Audit: Quarantine Poor Refs"),
         _("After the report is written, move the refs flagged by 2+ checks out of refs/ into refs-quarantine in the collection folder (moved.txt lists each). Nothing is deleted: copy a file back into refs/<entry>/ to undo it.\nDefault: off. Turn on once you trust the audit's flags for this collection."))
-    local partial_references_check = check("partial_references", _("partial references"),
-        _("Add tagged images also accepts a solo shot tagged only to team level and saves it as a team reference; a clear team lead with no clear driver then gives a team result.\nDefault: off."))
+    local partial_references_check = check("partial_references", _("Partial References"),
+        _("Add Tagged Images also accepts a solo shot tagged only to team level and saves it as a team reference; a clear team lead with no clear driver then gives a team result.\nDefault: off."))
     -- Per tag switch: its check button and the tag name it writes (tag_<key>_name). The row's
     -- box is greyed while a gate in M.TAG_GATES is off (refresh_gates). A heading opens each kind.
     local tag_rows, name_entries, tag_row_boxes = {}, {}, {}
     -- Per family: its switch and the root its tags sit under (family_<key>_root).
     local family_rows = {
-        colour = { _("Colour"), _("Read each car's paintwork colour and write it as <root>|<colour>. Also needed by Check colour and entry colours (Fill entry colours and the reference actions). Turning it on re-reads every photo once.") },
+        colour = { _("Colour"), _("Read each car's paintwork colour and write it as <root>|<colour>. Also needed by Check colour and entry colours (Fill Entry Colours and the reference actions). Turning it on re-reads every photo once.") },
         number = { _("Number"), _("Write an identified entry's race number as <root>|<number>.") },
         team = { _("Team"), _("Write an identified entry's team as <root>|<team>. A team tag you applied by hand is also the hint that narrows matching.") },
         driver = { _("Driver"), _("Write an identified entry's name as <root>|<name>.") },
@@ -4709,7 +4749,7 @@ local function install_panel()
         vehicle = { _("Vehicle"), _("Write an identified entry's make and model as <root>|<make>|<model>.") },
         sponsor = { _("Sponsor"), _("Write each rules.sponsor_keywords word read on a car as <root>|<Word>. Words read outside a vehicle box (banners) and words not listed are never written."), _("Default: off.") },
     }
-    tag_rows[#tag_rows + 1] = new_widget("section_label") { label = _("tag families") }
+    tag_rows[#tag_rows + 1] = new_widget("section_label") { label = _("Tag Families") }
     for _i, f in ipairs(M.FAMILIES) do
         local label, what = family_rows[f.key][1], family_rows[f.key][2]
         local c = check("family_" .. f.key, label,
@@ -4753,7 +4793,7 @@ local function install_panel()
     end
     local shown_support = "native" -- last shown or picked: the combo's callback acts only on a change
     local group_support_combo = new_widget("combobox") {
-        label = _("grouping support"),
+        label = _("Grouping Support"),
         tooltip = _("What groups photos for shared identification. Native groups: darktable's image groups. Grouping tags: the children of the tag node below. None: every photo is its own group.\nDefault: native groups. Pick grouping tags after an Assisted Grouping run you have not applied as darktable groups."),
         changed_callback = function(self)
             local key = support_keys[self.selected]
@@ -4771,7 +4811,7 @@ local function install_panel()
     local RUN_TAG_LABELS = { none = "no images", changed = "changed images", all = "all images" }
     local shown_run_tag = "none" -- last shown or picked: the combo's callback acts only on a change
     local run_tag_combo = new_widget("combobox") {
-        label = _("tag each run"),
+        label = _("Tag Each Run"),
         tooltip = _("Add a timestamp tag (Assisted Tagging|Run|YYYY-MM-DD HH:MM) so the latest run's photos can be filtered apart from earlier ones. Changed images: only copies whose tags this run added or removed. All images: every copy the run processes, which writes to every copy each run and can stall darktable for minutes on a large shoot. Stamps accumulate; remove old ones in darktable's tag manager.\nDefault: no images. Pick changed images when re-running a shoot and you want to review only what changed."),
         changed_callback = function(self)
             local key = run_tag_keys[self.selected]
@@ -4789,7 +4829,7 @@ local function install_panel()
     local CARS_LABELS = { solo = "one car (solo)", packs = "several cars (packs)" }
     local shown_cars = "solo" -- last shown or picked: the combo's callback acts only on a change
     local cars_combo = new_widget("combobox") {
-        label = _("cars per photo"),
+        label = _("Cars per Photo"),
         tooltip = _("One car: only the largest car in each photo is tagged; a smaller car counts only when its number is read, so background traffic adds no car or colour tags. Several cars: every car found is tagged, for racing where cars share a shot.\nDefault: one car. Pick several cars for circuit racing."),
         changed_callback = function(self)
             local key = cars_keys[self.selected]
@@ -4898,7 +4938,7 @@ local function install_panel()
     -- template: only the new-collection controls; a collection: everything else
     local template_box = new_widget("box") {
         orientation = "vertical",
-        new_widget("section_label") { label = _("new collection") },
+        new_widget("section_label") { label = _("New Collection") },
         new_collection_name,
         new_collection_button,
         example_combo,
@@ -4907,41 +4947,43 @@ local function install_panel()
     }
     local page_widgets = {
         { plan_button,
-          new_widget("label") { label = _("start list"), halign = "start" },
+          new_widget("label") { label = _("Start List"), halign = "start" },
           start_list_tab_box, start_list_stack, import_start_list_button,
           find_button, found_title, found_box, add_found_button },
         {
             group_support_combo,
-            new_widget("label") { label = _("grouping tag node"), halign = "start" },
+            new_widget("label") { label = _("Grouping Tag Node"), halign = "start" },
             group_node_entry,
         },
         {
             cars_combo,
             use_hints_check,
-            new_widget("label") { label = _("neighbour tolerance"), halign = "start" },
+            new_widget("label") { label = _("Neighbour Tolerance"), halign = "start" },
             tolerance_entry,
-            new_widget("label") { label = _("order weight"), halign = "start" },
+            new_widget("label") { label = _("Order Weight"), halign = "start" },
             order_weight_entry,
-            new_widget("label") { label = _("min read"), halign = "start" },
+            new_widget("label") { label = _("Min Read"), halign = "start" },
             min_read_entry,
-            new_widget("label") { label = _("colour weight"), halign = "start" },
+            new_widget("label") { label = _("Colour Weight"), halign = "start" },
             colour_weight_entry,
             partial_references_check,
         },
         tag_rows,
-        { new_widget("section_label") { label = _("identify (models; writes tags)") },
+        { new_widget("section_label") { label = _("Identify (Models; Writes Tags)") },
           replace_manual_check, run_tag_combo, verify_button, identify_button,
-          new_widget("section_label") { label = _("derive (lookups only; adds tags)") },
+          new_widget("section_label") { label = _("Entries (Writes entries.json)") },
+          fill_colours_button,
+          new_widget("section_label") { label = _("Derive (Lookups Only; Adds Tags)") },
           derive_number_button, derive_colour_button,
-          new_widget("section_label") { label = _("group (copies tags within each darktable group)") },
-          copy_group_button, copy_confirm_box,
-          new_widget("section_label") { label = _("undo") },
+          new_widget("section_label") { label = _("Group (Copies Tags Within Each darktable Group)") },
+          copy_group_button, copy_selection_button, copy_confirm_box,
+          new_widget("section_label") { label = _("Undo") },
           clear_marks_button },
-        { new_widget("section_label") { label = _("add to one entry (uses the entry list)") },
+        { new_widget("section_label") { label = _("Add to One Entry (Uses the Entry List)") },
           entry_combo, add_button,
-          new_widget("section_label") { label = _("add by tags or last run (entry list not used)") },
-          add_tagged_button, fill_colours_button, promote_button,
-          new_widget("section_label") { label = _("audit") },
+          new_widget("section_label") { label = _("Add by Tags or Last Run (Entry List Not Used)") },
+          add_tagged_button, promote_button,
+          new_widget("section_label") { label = _("Audit") },
           suggest_crops_check, quarantine_check, audit_button },
     }
     local pages = {}

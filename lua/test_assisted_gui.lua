@@ -215,7 +215,7 @@ for _, fn in ipairs(dispatched) do fn() end
 check("startup lists the collection's entries", #PYTHON.runs > 0 and PYTHON.runs[1].argv[4], "--list")
 check("the startup load has no Lua error", read_file(ROOT .. "/config/assisted_tagging.lua.log"), nil)
 
--- Fill entry colours ----------------------------------------------------------------
+-- Fill Entry Colours ----------------------------------------------------------------
 local function fill(images)
     prints, PYTHON.runs = {}, {}
     T.fill_entry_colours(images)
@@ -225,7 +225,7 @@ end
 local run = fill({ image(2, "DSC00002.JPG", { "Somewhere|Else" }) })
 check("fill colours, no entry tags: says no image names an entry", printed("No selected image carries all of one entry's tags"), true)
 check("fill colours, no entry tags: no crash", printed("couldn't fill entry colours"), false)
-check("fill colours: says it started as soon as it is clicked", printed("Assisted Tagging: Fill entry colours started on 1 image…"), true)
+check("fill colours: says it started as soon as it is clicked", printed("Assisted Tagging: Fill Entry Colours started on 1 image…"), true)
 check("fill colours, no entry tags: identify.py isn't started", run, nil)
 check("fill colours, no entry tags: the log says why", (read_file(ROOT .. "/config/assisted_tagging.log") or "")
     :find("DSC00002.JPG: skipped, its tags match no single entry: it carries no entry's tags", 1, true) ~= nil, true)
@@ -303,7 +303,7 @@ add({ image(3, "DSC00003.JPG", { "Rallye|35" }) })
 check("add references, no vehicle found: says nothing was added and why",
     last_print(), "Assisted Tagging: No reference added. Left out: 1 had no vehicle found (see log).")
 
--- Clear tagging marks ---------------------------------------------------------------
+-- Clear Tagging Marks ---------------------------------------------------------------
 local marked = image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red", "Hand|Tag" })
 selection, prints = { marked }, {}
 local sleeps = {}
@@ -362,9 +362,9 @@ PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("To check: a photo fill colours couldn't read shows in the box", to_check.visible, true)
 check("To check: the row names the action and the count",
-    (to_check[2][1] or {}).text, "Fill entry colours: 1 photos couldn't be read (see log)")
+    (to_check[2][1] or {}).text, "Fill Entry Colours: 1 photos couldn't be read (see log)")
 check("To check: the item is saved for a restart",
-    (read_file(CHECKS_FILE) or ""):find("Fill entry colours\t1 photos couldn't be read (see log)\t1\t", 1, true) ~= nil, true)
+    (read_file(CHECKS_FILE) or ""):find("Fill Entry Colours\t1 photos couldn't be read (see log)\t1\t", 1, true) ~= nil, true)
 prints, selection_sets = {}, 0
 ;(widget_where(to_check, "button", "label", "Select") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Select changes the selection", selection_sets, 1)
@@ -372,7 +372,7 @@ check("To check: Select says which photos are gone", printed("1 of these photos 
 selection_sets = 0
 PYTHON.results = "1,added,set,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
-check("To check: the next fill colours run replaces its items", (read_file(CHECKS_FILE) or ""):find("Fill entry colours", 1, true), nil)
+check("To check: the next fill colours run replaces its items", (read_file(CHECKS_FILE) or ""):find("Fill Entry Colours", 1, true), nil)
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 ;(widget_where(to_check, "button", "label", "Clear list") or { clicked_callback = function() end }).clicked_callback()
@@ -469,13 +469,13 @@ check("timeline: one run's items have no Earlier runs line", row(1)[4] and row(1
 PYTHON.results, PYTHON.runs = "1,0,conflict,35,,0.9,,solo,0,,0,,0\n", {}
 T.identify_images({ image(1, "DSC00001.JPG", { "Rallye|112" }) }, false, true)
 check("timeline: the newest run's item comes first", label_of(1):match("^[^:]*"), "Verify")
-check("timeline: the older run's item moves below it", label_of(2):match("^[^:]*"), "Fill entry colours")
+check("timeline: the older run's item moves below it", label_of(2):match("^[^:]*"), "Fill Entry Colours")
 check("timeline: an Earlier runs line sits under the newest run", row(1)[4] and row(1)[4].visible
     and row(1)[4].label:find("^Earlier runs %(before %d%d:%d%d%): may not hold any more$") ~= nil, true)
 check("timeline: no Earlier runs line under the last item", row(2)[4] and row(2)[4].visible, false)
 local saved = require("plugin_common").alerts_parse(read_file(CHECKS_FILE))
 check("timeline: the saved list keeps the order and each run", #saved == 2 and saved[1].action .. ">" .. saved[2].action
-    .. " " .. tostring(saved[1].run > saved[2].run), "Verify>Fill entry colours true")
+    .. " " .. tostring(saved[1].run > saved[2].run), "Verify>Fill Entry Colours true")
 dt.database.get_image = function() return nil end
 
 -- the Unidentified tag goes once a later run finds the car, written by the plugin or not
@@ -501,7 +501,7 @@ PYTHON.results = "8,-1,no_vehicle,,,0.000,,,\n"
 T.identify_images({ still_unknown }, false, false)
 check("stale Unidentified: a hand Unidentified tag stays on a photo still unidentified", has_tag(still_unknown, UNIDENTIFIED), true)
 
--- Copy tags to group -----------------------------------------------------------------
+-- Copy Tags to Group -----------------------------------------------------------------
 -- a photo in a darktable group: its leader is the image with id `leader_id`
 local grouped_by_id = {}
 local function grouped(id, filename, tag_names, leader_id)
@@ -519,8 +519,8 @@ local function grouped(id, filename, tag_names, leader_id)
     return setmetatable(img, { __index = function(self, key)
         if key == "group_leader" then return grouped_by_id[self.group] end end })
 end
-local copy_button = widget_where(panel, "button", "label", "Copy tags to group")
-local copy_confirm = widget_where(panel, "button", "label", "Merge and copy")
+local copy_button = widget_where(panel, "button", "label", "Copy Tags to Group")
+local copy_confirm = widget_where(panel, "button", "label", "Merge and Copy")
 local CHECK_COLOUR = "Assisted Tagging|Identification|Check colour"
 local function tag_list(img)
     local out = {}
@@ -555,7 +555,7 @@ check("copy to group, two groups: no tag crosses between groups",
     tostring(has_tag(other_member, "Rallye|112")) .. " " .. tostring(has_tag(bare, "Rallye|35")), "false false")
 check("copy to group: the copies are the user's, the ledger has no row for them",
     ledger_rows_for(101) + ledger_rows_for(102) + ledger_rows_for(103) + ledger_rows_for(202), 0)
-check("copy to group: the end message", printed("Assisted Tagging: Copy tags to group done"), true)
+check("copy to group: the end message", printed("Assisted Tagging: Copy Tags to Group done"), true)
 
 PYTHON.results, PYTHON.runs = "102,0,number,35,,0.9,,solo,0,,0,,0\n", {}
 T.identify_images({ member }, false, false)
@@ -580,7 +580,7 @@ local confirm_box
 local function find_confirm(widget)
     for _, child in ipairs(widget) do
         if type(child) == "table" then
-            if child.kind == "box" and widget_where(child, "button", "label", "Merge and copy") and child.visible ~= nil then
+            if child.kind == "box" and widget_where(child, "button", "label", "Merge and Copy") and child.visible ~= nil then
                 confirm_box = child
             end
             find_confirm(child)
@@ -598,10 +598,10 @@ check("copy to group, Cancel: the box hides and nothing is written",
     tostring(confirm_box and confirm_box.visible) .. " " .. tag_list(differ_c), "false Colour|Blue")
 ;(copy_button or { clicked_callback = function() end }).clicked_callback()
 ;(copy_confirm or { clicked_callback = function() end }).clicked_callback()
-check("copy to group, Merge and copy: every photo gets the merged tags",
+check("copy to group, Merge and Copy: every photo gets the merged tags",
     tag_list(differ_a) .. " / " .. tag_list(differ_b) .. " / " .. tag_list(differ_c),
     "Colour|Green, Colour|Red, Number|112, Rallye|112 / Colour|Green, Colour|Red, Number|112, Rallye|112 / Colour|Green, Colour|Red, Number|112, Rallye|112")
-check("copy to group, Merge and copy: the confirm box hides", confirm_box and confirm_box.visible, false)
+check("copy to group, Merge and Copy: the confirm box hides", confirm_box and confirm_box.visible, false)
 
 -- a selected photo missing the colour tag only gets it filled in: no confirm
 local fill_a = grouped(311, "DSC00311.JPG", { "Rallye|112", "Colour|Red" }, 311)
@@ -625,6 +625,44 @@ check("copy to group: an unidentified member drops Unidentified, Check match and
     ID .. "Shot|Solo, Rallye|112")
 check("copy to group: an identified member keeps Number seen, drops Check match", tag_list(stale_c),
     ID .. "Number seen|7, Rallye|112")
+dt.gui.action_images = {}
+
+-- Copy Tags to Selection -------------------------------------------------------------
+local copy_selection_button = widget_where(panel, "button", "label", "Copy Tags to Selection")
+local sel_full = image(501, "DSC00501.JPG", { "Rallye|112", "Number|112", "Colour|Red", "Hand|Tag" })
+local sel_number = image(502, "DSC00502.JPG", { "Number|112" })
+local sel_colour = image(503, "DSC00503.JPG", { "Colour|Red", ID .. "Check match" })
+local sel_left_out = image(504, "DSC00504.JPG", { "Colour|Blue" })
+local sel_grouped = grouped(511, "DSC00511.JPG", { "Rallye|112" }, 511)
+local sel_group_mate = grouped(512, "DSC00512.JPG", {}, 511)
+prints, dt.gui.action_images = {}, { sel_full, sel_number, sel_colour, sel_grouped }
+check("copy to selection: the button is on the panel", copy_selection_button ~= nil, true)
+;(copy_selection_button or { clicked_callback = function() end }).clicked_callback()
+check("copy to selection: each selected photo's blanks fill from the others",
+    tag_list(sel_number) .. " / " .. tag_list(sel_colour) .. " / " .. tag_list(sel_grouped),
+    "Colour|Red, Number|112, Rallye|112 / Colour|Red, Number|112, Rallye|112 / Colour|Red, Number|112, Rallye|112")
+check("copy to selection: other tags stay on the photo that had them", tag_list(sel_full),
+    "Colour|Red, Hand|Tag, Number|112, Rallye|112")
+check("copy to selection: unselected photos, group mates too, are untouched",
+    tag_list(sel_left_out) .. " / " .. tag_list(sel_group_mate), "Colour|Blue / ")
+check("copy to selection: the end message", printed("Assisted Tagging: Copy Tags to Selection done"), true)
+
+local sel_red = image(521, "DSC00521.JPG", { "Rallye|112", "Colour|Red" })
+local sel_green = image(522, "DSC00522.JPG", { "Colour|Green" })
+prints, dt.gui.action_images = {}, { sel_red, sel_green }
+;(copy_selection_button or { clicked_callback = function() end }).clicked_callback()
+check("copy to selection, photos differ: the confirm names the clash",
+    tostring(confirm_box and confirm_box.visible) .. " " .. (confirm_box and confirm_box[1].text or ""),
+    "true The selected photos hold different tags of one family (Colour|Green, Colour|Red). Copy merges them, so every selected photo gets all of them.")
+check("copy to selection, photos differ: nothing is written before the confirm", tag_list(sel_green), "Colour|Green")
+;(copy_confirm or { clicked_callback = function() end }).clicked_callback()
+check("copy to selection, Merge and Copy: both photos get the merged tags", tag_list(sel_green),
+    "Colour|Green, Colour|Red, Rallye|112")
+
+prints, dt.gui.action_images = {}, { sel_left_out }
+;(copy_selection_button or { clicked_callback = function() end }).clicked_callback()
+check("copy to selection, one photo: asks for two", last_print(),
+    "Assisted Tagging: Select two or more images to copy tags between them.")
 dt.gui.action_images = {}
 
 -- Picks a menu entry by its text, as a click in darktable does.

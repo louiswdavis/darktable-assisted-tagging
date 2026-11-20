@@ -102,11 +102,20 @@ ok   copy to group, selected photos differ: the confirm box shows
 ok   copy to group, selected photos differ: the confirm names the count
 ok   copy to group, selected photos differ: nothing is written before the confirm
 ok   copy to group, Cancel: the box hides and nothing is written
-ok   copy to group, Merge and copy: every photo gets the merged tags
-ok   copy to group, Merge and copy: the confirm box hides
+ok   copy to group, Merge and Copy: every photo gets the merged tags
+ok   copy to group, Merge and Copy: the confirm box hides
 ok   copy to group, a selected photo missing the colour: copies without the confirm
 ok   copy to group: an unidentified member drops Unidentified, Check match and Number seen
 ok   copy to group: an identified member keeps Number seen, drops Check match
+ok   copy to selection: the button is on the panel
+ok   copy to selection: each selected photo's blanks fill from the others
+ok   copy to selection: other tags stay on the photo that had them
+ok   copy to selection: unselected photos, group mates too, are untouched
+ok   copy to selection: the end message
+ok   copy to selection, photos differ: the confirm names the clash
+ok   copy to selection, photos differ: nothing is written before the confirm
+ok   copy to selection, Merge and Copy: both photos get the merged tags
+ok   copy to selection, one photo: asks for two
 ok   presets: export is offered for the Rallye collection
 ok   presets: export toast
 ok   presets: the bundle carries the entry list

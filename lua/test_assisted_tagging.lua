@@ -321,9 +321,9 @@ do
         "AT|Derived|From colour;M|Driver|Bob;M|Number|2 / ")
     check("derive colour: no entry of that colour", plan({ ["M|Colour|Pink"] = true }, "colour"), " / no entry is Pink")
     check("derive colour: no colour tag", plan({}, "colour"), " / it has no colour tag")
-    check("derive colour: a number tag defers to Derive from number, flagging the colour",
+    check("derive colour: a number tag defers to Derive from Number, flagging the colour",
         plan({ ["M|Number|1"] = true, ["M|Colour|Blue"] = true }, "colour"),
-        "AT|Check colour / it has a number tag: use Derive from number")
+        "AT|Check colour / it has a number tag: use Derive from Number")
     check("derive: markers off add no marker",
         table.concat(T.derive_plan({ ["M|Number|2"] = true }, nil, de, dorder, roots, "number",
             { derived = "", check_colour = "" }).attach, ";"), "M|Driver|Bob;M|Team|Beta")
@@ -527,7 +527,7 @@ check("PANEL_PAGES: every preset key is on one page or listed off-stack",
 local page_titles = {}
 for _, p in ipairs(T.PANEL_PAGES) do page_titles[#page_titles + 1] = p.title end
 check("PANEL_PAGES: titles match the README sections", table.concat(page_titles, ","),
-    "collection,bursts,matching,tags written,run,references")
+    "Collection,Bursts,Matching,Tags Written,Run,References")
 
 -- checked_settings: hand-edited settings.json values show_panel would display
 local cs = T.preset_defaults(T.PRESET_SCHEMA)
@@ -974,7 +974,7 @@ do
     check("hand_entry: a co-driver of another entry disagrees", co_hand({ ["M|Co-driver|Jones"] = true, ["M|Number|14"] = true }), "nil,disagree")
 end
 
--- Find new entries ----------------------------------------------------------
+-- Find New Entries ----------------------------------------------------------
 do
     local NR, SEEN = "M|Number", "AT|Seen"
     local roots = { number = NR, team = "M|Team", driver = "M|Driver" }

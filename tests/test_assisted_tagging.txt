@@ -120,7 +120,7 @@ ok   derive colour: two entries of that colour skip
 ok   derive colour: a hand team tag narrows to one
 ok   derive colour: no entry of that colour
 ok   derive colour: no colour tag
-ok   derive colour: a number tag defers to Derive from number, flagging the colour
+ok   derive colour: a number tag defers to Derive from Number, flagging the colour
 ok   derive: markers off add no marker
 ok   hand_source: a number tag
 ok   hand_source: a driver tag
