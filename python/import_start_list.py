@@ -17,7 +17,7 @@ A row whose `class` starts with "Demo" (a demonstration run) gets its own `paddo
 (`A11`, spaces dropped: `Office1`) and keeps its number, so demo 14 and race car 14 are separate
 entries; a demo row with no paddock is bad input. Pasted text has no paddock, so it can't hold demo
 rows. An entry already in entries.json under the bare number, or under the earlier `D<number>` id,
-with the same driver is renamed to its paddock id, along with its refs folder and refs/sources.json records. Other ids already in entries.json, and
+with the same driver is renamed to its paddock id, along with its refs folder and refs/sources.json records. A numbered row whose number an existing entry holds under a different paddock id (and not the same driver) is another car: it is added as `<number>-<paddock>`. Other ids already in entries.json, and
 race numbers another race entry holds, are skipped and listed, never overwritten. The previous file is
 kept as entries.json.bak. A file not in the one-entry-per-line layout is reflowed into it. Exit 2
 with a message on bad input."""

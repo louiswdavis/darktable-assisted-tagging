@@ -57,6 +57,10 @@ ok   every row's paddock is stored on its entry; a demo's is also its id
 added 0 entries to entries.json; skipped 4 already listed: 8, 14, A0, Office1
 added 0 entries to entries.json; paddock set on 3 existing entries; skipped 4 already listed: 8, 14, A0, Office1
 ok   a re-import fills a missing paddock on existing entries and keeps one already set
+added 1 entry to entries.json; skipped 1 already listed: 14
+ok   the same number under a different paddock id is a new entry keyed <number>-<paddock>; the same paddock is skipped
+added 0 entries to entries.json; skipped 2 already listed: 8-D14, 14
+ok   a re-import of the split entry adds nothing
 ok   a demo paddock listed twice fails
 ok   a demo row with no paddock fails
 ok   pasted lines after a Demo heading are demo rows
@@ -89,4 +93,4 @@ import_start_list: row 1: "1234" is not a 1–3 digit number
 import_start_list: number 9 is listed twice
 import_start_list: paddock id A1 is listed twice
 import_start_list: row 1: demo 3 needs a paddock id (a letter, then letters or digits), got ""
-import_start_list: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpimlmeptu/bare/entries.json is a bare list; make it {"entries": [...]} first
+import_start_list: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpkaql1jrz/bare/entries.json is a bare list; make it {"entries": [...]} first
