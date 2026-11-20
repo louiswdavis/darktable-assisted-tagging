@@ -649,7 +649,8 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
     similarity is under MATCH_MIN_SIM, or OCR read a number at `min_read` or more that belongs to an
     entry outside it (a weak read can't drop it).
     The exception is a weak livery under a user-applied tag (`source` "tag") whose entries all share
-    one team: that gives a `team` result instead, since the user already said which team.
+    one team: that gives a `team` result instead, since the user already said which team. Not when a
+    clear read names a car outside `pool`: that photo shows a carried car, not one of the pool's.
     `hint` is {} without prefixes, else {prefixes, source, restricted, dropped, reason}. `ctc` and
     `pool` go to match_box; a team result names only pool entries."""
     if not prefixes:
@@ -685,7 +686,8 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
         teams = {e.team for e in inside.values()}
         if r.method == "number":
             return r, hint
-        if len(teams) == 1 and "" not in teams and len(restricted) >= 2:
+        carried = pool is not None and any(set(numbers_of(e)) & digits for eid, e in inside.items() if eid not in pool)
+        if len(teams) == 1 and "" not in teams and len(restricted) >= 2 and not carried:
             (e1, s1), (e2, _) = restricted[0], restricted[1]
             return replace(r, method="team", entry_id=e1, alt_entry_id=e2, confidence=s1), hint
     if reason:
