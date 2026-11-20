@@ -4697,11 +4697,6 @@ local function install_panel()
         is_directory = false,
         changed_callback = function(self) load_start_list_header(self.value or "") end,
     }
-    local start_list_text = new_widget("text_view") {
-        editable = true,
-        text = "",
-        tooltip = _("Paste an entry list here, e.g. copied from a PDF: one entry per line, number first, e.g. 12 Smith / Jones. Lines without a leading number are skipped."),
-    }
     -- One box per role on the one-entry tab; an entry widget has no label, so the role is its placeholder.
     local role_entries = {}
     for i, role in ipairs(M.ENTRY_ROLES) do
@@ -4711,18 +4706,12 @@ local function install_panel()
             text = "",
         }
     end
-    -- File / Paste / One entry tabs: a stack shows one source; the open tab's label starts with ●.
-    -- text_view has no placeholder, so the paste tab carries its hint as a label.
+    -- File / One entry tabs: a stack shows one source; the open tab's label starts with ●.
     local start_list_stack = new_widget("stack") {
         new_widget("box") { orientation = "vertical", start_list_file, table.unpack(column_combos) },
-        new_widget("box") {
-            orientation = "vertical",
-            new_widget("label") { label = _("one entry per line, number first, e.g. 12 Smith / Jones"), halign = "start" },
-            start_list_text,
-        },
         new_widget("box") { orientation = "vertical", table.unpack(role_entries) },
     }
-    local START_LIST_TAB_NAMES = { _("CSV file"), _("paste text"), _("one entry") }
+    local START_LIST_TAB_NAMES = { _("CSV file"), _("one entry") }
     local start_list_tabs = {}
     -- darktable's stack.active need not read back as the index set, so the open tab is tracked here
     local open_start_list_tab = 1
@@ -4740,27 +4729,14 @@ local function install_panel()
     local start_list_tab_box = new_widget("box") { orientation = "horizontal", table.unpack(start_list_tabs) }
     local import_start_list_button = new_widget("button") {
         label = _("Import Start List"),
-        tooltip = _("Add the open tab's entries (the CSV, the pasted text or the one typed entry) to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
+        tooltip = _("Add the open tab's entries (the CSV or the one typed entry) to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
         clicked_callback = function()
             if busy or not orphan_gone() then
                 dt.print(_("Assisted Tagging: Busy, try again when the current run finishes."))
                 return
             end
             local argv = {}
-            local pasted = start_list_text.text or ""
             if open_start_list_tab == 2 then
-                if not pasted:match("%S") then
-                    dt.print(_("Assisted Tagging: Paste the entries first."))
-                    return
-                end
-                local path = TMP_DIR .. "/assisted_tagging_start_list.txt"
-                if not write_file_atomic(path, pasted) then
-                    notify_error(_("Assisted Tagging: Couldn't write the pasted list to darktable's tmp folder."))
-                    return
-                end
-                argv[#argv + 1] = "--text"
-                argv[#argv + 1] = path
-            elseif open_start_list_tab == 3 then
                 local typed = {}
                 for i, role in ipairs(M.ENTRY_ROLES) do typed[role] = role_entries[i].text or "" end
                 local text, spec = M.one_entry_csv(typed)
@@ -4796,7 +4772,6 @@ local function install_panel()
                 notify_error("Assisted Tagging: " .. (out ~= "" and capital(out) or _("The start list import failed. See the log.")))
                 return
             end
-            start_list_text.text = ""
             for _, e in ipairs(role_entries) do e.text = "" end
             -- quiet reload: the import's own summary is the message to keep on screen
             if reload_lists(true) then dt.print("Assisted Tagging: " .. capital(out)) end
