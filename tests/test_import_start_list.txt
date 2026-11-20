@@ -61,6 +61,9 @@ added 1 entry to entries.json; skipped 1 already listed: 14
 ok   the same number under a different paddock id is a new entry keyed <number>-<paddock>; the same paddock is skipped
 added 0 entries to entries.json; skipped 2 already listed: 8-D14, 14
 ok   a re-import of the split entry adds nothing
+added 2 entries to entries.json
+ok   a number listed twice with different paddock ids: the second row is keyed <number>-<paddock>
+ok   a number listed twice with the same paddock id fails
 ok   a demo paddock listed twice fails
 ok   a demo row with no paddock fails
 ok   pasted lines after a Demo heading are demo rows
@@ -91,6 +94,7 @@ import_start_list: number 30: shares car with "x", which is not a 1–3 digit nu
 import_start_list: number 30 shares a car with itself
 import_start_list: row 1: "1234" is not a 1–3 digit number
 import_start_list: number 9 is listed twice
+import_start_list: [Errno 2] No such file or directory: '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpjcfpfhc9/dup2/entries.json.qsos1gq5.tmp'
 import_start_list: paddock id A1 is listed twice
 import_start_list: row 1: demo 3 needs a paddock id (a letter, then letters or digits), got ""
-import_start_list: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpkaql1jrz/bare/entries.json is a bare list; make it {"entries": [...]} first
+import_start_list: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpjcfpfhc9/bare/entries.json is a bare list; make it {"entries": [...]} first

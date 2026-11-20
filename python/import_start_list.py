@@ -168,7 +168,11 @@ def entries_from(rows: list) -> tuple:
             if not re.fullmatch(r"\d{1,3}", number):
                 raise BadInput(f'row {n}: "{row.get("number", "")}" is not a 1–3 digit number')
             number = str(int(number))
+        paddock = _BAD_TAG.sub("", row.get("paddock", "")).strip()
         entry_id = demo_id(row, n) if demo or not number else number
+        pad_id = re.sub(r"\s+", "", paddock)
+        if entry_id in seen and number and not demo and pad_id:
+            entry_id = f"{number}-{pad_id}"  # a second car with this number, told apart by its paddock id
         if entry_id in seen:
             raise BadInput(f"{'paddock id' if entry_id != number else 'number'} {entry_id} is listed twice")
         seen.add(entry_id)
@@ -188,8 +192,7 @@ def entries_from(rows: list) -> tuple:
         klass, make, model = (_BAD_TAG.sub("", row.get(k, "")).strip() for k in ("class", "make", "model"))
         if model and not make:
             raise BadInput(f"row {n}: model {model} has no make")
-        paddock = _BAD_TAG.sub("", row.get("paddock", "")).strip()
-        colour = _BAD_TAG.sub("", row.get("colour", "")).strip()
+        colour =_BAD_TAG.sub("", row.get("colour", "")).strip()
         for key, value in (("extra", klass), ("make", make), ("model", model), ("colour", colour), ("paddock", paddock)):
             if value:
                 entry[key] = value
