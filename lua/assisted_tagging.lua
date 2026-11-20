@@ -4715,20 +4715,23 @@ local function install_panel()
     local start_list_tabs = {}
     -- darktable's stack.active need not read back as the index set, so the open tab is tracked here
     local open_start_list_tab = 1
+    local START_LIST_BUTTON_LABELS = { _("Import Start List CSV"), _("Add Entry") }
+    local import_start_list_button
     local function show_start_list_tab(index)
         open_start_list_tab = index
         start_list_stack.active = index
         for i, name in ipairs(START_LIST_TAB_NAMES) do
             start_list_tabs[i].label = (index == i and "● " or "○ ") .. name
         end
+        if import_start_list_button then import_start_list_button.label = START_LIST_BUTTON_LABELS[index] end
     end
     for i in ipairs(START_LIST_TAB_NAMES) do
         start_list_tabs[i] = new_widget("button") { clicked_callback = function() show_start_list_tab(i) end }
     end
     show_start_list_tab(1)
     local start_list_tab_box = new_widget("box") { orientation = "horizontal", table.unpack(start_list_tabs) }
-    local import_start_list_button = new_widget("button") {
-        label = _("Import Start List"),
+    import_start_list_button = new_widget("button") {
+        label = START_LIST_BUTTON_LABELS[1],
         tooltip = _("Add the open tab's entries (the CSV or the one typed entry) to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
         clicked_callback = function()
             if busy or not orphan_gone() then
