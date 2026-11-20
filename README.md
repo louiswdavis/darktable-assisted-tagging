@@ -370,7 +370,7 @@ Teammates share their team tag, so a team-only result carries exactly the team t
 
 #### Tag families
 
-A family is one kind of tag the plugin writes. Each has a switch and a root in the collection's [`settings.json`](#collection-settings-settingsjson) (panel page **4 tags written**, heading **Tag Families**), and writes `<root>|<value>`:
+A family is one kind of tag the plugin writes. Each has a switch and a root in the collection's [`settings.json`](#collection-settings-settingsjson) (panel page **4 Tags Written**, heading **Tag Families**), and writes `<root>|<value>`:
 
 | Family | Value | Switch | Root setting | Default root |
 |---|---|---|---|---|
@@ -462,7 +462,7 @@ A `tag_<key>_name` can't be blank or contain `,`, `;` or `"`; to stop writing a 
 
 To rename a diagnostic tag for one collection:
 
-1. In the panel, open **4 tags written**.
+1. In the panel, open **4 Tags Written**.
 2. Type the new base name in the text box under the diagnostic's switch (it shows the default name as a placeholder; blank means the default).
 3. Choose **actions** → **update preset**.
 
@@ -529,7 +529,7 @@ Each row above has its own switch under **Tags Written** in the panel, saved in 
 
 Filter on `Assisted Tagging|Identification|By livery` and `Assisted Tagging|Identification|Unidentified` in the **collections** module to spot-check the uncertain ones; an image it got wrong is often a good new reference.
 
-Tick **Tag each run** in the panel to also stamp every image a run writes with `Assisted Tagging|Run|YYYY-MM-DD HH:MM`, so the latest run's photos can be filtered apart from earlier ones. Stamps are never removed by later runs; delete old ones in darktable's tag manager.
+Tick **Tag Each Run** in the panel to also stamp every image a run writes with `Assisted Tagging|Run|YYYY-MM-DD HH:MM`, so the latest run's photos can be filtered apart from earlier ones. Stamps are never removed by later runs; delete old ones in darktable's tag manager.
 
 Re-running is safe: each image's entry and diagnostic tags are synced to the new result, so a frame that moves from one driver to another loses the old driver's tags. Tags that aren't in the active collection are never touched.
 
@@ -606,24 +606,25 @@ First the four [tag families](#tag-families): a switch each, with its root besid
 ### 5 Run
 
 - **Replace Manual Tags.** Lets runs replace tags you applied by hand; stays ticked until you untick it (see [Tags you apply by hand](#tags-you-apply-by-hand)).
-- **Tag each run.** Stamps every image a run writes with `Assisted Tagging|Run|YYYY-MM-DD HH:MM`.
+- **Tag Each Run.** Stamps every image a run writes with `Assisted Tagging|Run|YYYY-MM-DD HH:MM`.
 - **Verify Selection.** Identifies the selection, fully tagged images included, and reports where the result differs from your tags. No tags change.
 The page has five groups: **Identify** (models; writes tags), **Entries** (writes entries.json), **Derive** (lookups only; adds tags), **Group** (copies tags within each darktable group) and **Undo**.
 
 - **Identify Selection.** Identifies and tags the selection (see [Identifying](#identifying)). Click again to cancel. When a box's colour is read and no number is, only entries whose colour can match are compared. The filter is dropped when a confident number names an entry of another colour, or when no remaining entry is similar enough, so colour alone never identifies a car. Writes darktable tags, the tag ledger, `boxes.json` and the report; never `entries.json`.
+- **Fill Entry Colours** (section *Entries*). Writes each selected car's paintwork colour into `entries.json` as its entry's colour; see [Building references](#building-references). It changes the entry list, not tags or references. Needs the **Colour** family on (page 4).
 - **Derive from Number.** For each image whose number tag you applied names exactly one entry, adds that entry's tags. No models run; plugin-written number tags don't count. Writes darktable tags and the tag ledger only.
 - **Derive from Colour.** For each image with one colour tag and no number tag, adds the tags of the one entry with that colour (your team tags narrow it). Skipped when several entries share the colour. Writes darktable tags and the tag ledger only.
-- Both Derive buttons only add tags, log why each skipped image was skipped, and add **Check colour** when your number tag's entry and the colour tag disagree. Each tag source is marked `Assisted Tagging|Derived|From number`, `From driver`, `From colour` or `From identification` (option **Derived from** in 4 tags written). A later Identify run replaces Derive's markers with its own.
-- **Clear Tagging Marks.** Removes every tag the ledger says the plugin attached to the selected images (entries, colours, diagnostics, unidentified), from any collection, and forgets those images in the ledger, so a later **Identify Selection** treats them as fresh. The ledger alone decides: tags you applied by hand stay, even under the plugin's roots, and so do **Tag each run** stamps, which are not ledgered. Images with no ledger row are left alone.
-- **Copy Tags to Group** (section *Group*). For each darktable group holding selected images, the selected images' entry tags and family tags (number, colour, team, driver…) replace those on every other photo in the group, so the whole group matches. When the copy names an entry, the checks it settles go: *Check match* from every photo, and *Unidentified*, the collection's unidentified tags and *Number seen* from a photo that had no entry (on an identified photo *Number seen* can be a second car, so it stays). Other diagnostics, **Tag each run** stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand (they leave the ledger), so a later **Identify Selection** keeps them unless **Replace Manual Tags** is ticked. When two selected images in one group carry different tags, a box under the button asks first (also when the two entries of a double-driven car sit on different photos, since number and driver may really be swapped; photos that each hold both copy straight away): **Merge and Copy** gives every photo in that group all of their tags; **Cancel** writes nothing. Writes darktable tags and the tag ledger only.
+- Both Derive buttons only add tags, log why each skipped image was skipped, and add **Check colour** when your number tag's entry and the colour tag disagree. Each tag source is marked `Assisted Tagging|Derived|From number`, `From driver`, `From colour` or `From identification` (option **Derived From** on page 4 Tags Written). A later Identify run replaces Derive's markers with its own.
+- **Clear Tagging Marks.** Removes every tag the ledger says the plugin attached to the selected images (entries, colours, diagnostics, unidentified), from any collection, and forgets those images in the ledger, so a later **Identify Selection** treats them as fresh. The ledger alone decides: tags you applied by hand stay, even under the plugin's roots, and so do **Tag Each Run** stamps, which are not ledgered. Images with no ledger row are left alone.
+- **Copy Tags to Group** (section *Group*). For each darktable group holding selected images, the selected images' entry tags and family tags (number, colour, team, driver…) replace those on every other photo in the group, so the whole group matches. When the copy names an entry, the checks it settles go: *Check match* from every photo, and *Unidentified*, the collection's unidentified tags and *Number seen* from a photo that had no entry (on an identified photo *Number seen* can be a second car, so it stays). Other diagnostics, **Tag Each Run** stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand (they leave the ledger), so a later **Identify Selection** keeps them unless **Replace Manual Tags** is ticked. When two selected images in one group carry different tags, a box under the button asks first (also when the two entries of a double-driven car sit on different photos, since number and driver may really be swapped; photos that each hold both copy straight away): **Merge and Copy** gives every photo in that group all of their tags; **Cancel** writes nothing. Writes darktable tags and the tag ledger only.
 - **Copy Tags to Selection** (section *Group*). Merges the selected images' entry tags and family tags across all of them, so each fills in the tags it lacks: one photo with the number and another with the colour both end up with both. Photos outside the selection, group mates too, are untouched. The settled checks go and the copies count as hand tags, as for **Copy Tags to Group**. When two selected images carry different tags of one family, the same box asks first; **Merge and Copy** gives every selected image all of them. Writes darktable tags and the tag ledger only.
 
 ### 6 References
 
 The page has three sections. Only the first uses the **Entry** list.
 
-- **add to one entry**: **Entry** (the entry **Add as Reference** saves under) and **Add as Reference**.
-- **add by tags or last run**: **Add Tagged Images**, **Fill Entry Colours**, **Add from Last Run.** Each finds the entry from the image's tags or the last run; the **Entry** list is not used.
+- **Add to One Entry**: **Entry** (the entry **Add as Reference** saves under) and **Add as Reference**.
+- **Add by Tags or Last Run**: **Add Tagged Images**, **Add from Last Run.** Each finds the entry from the image's tags or the last run; the **Entry** list is not used.
 - **Audit**: **Audit: Suggest Re-Crops**, **Audit: Quarantine Poor Refs** (both off by default), **Audit References.** See **Audit References** under [Building references](#building-references).
 
 See [Building references](#building-references) for each action. The three add actions also fill the entry's colour in `entries.json` when the **Colour** family is on, and a colour tag you applied replaces the stored one.
@@ -817,7 +818,7 @@ Known gaps, not yet fixed:
 - **Reference crops** come from previews, unmasked, even when the run re-read a box at higher detail.
 - **Older tags count as yours.** Images tagged before the ledger existed have no ledger rows, so a run never removes their entry tags.
 - **The audit's whole-frame check** also fires on dark or blurred cars, and the first audit is slow (about 8 minutes for 2000 refs).
-- **Run stamps** from **Tag each run** are never removed by the plugin.
+- **Run stamps** from **Tag Each Run** are never removed by the plugin.
 
 ## Acceptance checklist
 
@@ -848,7 +849,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 12. **Diagnostic switches.** Identify a batch with every switch on. Under **Tags Written** in the panel, turn off *Shot* and *By livery*, choose **actions** → **update preset**, then identify the same batch again. *Expect:* the same entry tags as before; no image in the batch has `…|Identification|Shot|…` or `…|By livery`; the other diagnostics are still there. No `LUA ERROR`.
 13. **Start list import.** Save a 100-row CSV (`No.;Driver;Co-Driver;Entrant;Class`), choose it under **Start List** and click **Import Start List**. *Expect:* "added 100 entries to …entries.json"; the entries have `name` (the driver), `co_driver`, `team` and `extra` (the class); `entries.json.bak` is the previous file. Click **Import Start List** again. *Expect:* "added 0 entries … skipped 100 already listed: 1, 2, …". Open the **paste text** tab, paste `7 Smith / Jones` and a line without a number, and import. *Expect:* "added 1 entries … 1 line(s) without a leading number ignored" when 7 is new, and the box is cleared. Open the **one entry** tab, type number `8`, driver `Smith`, team `Smith Racing`, and import. *Expect:* "added 1 entries", entry 8 has `name` Smith and `team` Smith Racing, and the boxes are cleared. Import with the number box blank. *Expect:* "type the entry's number first.", nothing written. In an `entries.json` copy, set one entry's `name` to `Smith / Jones` with no `co_driver`, select a photo carrying its number tag and click **Find New Entries**. *Expect:* a `split "Smith / Jones" → driver Smith, co-driver Jones` row; ticking it and adding gives that entry `"name": "Smith", "co_driver": "Jones"`.
 
-14. **Old settings.** Remove `tag_shot_crowded` and `tag_shot_crowded_name` from a collection's `settings.json` (keep `tag_shot` off), then click **Reload**. *Expect:* the log shows `settings.json: tag_shot_crowded, tag_shot_crowded_name copied from the Shot switch (old settings)`, and *Shot crowded* is off in **4 tags written**.
+14. **Old settings.** Remove `tag_shot_crowded` and `tag_shot_crowded_name` from a collection's `settings.json` (keep `tag_shot` off), then click **Reload**. *Expect:* the log shows `settings.json: tag_shot_crowded, tag_shot_crowded_name copied from the Shot switch (old settings)`, and *Shot crowded* is off in **4 Tags Written**.
 15. **Clear Tagging Marks.** Identify a burst, then add `Rally|2026|12` to one image by hand. Select the burst and click **Clear Tagging Marks**. *Expect:* "Assisted Tagging: cleared N tags from M images."; every tag the plugin attached is gone, the hand tag stays, and a later **Identify Selection** treats the images as fresh. Click it again on the same selection. *Expect:* "Assisted Tagging: nothing to clear; the selection has no tagging marks."
 16. **Export and import a collection.** With a collection that has entries picked, choose **export preset…** in the actions menu, an empty folder, then **Export**. *Expect:* `preset "<name>" exported to <folder>\<name>.atpreset`; the bundle holds `manifest.json`, `preset.json` and `entries.json`, and no `refs` folder. Pick **import preset…**, choose that bundle, click **Import**. *Expect:* `imported "<name> (2)" …`; a `<name> (2)` folder appears under the collections folder with `settings.json` and `entries.json`, and picking it in the collection list shows the same entries (references are empty until you add some). Export again into a second empty folder with the **References** box ticked. *Expect:* the box reads `references (<n> files, <size> MB)`; the bundle also holds a `refs` folder (crops plus `sources.json`) and no `index.npz`. Import that bundle. *Expect:* `<name> (3)` has the `refs` folder, and the first Run on it embeds the references before tagging (no audit needed).
 17. **Copy Tags to Group.** Group a burst in darktable. Fix one photo by hand (right entry, number and colour tags), and give another photo in the burst a wrong number tag. Select only the fixed photo and click **Copy Tags to Group**. *Expect:* "Copy Tags to Group done, N tag changes on M photos."; every photo in the burst has the fixed photo's entry, number and colour tags, the wrong number tag is gone, diagnostics such as *Check colour* stay, and a burst photo that was *Unidentified* loses that tag and its *Number seen* tags. Run **Identify Selection** on the burst with **Replace Manual Tags** off. *Expect:* the copied tags stay. Now select two photos of one group that carry different number tags and click it again. *Expect:* a box under the button says the selected photos in 1 groups have different tags, and nothing changes until **Merge and Copy**; **Cancel** hides it with nothing written.

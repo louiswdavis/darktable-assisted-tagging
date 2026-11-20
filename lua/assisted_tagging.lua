@@ -3646,7 +3646,7 @@ function M.fill_entry_colours(images, colour_of)
     end
     if not take_settings() then return end
     if not settings.family_colour then
-        dt.print(_("Assisted Tagging: Tick the Colour family (page 4, tags written) first."))
+        dt.print(_("Assisted Tagging: Tick the Colour family (page 4, Tags Written) first."))
         return
     end
     busy = true
