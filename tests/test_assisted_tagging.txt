@@ -226,6 +226,10 @@ ok   named_rules: solo and pack from tag_shot_name
 ok   named_rules: off diagnostic still owned
 ok   named_rules: an off family keeps its root
 ok   named_rules: leaves the rules it was given alone
+ok   group_sync_tags: entry, number and switched-off colour tags only
+ok   group_source: differing photos give the union and differ
+ok   group_source: matching photos or one photo don't differ
+ok   group_source: a photo with no synced tags beside a tagged one differs
 ok   owned: entry tags
 ok   owned: unidentified rule tags
 ok   owned: renamed diagnostics

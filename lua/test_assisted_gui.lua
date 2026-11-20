@@ -557,6 +557,15 @@ T.identify_images({ member }, false, false)
 check("copy to group: Identify reading another car keeps the copied tags",
     tostring(has_tag(member, "Rallye|112")) .. " " .. tostring(has_tag(member, "Colour|Red")), "true true")
 
+prints, dt.gui.action_images = {}, {}
+;(copy_button or { clicked_callback = function() end }).clicked_callback()
+check("copy to group, nothing selected: asks for a selection", last_print(), "Assisted Tagging: select some images first")
+local alone = grouped(401, "DSC00401.JPG", { "Rallye|112" }, 401)
+prints, dt.gui.action_images = {}, { alone }
+;(copy_button or { clicked_callback = function() end }).clicked_callback()
+check("copy to group, a photo alone in its group: says so, writes nothing", last_print(),
+    "Assisted Tagging: none of the selected photos is in a darktable group with other photos.")
+
 local differ_a = grouped(301, "DSC00301.JPG", { "Rallye|112", "Colour|Red" }, 301)
 local differ_b = grouped(302, "DSC00302.JPG", { "Number|112" }, 301)
 local differ_c = grouped(303, "DSC00303.JPG", { "Colour|Blue" }, 301)
@@ -579,6 +588,10 @@ check("copy to group, selected photos differ: the confirm names the count",
     confirm_box and confirm_box[1].label:gsub("\n", " "),
     "The selected photos in 1 groups have different tags. Copy merges them: every photo in those groups gets all of their tags.")
 check("copy to group, selected photos differ: nothing is written before the confirm", tag_list(differ_c), "Colour|Blue")
+;(widget_where(confirm_box or {}, "button", "label", "Cancel") or { clicked_callback = function() end }).clicked_callback()
+check("copy to group, Cancel: the box hides and nothing is written",
+    tostring(confirm_box and confirm_box.visible) .. " " .. tag_list(differ_c), "false Colour|Blue")
+;(copy_button or { clicked_callback = function() end }).clicked_callback()
 ;(copy_confirm or { clicked_callback = function() end }).clicked_callback()
 check("copy to group, Merge and copy: every photo gets the merged tags",
     tag_list(differ_a) .. " / " .. tag_list(differ_b) .. " / " .. tag_list(differ_c),

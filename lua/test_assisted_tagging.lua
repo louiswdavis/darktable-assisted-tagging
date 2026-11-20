@@ -568,6 +568,36 @@ check("named_rules: off diagnostic still owned", T.owned_tags({}, named)["My|Sho
 check("named_rules: an off family keeps its root", named.families.colour, "Assisted Tagging|Motorsport|Colour")
 check("named_rules: leaves the rules it was given alone", blank_rules.diag.shot_solo .. "|" .. tostring(next(blank_rules.families)), "|nil")
 
+-- group_sync_tags: entry tags and family tags sync; diagnostics, run stamps and other tags never do,
+-- even when a diagnostic is renamed under a family root
+local sync_s = T.preset_defaults(T.PRESET_SCHEMA)
+sync_s.family_colour = false
+sync_s.family_number_root = "Num"
+sync_s.tag_check_colour_name = "Num|Check"
+sync_s.tag_number_seen_name = "Num|Seen"
+local sync_rules = T.parse_rules_csv("unidentified,Unknown car\n")
+local sync_named = T.named_rules(sync_rules, sync_s)
+local sync_have = {}
+for _, name in ipairs({ "Rallye|112", "Num|112", sync_named.families.colour .. "|Red", "Num|Check", "Num|Seen|115",
+    "Unknown car", sync_named.diag.none, sync_named.diag.derived .. "|From number", "Assisted Tagging|Run|2026-11-20 10:00",
+    "Hand|Tag" }) do sync_have[name] = true end
+local synced_names = {}
+for name in pairs(T.group_sync_tags(sync_have, { ["112"] = { tags = { "Rallye|112" } } }, sync_named)) do
+    synced_names[#synced_names + 1] = name
+end
+table.sort(synced_names)
+check("group_sync_tags: entry, number and switched-off colour tags only", table.concat(synced_names, ", "),
+    "Assisted Tagging|Motorsport|Colour|Red, Num|112, Rallye|112")
+
+-- group_source: the union of the selected photos' synced tags, and whether they differ
+local union, differs = T.group_source({ { a = true, b = true }, { b = true, c = true } })
+check("group_source: differing photos give the union and differ", tostring(union.a and union.b and union.c) .. " "
+    .. tostring(differs), "true true")
+local _, same = T.group_source({ { a = true }, { a = true } })
+local _, single = T.group_source({ { a = true } })
+check("group_source: matching photos or one photo don't differ", tostring(same) .. " " .. tostring(single), "false false")
+check("group_source: a photo with no synced tags beside a tagged one differs", select(2, T.group_source({ {}, { a = true } })), true)
+
 -- owned_tags / tag_changes (Review Focus 5) ---------------------------------
 local owned = T.owned_tags(entries, rules)
 check("owned: entry tags", owned["F1|Ferrari|Hamilton"], true)

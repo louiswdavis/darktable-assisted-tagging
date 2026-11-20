@@ -3762,6 +3762,8 @@ function M.copy_tags_to_group(images, ask)
         dt.print(_("Assisted Tagging: select some images first"))
         return
     end
+    -- a running job reads settings, entries and rules, so they are not reloaded under it
+    if queue_if_busy(_("Copy tags to group"), true, function() M.copy_tags_to_group(images, ask) end) then return end
     if not take_settings() then return end
     load_entries_csv()
     local named = M.named_rules(rules, settings)
