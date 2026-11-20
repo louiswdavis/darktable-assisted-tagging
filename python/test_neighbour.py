@@ -164,6 +164,22 @@ def run_tests():
     out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({}))
     check("no embeddings leave the box", out["f1"][0].method, "none")
     check("no similar callback leaves the box", N.neighbour_aid(frames, burst, times, E, 5, 0.5)["f1"][0].method, "none")
+    out = N.neighbour_aid(frames, burst, times, E, 5, 0.5, sims({"f0": 0.92, "f2": 0.60}), pool={"38"})
+    check("only-entries: a look-alike of a carried car does not jump into the pool", out["f1"][0].method, "none")
+
+    # Identify Missing Entries: answers only from the pool, positions from the whole list
+    frames, burst, times = shoot(seen("34"), unmatched("335"), seen("37"))
+    check("only-entries: without a pool, two equally supported candidates resolve nothing",
+          N.neighbour_aid(frames, burst, times, E, 5, 1.0)["f1"][0].method, "none")
+    got = N.neighbour_aid(frames, burst, times, E, 5, 1.0, pool={"33"})["f1"][0]
+    check("neighbour: only-entries resolves to a pool id", (got.method, got.entry_id), ("neighbour", "33"))
+    frames, burst, times = shoot(seen("34"), unmatched("36"), seen("37"))
+    check("neighbour: only-entries never resolves to a carried id",
+          N.neighbour_aid(frames, burst, times, E, 5, 1.0, pool={"33"})["f1"][0].method, "none")
+    full = N.neighbour_aid(frames, burst, times, E, 5, 1.0)["f1"][0]
+    pooled = N.neighbour_aid(frames, burst, times, E, 5, 1.0, pool={"35"})["f1"][0]
+    check("neighbour: number order still uses the full list (carried 34 and 37 place 35)",
+          (pooled.method, pooled.entry_id, pooled.confidence), (full.method, full.entry_id, full.confidence))
     frames, burst, times = shoot(seen("34"), unmatched("36"), seen("37"))
     out = N.neighbour_aid(frames, burst, times, E, 5, 1.0, sims({"f0": 0.99, "f2": 0.10}))
     check("a number-order resolve comes before the look-alike", (out["f1"][0].entry_id, out["f1"][0].via), ("35", "order"))

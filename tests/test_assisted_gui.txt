@@ -102,6 +102,15 @@ ok   stale Unidentified: a photo skipped as tagged by hand loses the earlier run
 ok   stale Unidentified: a photo identified now loses an Unidentified tag missing from the ledger
 ok   stale Unidentified: a photo whose hand tags name a car loses it
 ok   stale Unidentified: a hand Unidentified tag stays on a photo still unidentified
+ok   missing: with every entry carried, says so
+ok   missing: with every entry carried, identify.py does not run
+ok   missing: identify.py gets the missing entries in start-list order
+ok   missing: the log lists the missing entries
+ok   missing: a found photo carries its entry and Check match
+ok   missing: the done message counts found and still missing
+ok   missing: a photo an earlier run tagged keeps its entry
+ok   missing: a selection with every photo named does not run
+ok   missing: a selection with every photo named says so
 ok   identify colour for group: only the selected photo is read
 ok   identify colour for group: the selected photo and its untagged mate get the colour
 ok   identify colour for group: a mate with a colour tag keeps it

@@ -1203,7 +1203,8 @@ def hires_wanted(frames: dict, detail: dict, analyses: dict) -> dict:
     return wanted
 
 
-def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: dict, detail: dict) -> dict:
+def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: dict, detail: dict,
+                      pool: set = None) -> dict:
     """Experimental (rules.burst_livery_pooling): for each burst with 2+ frames whose box 0 is
     visible, pool box-0 livery similarity across them and re-run the livery decision once on the
     average. Only a pooled livery match names a car (a pooled team tie names no driver), and only
@@ -1212,7 +1213,8 @@ def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: di
     (`detail`'s overlap), already identified, or under a tag or sponsor hint that leaves the
     entry out keeps its own result. A frame whose box-0 colour differs from the pooled entry's
     (colour_relation -1, neighbour aid's veto) is left out of the pool and the fill: the rest
-    are pooled again without it and must name the same entry."""
+    are pooled again without it and must name the same entry. With `pool`, only an entry in it can be named."""
+    allowed = entries if pool is None else {eid: e for eid, e in entries.items() if eid in pool}
     members: dict = {}
     for image_id in box0_sims:
         if detail[image_id]["boxes"][0]["overlap"] != HIDDEN:
@@ -1221,7 +1223,7 @@ def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: di
     for ids in members.values():
         if len(ids) < 2:
             continue
-        decision = match_livery(0, pool_sims([box0_sims[i] for i in ids]), entries)
+        decision = match_livery(0, pool_sims([box0_sims[i] for i in ids]), allowed)
         if decision.method != "livery":
             continue
         eid = decision.entry_id
@@ -1231,7 +1233,7 @@ def pool_burst_livery(frames: dict, burst_of: dict, box0_sims: dict, entries: di
         if len(agreeing) < len(ids):
             if len(agreeing) < 2:
                 continue
-            decision = match_livery(0, pool_sims([box0_sims[i] for i in agreeing]), entries)
+            decision = match_livery(0, pool_sims([box0_sims[i] for i in agreeing]), allowed)
             if decision.method != "livery" or decision.entry_id != eid:
                 continue
         for image_id in agreeing:
@@ -1332,11 +1334,13 @@ def write_boxes(path: str, data: dict):
 
 
 def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, rules: Rules, team_of: dict,
-                tag_hints: list, boxes_out: list, box0_sims: dict, noise: dict, quiet: bool = False) -> list:
+                tag_hints: list, boxes_out: list, box0_sims: dict, noise: dict, quiet: bool = False,
+                pool: set = None) -> list:
     """One BoxResult per detected vehicle in the analysed frame `a`. Appends each box's detail
     (bbox, detector score, sims, OCR, hint) to `boxes_out`, and box 0's sims to `box0_sims` when
     burst pooling needs them. `noise` is the run's noise numbers (match.noise_numbers), left out of
-    a box's reads when it has another. `quiet` skips the per-box log lines (a pass that is redone)."""
+    a box's reads when it has another. `quiet` skips the per-box log lines (a pass that is redone).
+    `pool` (--only-entries) limits every answer to those entry ids; None is every entry."""
     results = []
     for i, ocr in enumerate(a["ocr"]):
         sims = index.best_per_entry(decode(a["emb"][i]),
@@ -1352,12 +1356,13 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
         overlap = a.get("overlap", [""] * len(a["ocr"]))[i]
         shares = a["car_colour"][i] if "car_colour" in a else {}
         colour = car_colour.decide_colour(shares) if shares and overlap != HIDDEN else ""
-        pool, colour_note = colour_pool(entries, colour, reads, sims, rules.min_read)
-        r, hint = hinted_match(i, reads, [(k, s) for k, s in sims if k in pool], pool, prefixes, source, ctc, rules.min_read)
+        coloured, colour_note = colour_pool(entries, colour, reads, sims, rules.min_read)
+        r, hint = hinted_match(i, reads, [(k, s) for k, s in sims if k in coloured], coloured, prefixes, source, ctc,
+                               rules.min_read, pool)
         if r.method == "number" and r.list_read and r.confidence < rules.min_read:
             r = replace(r, list_read=r.list_read + " (weak read)")
         read_entry = r.entry_id if r.method == "number" else ""
-        r = match_team(r, team_sims, entries)
+        r = match_team(r, team_sims, entries, pool)
         pod = a["pod"][i]
         before = r.entry_id
         r = match_camera(r, pod_colour(pod), entries)
@@ -1583,6 +1588,15 @@ def identify(args, models: dict):
     if rules.kind == "people":
         return identify_people(args, models, entries, rules, from_entries, collection, embedder)
     rows = read_manifest(args.manifest, 3, 5)
+    # --only-entries (Identify Missing Entries): every answer comes from these entries; reading
+    # (numbers, noise, already-tagged, hand tags) still uses the whole start list.
+    only = [eid for eid in getattr(args, "only_entries", "").split(",") if eid]
+    pool = {eid for eid in only if eid in entries} if only else None
+    if only:
+        log(f"only entries: {','.join(eid for eid in only if eid in entries)}")
+        unknown = [eid for eid in only if eid not in entries]
+        if unknown:
+            log(f"only entries: not in the start list, dropped: {','.join(unknown)}")
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     verify = getattr(args, "verify", False)
@@ -1673,7 +1687,7 @@ def identify(args, models: dict):
                     continue
                 detail[image_id]["frame"] = a["frame"]
                 frames[image_id] = match_frame(image_id, a, index, entries, rules, team_of, tag_hints_of[image_id],
-                                               detail[image_id]["boxes"], box0_sims, noise, quiet)
+                                               detail[image_id]["boxes"], box0_sims, noise, quiet, pool)
             return frames, burst_of, box0_sims, detail, noise
 
         # first pass on the cheap analysis; boxes it can't identify are then re-read at higher detail
@@ -1759,7 +1773,7 @@ def identify(args, models: dict):
                       for i, b in enumerate(d["boxes"]) if b["overlap"] != HIDDEN}
                 for fid, d in detail.items()}
         ctc_of = {fid: dict(enumerate((analyses.get(d["file"]) or {}).get("ocr_ctc", []))) for fid, d in detail.items()}
-        agreed = agreeing_reads(frames, burst_of, weak, entries, ctc_of)
+        agreed = agreeing_reads(frames, burst_of, weak, entries, ctc_of, pool)
         for fid, rs in agreed.items():
             for a, b in zip(rs, frames[fid]):
                 if a.method != b.method:
@@ -1767,7 +1781,7 @@ def identify(args, models: dict):
                     log(f"{fid}: box {a.box}: number {a.entry_id} (weak read {a.confidence:.2f}, {how})")
         frames = agreed
     if rules.burst_livery_pooling and not verify:
-        frames = pool_burst_livery(frames, burst_of, box0_sims, entries, detail)
+        frames = pool_burst_livery(frames, burst_of, box0_sims, entries, detail, pool)
     # before neighbour aid and burst consensus, so a hand-tagged frame supports the frames around it
     frames = with_hand_entries(frames, hand_of)
     for image_id, eid in hand_of.items():
@@ -1797,7 +1811,7 @@ def identify(args, models: dict):
         log(f"neighbour: {len(with_lib) - len(frames)} unselected tagged photos lend support")
         # no `guesses`: the best-guess path was 3/14 right on Rallye (ticket 79)
         aided = neighbour_aid(with_lib, lib_burst_of, lib_times, entries, rules.neighbour_tolerance, rules.order_weight,
-                              similar)
+                              similar, pool=pool)
         aided = {i: rs for i, rs in aided.items() if i in frames}
         resolved = 0
         for i, rs in aided.items():
@@ -1812,7 +1826,7 @@ def identify(args, models: dict):
         frames = aided
     if not verify:
         blanks: dict = {}
-        frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims, why=blanks)
+        frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims, why=blanks, pool=pool)
         for fid in sorted(blanks, key=shooting_order.__getitem__):
             eid, reason = blanks[fid]
             log(f"{fid}: burst {eid or '-'} not filled ({reason})")
@@ -1881,6 +1895,9 @@ def identify(args, models: dict):
             disagrees(r, already_tagged(protected_of[image_id], entries), n_boxes == 1, entries) if verify and image_id in fully_tagged
             else r.entry_id != hand_of.get(image_id) and conflicts(r.entry_id, protected_of[image_id], entries, n_boxes == 1)
             or image_id in hand_of and disagrees(r, hand_of[image_id], n_boxes == 1, entries)) else r for r in results]
+    if pool is not None:
+        # Identify Missing Entries: every name it gives is a guess at a car no photo carried, so each gets Check match
+        frames = {i: [replace(r, anchor_flag=True) if r.entry_id else r for r in rs] for i, rs in frames.items()}
 
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:
@@ -2303,6 +2320,8 @@ def main(argv=None):
     parser.add_argument("--boxes-out", default="", help="Write the run's per-vehicle boxes.json here")
     parser.add_argument("--neighbours", default="",
                         help="CSV of unselected tagged photos (image id, capture epoch, entry id) that lend neighbour-aid support")
+    parser.add_argument("--only-entries", default="",
+                        help="Comma-joined entry ids: matches name only these (Identify Missing Entries)")
     parser.add_argument("--overturns-out", default="",
                         help="Write entries whose colour in entries.json the reads overturn here (CSV: entry,stored,seen,n,total,ids)")
     parser.add_argument("--report-out", default="",

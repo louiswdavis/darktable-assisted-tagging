@@ -124,7 +124,7 @@ def best_guess(guesses: list, near: set, here: set, colour: str, entries: dict):
 
 
 def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
-                  tolerance: int, weight: float, similar=None, guesses=None) -> dict:
+                  tolerance: int, weight: float, similar=None, guesses=None, pool: set = None) -> dict:
     """frames: image id to [BoxResult]; times: image id to capture seconds (0 or missing = untimed).
     A `none` box with digits read takes the one candidate whose support from nearby groups reaches
     1 - `weight` (method `neighbour`, confidence = support): a neighbour up to weight x (tolerance + 1)
@@ -136,7 +136,10 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
     best_guess; confidence = sim). A doubtful
     `number` read that no nearby group supports is flagged (`order_flag`), result unchanged. A candidate
     or look-alike box whose colour disagrees with the box's is passed over. Clear
-    reads are never touched. Returns `frames` itself when weight is 0 or there is nothing to measure against."""
+    reads are never touched. Returns `frames` itself when weight is 0 or there is nothing to measure against.
+    With `pool`, only an entry in it can be the answer: number candidates outside it are dropped before
+    scoring, and a look-alike or best guess naming a carried car leaves the box `none`. Number positions
+    and the nearby cars still come from the whole list."""
     positions = entry_positions(entries)
     if weight <= 0 or not positions:
         return frames
@@ -190,7 +193,7 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
                 if r.method == "none" and r.box >= 0:
                     if r.unmatched_number:
                         cands = {c for d in r.unmatched_number.split(";") for c in candidates_for(d, entries)
-                                 if colour_relation(entries[c].colour, r.colour) != -1}
+                                 if colour_relation(entries[c].colour, r.colour) != -1 and (pool is None or c in pool)}
                         scored = sorted(((support(c, around), c) for c in cands), reverse=True)
                         # the small slack keeps an exact boundary (e.g. 1 - 1/6 at weight 1/6) from failing on float error
                         if (scored and scored[0][0] > 0 and scored[0][0] >= 1 - weight - 1e-9
@@ -199,14 +202,14 @@ def neighbour_aid(frames: dict, burst_of: dict, times: dict, entries: dict,
                     if r.method == "none" and similar is not None:
                         same = [nb for nb in near_boxes if colour_relation(box_colour(nb[0], nb[1]), r.colour) != -1]
                         hit = lookalike(similar, fid, r.box, same)
-                        if hit:
+                        if hit and (pool is None or hit[0] in pool):
                             r = replace(r, method="neighbour", entry_id=hit[0], confidence=hit[1], via="lookalike")
                     if r.method == "none" and guesses:
                         here = {x.entry_id for x in frames[fid] + boxes if x.method in IDENTIFIED + (HAND, "neighbour")}
                         # the box's own burst counts too, its other frames only (`here` covers this one)
                         near = set(around) | {eid for ofid, _box, eid in seen[g] if ofid != fid}
                         hit = best_guess(guesses.get((fid, r.box), []), near, here, r.colour, entries)
-                        if hit:
+                        if hit and (pool is None or hit[0] in pool):
                             r = replace(r, method="neighbour", entry_id=hit[0], confidence=hit[1], via="candidate")
                 elif (around and r.method == "number" and r.confidence < DOUBT_CONF and weight >= FLAG_MIN_WEIGHT
                       and support(r.entry_id, around) == 0):

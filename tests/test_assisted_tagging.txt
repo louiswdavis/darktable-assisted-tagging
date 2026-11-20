@@ -267,6 +267,11 @@ ok   tags the plugin wrote (in the ledger) map to no one
 ok   tags the user added by hand still map with a ledger
 ok   entry_tags_note: several full matches are listed
 ok   entry_tags_note: a partial match names the entry and the tags it lacks
+ok   missing_entries: an entry one photo carries is not missing
+ok   missing_entries: a photo of 90 carries the shared car, so 790 is not missing either
+ok   missing_entries: no photo of the shared car lists both its entries, in start-list order
+ok   missing_entries: hand-added tags (no ledger) count as carried
+ok   missing_entries: a photo carrying two entries' tags carries neither
 ok   entry_tags_note: no entry tag at all
 ok   results group by image id
 ok   a no-vehicle frame has a row

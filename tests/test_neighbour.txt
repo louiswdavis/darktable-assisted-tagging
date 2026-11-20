@@ -41,6 +41,11 @@ ok   a look-alike under the floor is left
 ok   two cars that look alike are left
 ok   no embeddings leave the box
 ok   no similar callback leaves the box
+ok   only-entries: a look-alike of a carried car does not jump into the pool
+ok   only-entries: without a pool, two equally supported candidates resolve nothing
+ok   neighbour: only-entries resolves to a pool id
+ok   neighbour: only-entries never resolves to a carried id
+ok   neighbour: number order still uses the full list (carried 34 and 37 place 35)
 ok   a number-order resolve comes before the look-alike
 ok   a frame with no vehicle is not looked at
 ok   an order tie on a red box goes to the Red entry

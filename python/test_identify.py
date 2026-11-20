@@ -1029,6 +1029,16 @@ def run_tests():
            "4,-1,none,,,0.000,,,,,,,,", "5,-1,error,,,0.000,,,,,,,,"])
     check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
     check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
+    args.only_entries = "VER"
+    I.identify(args, dict(fake_models))
+    named = [r.split(",") for r in open(results, encoding="utf-8").read().splitlines() if r.split(",")[3]]
+    check("only-entries: every row naming an entry carries Check match (anchor_flag 1)",
+          (len(named), all(r[12] == "1" for r in named)), (3, True))
+    args.only_entries = "NOPE"
+    I.identify(args, dict(fake_models))
+    check("only-entries: no row names an entry outside the pool",
+          [r for r in open(results, encoding="utf-8").read().splitlines() if r.split(",")[3]], [])
+    del args.only_entries
 
     _, shot_rules, _fe = I.load_collection(collection({"rules": {"diagnostics": {
         "shot_solo": "Mine|Solo", "shot_pack": "Mine|Pack", "shot_crowded": "Mine|Crowded"}}, "entries": [VER]}))

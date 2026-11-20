@@ -342,34 +342,44 @@ def list_read(ocr: list, ctc, entries: dict):
     return ListRead(greedy, best, score, runner, runner_score, best if wins else "", conf_of[best])
 
 
-def match_box(box: int, ocr: list, sims: list, entries: dict, ctc=None) -> BoxResult:
+def match_box(box: int, ocr: list, sims: list, entries: dict, ctc=None, pool: set = None) -> BoxResult:
     """ocr: [(digits, confidence)]; sims: [(entry_id, similarity)] most similar first; ctc: {digits:
     digit matrix} or None. With every read's matrix the reads are scored against the start list
     (list_read): only a clear winner counts as the number read, and look-alike guessing is skipped.
     Without, an exact number hit, then one look-alike digit away (_misread_number). A number
-    several entries carry (shows) sends livery to pick between those entries only."""
+    several entries carry (shows) sends livery to pick between those entries only.
+    `pool` (Identify Missing Entries) limits the answer to those entry ids; None is every entry.
+    Numbers and look-alikes are still read against all of `entries`, so a car outside the pool that
+    is read (or misread) clearly gives `none`, not the nearest pool entry."""
+    allowed = entries if pool is None else {eid: e for eid, e in entries.items() if eid in pool}
     by_number = number_index(entries)
     listed = list_read(ocr, ctc, entries)
     if listed is not None:
         unmatched = ";".join(dict.fromkeys(digits for digits, _ in ocr))
         hits = by_number.get(listed.winner, []) if listed.winner else []
         if len(hits) == 1 and not _fragment_of_livery(hits[0], [(listed.winner, listed.confidence)], sims, entries):
+            if hits[0] not in allowed:
+                return BoxResult(box, "none", "", "", listed.confidence, unmatched, list_read=listed.text())
             return BoxResult(box, "number", hits[0], "", listed.confidence, list_read=listed.text())
-        pool = {eid: entries[eid] for eid in hits} if len(hits) > 1 else entries
-        return replace(match_livery(box, sims, pool, unmatched), list_read=listed.text())
+        narrowed = {eid: allowed[eid] for eid in hits if eid in allowed} if len(hits) > 1 else allowed
+        return replace(match_livery(box, sims, narrowed, unmatched), list_read=listed.text())
     hits, best_conf = set(), 0.0
     for digits, conf in ocr:
         for eid in by_number.get(digits, []):
             hits.add(eid)
             best_conf = max(best_conf, conf)
-    if len(hits) == 1 and not _fragment_of_livery(next(iter(hits)), ocr, sims, entries):
-        return BoxResult(box, "number", hits.pop(), "", best_conf)
     unmatched = ";".join(dict.fromkeys(digits for digits, _ in ocr))
+    if len(hits) == 1 and not _fragment_of_livery(next(iter(hits)), ocr, sims, entries):
+        if next(iter(hits)) not in allowed:
+            return BoxResult(box, "none", "", "", best_conf, unmatched)
+        return BoxResult(box, "number", hits.pop(), "", best_conf)
     if not hits:
         fuzzy = _misread_number(ocr, sims, entries)
+        if fuzzy and fuzzy[0] not in allowed:
+            return BoxResult(box, "none", "", "", fuzzy[1], unmatched)
         if fuzzy:
             return BoxResult(box, "livery", fuzzy[0], "", fuzzy[1], unmatched)
-    return match_livery(box, sims, {eid: entries[eid] for eid in hits} if len(hits) > 1 else entries, unmatched)
+    return match_livery(box, sims, {eid: allowed[eid] for eid in hits if eid in allowed} if len(hits) > 1 else allowed, unmatched)
 
 
 def burst_list_read(ids: list, frames: dict, weak: dict, ctc: dict, entries: dict):
@@ -415,7 +425,7 @@ def burst_list_read(ids: list, frames: dict, weak: dict, ctc: dict, entries: dic
     return ListRead(greedy, top, total, runner, runner_total, top if wins else "", conf, len(per_frame)), boxes
 
 
-def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict, ctc: dict = None) -> dict:
+def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict, ctc: dict = None, pool: set = None) -> dict:
     """`frames` with weak number reads promoted where a group agrees on them. `weak` is
     {frame_id: {box: [(digits, confidence)]}}, the reads at WEAK_READ_MIN or more; `ctc` is
     {frame_id: {box: {digits: digit matrix}}}. A group whose unidentified boxes carry matrices in
@@ -424,7 +434,7 @@ def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict, ctc:
     other entry) is read on unidentified boxes of WEAK_AGREE_MIN or more frames becomes `number`
     on those boxes, when it is the only entry so agreed. Either way, nothing changes when a number,
     livery or neighbour result in the group names another entry. A read naming an entry whose
-    colour disagrees with the box's isn't counted."""
+    colour disagrees with the box's isn't counted. With `pool`, an agreed entry outside it names nothing."""
     by_number = number_index(entries)
     groups: dict = {}
     for fid in frames:
@@ -436,6 +446,8 @@ def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict, ctc:
             listed, boxes = fused
             eids = by_number.get(listed.winner, []) if listed.winner else []
             if len(eids) != 1 or any(r.method in BURST_ANCHORS and r.entry_id != eids[0] for fid in ids for r in frames[fid]):
+                continue
+            if pool is not None and eids[0] not in pool:
                 continue
             for fid, (box, conf) in boxes.items():
                 out[fid] = [replace(r, method="number", entry_id=eids[0], alt_entry_id="", confidence=conf,
@@ -458,6 +470,8 @@ def agreeing_reads(frames: dict, burst_of: dict, weak: dict, entries: dict, ctc:
         if len(agreed) != 1:
             continue
         eid = agreed[0]
+        if pool is not None and eid not in pool:
+            continue
         if any(r.method in BURST_ANCHORS and r.entry_id != eid for fid in ids for r in frames[fid]):
             continue
         for fid, (box, conf) in hits[eid].items():
@@ -629,16 +643,17 @@ def most_specific(prefixes: list) -> list:
 
 
 def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list, source: str, ctc=None,
-                 min_read: float = 0.0) -> tuple:
+                 min_read: float = 0.0, pool: set = None) -> tuple:
     """(BoxResult, hint) matching only the entries under `prefixes`. The restriction is a soft
     prior: it is dropped (the full set is matched) when it holds no entries, every restricted
     similarity is under MATCH_MIN_SIM, or OCR read a number at `min_read` or more that belongs to an
     entry outside it (a weak read can't drop it).
     The exception is a weak livery under a user-applied tag (`source` "tag") whose entries all share
     one team: that gives a `team` result instead, since the user already said which team.
-    `hint` is {} without prefixes, else {prefixes, source, restricted, dropped, reason}. `ctc` goes to match_box."""
+    `hint` is {} without prefixes, else {prefixes, source, restricted, dropped, reason}. `ctc` and
+    `pool` go to match_box; a team result names only pool entries."""
     if not prefixes:
-        return match_box(box, ocr, sims, entries, ctc), {}
+        return match_box(box, ocr, sims, entries, ctc, pool), {}
     prefixes = most_specific(prefixes)
     inside = entries_under(entries, prefixes)
     hint = {"prefixes": list(prefixes), "source": source, "restricted": len(inside), "dropped": False, "reason": ""}
@@ -665,7 +680,8 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
         # A number inside still identifies; otherwise one team's worth of entries gives a team
         # result, which the camera pod can narrow to a driver.
         restricted = [(eid, s) for eid, s in sims if eid in inside]
-        r = match_box(box, ocr, restricted, inside, ctc)
+        r = match_box(box, ocr, restricted, inside, ctc, pool)
+        restricted = [(eid, s) for eid, s in restricted if pool is None or eid in pool]
         teams = {e.team for e in inside.values()}
         if r.method == "number":
             return r, hint
@@ -674,8 +690,8 @@ def hinted_match(box: int, ocr: list, sims: list, entries: dict, prefixes: list,
             return replace(r, method="team", entry_id=e1, alt_entry_id=e2, confidence=s1), hint
     if reason:
         hint.update(dropped=True, reason=reason)
-        return match_box(box, ocr, sims, entries, ctc), hint
-    return match_box(box, ocr, [(eid, s) for eid, s in sims if eid in inside], inside, ctc), hint
+        return match_box(box, ocr, sims, entries, ctc, pool), hint
+    return match_box(box, ocr, [(eid, s) for eid, s in sims if eid in inside], inside, ctc, pool), hint
 
 
 TEAM_KEY = "@team@"  # reference folder / index key prefix of a team-level reference
@@ -686,14 +702,15 @@ def team_key(prefix: str) -> str:
     return TEAM_KEY + prefix.replace("|", "__")
 
 
-def match_team(result: BoxResult, team_sims: list, entries: dict) -> BoxResult:
+def match_team(result: BoxResult, team_sims: list, entries: dict, pool: set = None) -> BoxResult:
     """A `none` result upgraded to `team` when one team's references clearly lead: team_sims is
     [(team tag, similarity)] most similar first. The first two entries under the team become
-    entry/alt so the plugin writes only their shared tags. Any other result is returned as is."""
+    entry/alt so the plugin writes only their shared tags. Any other result is returned as is.
+    `pool` (Identify Missing Entries) counts only those entry ids as team members."""
     if result.method != "none" or not team_sims:
         return result
     (prefix, s1), s2 = team_sims[0], team_sims[1][1] if len(team_sims) > 1 else 0.0
-    members = list(entries_under(entries, [prefix]))
+    members = [eid for eid in entries_under(entries, [prefix]) if pool is None or eid in pool]
     if s1 < MATCH_MIN_SIM or s1 - s2 < MATCH_MIN_MARGIN or len(members) < 2:
         return result
     return replace(result, method="team", entry_id=members[0], alt_entry_id=members[1], confidence=s1)
@@ -799,14 +816,15 @@ def _supported(sims: list, eid: str) -> bool:
 
 
 def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, box0_sims: dict = None,
-                solo: bool = False, why: dict = None) -> list:
+                solo: bool = False, why: dict = None, pool: set = None) -> list:
     """The frame's rows with box 0 set to the burst's entry, or the rows unchanged when the frame is
     already identified on box 0 or as a whole (a car on box 1 alone is another car in a pack), already
     identifies the entry on another box (a team-only result naming it is upgraded), has no box 0, shows a team-only result for another team (a different car), the
     confidence is under BURST_MIN_CONFIDENCE (waived when `solo`: a SOLO_ANCHOR_CONF read anchors the
     burst), or (with `box0_sims`) box 0's own similarities don't back the entry. A frame where no
     vehicle was found (a lone box -1 `none` row) takes the entry on that row: nothing in it contradicts the burst.
-    With `why`, a frame left unchanged that is not an anchor itself gets why[fid] = (eid, reason)."""
+    With `why`, a frame left unchanged that is not an anchor itself gets why[fid] = (eid, reason).
+    With `pool`, an entry outside it fills nothing ("carried"): the anchors stay as evidence."""
     rows = frames[fid]
 
     def blank(reason):
@@ -816,6 +834,8 @@ def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, bo
 
     if _anchor_rows(rows) or any(r.entry_id == eid and r.method in BURST_ANCHORS for r in rows):
         return rows
+    if pool is not None and eid not in pool:
+        return blank("carried")
     if confidence < BURST_MIN_CONFIDENCE and not solo:
         return blank("low share")
     if all(r.box < 0 and r.method == "none" for r in rows):
@@ -878,7 +898,7 @@ def _smooth_spikes(ids: list, frames: dict) -> dict:
 
 
 def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None, box0_sims: dict = None,
-                    why: dict = None) -> dict:
+                    why: dict = None, pool: set = None) -> dict:
     """frames: image id → [BoxResult]. A frame whose box 0 wasn't identified (and no hand tag)
     takes its burst's entry on its largest box when at least BURST_MIN_AGREE
     frames agree on that entry (a number, livery, neighbour or hand result), or one number read reaches
@@ -889,7 +909,7 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
     order of `frames`), so each stretch fills only from its own car. With `box0_sims` (image id → box 0's
     [(entry id, sim)]) a frame is filled only when its own box backs the entry; see _supported.
     With `why` (filled in place), each frame of an anchored burst left blank maps to (burst entry, reason):
-    "one read", "between cars" (entry ""), or a _burst_fill reason."""
+    "one read", "between cars" (entry ""), or a _burst_fill reason. `pool` goes to _burst_fill."""
     members: dict = {}
     for fid in frames:
         members.setdefault(burst_of.get(fid, fid), []).append(fid)
@@ -907,7 +927,7 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
             for eid, span, n, solo in _split_burst(ordered, smoothed):
                 spanned.update(span)
                 for fid in span:
-                    out[fid] = _burst_fill(smoothed, fid, eid, n / len(span), entries, box0_sims, solo, why)
+                    out[fid] = _burst_fill(smoothed, fid, eid, n / len(span), entries, box0_sims, solo, why, pool)
             if why is not None:
                 for fid in ids:
                     if fid not in spanned and not _anchor_rows(smoothed[fid]):
@@ -922,7 +942,7 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
                 why.update({fid: (eid, "one read") for fid in ids if not _anchor_rows(frames[fid])})
             continue
         for fid in ids:
-            out[fid] = _burst_fill(frames, fid, eid, n / len(ids), entries, box0_sims, solo, why)
+            out[fid] = _burst_fill(frames, fid, eid, n / len(ids), entries, box0_sims, solo, why, pool)
     return out
 
 

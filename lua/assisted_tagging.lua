@@ -1194,6 +1194,22 @@ function M.entry_for_tags(have, entries, order, ledger_set)
     return found
 end
 
+-- The entries no photo carries, in `order`. `tag_sets` holds one { [tag] = true } per photo in the
+-- collection, hand tags and locked photos included. A photo of either entry of a shared car carries
+-- the car, so both its entries count as carried.
+function M.missing_entries(tag_sets, entries, order)
+    local carried = {}
+    for _, have in ipairs(tag_sets) do
+        local id = M.entry_for_tags(have, entries, order)
+        if id then carried[(entries[id].car or "") ~= "" and entries[id].car or id] = true end
+    end
+    local missing = {}
+    for _, id in ipairs(order) do
+        if not carried[(entries[id].car or "") ~= "" and entries[id].car or id] then missing[#missing + 1] = id end
+    end
+    return missing
+end
+
 -- Why entry_for_tags named no entry for `have`, for the log: the entries whose tags it carries all
 -- of when several do, else the entry it carries most tags of and the tags of that entry it lacks.
 function M.entry_tags_note(have, entries, order)
@@ -2142,7 +2158,7 @@ local queue = {}
 -- A run that shows no progress for this long is given up on (it may still be loading
 -- models or re-embedding references, so this is generous).
 local STALL_SECONDS = 300
-local verify_button, identify_button, entry_combo, example_combo = nil, nil, nil, nil
+local verify_button, missing_button, identify_button, entry_combo, example_combo = nil, nil, nil, nil, nil
 local status_label, status_text = nil, "" -- the progress line at the foot of the panel
 
 -- Shows a progress line in the panel. Never dt.print_hinter: it sets darktable's hinter label from
@@ -2176,6 +2192,13 @@ local function take_settings()
     return true
 end
 local entries, entry_order, rules = {}, {}, M.default_rules()
+
+-- The loaded entries no photo in `images` (the current collection) carries.
+local function missing_in(images)
+    local tag_sets = {}
+    for i, img in ipairs(images or {}) do tag_sets[i] = tags_of(img) end
+    return M.missing_entries(tag_sets, entries, entry_order)
+end
 local tag_checks = {} -- TAG_TOGGLES key → its check button (set by install_panel)
 
 -- Writes/When/Off for a tag switch, naming the tag from `named` (M.named_rules of the
@@ -3323,9 +3346,11 @@ local function library_neighbour_rows(images, job)
     return rows
 end
 
-function M.identify_images(images, replace_manual, verify_only)
-    local label = verify_only and _("Verify") or _("Identify")
-    if queue_if_busy(label, images and #images > 0, function() M.identify_images(images, replace_manual, verify_only) end) then
+-- only_entries: the ids identify.py may name (Identify Missing Entries); nil names any entry.
+function M.identify_images(images, replace_manual, verify_only, only_entries)
+    local label = only_entries and _("Identify Missing Entries") or verify_only and _("Verify") or _("Identify")
+    if queue_if_busy(label, images and #images > 0,
+        function() M.identify_images(images, replace_manual, verify_only, only_entries) end) then
         return
     end
     if not can_start(images) then return end
@@ -3344,6 +3369,7 @@ function M.identify_images(images, replace_manual, verify_only)
         settings.group_node ~= "" and settings.group_node or "(blank)",
         tostring(settings.neighbour_tolerance),
         tostring(settings.order_weight)))
+    if only_entries then log("missing entries: " .. table.concat(only_entries, ", ")) end
 
     local job, run = nil, nil
     local okr, err = C.logged_call(log, "identify", function()
@@ -3387,7 +3413,8 @@ function M.identify_images(images, replace_manual, verify_only)
 
         local script = identify_script()
         local code, why = run_python(args_of({ MANIFEST_PATH, RESULTS_PATH },
-            collection_args(), settings_args(), model_args(script), verify_only and { "--verify" } or {}, neighbour_args, {
+            collection_args(), settings_args(), model_args(script), verify_only and { "--verify" } or {}, neighbour_args,
+            only_entries and { "--only-entries", table.concat(only_entries, ",") } or {}, {
                 "--cache", CACHE_PATH,
                 "--entries-out", ENTRIES_PATH, "--rules-out", RULES_PATH,
                 "--boxes-out", boxes_path(),
@@ -3410,6 +3437,15 @@ function M.identify_images(images, replace_manual, verify_only)
             return
         end
         apply_results(run, job)
+        if only_entries then
+            local still = missing_in(dt.collection)
+            if #still == 0 then
+                say(string.format(_("Assisted Tagging: Found all %d missing entries."), #only_entries))
+            else
+                say(string.format(_("Assisted Tagging: Found %d of %d missing entries; still missing: %s."),
+                    #only_entries - #still, #only_entries, table.concat(still, ", ", 1, math.min(5, #still))))
+            end
+        end
         -- overturns.csv: entry,stored,seen,n,total,ids (space-separated)
         local name_of = {}
         for _, img in ipairs(run.primaries) do name_of[tostring(img.id)] = img.filename end
@@ -4371,6 +4407,30 @@ local function start_identify(allow_cancel, verify_only)
     M.identify_images(dt.gui.action_images, replace_manual, verify_only)
 end
 
+-- Identify the selection choosing only from the entries no photo in the collection carries.
+local function start_identify_missing()
+    if #entry_order == 0 then
+        dt.print(_("Assisted Tagging: The collection has no entries yet. Add them to its entries.json, then click Reload."))
+        return
+    end
+    local missing = missing_in(dt.collection)
+    if #missing == 0 then
+        dt.print(_("Assisted Tagging: Every entry has a photo."))
+        return
+    end
+    -- a photo that already carries an entry (an earlier run's tags included) is not rerun: its
+    -- entry is outside the pool, so the run would replace it
+    local leftovers = {}
+    for _, img in ipairs(dt.gui.action_images) do
+        if not M.entry_for_tags(tags_of(img), entries, entry_order) then leftovers[#leftovers + 1] = img end
+    end
+    if #dt.gui.action_images > 0 and #leftovers == 0 then
+        dt.print(_("Assisted Tagging: Every selected photo already has an entry."))
+        return
+    end
+    M.identify_images(leftovers, false, false, missing)
+end
+
 local function selected_entry_id()
     local i = entry_combo and entry_combo.selected or 0
     return entry_order[i]
@@ -4868,6 +4928,11 @@ local function install_panel()
         tooltip = _("Identify the selected images, fully tagged ones included, and report where the result differs from your tags (boxes.json and report.md). No tags are changed."),
         clicked_callback = function() start_identify(false, true) end,
     }
+    missing_button = new_widget("button") {
+        label = _("Identify Missing Entries"),
+        tooltip = _("Identify the selected photos that name no entry, choosing only from the entries no photo in the collection carries yet. Every result gets Check match: review it with Verify Selection."),
+        clicked_callback = start_identify_missing,
+    }
     entry_combo = new_widget("combobox") {
         label = _("Entry"),
         tooltip = _("The entry Add as Reference saves the selected images under."),
@@ -5168,7 +5233,7 @@ local function install_panel()
         },
         tag_rows,
         { new_widget("section_label") { label = _("Identify (Models; Writes Tags)") },
-          replace_manual_check, run_tag_combo, identify_button, verify_button,
+          replace_manual_check, run_tag_combo, identify_button, verify_button, missing_button,
           new_widget("section_label") { label = _("Identify Colour (Models; Writes Tags and entries.json)") },
           colour_group_button, colour_selection_button },
         { new_widget("section_label") { label = _("Add to One Entry (Uses the Entry List)") },

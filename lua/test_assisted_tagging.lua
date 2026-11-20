@@ -710,6 +710,26 @@ check("entry_tags_note: several full matches are listed", T.entry_tags_note({
 check("entry_tags_note: a partial match names the entry and the tags it lacks",
     T.entry_tags_note({ ["Rally|Number|30"] = true }, car_entries, { "30", "730", "12" }),
     "nearest is entry 30, 1 of its tags present, lacking Rally|Number|730")
+
+-- missing_entries -------------------------------------------------------------
+-- One tag set per photo in the collection; 90 and 790 share a car but each has its own driver tag.
+local shared_entries = {
+    ["90"] = { car = "90", tags = { "Rally|90", "Rally|90|Driver A" } },
+    ["790"] = { car = "90", tags = { "Rally|90", "Rally|90|Driver B" } },
+    ["12"] = { car = "", tags = { "Rally|12" } },
+}
+local shared_order = { "90", "790", "12" }
+check("missing_entries: an entry one photo carries is not missing",
+    table.concat(T.missing_entries({ { ["Rally|12"] = true } }, shared_entries, shared_order), ","), "90,790")
+check("missing_entries: a photo of 90 carries the shared car, so 790 is not missing either",
+    table.concat(T.missing_entries({ { ["Rally|90"] = true, ["Rally|90|Driver A"] = true } }, shared_entries, shared_order), ","), "12")
+check("missing_entries: no photo of the shared car lists both its entries, in start-list order",
+    table.concat(T.missing_entries({}, shared_entries, shared_order), ","), "90,790,12")
+check("missing_entries: hand-added tags (no ledger) count as carried",
+    #T.missing_entries({ tsu_tags }, { TSU = { car = "", tags = { "F1|Red Bull", "F1|Red Bull|Tsunoda" } } }, { "TSU" }), 0)
+check("missing_entries: a photo carrying two entries' tags carries neither",
+    table.concat(T.missing_entries({ { ["Rally|12"] = true, ["Rally|90"] = true, ["Rally|90|Driver A"] = true } },
+        shared_entries, shared_order), ","), "90,790,12")
 check("entry_tags_note: no entry tag at all", T.entry_tags_note({ ["Holiday"] = true }, car_entries, { "30", "730", "12" }),
     "it carries no entry's tags")
 

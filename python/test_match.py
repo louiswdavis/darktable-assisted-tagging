@@ -68,6 +68,24 @@ def run_tests():
           Mt.match_box(0, [("15", 0.9)], close, ENTRIES).confidence, 0.79)
     check("a 12 is not a look-alike of 16, so the teammate tie stands",
           summary(Mt.match_box(0, [("12", 0.9)], close, ENTRIES)), ("team", "HAM", "LEC"))
+
+    # only-entries pool (Identify Missing Entries): answers come only from the pool
+    check("only-entries: number read in pool names it",
+          summary(Mt.match_box(0, [("44", 0.95)], [], ENTRIES, pool={"HAM"})), ("number", "HAM", ""))
+    carried = Mt.match_box(0, [("16", 0.95)], close, ENTRIES, pool={"HAM"})
+    check("only-entries: clear read of a carried car stays none", summary(carried), ("none", "", ""))
+    check("only-entries: the carried car's number stays in unmatched", carried.unmatched_number, "16")
+    check("only-entries: a look-alike of a carried car does not jump into the pool",
+          summary(Mt.match_box(0, [("15", 0.9)], [("LEC", 0.80), ("TSU", 0.79)], ENTRIES, pool={"TSU", "HAM"})),
+          ("none", "", ""))
+    check("only-entries: livery chooses inside the pool",
+          summary(Mt.match_box(0, [], [("LEC", 0.90), ("HAM", 0.70)], ENTRIES, pool={"HAM"})), ("livery", "HAM", ""))
+    check("only-entries: livery under MATCH_MIN_SIM stays none",
+          summary(Mt.match_box(0, [], [("LEC", 0.90), ("HAM", 0.55)], ENTRIES, pool={"HAM"})), ("none", "", ""))
+    check("only-entries: None keeps today's result",
+          summary(Mt.match_box(0, [("16", 0.95)], close, ENTRIES, pool=None)), ("number", "LEC", ""))
+    check("only-entries: match_team names only a team inside the pool",
+          summary(Mt.match_team(BoxResult(0, "none"), [("F1|Red Bull", 0.9)], ENTRIES, pool={"HAM"})), ("none", "", ""))
     check("a misread of an entry outside the livery's top 3 does nothing",
           summary(Mt.match_box(0, [("15", 0.9)], [("HAM", 0.80), ("VER", 0.79), ("TSU", 0.78), ("LEC", 0.77)], ENTRIES)),
           ("none", "", ""))
@@ -289,6 +307,21 @@ def run_tests():
     hidden = {"1": [BoxResult(0, "none"), BoxResult(1, "none")], "2": [BoxResult(0, "none")]}
     out = Mt.agreeing_reads(hidden, {"1": "g", "2": "g"}, {"1": {1: [("44", 0.8)]}, "2": {0: [("44", 0.8)]}}, ENTRIES)
     check("only the box that read it changes", (summary(out["1"][0]), summary(out["1"][1])), (("none", "", ""), ("number", "HAM", "")))
+
+    # only-entries pool: bursts and agreeing reads fill only pool entries
+    pooled = {"1": [BoxResult(0, "number", "HAM", "", 0.9)], "2": [BoxResult(0, "number", "HAM", "", 0.9)],
+              "3": [BoxResult(0, "none")]}
+    check("only-entries: burst fills only from the pool",
+          summary(Mt.burst_consensus(pooled, {k: "b" for k in pooled}, pool={"HAM"})["3"][0]), ("burst", "HAM", ""))
+    carried_burst = {"1": [BoxResult(-1, Mt.HAND, "VER", "", 1.0)], "2": [BoxResult(-1, Mt.HAND, "VER", "", 1.0)],
+                     "3": [BoxResult(0, "none")]}
+    check("only-entries: burst anchored by a carried car fills nothing",
+          summary(Mt.burst_consensus(carried_burst, {k: "b" for k in carried_burst}, pool={"HAM"})["3"][0]),
+          ("none", "", ""))
+    check("only-entries: agreeing reads outside the pool name nothing",
+          summary(Mt.agreeing_reads(blank, grp, weak, ENTRIES, pool={"LEC"})["1"][0]), ("none", "", ""))
+    check("only-entries: agreeing reads inside the pool still name it",
+          summary(Mt.agreeing_reads(blank, grp, weak, ENTRIES, pool={"HAM"})["1"][0]), ("number", "HAM", ""))
 
     # colour tie-break on weak reads: a read naming an entry of another colour isn't counted
     red = {k: [BoxResult(0, "none", colour="Red")] for k in "12"}

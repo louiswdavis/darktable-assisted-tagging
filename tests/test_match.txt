@@ -12,6 +12,14 @@ ok   a 15 read backs the 16 in the livery's top 3 despite a tie
 ok   the misread keeps the unmatched number for the diagnostic tag
 ok   a misread's confidence is the entry's similarity
 ok   a 12 is not a look-alike of 16, so the teammate tie stands
+ok   only-entries: number read in pool names it
+ok   only-entries: clear read of a carried car stays none
+ok   only-entries: the carried car's number stays in unmatched
+ok   only-entries: a look-alike of a carried car does not jump into the pool
+ok   only-entries: livery chooses inside the pool
+ok   only-entries: livery under MATCH_MIN_SIM stays none
+ok   only-entries: None keeps today's result
+ok   only-entries: match_team names only a team inside the pool
 ok   a misread of an entry outside the livery's top 3 does nothing
 ok   a misread of an entry under MATCH_MIN_SIM does nothing
 ok   an exact read of another entry's number beats the look-alike
@@ -82,6 +90,10 @@ ok   an identified rival in the group blocks it
 ok   an identified box of the same entry allows it; it is untouched
 ok   a number two entries share agrees on neither
 ok   only the box that read it changes
+ok   only-entries: burst fills only from the pool
+ok   only-entries: burst anchored by a carried car fills nothing
+ok   only-entries: agreeing reads outside the pool name nothing
+ok   only-entries: agreeing reads inside the pool still name it
 ok   weak reads of a Blue entry on red boxes stay none
 ok   weak reads of a Red entry on red boxes agree
 ok   weak reads with no entry colour agree as before

@@ -416,7 +416,7 @@ local function button_labels(box)
     return table.concat(out, ", ")
 end
 check("Run page: Identify and Verify, then the colour reads",
-    button_labels(page_body(panel, "Run")), "Identify Selection, Verify Selection, Identify Colour for Group, Identify Colour for Selection")
+    button_labels(page_body(panel, "Run")), "Identify Selection, Verify Selection, Identify Missing Entries, Identify Colour for Group, Identify Colour for Selection")
 check("Tools page: derives, copies, locks, then Undo",
     button_labels(page_body(panel, "Tools")),
     "Derive from Number, Derive from Colour, Copy Tags to Group, Copy Tags to Selection, Lock In Tags, Unlock Tags, Clear Tagging Marks")
@@ -575,6 +575,44 @@ local still_unknown = image(8, "DSC00008.JPG", { UNIDENTIFIED })
 PYTHON.results = "8,-1,no_vehicle,,,0.000,,,\n"
 T.identify_images({ still_unknown }, false, false)
 check("stale Unidentified: a hand Unidentified tag stays on a photo still unidentified", has_tag(still_unknown, UNIDENTIFIED), true)
+
+-- Identify Missing Entries --------------------------------------------------------
+-- The collection's entries are 112 and 35 (PYTHON.entries); missing = no photo in dt.collection carries it.
+local missing_button = widget_where(panel, "button", "label", "Identify Missing Entries") or { clicked_callback = function() end }
+dt.collection = { image(21, "DSC00021.JPG", { "Rallye|112" }), image(22, "DSC00022.JPG", { "Rallye|35" }) }
+dt.gui.action_images = dt.collection
+PYTHON.runs, prints = {}, {}
+missing_button.clicked_callback()
+check("missing: with every entry carried, says so", printed("Assisted Tagging: Every entry has a photo."), true)
+check("missing: with every entry carried, identify.py does not run", #PYTHON.runs, 0)
+local unnamed_a, unnamed_b = image(23, "DSC00023.JPG", {}), image(24, "DSC00024.JPG", {})
+dt.collection = { unnamed_a, unnamed_b }
+dt.gui.action_images = dt.collection
+PYTHON.results, PYTHON.runs, prints = "23,0,number,35,,0.9,,solo,0,,0,,1\n24,-1,no_vehicle,,,0.000,,,\n", {}, {}
+missing_button.clicked_callback()
+local missing_run = PYTHON.runs[#PYTHON.runs] or { argv = {} }
+check("missing: identify.py gets the missing entries in start-list order", flag(missing_run.argv, "--only-entries"), "112,35")
+check("missing: the log lists the missing entries",
+    (read_file(ROOT .. "/config/assisted_tagging.log") or ""):find("missing entries: 112, 35", 1, true) ~= nil, true)
+check("missing: a found photo carries its entry and Check match",
+    tostring(has_tag(unnamed_a, "Rallye|35")) .. " " .. tostring(has_tag(unnamed_a, "Assisted Tagging|Identification|Check match")), "true true")
+check("missing: the done message counts found and still missing",
+    printed("Assisted Tagging: Found 1 of 2 missing entries; still missing: 112."), true)
+-- a photo an earlier run tagged (ledgered tags) is not rerun: its own entry is outside the pool
+write_file(ROOT .. "/config/assisted_tagging/ledger.csv", (read_file(ROOT .. "/config/assisted_tagging/ledger.csv") or "") .. "25,Rallye|112\n")
+local run_tagged, unnamed_c = image(25, "DSC00025.JPG", { "Rallye|112" }), image(26, "DSC00026.JPG", {})
+dt.collection = { run_tagged, unnamed_c }
+dt.gui.action_images = dt.collection
+PYTHON.results, PYTHON.runs, prints = "25,-1,no_vehicle,,,0.000,,,\n26,0,number,35,,0.9,,solo,0,,0,,1\n", {}, {}
+missing_button.clicked_callback()
+check("missing: a photo an earlier run tagged keeps its entry", has_tag(run_tagged, "Rallye|112"), true)
+dt.collection = { run_tagged, image(27, "DSC00027.JPG", {}) } -- 35 missing again
+dt.gui.action_images = { run_tagged }
+PYTHON.runs, prints = {}, {}
+missing_button.clicked_callback()
+check("missing: a selection with every photo named does not run", #PYTHON.runs, 0)
+check("missing: a selection with every photo named says so", printed("Assisted Tagging: Every selected photo already has an entry."), true)
+dt.collection, dt.gui.action_images = nil, {}
 
 -- Copy Tags to Group -----------------------------------------------------------------
 -- a photo in a darktable group: its leader is the image with id `leader_id`
