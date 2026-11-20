@@ -4556,7 +4556,8 @@ local function install_panel()
         clicked_callback = function() M.derive_images(dt.gui.action_images, "colour") end,
     }
     -- Copy tags to group asks here before merging differing photos (darktable Lua has no dialog)
-    local copy_confirm_label = new_widget("label") { label = "", halign = "start" }
+    -- a read-only text view wraps at the panel's width; a label can't wrap
+    local copy_confirm_label = new_widget("text_view") { editable = false, text = "" }
     local copy_confirm_go
     local copy_confirm_box
     copy_confirm_box = new_widget("box") {
@@ -4581,17 +4582,7 @@ local function install_panel()
         clicked_callback = function()
             copy_confirm_box.visible = false
             M.copy_tags_to_group(dt.gui.action_images, function(text, go)
-                local lines, line = {}, ""
-                for word in text:gmatch("%S+") do
-                    if line ~= "" and #line + 1 + #word > C.ALERT_WRAP then
-                        lines[#lines + 1] = line
-                        line = word
-                    else
-                        line = line == "" and word or line .. " " .. word
-                    end
-                end
-                lines[#lines + 1] = line
-                copy_confirm_label.label = table.concat(lines, "\n")
+                copy_confirm_label.text = text
                 copy_confirm_go = go
                 copy_confirm_box.visible = true
             end)

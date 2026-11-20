@@ -359,7 +359,7 @@ PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("To check: a photo fill colours couldn't read shows in the box", to_check.visible, true)
 check("To check: the row names the action and the count",
-    ((to_check[2][1] or {}).label or ""):gsub("\n", " "), "Fill entry colours: 1 photos couldn't be read (see log)")
+    (to_check[2][1] or {}).text, "Fill entry colours: 1 photos couldn't be read (see log)")
 check("To check: the item is saved for a restart",
     (read_file(CHECKS_FILE) or ""):find("Fill entry colours\t1 photos couldn't be read (see log)\t1\t", 1, true) ~= nil, true)
 prints, selection_sets = {}, 0
@@ -381,9 +381,11 @@ check("To check: a row without a fix has no Fix button", (widget_where(to_check,
 local tagged = image(1, "DSC00001.JPG", { "Rallye|112" })
 PYTHON.results, PYTHON.runs, prints = "1,0,conflict,35,,0.9,,solo,0,,0,,0\n", {}, {}
 T.identify_images({ tagged }, false, true)
-check("To check: Verify's differ row reads in full", ((to_check[2][1] or {}).label or ""):gsub("\n", " "),
+check("To check: Verify's differ row reads in full", (to_check[2][1] or {}).text,
     "Verify: 1 photos read a different entry from the one their tags name. Fix runs Identify on them with your tags replaced.")
-check("To check: the label wraps, no line over 44 characters", ((to_check[2][1] or {}).label or ""):find("[^\n]" .. ("[^\n]"):rep(44)), nil)
+check("To check: the row text is a read-only text view with no hand line breaks, so it wraps at the panel's width",
+    (to_check[2][1] or {}).kind .. " " .. tostring((to_check[2][1] or {}).editable) .. " " .. tostring(((to_check[2][1] or {}).text or ""):find("\n")),
+    "text_view false nil")
 check("To check: the differ row lists the photo and why", ((to_check[2][2] or {}).text or ""):gsub("\n%s*", " "),
     "• DSC00001.JPG: reads entry 35, its tags name 112")
 check("To check: the photo list is read-only text", (to_check[2][2] or {}).kind .. " " .. tostring((to_check[2][2] or {}).editable), "text_view false")
@@ -418,7 +420,7 @@ PYTHON.results, PYTHON.overturns, PYTHON.runs, prints = "1,0,number,112,,0.9,,so
 T.identify_images({ blue }, false, true)
 PYTHON.overturns = nil
 local function row(i) return to_check[i + 1] or { {}, {}, { {}, {} } } end
-local function label_of(i) return ((row(i)[1] or {}).label or ""):gsub("\n", " ") end
+local function label_of(i) return (row(i)[1] or {}).text or "" end
 local function details_of(i) return ((row(i)[2] or {}).text or ""):gsub("\n%s*", " ") end
 check("Verify colour: the entry colour row reads in full", label_of(1), "Verify: 1 photos read a different colour from their entry's in "
     .. "entries.json. The tag or the entry can be wrong. Fix adds the Check colour tag.")
@@ -585,8 +587,8 @@ end
 find_confirm(panel)
 check("copy to group, selected photos differ: the confirm box shows", confirm_box and confirm_box.visible, true)
 check("copy to group, selected photos differ: the confirm names the count",
-    confirm_box and confirm_box[1].label:gsub("\n", " "),
-    "The selected photos in 1 groups hold different tags of one family (Colour|Green, Colour|Red). Copy merges them, so every photo in those groups gets all of them.")
+    confirm_box and confirm_box[1].kind .. " " .. tostring(confirm_box[1].editable) .. " " .. confirm_box[1].text,
+    "text_view false The selected photos in 1 groups hold different tags of one family (Colour|Green, Colour|Red). Copy merges them, so every photo in those groups gets all of them.")
 check("copy to group, selected photos differ: nothing is written before the confirm", tag_list(differ_c), "Colour|Blue")
 ;(widget_where(confirm_box or {}, "button", "label", "Cancel") or { clicked_callback = function() end }).clicked_callback()
 check("copy to group, Cancel: the box hides and nothing is written",
