@@ -23,6 +23,7 @@ import json
 import os
 import re
 import sys
+import time
 from collections import Counter
 
 import numpy as np
@@ -299,7 +300,7 @@ def frame_audit(collection_dir, path, detector, on_progress=None, need_boxes=Fal
     from vehicles import DETECTOR_MIN_SCORE, detect_vehicles, log
     from vehicle_detect import detect, load_detector
     cache_path = os.path.join(collection_dir, FRAME_CACHE_NAME)
-    detector = load_detector(detector)
+    detector = load_detector(detector, threads=0)  # detects alone in this process, so every core
     detector_id = f"{detector.id}:{DETECTOR_MIN_SCORE}"
     cached = {}
     if os.path.exists(cache_path):
@@ -319,6 +320,7 @@ def frame_audit(collection_dir, path, detector, on_progress=None, need_boxes=Fal
             todo.append((i, rel, file, stamp))
     done = len(path) - len(todo)
     log(f"checking frames: {done} cached, {len(todo)} to detect")
+    started = time.monotonic()
     try:
         # cache hits are counted up front, so the progress and its ETA cover only the detections
         if not todo and on_progress and not on_progress(done, len(path), done):
@@ -334,6 +336,9 @@ def frame_audit(collection_dir, path, detector, on_progress=None, need_boxes=Fal
             plain = [[float(v) for v in b[:4]] for b in boxes]
             cached[rel] = {"stamp": stamp, "share": share, "boxes": plain}
             shares[i], all_boxes[i] = share, plain
+        if todo:
+            took = time.monotonic() - started
+            log(f"checking frames: {len(todo)} detected in {took:.0f}s ({took / len(todo):.2f} s each)")
     finally:
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump({"detector": detector_id, "refs": cached}, f)
