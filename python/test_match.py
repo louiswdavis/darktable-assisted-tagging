@@ -489,6 +489,10 @@ def run_tests():
         r, "yellow", dict(ENTRIES, VER=replace(ENTRIES["VER"], camera="yellow"), TSU=replace(ENTRIES["TSU"], camera="black"))).entry_id, "VER")
     r, h = Mt.hinted_match(0, [("1", 0.9)], weak, ENTRIES, ["F1|Red Bull"], "tag")
     check("hinted_match: a number inside the tagged set still wins", (r.method, r.entry_id), ("number", "VER"))
+    three = dict(ENTRIES, PER=Entry("PER", "11", "Red Bull", ("F1|Red Bull", "F1|Red Bull|Perez")))
+    r, h = Mt.hinted_match(0, [("1", 0.9)], [("TSU", 0.5), ("PER", 0.45), ("VER", 0.4)], three, ["F1|Red Bull"], "tag", min_read=0.5, pool={"TSU", "PER"})
+    check("only-entries: a clear read of a carried car under a tag gives no team of the pool's entries",
+          (r.method, r.entry_id, r.alt_entry_id), ("none", "", ""))
     r, h = Mt.hinted_match(0, [], weak, ENTRIES, ["F1|Red Bull"], "sponsor")
     check("hinted_match: a weak sponsor hint is still dropped", (r.method, h["dropped"]), ("livery", True))
     r, h = Mt.hinted_match(0, [("44", 0.9)], sims, ENTRIES, ["F1|Red Bull"], "tag")
