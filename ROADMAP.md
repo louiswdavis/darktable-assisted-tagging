@@ -192,8 +192,11 @@ Ideas from competitor tools (Aftershoot, Narrative Select, Lightroom, Photo Mech
 - **Partial-number search.** Find photos whose read number contains the typed digits
   (`14` finds 114 and 144), for photos where the OCR read part of the number.
 - **Entry-list sanity report.** Before a run: duplicate numbers, entries with 0 refs, a team
-  with one entry, numbers with no driver. Folds in the "0 refs" notice.
-- **"Checked" marker.** A tag the user sets on photos whose tags they confirmed. Those photos
+  with one entry, numbers with no driver. Folds in the "0 refs" notice. Built 2026-11-18 as
+  `entry list:` log lines (`entry_list_check` in `identify.py`), not shown in the panel.
+- **Copy tags to group (built 2026-11-20, ticket 87).** Fix one photo, then copy its entry and
+  family tags over the rest of its darktable group. The copies are hand tags.
+- **"Checked" marker (built, ticket 39).** A tag the user sets on photos whose tags they confirmed. Those photos
   become the truth set the model measuring in "Stronger models" waits for.
 - **Confirm per cluster.** Show every crop tagged with one number side by side, so the user
   confirms or removes them in one pass. Tyo et al. (arXiv 2402.08025) seeded identity clusters
@@ -220,6 +223,10 @@ nothing tested). Aimed at the `1`/`14`/`44` misreads:
 - **Group voting.** A number read with confidence in one frame votes for the same car's box in
   every frame of its grouping-plugin group, so frames where the number is hidden still get tagged.
   Burst consensus already does part of this; check what it covers before building. Effort M.
+  Copy tags to group (ticket 87) is the manual version.
+- **Compare reads on absolute fit (bug, not fixed).** `list_read` scores each read against its
+  own greedy text, so a weak read's faint extra digit beats an exact strong read: DSC08780 read
+  `100` (0.92) and `2` (0.82, sponsor `AREAS2`) and got 52. Roadmap idea row 68. ~30 min.
 - **Rotated numbers.** A car on its side, a roof number or a tilted crop reads badly. When a
   crop gives no list match, read it again at 90°, 180° and 270° and keep the best list score.
   Tyo et al. list odd orientations after crashes among the main misreads. Effort S.
