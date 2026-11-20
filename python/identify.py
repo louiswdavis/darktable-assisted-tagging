@@ -1530,7 +1530,7 @@ def identify_people(args, models: dict, entries: dict, rules: Rules, from_entrie
         n_faces = sum(1 for r in results if r.box >= 0)
         shots[image_id] = shot_type(n_faces, MAX_BOXES)
         frames[image_id] = [replace(r, method="conflict") if r.entry_id and (
-            disagrees(r, already_tagged(protected_of[image_id], entries), n_faces == 1) if verify and image_id in fully_tagged
+            disagrees(r, already_tagged(protected_of[image_id], entries), n_faces == 1, entries) if verify and image_id in fully_tagged
             else conflicts(r.entry_id, protected_of[image_id], entries, n_faces == 1)) else r for r in results]
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:
@@ -1878,9 +1878,9 @@ def identify(args, models: dict):
         n_boxes = sum(1 for r in results if r.box >= 0)
         shots[image_id] = shot_type(n_boxes, MAX_BOXES)
         frames[image_id] = [replace(r, method="conflict") if r.entry_id and (
-            disagrees(r, already_tagged(protected_of[image_id], entries), n_boxes == 1) if verify and image_id in fully_tagged
+            disagrees(r, already_tagged(protected_of[image_id], entries), n_boxes == 1, entries) if verify and image_id in fully_tagged
             else r.entry_id != hand_of.get(image_id) and conflicts(r.entry_id, protected_of[image_id], entries, n_boxes == 1)
-            or image_id in hand_of and disagrees(r, hand_of[image_id], n_boxes == 1)) else r for r in results]
+            or image_id in hand_of and disagrees(r, hand_of[image_id], n_boxes == 1, entries)) else r for r in results]
 
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:

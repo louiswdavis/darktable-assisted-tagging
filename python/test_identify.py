@@ -805,13 +805,13 @@ def run_tests():
           (first["boxes"], first["candidates"]), ([], [[0.0, 0.0, 32.0, 24.0, 0.1, 2]]))
 
     # ---- results rows
-    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,,,,,")
+    check("a no-vehicle row", I.format_row("7", BoxResult(-1, "none")), "7,-1,none,,,0.000,,,,,,,,")
     check("a team row carries the runner-up", I.format_row("7", BoxResult(0, "team", "VER", "TSU", 0.71234)),
-          "7,0,team,VER,TSU,0.712,,,,,,,")
+          "7,0,team,VER,TSU,0.712,,,,,,,,")
     check("a row has the shot type before the order flag", I.format_row("7", BoxResult(0, "number", "VER", "", 0.9), "pack"),
-          "7,0,number,VER,,0.900,,pack,,,,,")
+          "7,0,number,VER,,0.900,,pack,,,,,,")
     check("a flagged row has 1 in the order flag", I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, order_flag=True), "solo"),
-          "7,0,number,VER,,0.850,,solo,1,,,,")
+          "7,0,number,VER,,0.850,,solo,1,,,,,")
     check("a row ends with the colour and its flag",
           I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, colour="Red", colour_flag=True), "solo").endswith(",Red,1,,,"), True)
     check("a row with no colour, sponsor, anchor flag or new number ends with five empty fields", I.format_row("7", BoxResult(0, "none"), "solo").endswith(",,,,,"), True)
@@ -1025,8 +1025,8 @@ def run_tests():
     I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("number reads, burst consensus and no-vehicle rows come out in manifest order (3-column manifest)", rows,
-          ["1,0,number,VER,,0.950,,solo,,,,,", "2,0,number,VER,,0.900,,solo,,,,,", "3,0,burst,VER,,0.667,,solo,,,,,",
-           "4,-1,none,,,0.000,,,,,,,", "5,-1,error,,,0.000,,,,,,,"])
+          ["1,0,number,VER,,0.950,,solo,,,,,,", "2,0,number,VER,,0.900,,solo,,,,,,", "3,0,burst,VER,,0.667,,solo,,,,,,",
+           "4,-1,none,,,0.000,,,,,,,,", "5,-1,error,,,0.000,,,,,,,,"])
     check("the run writes the collection's tag plan", os.path.isfile(os.path.join(coll, "tag-plan.txt")), True)
     check("the run writes rules.csv for the plugin", os.path.isfile(args.rules_out), True)
 
@@ -1061,9 +1061,9 @@ def run_tests():
     I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a fully tagged image is skipped; solo disagreement is a conflict, also when burst-filled; packs aren't", rows,
-          ["1,-1,skipped,,,0.000,,,,,,,", "2,0,conflict,VER,,0.900,,solo,,,,,", "6,0,number,VER,,0.950,,solo,,,,,",
-           "7,0,number,VER,,0.950,,solo,,,,,", "8,0,conflict,VER,,0.667,,solo,,,,,", "9,0,number,VER,,0.950,,pack,,,,,",
-           "9,1,none,,,0.000,,pack,,,,,"])
+          ["1,-1,skipped,,,0.000,,,,,,,,", "2,0,conflict,VER,,0.900,,solo,,,,,,", "6,0,number,VER,,0.950,,solo,,,,,,",
+           "7,0,number,VER,,0.950,,solo,,,,,,", "8,0,conflict,VER,,0.667,,solo,,,,,,", "9,0,number,VER,,0.950,,pack,,,,,,",
+           "9,1,none,,,0.000,,pack,,,,,,"])
     run = json.load(open(args.boxes_out, encoding="utf-8"))
     check("boxes.json names the collection and the skipped images", (run["collection"], run["skipped"]),
           (os.path.basename(coll), ["1"]))
@@ -1102,12 +1102,12 @@ def run_tests():
     I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a hand-tagged solo shot read as another car is a conflict, though the two share a team tag", rows[0],
-          "2,0,conflict,VER,,0.900,,solo,,,,,")
-    check("a hand-tagged frame anchors its burst alone", rows[1], "3,0,burst,TSU,,0.500,,solo,,,,,")
-    check("an unread box takes the hand-tagged entry", rows[2], "8,0,hand,TSU,,1.000,,solo,,,,,")
-    check("a frame with no vehicle takes the hand-tagged entry", rows[3], "4,-1,hand,TSU,,1.000,,,,,,,")
+          "2,0,conflict,VER,,0.900,,solo,,,,,,")
+    check("a hand-tagged frame anchors its burst alone", rows[1], "3,0,burst,TSU,,0.500,,solo,,,,,,")
+    check("an unread box takes the hand-tagged entry", rows[2], "8,0,hand,TSU,,1.000,,solo,,,,,,")
+    check("a frame with no vehicle takes the hand-tagged entry", rows[3], "4,-1,hand,TSU,,1.000,,,,,,,,")
     check("a pack keeps its boxes and gains the hand-tagged entry", rows[4:],
-          ["9,0,number,VER,,0.950,,pack,,,,,", "9,1,none,,,0.000,,pack,,,,,", "9,-1,hand,TSU,,1.000,,pack,,,,,"])
+          ["9,0,number,VER,,0.950,,pack,,,,,,", "9,1,none,,,0.000,,pack,,,,,,", "9,-1,hand,TSU,,1.000,,pack,,,,,,"])
     with open(manifest, "w", encoding="utf-8") as f:
         f.write(f'"4","{X}/4.jpg","9","Assisted Tagging|Motorsport|Number|5","","","GONE"\n')
     lines = []
@@ -1118,7 +1118,7 @@ def run_tests():
         I.log = real_log
     check("a hand entry that isn't in entries.json is logged and its image identified without it",
           (open(results, encoding="utf-8").read().splitlines(), any("hand-tagged as entry GONE" in ln for ln in lines)),
-          (["4,-1,none,,,0.000,,,,,,,"], True))
+          (["4,-1,none,,,0.000,,,,,,,,"], True))
 
     # ---- the 8th manifest field: "1" when the user locked the photo's tags (ticket 89)
     with open(manifest, "w", encoding="utf-8") as f:
@@ -1129,9 +1129,9 @@ def run_tests():
     I.identify(args, dict(fake_models))
     rows = open(results, encoding="utf-8").read().splitlines()
     check("a locked photo is left alone but its entry still fills its burst", rows[:2],
-          ["8,-1,skipped,,,0.000,,,,,,,", "3,0,burst,TSU,,0.500,,solo,,,,,"])
+          ["8,-1,skipped,,,0.000,,,,,,,,", "3,0,burst,TSU,,0.500,,solo,,,,,,"])
     check("a locked photo read as another car is left alone, not a conflict; one with no entry too", rows[2:],
-          ["2,-1,skipped,,,0.000,,,,,,,", "4,-1,skipped,,,0.000,,,,,,,"])
+          ["2,-1,skipped,,,0.000,,,,,,,,", "4,-1,skipped,,,0.000,,,,,,,,"])
 
     # ---- noise numbers: a class "3" on every car, read beside three start-list numbers; one car is number 3
     ALB = {"id": "ALB", "number": "7", "team": "Williams", "tags": ["F1|Williams", "F1|Williams|Albon"]}
@@ -1155,8 +1155,8 @@ def run_tests():
         I.log = real_log
     check("a noise number is left out of a box that reads another number, and kept where it is the only read",
           open(results, encoding="utf-8").read().splitlines(),
-          ["11,0,number,VER,,0.950,,solo,,,,,", "12,0,number,TSU,,0.950,,solo,,,,,", "13,0,number,ALB,,0.950,,solo,,,,,",
-           "14,0,number,PER,,0.950,,solo,,,,,"])
+          ["11,0,number,VER,,0.950,,solo,,,,,,", "12,0,number,TSU,,0.950,,solo,,,,,,", "13,0,number,ALB,,0.950,,solo,,,,,,",
+           "14,0,number,PER,,0.950,,solo,,,,,,"])
     check("the run logs its noise numbers once, and each box that left one out",
           ([ln for ln in lines if ln.startswith("noise numbers:")], sum("[noise number 3 not used]" in ln for ln in lines)),
           (["noise numbers: 3 (beside 3 numbers); left out of a box's reads when it has another"], 3))

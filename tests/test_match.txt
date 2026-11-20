@@ -160,6 +160,8 @@ ok   disagrees: the tagged entry agrees
 ok   disagrees: a team result listing it agrees
 ok   disagrees: a match moved off the tagged entry disagrees
 ok   disagrees: packs and unidentified boxes never disagree
+ok   disagrees: a car-mate's read agrees (a double-driven car's entries are one car)
+ok   disagrees: another car still disagrees with a car-mate
 ok   most_specific: an ancestor prefix is dropped
 ok   hinted_match: a broad tag doesn't widen a team tag
 ok   hinted_match: a prefix matching no entry falls back

@@ -769,13 +769,17 @@ def conflicts(entry_id: str, protected: set, entries: dict, solo: bool) -> bool:
     return not any(t in protected for t in entries[entry_id].tags)
 
 
-def disagrees(result: BoxResult, tagged: str, solo: bool) -> bool:
-    """--verify: a solo shot whose result names a different entry than the one its tags already
-    spell out (`tagged`). A team result agrees when it still lists that entry; a match moved to
-    the closer car (alt_entry_id = the car it left) does not."""
+def disagrees(result: BoxResult, tagged: str, solo: bool, entries: dict) -> bool:
+    """--verify: a solo shot whose result names a different car than the one its tags already
+    spell out (`tagged`). A double-driven car's two entries are one car, so a read of either
+    agrees. A team result agrees when it still lists that entry; a match moved to the closer
+    car (alt_entry_id = the car it left) does not."""
     if not solo or not result.entry_id:
         return False
-    return tagged not in (result.entry_id, result.alt_entry_id if result.method == "team" else "")
+
+    def car(eid):
+        return entries[eid].car or eid if eid in entries else eid
+    return car(tagged) not in (car(result.entry_id), car(result.alt_entry_id) if result.method == "team" else "")
 
 
 def promotable(record: dict) -> bool:
