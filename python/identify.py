@@ -1477,9 +1477,11 @@ def open_index(collection: str, models: dict, rules: Rules, embedder, progress: 
 
 def identify_people(args, models: dict, entries: dict, rules: Rules, from_entries: tuple, collection: str,
                     face_model: FaceModel):
-    rows = read_manifest(args.manifest, 3, 3)
+    rows = read_manifest(args.manifest, 3, 5)
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     verify = getattr(args, "verify", False)
+    # 8th column: "1" when the user locked the photo's tags; identify leaves it alone
+    locked = set() if verify else {r[0] for r in rows if r[7] == "1"}
     fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
     index = open_index(collection, models, rules, face_model, args.progress)
     if cancel_requested(args.progress):
@@ -1494,7 +1496,7 @@ def identify_people(args, models: dict, entries: dict, rules: Rules, from_entrie
     DetectionCache(models.get("detections", ""), prune=True).close()
     try:
         with WorkerPool(models) as pool:
-            analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache,
+            analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged | locked], models, cache,
                                   args.progress, pool)
     finally:
         cache.close()
@@ -1502,9 +1504,13 @@ def identify_people(args, models: dict, entries: dict, rules: Rules, from_entrie
         log("cancelled")
         sys.exit(130)
     frames, detail, shots = {}, {}, {}
-    for image_id, filepath, burst, _protected, _hints, taken in rows:
+    for image_id, filepath, burst, _protected, _hints, taken, _hand, _locked in rows:
         detail[image_id] = {"file": filepath, "frame": [], "faces": [], "note": "", "burst": burst,
                             "time": int(taken) if taken.isdigit() else None}
+        if image_id in locked:
+            log(f"{image_id}: locked, skipped")
+            frames[image_id] = [BoxResult(-1, "skipped")]
+            continue
         if image_id in fully_tagged and not verify:
             log(f"{image_id}: already carries all of {already_tagged(protected_of[image_id], entries)}'s tags, skipped")
             frames[image_id] = [BoxResult(-1, "skipped")]
@@ -1576,7 +1582,7 @@ def identify(args, models: dict):
     write_progress(args.progress, 1, 1, "loading models")
     if rules.kind == "people":
         return identify_people(args, models, entries, rules, from_entries, collection, embedder)
-    rows = read_manifest(args.manifest, 3, 4)
+    rows = read_manifest(args.manifest, 3, 5)
     # 4th column: entry tags the user applied by hand (never ledgered by the plugin), ";"-joined.
     protected_of = {r[0]: {t for t in r[3].split(";") if t} for r in rows}
     verify = getattr(args, "verify", False)
@@ -1585,13 +1591,18 @@ def identify(args, models: dict):
     # 5th column: hand-applied team tags (team hints), ";"-joined.
     # --verify checks the tags, so they must not steer the match.
     tag_hints_of = {r[0]: [] if verify else [t for t in r[4].split(";") if t] for r in rows}
-    fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries)}
+    # 8th column: "1" when the user locked the photo's tags. Identify writes it as skipped, but it is still
+    # read so its entry anchors burst fill like a hand tag.
+    locked = set() if verify else {r[0] for r in rows if r[7] == "1"}
+    fully_tagged = {i for i, p in protected_of.items() if already_tagged(p, entries) and i not in locked}
     # 7th column: the entry the user's hand number or driver tag names. --verify checks the tags instead.
     # An entry missing here was removed from entries.json after the panel's last Reload.
     for r in rows:
         if r[6] and r[6] not in entries:
             log(f"image {r[0]}: hand-tagged as entry {r[6]}, which is not in entries.json; its hand tag is not used (Reload, then run again)")
     hand_of = {r[0]: r[6] for r in rows if r[6] in entries and not verify and r[0] not in fully_tagged}
+    hand_of.update({i: already_tagged(protected_of[i], entries) for i in locked
+                    if i not in hand_of and already_tagged(protected_of[i], entries)})
     write_progress(args.progress, 0, 1, "references")
     index = open_index(collection, models, rules, embedder, args.progress)
     write_progress(args.progress, 1, 1, "references")
@@ -1637,7 +1648,7 @@ def identify(args, models: dict):
             if noise and not quiet:
                 log("noise numbers: " + ", ".join(f"{d} (beside {n} numbers)" for d, n in noise.items())
                     + "; left out of a box's reads when it has another")
-            for image_id, filepath, burst, _protected, _hints, taken, hand in rows:
+            for image_id, filepath, burst, _protected, _hints, taken, hand, _locked in rows:
                 burst_of[image_id] = burst
                 # hand and tagged are the truth eval_numbers.py scores a --verify run against
                 detail[image_id] = {"file": filepath, "frame": [], "boxes": [], "note": "", "burst": burst,
@@ -1858,6 +1869,10 @@ def identify(args, models: dict):
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
     # A hand-tagged image's box naming another entry is one too, whatever tags the two entries share;
     # one naming the hand-tagged entry never is, though its built tags may not include the tag that named it.
+    # after burst fill, which they anchored
+    for image_id in locked:
+        log(f"{image_id}: locked, skipped")
+        frames[image_id] = [BoxResult(-1, "skipped")]
     shots = {}
     for image_id, results in frames.items():
         n_boxes = sum(1 for r in results if r.box >= 0)

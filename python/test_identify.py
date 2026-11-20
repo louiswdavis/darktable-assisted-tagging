@@ -1120,6 +1120,19 @@ def run_tests():
           (open(results, encoding="utf-8").read().splitlines(), any("hand-tagged as entry GONE" in ln for ln in lines)),
           (["4,-1,none,,,0.000,,,,,,,"], True))
 
+    # ---- the 8th manifest field: "1" when the user locked the photo's tags (ticket 89)
+    with open(manifest, "w", encoding="utf-8") as f:
+        f.write(f'"8","{X}/8.jpg","7","Assisted Tagging|Motorsport|Number|22","","","TSU","1"\n'
+                f'"3","{X}/3.jpg","7","","","",""\n'
+                f'"2","{X}/2.jpg","5","F1|Red Bull","","","TSU","1"\n'
+                f'"4","{X}/4.jpg","9","","","","","1"\n')
+    I.identify(args, dict(fake_models))
+    rows = open(results, encoding="utf-8").read().splitlines()
+    check("a locked photo is left alone but its entry still fills its burst", rows[:2],
+          ["8,-1,skipped,,,0.000,,,,,,,", "3,0,burst,TSU,,0.500,,solo,,,,,"])
+    check("a locked photo read as another car is left alone, not a conflict; one with no entry too", rows[2:],
+          ["2,-1,skipped,,,0.000,,,,,,,", "4,-1,skipped,,,0.000,,,,,,,"])
+
     # ---- noise numbers: a class "3" on every car, read beside three start-list numbers; one car is number 3
     ALB = {"id": "ALB", "number": "7", "team": "Williams", "tags": ["F1|Williams", "F1|Williams|Albon"]}
     PER = {"id": "PER", "number": "3", "team": "Cadillac", "tags": ["F1|Cadillac", "F1|Cadillac|Perez"]}
