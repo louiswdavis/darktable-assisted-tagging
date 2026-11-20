@@ -673,7 +673,9 @@ end
 -- What a Derive button adds to one image, by lookup only. `mode` "number": the entry the user's
 -- hand number tags name (M.hand_entry). `mode` "colour": the one entry whose colour equals the
 -- image's single colour tag, narrowed by hand team tags; an image whose hand number names an entry
--- is left to Derive from Number. `names`: { derived = marker base, check_colour = tag } ("" = off).
+-- is left to Derive from Number. Derive from Number also adds `<colour root>|<entry colour>` when the
+-- image has no colour tag and the entry has a colour (Derive Colour) and the Colour family is on.
+-- `names`: { derived = marker base, check_colour = tag } ("" = off).
 -- Returns { entry_id, attach = sorted tag names, reason = why nothing was added ("" when added) };
 -- attach can hold only the Check colour tag when the number's entry and the colour tag differ.
 function M.derive_plan(have, ledger_set, entries, order, roots, mode, names)
@@ -720,7 +722,11 @@ function M.derive_plan(have, ledger_set, entries, order, roots, mode, names)
     if id then
         plan.entry_id = id
         local added = false
-        for _, t in ipairs(entries[id].tags) do
+        local entry_tags = { table.unpack(entries[id].tags) }
+        if mode == "number" and roots.colour and #colours == 0 and entries[id].colour ~= "" then
+            entry_tags[#entry_tags + 1] = roots.colour .. "|" .. entries[id].colour
+        end
+        for _, t in ipairs(entry_tags) do
             if not have[t] then add[t], added = true, true end
         end
         if not added then
@@ -1734,6 +1740,7 @@ M.PANEL_PAGES = {
     { number = 4, title = "Tags Written", keys = tag_page_keys },
     { number = 5, title = "Run", keys = { "run_tag" } },
     { number = 6, title = "References", keys = { "suggest_crops", "quarantine" } },
+    { number = 7, title = "Tools", keys = {} },
 }
 -- settings.json only, no panel widget
 M.PANEL_OTHER_KEYS = { "closer_car_margin", "min_sim", "margin", "min_face_px", "burst_livery_pooling", "blur_references", "number_gate",
@@ -4646,10 +4653,10 @@ local function install_panel()
     }
     local derive_number_button = new_widget("button") {
         label = _("Derive from Number"),
-        tooltip = _("For each selected image whose number tag (added by you) names one entry, add that entry's tags and Derived|From number. Lookup only: no model runs, nothing is removed. Adds Check colour too when the image's colour tag differs from the entry's colour. Writes darktable tags and the tag ledger only."),
+        tooltip = _("For each selected image whose number tag (added by you) names one entry, add that entry's tags and Derived|From number. Lookup only: no model runs, nothing is removed. An image with no colour tag also gets the entry's colour, when the entry has one (Derive Colour). Adds Check colour when the image's colour tag differs from the entry's colour. Writes darktable tags and the tag ledger only."),
         clicked_callback = function() M.derive_images(dt.gui.action_images, "number") end,
     }
-    local derive_colour_button = new_widget("button") {
+    local derive_from_colour_button = new_widget("button") {
         label = _("Derive from Colour"),
         tooltip = _("For each selected image with one colour tag, add the tags of the one entry with that colour (narrowed by your team tags) and Derived|From colour. Skips the image when several entries or none have that colour, or when it has a number tag (use Derive from Number). Lookup only: no model runs, nothing is removed. Needs entry colours in entries.json (Derive Colour). Writes darktable tags and the tag ledger only."),
         clicked_callback = function() M.derive_images(dt.gui.action_images, "colour") end,
@@ -5006,21 +5013,21 @@ local function install_panel()
         },
         tag_rows,
         { new_widget("section_label") { label = _("Identify (Models; Writes Tags)") },
-          replace_manual_check, run_tag_combo, verify_button, identify_button,
-          new_widget("section_label") { label = _("Colour (Writes Tags and entries.json)") },
-          derive_colour_button,
-          new_widget("section_label") { label = _("Derive (Lookups Only; Adds Tags)") },
-          derive_number_button, derive_colour_button,
-          new_widget("section_label") { label = _("Group (Copies Tags Within Each darktable Group)") },
-          copy_group_button, copy_selection_button, copy_confirm_box,
-          new_widget("section_label") { label = _("Undo") },
-          clear_marks_button },
+          replace_manual_check, run_tag_combo, identify_button, verify_button,
+          new_widget("section_label") { label = _("Colour (Models; Writes Tags and entries.json)") },
+          derive_colour_button },
         { new_widget("section_label") { label = _("Add to One Entry (Uses the Entry List)") },
           entry_combo, add_button,
           new_widget("section_label") { label = _("Add by Tags or Last Run (Entry List Not Used)") },
           add_tagged_button, promote_button,
           new_widget("section_label") { label = _("Audit") },
           suggest_crops_check, quarantine_check, audit_button },
+        { new_widget("section_label") { label = _("Derive (Lookups Only; Adds Tags)") },
+          derive_number_button, derive_from_colour_button,
+          new_widget("section_label") { label = _("Copy (Writes Tags as Your Own)") },
+          copy_group_button, copy_selection_button, copy_confirm_box,
+          new_widget("section_label") { label = _("Undo") },
+          clear_marks_button },
     }
     local pages = {}
     for i, page in ipairs(M.PANEL_PAGES) do

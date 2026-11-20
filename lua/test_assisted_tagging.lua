@@ -290,6 +290,7 @@ do
         "2,Beta,2,M|Number|2;M|Team|Beta;M|Driver|Bob,Bob,,Blue",
         "3,Gamma,3,M|Number|3;M|Team|Gamma;M|Driver|Cy,Cy,,Blue",
         "4,Gamma,4,M|Number|4;M|Team|Gamma;M|Driver|Di,Di,,Green",
+        "5,Delta,5,M|Number|5;M|Team|Delta;M|Driver|Ed,Ed,,",
     }, "\n"))
     local roots = { number = "M|Number", driver = "M|Driver", team = "M|Team", colour = "M|Colour" }
     local names = { derived = "AT|Derived", check_colour = "AT|Check colour" }
@@ -298,20 +299,31 @@ do
         return table.concat(p.attach, ";") .. " / " .. p.reason
     end
     check("derive number: hand number adds the entry's tags and From number",
-        plan({ ["M|Number|2"] = true }, "number"), "AT|Derived|From number;M|Driver|Bob;M|Team|Beta / ")
+        plan({ ["M|Number|2"] = true }, "number"), "AT|Derived|From number;M|Colour|Blue;M|Driver|Bob;M|Team|Beta / ")
+    check("derive number: an entry with no colour adds no colour tag",
+        plan({ ["M|Number|5"] = true }, "number"), "AT|Derived|From number;M|Driver|Ed;M|Team|Delta / ")
+    check("derive number: a colour tag matching the entry gets no second one",
+        plan({ ["M|Number|2"] = true, ["M|Colour|Blue"] = true }, "number"), "AT|Derived|From number;M|Driver|Bob;M|Team|Beta / ")
+    check("derive number: colour family off adds no colour tag",
+        table.concat(T.derive_plan({ ["M|Number|2"] = true }, nil, de, dorder,
+            { number = "M|Number", driver = "M|Driver", team = "M|Team" }, "number", names).attach, ";"),
+        "AT|Derived|From number;M|Driver|Bob;M|Team|Beta")
+    check("derive number: entry tags already on, colour missing, adds only the colour",
+        plan({ ["M|Number|4"] = true, ["M|Team|Gamma"] = true, ["M|Driver|Di"] = true }, "number"),
+        "AT|Derived|From number;M|Colour|Green / ")
     check("derive number: a ledgered (plugin) number tag is not the user's",
         plan({ ["M|Number|2"] = true }, "number", { ["M|Number|2"] = true }), " / no number tag of yours names an entry")
     check("derive number: colour that differs adds Check colour",
         plan({ ["M|Number|1"] = true, ["M|Colour|Blue"] = true }, "number"),
         "AT|Check colour;AT|Derived|From number;M|Driver|Ann;M|Team|Alpha / ")
     check("derive number: entry already on the image is skipped",
-        plan({ ["M|Number|4"] = true, ["M|Team|Gamma"] = true, ["M|Driver|Di"] = true }, "number"),
+        plan({ ["M|Number|4"] = true, ["M|Team|Gamma"] = true, ["M|Driver|Di"] = true, ["M|Colour|Green"] = true }, "number"),
         " / it already has the entry's tags")
     check("derive number: Check colour already on the image isn't attached again",
         plan({ ["M|Number|1"] = true, ["M|Colour|Blue"] = true, ["AT|Check colour"] = true }, "number"),
         "AT|Derived|From number;M|Driver|Ann;M|Team|Alpha / ")
     check("derive number: the From number marker already on the image isn't attached again",
-        plan({ ["M|Number|2"] = true, ["AT|Derived|From number"] = true }, "number"), "M|Driver|Bob;M|Team|Beta / ")
+        plan({ ["M|Number|2"] = true, ["AT|Derived|From number"] = true }, "number"), "M|Colour|Blue;M|Driver|Bob;M|Team|Beta / ")
     check("derive colour: one entry of that colour",
         plan({ ["M|Colour|Green"] = true }, "colour"), "AT|Derived|From colour;M|Driver|Di;M|Number|4;M|Team|Gamma / ")
     check("derive colour: two entries of that colour skip",
@@ -326,7 +338,7 @@ do
         "AT|Check colour / it has a number tag: use Derive from Number")
     check("derive: markers off add no marker",
         table.concat(T.derive_plan({ ["M|Number|2"] = true }, nil, de, dorder, roots, "number",
-            { derived = "", check_colour = "" }).attach, ";"), "M|Driver|Bob;M|Team|Beta")
+            { derived = "", check_colour = "" }).attach, ";"), "M|Colour|Blue;M|Driver|Bob;M|Team|Beta")
     check("hand_source: a number tag", T.hand_source({ ["M|Number|2"] = true }, nil, de, roots), "From number")
     check("hand_source: a driver tag", T.hand_source({ ["M|Driver|Bob"] = true }, nil, de, roots), "From driver")
     local mrules = T.default_rules()
@@ -527,7 +539,7 @@ check("PANEL_PAGES: every preset key is on one page or listed off-stack",
 local page_titles = {}
 for _, p in ipairs(T.PANEL_PAGES) do page_titles[#page_titles + 1] = p.title end
 check("PANEL_PAGES: titles match the README sections", table.concat(page_titles, ","),
-    "Collection,Bursts,Matching,Tags Written,Run,References")
+    "Collection,Bursts,Matching,Tags Written,Run,References,Tools")
 
 -- checked_settings: hand-edited settings.json values show_panel would display
 local cs = T.preset_defaults(T.PRESET_SCHEMA)
