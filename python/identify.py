@@ -2014,8 +2014,9 @@ def reference_box(rgb, boxes: list, number: str) -> tuple:
 
 def run_reference_job(args, models: dict, handle_row, screen: str = "", siglip: bool = True):
     """Runs `handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour) -> (status,
-    proposals[, row_entry])` over the manifest rows (an optional 4th column is the image's hand-applied
-    colour), writing one `id,status,colour_note,entry_id` results row and a progress tick per row.
+    proposals[, row_entry[, colour]])` over the manifest rows (an optional 4th column is the image's hand-applied
+    colour), writing one `id,status,colour_note,entry_id` results row and a progress tick per row; a row
+    whose handler gives a `colour` (the photo's colour, colours-only) adds it as a 5th column.
     `proposals` is [(entry id, colour, by hand)] for fill_colours; the row's entry id is `row_entry` when the
     handler gives one, else the first proposal's, else the manifest's (`""` when it has none).
     References added before a cancel are kept, colours aren't
@@ -2033,16 +2034,18 @@ def run_reference_job(args, models: dict, handle_row, screen: str = "", siglip: 
     done = []  # (image id, status, refs the row saved)
     proposed = []  # per row: [(entry id, colour)]
     row_entries = []  # per row: the entry id the results row names
+    row_colours = []  # per row: the photo's colour the handler gives, or ""
     cancelled = False
     for n, (image_id, filepath, entry_id, hand_colour) in enumerate(rows, 1):
         if cancel_requested(args.progress):
             cancelled = True
             break
         index.added = []
-        status, proposals, *row_entry = handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour)
+        status, proposals, *extra = handle_row(index, entries, rules, image_id, filepath, entry_id, hand_colour)
         done.append((image_id, status, list(index.added)))
         proposed.append(proposals)
-        row_entries.append(row_entry[0] if row_entry else (proposals[0][0] if proposals else entry_id))
+        row_entries.append(extra[0] if extra else (proposals[0][0] if proposals else entry_id))
+        row_colours.append(extra[1] if len(extra) > 1 else "")
         write_progress(args.progress, n, len(rows), "matching")
     index.save()
     if cancelled:
@@ -2052,15 +2055,17 @@ def run_reference_job(args, models: dict, handle_row, screen: str = "", siglip: 
         done = screen_new_refs(collection, index, done, screen, entries, rules.colour_weight)
     notes = fill_colours(os.path.join(collection, "entries.json"), entries, rules, done, proposed)
     with atomic_write(args.results, newline="") as f:
-        f.writelines(f"{image_id},{status},{note},{eid}\n"
-                     for (image_id, status, _), note, eid in zip(done, notes, row_entries))
+        f.writelines(f"{image_id},{status},{note},{eid}" + (f",{colour}" if colour else "") + "\n"
+                     for (image_id, status, _), note, eid, colour in zip(done, notes, row_entries, row_colours))
     write_collection_outputs(args, collection, entries, rules, from_entries)
 
 
 def add_references(args, models: dict):
     """Each manifest image becomes a reference for its entry (and, with the colour family on, reads
-    the car's colour into entries.json). `args.colours_only` reads the colour alone: no reference
-    is saved, team rows are "unread", and a row is "read" or "unread" by whether a colour came out."""
+    the car's colour into entries.json). `args.colours_only` reads the colour alone (Derive Colour): no
+    reference is saved, team rows are "unread", a row with no entry id reads the photo's colour without
+    proposing it to an entry, and a row is "read" (the colour in the results' 5th column) or "unread" by
+    whether a colour came out."""
     teams = None
     colours_only = getattr(args, "colours_only", False)
     source = "picked" if getattr(args, "picked", False) else "hand"
@@ -2088,7 +2093,8 @@ def add_references(args, models: dict):
             teams = set(team_tags(entries, rules.families))
         # a team tag instead of an entry id: a solo shot tagged only to team level
         is_team = entry_id not in entries and entry_id in teams
-        if entry_id not in entries and not is_team:
+        no_entry = colours_only and entry_id == ""
+        if entry_id not in entries and not is_team and not no_entry:
             log(f"{image_id}: entry {entry_id} isn't in {args.collection}'s entries.json")
             return "failed", []
         if colours_only and is_team:
@@ -2106,8 +2112,8 @@ def add_references(args, models: dict):
                                          if boxes else "")
                 if not colour:
                     log(f"{image_id}: " + (f"no vehicle found ({note})" if not boxes else "couldn't tell the car's colour") + "; colour unread")
-                    return "unread", []
-                return "read", [(entry_id, colour, bool(hand_colour))]
+                    return "unread", [], entry_id
+                return "read", [] if no_entry else [(entry_id, colour, bool(hand_colour))], entry_id, colour
             if is_team and len(boxes) != 1:
                 log(f"{image_id}: {len(boxes)} vehicles found; only a solo shot can be a team reference")
                 return "team_not_solo", []
@@ -2131,9 +2137,9 @@ def add_references(args, models: dict):
         collection = os.path.join(args.collections_root, args.collection)
         only_rules = load_collection(collection, args.settings)[1]
         if only_rules.kind == "people":
-            raise InputError("Fill entry colours is for vehicle collections")
+            raise InputError("Derive Colour is for vehicle collections")
         if "colour" not in only_rules.families:
-            raise InputError("Fill entry colours needs the colour family (family_colour) on")
+            raise InputError("Derive Colour needs the colour family (family_colour) on")
     run_reference_job(args, models, handle, screen="" if colours_only else "warn")
 
 

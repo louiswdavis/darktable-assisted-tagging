@@ -1329,31 +1329,36 @@ def run_tests():
         oentries = os.path.join(ocoll, "entries.json")
         check("colours-only: a hand colour sets the entry and saves no reference",
               (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","VER","Red"', colours_only=True),
-               os.path.exists(os.path.join(ocoll, "refs", "VER"))), ("1,read,set,VER", False))
+               os.path.exists(os.path.join(ocoll, "refs", "VER"))), ("1,read,set,VER,Red", False))
         check("colours-only: entries.json gains the colour", json.load(open(oentries, encoding="utf-8"))["entries"][0].get("colour"), "Red")
         os.remove(oentries + ".bak")
         before = open(oentries, "rb").read()
         check("colours-only: an entry with that colour is already",
               (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","VER","Red"', colours_only=True),
-               open(oentries, "rb").read() == before, os.path.exists(oentries + ".bak")), ("1,read,already,VER", True, False))
+               open(oentries, "rb").read() == before, os.path.exists(oentries + ".bak")), ("1,read,already,VER,Red", True, False))
+        check("colours-only: a photo with no entry reads its colour and leaves entries.json alone",
+              (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","","Blue"', colours_only=True),
+               open(oentries, "rb").read() == before), ("1,read,,,Blue", True))
         I._W["detector"] = no_car
         check("colours-only: no vehicle is unread and saves nothing",
               (ref_job(I.add_references, ocoll, f'"1","{real_jpg}","TSU",""', colours_only=True),
                os.path.exists(os.path.join(ocoll, "refs", "TSU"))), ("1,unread,,TSU", False))
+        check("colours-only: a photo with no entry and no vehicle is unread",
+              ref_job(I.add_references, ocoll, f'"1","{real_jpg}","",""', colours_only=True), "1,unread,,")
         I._W["detector"] = one_car
         try:
             ref_job(I.add_references, coll, f'"1","{real_jpg}","VER","Red"', colours_only=True)
             off = "(no error)"
         except I.InputError as e:
             off = str(e)
-        check("colours-only needs the colour family", off, "Fill entry colours needs the colour family (family_colour) on")
+        check("colours-only needs the colour family", off, "Derive Colour needs the colour family (family_colour) on")
         pcoll = collection({"kind": "people", "entries": [LH]}, root=root)
         try:
             ref_job(I.add_references, pcoll, f'"1","{real_jpg}","Lando Norris",""', colours_only=True)
             people = "(no error)"
         except I.InputError as e:
             people = str(e)
-        check("colours-only refuses a people collection", people, "Fill entry colours is for vehicle collections")
+        check("colours-only refuses a people collection", people, "Derive Colour is for vehicle collections")
         check("colours-only saves no face reference", os.path.isdir(os.path.join(pcoll, "refs", "Lando Norris")), False)
     finally:
         I._W["detections"].close()
