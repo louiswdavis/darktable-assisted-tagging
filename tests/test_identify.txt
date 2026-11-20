@@ -1,6 +1,327 @@
+ok   a bare list loads entries in file order
+ok   an int number is read as text
+ok   a bare list gets the default rules
+ok   rules: team_only
+ok   rules: unidentified tags
+ok   rules: renamed, dropped and default diagnostics
+ok   default diagnostics sit under Assisted Tagging|Motorsport
+ok   duplicate id is rejected
+ok   a comma in a tag is rejected
+ok   a non-digit number is rejected
+ok   a shows list loads as a tuple
+ok   a paddock field is accepted
+ok   a non-list shows is rejected
+ok   a non-digit shown number is rejected
+ok   shows can't repeat the entry's own number
+ok   empty tags load when families build tags
+ok   a path character in an id is rejected
+ok   bad JSON is rejected
+ok   a missing entries.json names the file
+ok   a misspelt rule is named
+ok   moved rules in entries.json still load
+ok   moved rules log the deprecation
+ok   a misspelt entry field is named
+ok   a misspelt top-level key is named
+ok   kind defaults to motorsport
+ok   a people collection loads
+ok   people face rules have defaults
+ok   people face rules are read
+ok   a people entry with a number is rejected
+ok   an unknown kind lists the valid ones
+ok   a bad team_only value is rejected
+ok   families: every family is on by default
+ok   families: number, team, then driver
+ok   families: the entry's own tags follow as extras
+ok   families: an extra that repeats a built tag is listed once
+ok   car: both entries of a shared car get the union of tags, the named entry's first
+ok   car: both entries carry the named id
+ok   car: naming a missing id fails
+ok   car: naming itself fails
+ok   car: naming an entry that names a car fails
+ok   car: three entries in one car fail
+ok   families: team off drops the team tag
+ok   families: team off leaves it out of rules.families
+ok   families: roots come from settings.json
+ok   families: the colour root is read
+ok   families: an empty root is the default
+ok   families: a root of spaces names the setting
+ok   families: an entry that builds no tag is rejected
+ok   families: an entry with nothing at all is rejected
+ok   families: a numbers-only entry needs no tags
+ok   families: a root with a comma names the setting
+ok   families: a root ending in | names the setting
+ok   families: one root under another names both settings
+ok   families: a switched-off family's root isn't checked
+ok   co-driver: own tag after the driver's
+ok   co-driver: family off, no tag
+ok   co-driver: ; rejected
+ok   vehicle: make+model, extra: class
+ok   vehicle: make only
+ok   vehicle: model without make
+ok   vehicle: make with | rejected
+ok   extra: not text rejected
+ok   families: vehicle off, no vehicle tag
+ok   vehicle: custom root
+ok   load: old vehicle tag upgraded
+ok   load: the upgraded file holds make and model
+ok   load: an upgraded vehicle follows the configured root
+ok   load: an upgrade conflict names the entry
+ok   load: a non-UTF-8 file still says not valid JSON
+ok   families: extra only, entry without extra builds no tag
+ok   rules.tag_prefix is removed and names the family roots
+ok   people: no families, the entry's tags only
+ok   order_weight defaults to 0
+ok   min_read defaults to 0.85
+ok   settings.json sets order_weight
+ok   a settings_path file overrides the collection's
+ok   family_colour off: no colour family
+ok   family_colour off: rules.csv has no family_colour line
+ok   family_colour off: the other families are still written
+ok   no diag_colour line is written
+ok   the colour family is on by default: rules.csv has its root
+ok   settings.json: removed colour_tags stops the load
+ok   settings.json: removed tag_colour stops the load
+ok   settings.json: removed tag_colour_name stops the load
+ok   entries.json: removed rules.colour_tags stops the load
+ok   default palette is the built-in one
+ok   a built-in name renames and drops the rest
+ok   bounds objects map to 6-tuples, missing sat/val is full range
+ok   colour_palette {'Multi': 'Red'} is rejected
+ok   colour_palette {'Red': 'Teal'} is rejected
+ok   colour_palette {'Red': [{'hue': [9, 3]}]} is rejected
+ok   colour_palette {'Red': [{'hue': [0, 300]}]} is rejected
+ok   colour_palette {'A|B': 'Red'} is rejected
+ok   colour_palette {} is rejected
+ok   colour_palette {'Red': []} is rejected
+ok   entry colour is read
+ok   entry colour defaults empty
+ok   unknown entry colour names the entry and colour
+ok   entry colour outside the palette names the entry and colour
+ok   entries.json: removed rules.diagnostics.colour stops the load
+ok   entries.csv rows
+ok   entries.csv ends with the name and co-driver
+ok   entries.csv ends with the shared car's id on both entries
+ok   rules.csv rows
+ok   rules.csv ends with from_entries_json, empty here
+ok   rules.csv lists each family that is on
+ok   rules_csv_has_moved_keys
+ok   the plan lists the teammates' shared tags
+ok   the plan lists the unidentified tags
+ok   the plan names entries it can only find by number
+ok   the plan names entries it can never find yet
+ok   the plan says team only adds nothing with team_only none
+ok   the fingerprint is 12 hex chars
+ok   changing OCR_MIN_SCORE changes the fingerprint
+ok   changing OCR_MIN_SCORE changes the cache key
+ok   restoring the constant restores the fingerprint
+ok   the cache key is stable
+ok   changing HIRES_MIN_GAIN changes the cache key
+ok   no colour tags leaves the cache key as it was
+ok   colour tags add the palette to the cache key
+ok   renaming a palette colour changes the cache key
+ok   the segmenter model file joins the cache key
+ok   SigLIP 2 joins the cache key with its three files
+ok   the SigLIP key names the token and every file
+ok   the number gate joins the cache key with its own token and constants
+ok   number_gate off leaves the cache key as it was
+ok   the number gate without SigLIP 2 leaves the cache key as it was
+ok   no SigLIP leaves the cache key as it was
+ok   the second reader joins the cache key with its token, model and .json
+ok   no second reader leaves the cache key as it was
+ok   a model file touched mid-run keeps its key
+ok   the next run reads the model files again
+ok   a frame file touched mid-run changes its key
+ok   SigLIP files sit beside the vision file
+ok   custom palette names are the colour prompts
+ok   a half-GREY masked crop of a red car reads Red
+ok   the masked histogram matches the plain red crop's
+ok   SigLIP 2 sees the GREY fill painted the kept colour
+ok   the caller's crop is left as it was
+ok   the hires re-read reads only the wanted box
+ok   the hires re-read keeps the per-box list shape
+ok   a decode not wide enough over the analysis frame isn't re-read
+ok   the wanted boxes join the hires key
+ok   rescue: first run decodes, an unchanged re-run reads the cache, a new mate re-runs
+ok   rescue: a frame that fails to decode stays no vehicle and uncached, the rest are rescued
+ok   the cache journal is WAL
+ok   the cache has an index on used
+ok   a later stage's connection keeps an old entry
+ok   the run's first connection prunes it and keeps the fresh one
+ok   the detection cache journal is WAL and has an index on used
+ok   a worker's detection cache connection keeps an old row
+ok   the parent's connection prunes it and keeps the fresh one
+ok   cancel ends a run with a 30 s frame in flight in under 2 s
+ok   no SigLIP keeps every box
+ok   the box check keeps the car, and a low-share box the detector scored high
+ok   the box check counts dropped boxes per answer
+ok   contested boxes carry answer, share, score and why kept
+ok   a clear car is not contested
+ok   reference_box: the box reading the entry's number wins over a larger car
+ok   reference_box: no number read, a larger marshal is passed over for the largest car
+ok   reference_box: one box is never read and stays the pick when the check fails it
+ok   reference_box: without SigLIP 2 and no number read, the largest box
+ok   reference_box: a team reference (no number) reads nothing
+ok   is_what: a split vehicle vote beats a lone person
+ok   is_what: a clear person is dropped with its share
+ok   is_what: a vehicle nearest is a car even at a low share
+ok   number_visible: the number prompts' summed share
+ok   number_visible: a crop nearest a none prompt has a low share
+ok   number_visible: no prompt nearer than another is an even split
+ok   number gate: the box under the gate is not read, the box over it is
+ok   number gate: a box with no box-check vector is read as ever
+ok   number gate: --verify still reads a gated box, for its regions only
+ok   number gate: off, the analysis is the one made without it
+ok   number gate: on without SigLIP 2, the analysis is the one made without it
+ok   the drop log counts per answer and kept reason, and is silent without SigLIP
+ok   the people key carries the fingerprint
+ok   the cache key carries no stray version
+ok   vehicles: every constant is filed once
+ok   vehicles: nothing filed that does not exist
+ok   vehicle_detect: every constant is filed once
+ok   vehicle_detect: nothing filed that does not exist
+ok   ocr: every constant is filed once
+ok   ocr: nothing filed that does not exist
+ok   embed: every constant is filed once
+ok   embed: nothing filed that does not exist
+ok   segment: every constant is filed once
+ok   segment: nothing filed that does not exist
+ok   overlap: every constant is filed once
+ok   overlap: nothing filed that does not exist
+ok   pod: every constant is filed once
+ok   pod: nothing filed that does not exist
+ok   colour: every constant is filed once
+ok   colour: nothing filed that does not exist
+ok   car_colour: every constant is filed once
+ok   car_colour: nothing filed that does not exist
+ok   people: every constant is filed once
+ok   people: nothing filed that does not exist
+ok   siglip: every constant is filed once
+ok   siglip: nothing filed that does not exist
+ok   analyse_frame runs the detector once for a frame analysed twice
+ok   the first analysis detected, the second read the cache
+ok   the cached detection gives the same candidates
+ok   smoke: analyse_frame keeps the box the check calls a car
+ok   smoke: rescue_frame reads the candidate as the frame's one box
+ok   a box under DETECTOR_MIN_SCORE is a candidate, not a box
+ok   a no-vehicle row
+ok   a team row carries the runner-up
+ok   a row has the shot type before the order flag
+ok   a flagged row has 1 in the order flag
+ok   a row ends with the colour and its flag
+ok   a row with no colour, sponsor, anchor flag or new number ends with five empty fields
+ok   a row ends with its sponsor words
+ok   a row ends with the anchor flag
+ok   a row ends with its new numbers
+ok   a row has fourteen fields
+ok   pooled: unidentified frames of a burst take the pooled livery match
+ok   pooled: a frame already identified by livery keeps its method
+ok   pooled: a burst with a frame identified as another car is left alone
+ok   pooled: an overlapped box 0 is neither pooled nor filled
+ok   pooled: a pooled team tie names no driver
+ok   pooled: a frame whose tag hint leaves the entry out keeps its result
+ok   pooled: a team result takes the pooled driver only for its own team
+ok   pooled: a frame whose colour differs from the pooled entry's is left out of the fill
+ok   pooled: a frame whose colour differs is left out of the pool
+ok   pooled: one frame left after the colour check is no pool
+ok   an Orientation-6 JPEG decodes upright (portrait)
+ok   a crop of an upright box keeps the upright aspect
+ok   crops are never upscaled
+ok   box selection clips, filters and sorts
+skip non-ASCII model load (models/ not downloaded)
+
+FAIL crashed before finishing; later checks did not run
+Traceback (most recent call last):
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_identify.py", line 1505, in <module>
+    run_tests()
+    ~~~~~~~~~^^
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_identify.py", line 918, in run_tests
+    parent = S.SigLIP(siglip_vision)
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/siglip.py", line 87, in __init__
+    import onnxruntime as ort
+ModuleNotFoundError: No module named 'onnxruntime'
+
 
 --- stderr ---
+22:11:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
+22:11:48 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so the face thresholds use defaults
+22:11:48 py: rules.min_sim in entries.json is deprecated; move it to settings.json
+22:11:48 py: rules.margin in entries.json is deprecated; move it to settings.json
+22:11:48 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: entries.json: 1 entries upgraded (class, make/model → fields)
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: entries.json: 1 entries upgraded (class, make/model → fields)
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so the face thresholds use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:11:48 py: rules.order_weight in entries.json is deprecated; move it to settings.json
+22:11:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:11:48 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
+22:11:48 py: rescue: started
+22:11:48 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/2.jpg: rescued a vehicle from 1.jpg (crop similarity 4.0)
+22:11:48 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 0 to decode
+22:11:48 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/2.jpg: rescued a vehicle from 1.jpg (crop similarity 4.0)
+22:11:48 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
+22:11:48 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/2.jpg: rescued a vehicle from 3.jpg (crop similarity 4.0)
+22:11:48 py: rescue: 2 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 1 to decode
+22:11:48 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/c2.jpg: couldn't rescue, left as no vehicle (UnidentifiedImageError: cannot identify image file '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/c2.jpg')
 Traceback (most recent call last):
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_identify.py", line 13, in <module>
-    import numpy as np
-ModuleNotFoundError: No module named 'numpy'
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/identify.py", line 1099, in rescue_frames
+    results[job[0]] = fut.result()
+                      ~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py", line 443, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py", line 395, in __get_result
+    raise self._exception
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_identify.py", line 510, in submit
+    fut.set_result(fn(job))
+                   ~~^^^^^
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/identify.py", line 804, in rescue_frame
+    rgb = decode_rgb(path)
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 84, in decode_rgb
+    return decode_rgb_sized(filepath, fast_jpeg)[0]
+           ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 112, in decode_rgb_sized
+    rgb, _, full = _open_rgb(filepath, fast_jpeg)
+                   ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 63, in _open_rgb
+    img = Image.open(source)
+  File "/private/tmp/claude-502/-Users-louis-davis-Documents-codebases/2603ec1c-e622-4c6b-8230-bd648c07fddb/scratchpad/venv/lib/python3.14/site-packages/PIL/Image.py", line 3730, in open
+    raise UnidentifiedImageError(msg)
+PIL.UnidentifiedImageError: cannot identify image file '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/c2.jpg'
+
+22:11:48 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/2.jpg: rescued a vehicle from 3.jpg (crop similarity 4.0)
