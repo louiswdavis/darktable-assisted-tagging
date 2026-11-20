@@ -25,6 +25,9 @@ ok   derive colour, entry and no colour tag: the photo gets the colour read
 ok   derive colour, entry and no colour tag: the entry's colour is saved too
 ok   derive colour, agreed colour: a photo without a colour tag is read, not given the agreed colour
 ok   fill colours, number tag only: the rows name the entry and the agreed colour
+ok   identify colour for selection: two of three read Blue, all three get Blue
+ok   identify colour for selection: a split vote tags nothing
+ok   identify colour for selection: a split vote is in the done message
 ok   add references, no entry tags: no crash
 ok   add references, no entry tags: identify.py isn't started
 ok   add references: says it started as soon as it is clicked
@@ -44,6 +47,10 @@ ok   clear, cancelled: the first image is cleared, the others keep their tags
 ok   clear, cancelled: says how far it got
 ok   clear, after a cancel: the next clear finishes the rest
 ok   no button changes the selection
+ok   no widget is placed twice in the panel
+ok   Derive from Colour is on the panel
+ok   Run page: Identify and Verify, then the colour reads
+ok   Tools page: derives, copies, locks, then Undo
 ok   the progress line sits at the foot of the panel, outside the folding pages
 ok   To check sits above the progress line, outside the folding pages
 ok   To check: a blank line sits above the heading
@@ -95,6 +102,13 @@ ok   stale Unidentified: a photo skipped as tagged by hand loses the earlier run
 ok   stale Unidentified: a photo identified now loses an Unidentified tag missing from the ledger
 ok   stale Unidentified: a photo whose hand tags name a car loses it
 ok   stale Unidentified: a hand Unidentified tag stays on a photo still unidentified
+ok   identify colour for group: only the selected photo is read
+ok   identify colour for group: the selected photo and its untagged mate get the colour
+ok   identify colour for group: a mate with a colour tag keeps it
+ok   identify colour for group: a locked mate is left alone
+ok   identify colour for group: another group is untouched
+ok   identify colour for group: the mate's tag is the plugin's in the ledger
+ok   identify colour for group: a photo in no group says so
 ok   copy to group: the button is on the panel
 ok   copy to group: the source's tags replace the member's entry and family tags
 ok   copy to group: a member with no tags gets them all
@@ -124,6 +138,23 @@ ok   copy to selection, photos differ: the confirm names the clash
 ok   copy to selection, photos differ: nothing is written before the confirm
 ok   copy to selection, Merge and Copy: both photos get the merged tags
 ok   copy to selection, one photo: asks for two
+ok   lock: the buttons are on the panel
+ok   lock: the photo gets the Locked tag and keeps its tags
+ok   lock: its tags leave the ledger, the Locked tag never joins it
+ok   lock: other photos keep their ledger rows
+ok   lock, copy to group: a locked group mate keeps its own tags
+ok   lock, copy to group: the end message counts the locked photo
+ok   lock, copy to selection: a locked photo is a source
+ok   lock, copy to selection: the locked source takes nothing back
+ok   lock, derive from number: a locked photo gets nothing
+ok   lock, derive colour: a locked photo gets no colour tag
+ok   lock, identify with Replace Manual Tags: the manifest marks the photo locked
+ok   lock, identify with Replace Manual Tags: the row names its entry
+ok   lock, identify with Replace Manual Tags: its tags are sent as protected
+ok   lock, identify with Replace Manual Tags: the tags stay
+ok   lock, identify: an unlocked photo's row has an empty locked field
+ok   unlock: the Locked tag goes, the tags stay
+ok   unlock: the tags stay yours
 ok   presets: export is offered for the Rallye collection
 ok   presets: export toast
 ok   presets: the bundle carries the entry list

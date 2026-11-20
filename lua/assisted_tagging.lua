@@ -1305,7 +1305,7 @@ function M.one_entry_csv(typed)
         values[i] = (typed[role] or ""):match("^%s*(.-)%s*$")
         picked[role] = role
     end
-    if values[1] == "" then return nil, "type the entry's number first." end
+    if values[1] == "" then return nil, "Type the entry's number first." end
     return M.csv_line(M.ENTRY_ROLES) .. "\n" .. M.csv_line(values) .. "\n", M.columns_spec(picked)
 end
 
@@ -1555,14 +1555,14 @@ local MODEL_SETTINGS_GONE = { "embedder_file", "ocr_rec_file" }
 function M.removed_settings(s)
     for _, pair in ipairs(REMOVED_SETTINGS) do
         if s[pair[1]] ~= nil then
-            return string.format('settings.json: %s was removed; use %s (README, "Tag families")', pair[1], pair[2])
+            return string.format('settings.json: %s was removed; use %s (README, "Tag families").', pair[1], pair[2])
         end
     end
     for _, key in ipairs(MODEL_SETTINGS_GONE) do
         local v = s[key]
         if type(v) == "string" then v = v:match("^%s*(.-)%s*$") end
         if v ~= nil and v ~= "" then
-            return string.format('settings.json: %s was removed; the plugin picks the model now (README, "Models")', key)
+            return string.format('settings.json: %s was removed; the plugin picks the model now (README, "Models").', key)
         end
     end
     return nil
@@ -1967,7 +1967,7 @@ if dt.gui then
     C.register_shared_prefs(dt)
     dt.preferences.register("assisted_tagging", "collections_root", "directory",
         "Assisted Tagging: Collections folder",
-        "Folder with one folder per collection (entries.json + refs). Empty = assisted_tagging/collections in darktable's config folder",
+        "Folder with one folder per collection (entries.json + refs). Empty = assisted_tagging/collections in darktable's config folder.",
         "")
 end
 
@@ -2109,6 +2109,11 @@ local function say(msg)
     log(msg)
 end
 
+-- Text from Python or a stage name starts lowercase; a toast after "Assisted Tagging: " starts with a capital.
+local function capital(text)
+    return text:sub(1, 1):upper() .. text:sub(2)
+end
+
 -- the "To check" box above the progress line; `fixes` is filled once the actions exist
 local fixes = {}
 local alerts = C.alerts_box(new_widget, dt.configuration.config_dir .. "/assisted_tagging.checks.txt", log, fixes)
@@ -2164,7 +2169,7 @@ local function take_settings()
     if removed then dt.print("Assisted Tagging: " .. removed); return false end
     if not read_panel then return true end
     local s, why = read_panel()
-    if not s then dt.print("Assisted Tagging: " .. why); return false end
+    if not s then dt.print("Assisted Tagging: Setting " .. why .. "."); return false end
     settings = s
     -- text entries have no change callback, so their edits show as unsaved from the run on
     if preset_ctl then preset_ctl.check_dirty() end
@@ -2255,7 +2260,7 @@ local function show_stage(job, stage, done)
     end
     if stage ~= shown_stage then
         shown_stage = stage
-        dt.print("Assisted Tagging: " .. stage .. "…")
+        dt.print("Assisted Tagging: " .. capital(stage) .. "…")
         log("stage: " .. stage)
     end
 end
@@ -2578,7 +2583,7 @@ end
 
 local write_file_atomic = C.write_file_atomic
 
-local WRITE_ROWS_FAILED = "couldn't write the image list to darktable's tmp folder (disk full or no write access?)"
+local WRITE_ROWS_FAILED = "Couldn't write the image list to darktable's tmp folder. The disk may be full or the folder read-only."
 
 -- While a job runs, remembers `run` to start when it finishes and returns true. Returns false
 -- (do nothing) when nothing is running or there is nothing to queue (`has_input` false), so the
@@ -3012,9 +3017,9 @@ function M.derive_images(images, mode)
         if failed > 0 then left[#left + 1] = string.format("%d couldn't be tagged", failed) end
         if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (reasons in the log)." end
         say(msg)
-        if #check_ids > 0 then alerts.add(string.format("%d photos marked Check colour", #check_ids), check_ids) end
-        if #skipped_ids > 0 then alerts.add(string.format("%d photos skipped (reasons in the log)", #skipped_ids), skipped_ids) end
-        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log)", #failed_ids), failed_ids) end
+        if #check_ids > 0 then alerts.add(string.format("%d photos marked Check colour.", #check_ids), check_ids) end
+        if #skipped_ids > 0 then alerts.add(string.format("%d photos skipped (reasons in the log).", #skipped_ids), skipped_ids) end
+        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log).", #failed_ids), failed_ids) end
     end)
     finish_job(job)
     if not okr then notify_error(_("Assisted Tagging: Couldn't derive tags. ") .. tostring(err)) end
@@ -3253,14 +3258,14 @@ local function apply_results(run, job)
     if n_conflict > 0 then msg = msg .. string.format(", %d vehicles left as you tagged them", n_conflict) end
     if n_missing > 0 then msg = msg .. string.format(", %d unreadable (see log)", n_missing) end
     if failed > 0 then msg = msg .. string.format(", %d couldn't be updated (see log)", failed) end
-    say(msg)
+    say(msg .. ".")
     if first_error then log("first tag write error: " .. first_error) end
     for _, t in ipairs(TAG_TOGGLES) do
         local ids = flagged[t.key]
-        if ids then alerts.add(string.format("%d photos tagged %s", #ids, t.label), ids) end
+        if ids then alerts.add(string.format("%d photos tagged %s.", #ids, t.label), ids) end
     end
-    if #missing_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log)", #missing_ids), missing_ids) end
-    if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be updated (see log)", #failed_ids), failed_ids) end
+    if #missing_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log).", #missing_ids), missing_ids) end
+    if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be updated (see log).", #failed_ids), failed_ids) end
     local new_ids, file_of = {}, {}
     for _, img in ipairs(primaries) do
         local id = tonumber(img.id)
@@ -3488,7 +3493,7 @@ local function run_reference_job(state, rows, mode_args, what)
     return read_file(RESULTS_PATH) or ""
 end
 
--- failure: the sentence a crash is reported with, e.g. "couldn't audit references."
+-- failure: the sentence a crash is reported with, e.g. "Couldn't audit references."
 local function finish_reference_job(state, okr, err, failure)
     finish_job(state.job)
     if not okr then notify_error("Assisted Tagging: " .. failure .. " " .. tostring(err)) end
@@ -3594,9 +3599,9 @@ function M.add_references(images, entry_id)
         if n_skipped > 0 then left[#left + 1] = string.format("%d skipped, no single entry matches the tags", n_skipped) end
         if failed > 0 then left[#left + 1] = string.format("%d failed", failed) end
         if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (see log)." end
-        say(msg .. (notes.set > 0 and (" Colours: " .. entries_json_path()) or ""))
+        say(msg .. (notes.set > 0 and (" Colours written to " .. entries_json_path() .. ".") or ""))
     end)
-    finish_reference_job(state, okr, err, "couldn't add references.")
+    finish_reference_job(state, okr, err, "Couldn't add references.")
 end
 
 -- Reads the paintwork colour of each selected image's car and writes it as that entry's colour
@@ -3701,12 +3706,12 @@ function M.add_found_entries(ticked, image_of)
     local ok = p:close()
     log("add new entries: " .. (out ~= "" and out or (ok and "no output" or "failed")))
     if not ok then
-        notify_error("Assisted Tagging: " .. (out ~= "" and out or _("adding the entries failed, see the log.")))
+        notify_error("Assisted Tagging: " .. (out ~= "" and capital(out) or _("Adding the entries failed. See the log.")))
         return false
     end
     if not reload_lists(true) then return true end
     local n_images = retag_added_numbers(ticked, image_of, roots.number, M.named_rules(rules, settings).diag.number_seen)
-    say(string.format("Assisted Tagging: %s; %d photos tagged with their new number.", out, n_images))
+    say(string.format("Assisted Tagging: %s; %d photos tagged with their new number.", capital(out), n_images))
     return true
 end
 
@@ -3869,7 +3874,7 @@ function M.derive_colour(images, colour_of, to_group)
             write_ledger(ledger)
         end
         local set_ids, already_ids, n_unread, n_failed = M.colour_summary(parsed)
-        say(string.format("Assisted Tagging: %s File: %s",
+        say(string.format("Assisted Tagging: %s File: %s.",
             M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_failed, notes.differs, n_tagged, n_disagree), entries_json_path()))
         local differ_ids, failed_ids = {}, {}
         for _, p in ipairs(parsed) do
@@ -3877,12 +3882,12 @@ function M.derive_colour(images, colour_of, to_group)
             elseif p[2] == "failed" then failed_ids[#failed_ids + 1] = tonumber(p[1]) end
         end
         if #differ_ids > 0 then
-            alerts.add(string.format("%d photos read a different colour from their entry's", #differ_ids), differ_ids)
+            alerts.add(string.format("%d photos read a different colour from their entry's.", #differ_ids), differ_ids)
         end
-        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log)", #failed_ids), failed_ids) end
-        if #tag_failed > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log)", #tag_failed), tag_failed) end
+        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log).", #failed_ids), failed_ids) end
+        if #tag_failed > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log).", #tag_failed), tag_failed) end
     end)
-    finish_reference_job(state, okr, err, "couldn't identify colours.")
+    finish_reference_job(state, okr, err, "Couldn't identify colours.")
 end
 
 -- To check fixes ------------------------------------------------------------------
@@ -3941,7 +3946,7 @@ local function fix_tags(label, images, plan, touch_locked)
         say(string.format("Assisted Tagging: %s done, %d tag changes on %d photos%s.", label, n_tags,
             #images - #failed_ids - n_locked,
             n_locked > 0 and string.format(", %d locked photo%s left alone", n_locked, n_locked == 1 and "" or "s") or ""))
-        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log)", #failed_ids), failed_ids) end
+        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log).", #failed_ids), failed_ids) end
     end)
     finish_job(job)
     if not okr then notify_error(string.format("Assisted Tagging: %s failed. %s", label, tostring(err))) end
@@ -4140,9 +4145,9 @@ function M.promote_references(images)
         if counts.stale > 0 then left[#left + 1] = string.format("%d changed since the run (run Identify again)", counts.stale) end
         if counts.failed > 0 then left[#left + 1] = string.format("%d failed", counts.failed) end
         if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (see log)." end
-        say(msg .. (notes.set > 0 and (" Colours: " .. entries_json_path()) or ""))
+        say(msg .. (notes.set > 0 and (" Colours written to " .. entries_json_path() .. ".") or ""))
     end)
-    finish_reference_job(state, okr, err, "couldn't save vehicles as references.")
+    finish_reference_job(state, okr, err, "Couldn't save vehicles as references.")
 end
 
 -- Refreshes the collection's reference index from refs/ and writes ref-audit.txt beside it.
@@ -4180,10 +4185,10 @@ function M.audit_references()
         local found = flagged == 0 and "nothing flagged."
             or string.format("flagged: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers, %d odd crops; %d flagged by 2+ checks (start there).",
                 c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, c.crops or 0, c.strongest or 0)
-        say(string.format("Assisted Tagging: Audit done, %d references checked, %s%s Details in %s",
+        say(string.format("Assisted Tagging: Audit done, %d references checked, %s%s Details in %s.",
             c.references or 0, found, crops_note, report))
     end)
-    finish_reference_job(state, okr, err, "couldn't audit references.")
+    finish_reference_job(state, okr, err, "Couldn't audit references.")
 end
 
 local BAD_FOLDER_CHARS = '[/\\:*?"<>|]'
@@ -4314,7 +4319,7 @@ function M.create_collection(images, raw_name)
     local derived, entry_of, skipped, thin = M.derive_entries(image_rows)
     if #derived == 0 then
         dt.print(_("Assisted Tagging: None of the selected images carry a hierarchical tag "
-            .. "(e.g. Series|Team|Driver) shared by at least " .. M.MIN_REFS_PER_ENTRY .. " of the selected images"))
+            .. "(e.g. Series|Team|Driver) shared by at least " .. M.MIN_REFS_PER_ENTRY .. " of the selected images."))
         return
     end
 
@@ -4412,8 +4417,8 @@ collection_store = function()
     function store.write(name, text) return write_file_atomic(store.path(name), text) end
     -- Renames the collection folder, references and all.
     function store.rename(old, new)
-        if busy or orphan or #queue > 0 then return false, "a run is using it, rename it when the run finishes" end
-        if df.test_file(dir(new), "e") then return false, dir(new) .. " already exists" end
+        if busy or orphan or #queue > 0 then return false, "A run is using it. Rename it when the run finishes." end
+        if df.test_file(dir(new), "e") then return false, dir(new) .. " already exists." end
         local ok, err = os.rename(dir(old), dir(new))
         return ok and true or false, err
     end
@@ -4448,17 +4453,17 @@ collection_store = function()
     -- Store new copies the whole collection folder: entries, references, settings.
     function store.copy_note(from, to)
         if from == "template" then
-            return nil, "store new copies a collection: pick one first (new empty collections come from the new collection section)"
+            return nil, "Store New copies a collection. Pick one first (new empty collections come from the New Collection section)."
         end
-        if run_busy() then return nil, "a run is using it, store a new one when the run finishes" end
-        if df.test_file(dir(to), "e") then return nil, dir(to) .. " already exists" end
+        if run_busy() then return nil, "A run is using it. Store a new one when the run finishes." end
+        if df.test_file(dir(to), "e") then return nil, dir(to) .. " already exists." end
         local files, bytes = tree_size(dir(from) .. "/refs")
         return string.format('Copies "%s" to "%s" with its %d reference crops (%.1f MB). Continue?',
             from, to, files, bytes / 1048576)
     end
     function store.copy(from, to)
-        if run_busy() then return false, "a run is using it, store a new one when the run finishes" end
-        if df.test_file(dir(to), "e") then return false, dir(to) .. " already exists" end
+        if run_busy() then return false, "A run is using it. Store a new one when the run finishes." end
+        if df.test_file(dir(to), "e") then return false, dir(to) .. " already exists." end
         if not C.copy_tree(dir(from), dir(to)) or not file_exists(dir(to) .. "/entries.json") then
             return false, "copy to " .. dir(to) .. " failed"
         end
@@ -4483,13 +4488,13 @@ collection_store = function()
     -- An imported collection is a new folder holding the bundle's entry list and references.
     -- entries.json is written last, so a failed refs copy leaves a folder that isn't a collection.
     function store.import_files(name, bundle, files)
-        if run_busy() then return false, "a run is using the collections, import when the run finishes" end
+        if run_busy() then return false, "A run is using the collections. Import when the run finishes." end
         local has = {}
         for _i, f in ipairs(files) do has[f] = true end
         if not has["entries.json"] then return false, "the bundle has no entries.json" end
         local text = C.read_file(bundle .. "/entries.json")
         if not text then return false, "couldn't read " .. bundle .. "/entries.json" end
-        if C.path_exists(dir(name)) then return false, dir(name) .. " already exists" end
+        if C.path_exists(dir(name)) then return false, dir(name) .. " already exists." end
         C.make_dir(dir(name))
         if has.refs and not C.copy_tree(bundle .. "/refs", dir(name) .. "/refs") then
             return false, "copying " .. bundle .. "/refs to " .. dir(name) .. " failed"
@@ -4515,7 +4520,7 @@ local function install_panel()
     local panel_ready = false -- the first collection load waits for darktable to open (see the end)
 
     local new_collection_name = new_widget("entry") {
-        tooltip = _("Name for the new collection's folder, e.g. \"F1 2026\""),
+        tooltip = _("Name for the new collection's folder, e.g. \"F1 2026\"."),
         placeholder = _("collection name"),
         text = "",
     }
@@ -4525,19 +4530,19 @@ local function install_panel()
             .. "same hierarchical tags (e.g. Series|Team|Driver) become one entry, then each image is "
             .. "added as that entry's reference. A tag only " .. (M.MIN_REFS_PER_ENTRY - 1)
             .. " image carries is skipped, not made into an entry (and a numeric leaf, e.g. Car|Number|44, "
-            .. "becomes that entry's race number)"),
+            .. "becomes that entry's race number)."),
         clicked_callback = function()
             M.create_collection(dt.gui.action_images, new_collection_name.text)
         end,
     }
     example_combo = new_widget("combobox") {
         label = _("Example"),
-        tooltip = _("A collection template shipped in the repo's examples folder, with placeholder entries and no references"),
+        tooltip = _("A collection template shipped in the repo's examples folder, with placeholder entries and no references."),
         _("(no examples)"),
     }
     local example_view_button = new_widget("button") {
         label = _("View Example"),
-        tooltip = _("Open the selected example's entries.json in your editor, to read or copy from"),
+        tooltip = _("Open the selected example's entries.json in your editor, to read or copy from."),
         clicked_callback = function()
             local example = selected_example()
             if not example then
@@ -4550,7 +4555,7 @@ local function install_panel()
     local example_create_button = new_widget("button") {
         label = _("From Example"),
         tooltip = _("Copy the selected example's entries.json, and its settings.json when it has one, into a new collection; "
-            .. "no images needed. Edit the entries afterward with your own"),
+            .. "no images needed. Edit the entries afterward with your own."),
         clicked_callback = function()
             M.create_collection_from_example(selected_example(), new_collection_name.text)
         end,
@@ -4563,7 +4568,7 @@ local function install_panel()
     }
     local plan_button = new_widget("button") {
         label = _("Show Tag Plan"),
-        tooltip = _("Write tag-plan.txt in the collection's folder and open it: the exact tags each entry writes, plus the team-only, unidentified and diagnostic tags, from its entries.json and settings"),
+        tooltip = _("Write tag-plan.txt in the collection's folder and open it: the exact tags each entry writes, plus the team-only, unidentified and diagnostic tags, from its entries.json and settings."),
         clicked_callback = function()
             if reload_lists(false, true) and current_collection() ~= "" then
                 open_in_app(collections_root() .. "/" .. current_collection() .. "/tag-plan.txt")
@@ -4590,7 +4595,7 @@ local function install_panel()
         if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
         log("import start list: " .. cmd)
         local p = io.popen(cmd)
-        if not p then return false, _("couldn't start Python for the start list import.") end
+        if not p then return false, _("Couldn't start Python for the start list import.") end
         local out = (p:read("a") or ""):gsub("%s+$", "")
         return p:close(), out
     end
@@ -4615,7 +4620,7 @@ local function install_panel()
                 column_headers, mapped = M.parse_header_report(out)
             else
                 log("import start list: " .. (out or ""))
-                notify_error("Assisted Tagging: " .. (out ~= "" and out or _("couldn't read the CSV's header, see the log.")))
+                notify_error("Assisted Tagging: " .. (out ~= "" and capital(out) or _("Couldn't read the CSV's header. See the log.")))
             end
         end
         local items = { _("(none)") }
@@ -4725,13 +4730,13 @@ local function install_panel()
             local ok, out = run_start_list_import(argv)
             log("import start list: " .. (out ~= "" and out or (ok and "no output" or "failed")))
             if not ok then
-                notify_error("Assisted Tagging: " .. (out ~= "" and out or _("the start list import failed, see the log.")))
+                notify_error("Assisted Tagging: " .. (out ~= "" and capital(out) or _("The start list import failed. See the log.")))
                 return
             end
             start_list_text.text = ""
             for _, e in ipairs(role_entries) do e.text = "" end
             -- quiet reload: the import's own summary is the message to keep on screen
-            if reload_lists(true) then dt.print("Assisted Tagging: " .. out) end
+            if reload_lists(true) then dt.print("Assisted Tagging: " .. capital(out)) end
         end,
     }
     local found = { checks = {}, rows = {}, image_of = {} }
@@ -4865,7 +4870,7 @@ local function install_panel()
     }
     entry_combo = new_widget("combobox") {
         label = _("Entry"),
-        tooltip = _("The entry Add as Reference saves the selected images under"),
+        tooltip = _("The entry Add as Reference saves the selected images under."),
         _("(no entries)"),
     }
     local add_button = new_widget("button") {
@@ -5220,7 +5225,7 @@ local function install_panel()
         -- a run reads the stored collection's entries and refs until it finishes
         can_switch = function()
             if busy or orphan or #queue > 0 then
-                return false, "busy, switch collections when the current run finishes"
+                return false, "Busy. Switch collections when the current run finishes."
             end
             return true
         end,

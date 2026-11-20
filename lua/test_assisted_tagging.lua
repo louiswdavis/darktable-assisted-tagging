@@ -407,15 +407,15 @@ do
     check("family_roots: a set root is used", roots.number, "Rally|Number")
     check("removed_settings: clean settings pass", T.removed_settings(fs), nil)
     check("removed_settings: colour_tags", T.removed_settings({ colour_tags = false }),
-        'settings.json: colour_tags was removed; use family_colour (README, "Tag families")')
+        'settings.json: colour_tags was removed; use family_colour (README, "Tag families").')
     check("removed_settings: tag_colour", T.removed_settings({ tag_colour = true }),
-        'settings.json: tag_colour was removed; use family_colour (README, "Tag families")')
+        'settings.json: tag_colour was removed; use family_colour (README, "Tag families").')
     check("removed_settings: tag_colour_name", T.removed_settings({ tag_colour_name = "X" }),
-        'settings.json: tag_colour_name was removed; use family_colour_root (README, "Tag families")')
+        'settings.json: tag_colour_name was removed; use family_colour_root (README, "Tag families").')
     check("removed_settings: set embedder_file stops", T.removed_settings({ embedder_file = "dinov2_base.onnx" }),
-        'settings.json: embedder_file was removed; the plugin picks the model now (README, "Models")')
+        'settings.json: embedder_file was removed; the plugin picks the model now (README, "Models").')
     check("removed_settings: set ocr_rec_file stops", T.removed_settings({ ocr_rec_file = "x.onnx" }),
-        'settings.json: ocr_rec_file was removed; the plugin picks the model now (README, "Models")')
+        'settings.json: ocr_rec_file was removed; the plugin picks the model now (README, "Models").')
     check("removed_settings: blank model keys are ignored",
         T.removed_settings({ embedder_file = "", ocr_rec_file = "  " }), nil)
 end
@@ -857,7 +857,7 @@ do
     check("one_entry_csv: each role maps its own header, shares-car none", spec,
         "number=number;driver=driver;co-driver=co-driver;team=team;class=class;make=make;model=model;shares-car=;paddock=paddock")
     local none, why = T.one_entry_csv({ number = "  ", driver = "Smith" })
-    check("one_entry_csv: a blank number is refused", none == nil and why, "type the entry's number first.")
+    check("one_entry_csv: a blank number is refused", none == nil and why, "Type the entry's number first.")
 end
 
 -- ledger / protected tags / shot + conflict handling ---------------------------

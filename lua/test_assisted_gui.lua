@@ -325,14 +325,14 @@ local function add(images, entry_id)
 end
 
 run = add({ image(2, "DSC00002.JPG", { "Somewhere|Else" }) })
-check("add references, no entry tags: no crash", printed("couldn't add references"), false)
+check("add references, no entry tags: no crash", printed("Couldn't add references"), false)
 check("add references, no entry tags: identify.py isn't started", run, nil)
 check("add references: says it started as soon as it is clicked", printed("Assisted Tagging: Add references started on 1 image…"), true)
 print("     add references, no entry tags, says: " .. last_print())
 
 PYTHON.results = "3,added,,35\n"
 run = add({ image(3, "DSC00003.JPG", { "Rallye|35" }) })
-check("add references, hand entry tag: no crash", printed("couldn't add references"), false)
+check("add references, hand entry tag: no crash", printed("Couldn't add references"), false)
 check("add references, hand entry tag: the row names the entry", run and run.manifest ~= nil
     and run.manifest:find(T.csv_line({ 3, "/photos/DSC00003.JPG", "35" }), 1, true) == 1, true)
 check("add references, hand entry tag: reports the reference added",
@@ -437,9 +437,9 @@ PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("To check: a photo fill colours couldn't read shows in the box", to_check.visible, true)
 check("To check: the row names the action and the count",
-    (to_check[2][1] or {}).text, "Identify Colour: 1 photos couldn't be read (see log)")
+    (to_check[2][1] or {}).text, "Identify Colour: 1 photos couldn't be read (see log).")
 check("To check: the item is saved for a restart",
-    (read_file(CHECKS_FILE) or ""):find("Identify Colour\t1 photos couldn't be read (see log)\t1\t", 1, true) ~= nil, true)
+    (read_file(CHECKS_FILE) or ""):find("Identify Colour\t1 photos couldn't be read (see log).\t1\t", 1, true) ~= nil, true)
 prints, selection_sets = {}, 0
 ;(widget_where(to_check, "button", "label", "Select") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Select changes the selection", selection_sets, 1)

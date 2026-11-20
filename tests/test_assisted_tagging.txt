@@ -110,6 +110,17 @@ ok   colour_vote: near colours support the leader
 ok   colour_vote: an unrelated colour gives no support
 ok   colour_vote: a tie for the most photos names no colour
 ok   derive number: hand number adds the entry's tags and From number
+ok   derive number: an entry with no colour adds no colour tag
+ok   derive number: a colour tag matching the entry gets no second one
+ok   derive number: colour family off adds no colour tag
+ok   derive number: entry tags already on, colour missing, adds only the colour
+ok   derive number: a locked photo gets nothing
+ok   derive colour: a locked photo gets nothing
+ok   LOCKED_TAG: Assisted Tagging|Locked
+ok   parse_entries_csv: the 8th column is the shared car
+ok   hand_entry: both numbers of a shared car name the car
+ok   hand_entry: numbers of two different cars still disagree
+ok   derive number: a shared car's two number tags add both crews' tags
 ok   derive number: a ledgered (plugin) number tag is not the user's
 ok   derive number: colour that differs adds Check colour
 ok   derive number: entry already on the image is skipped
@@ -286,6 +297,14 @@ ok   anchor flag adds Check match
 ok   a dropped match is unidentified
 ok   mask_diag: check_match off blanks it
 ok   owned: match check tag
+ok   14-column row carries its new numbers
+ok   13-column row has no new number
+ok   a new number on a matched photo adds Number seen and keeps the match
+ok   new numbers and an unmatched read each add Number seen
+ok   new number alert text
+ok   new number alert photos in run order
+ok   new number alert photo lines
+ok   no new numbers, no alert
 ok   owned_prefixes: no colour root, no colour prefix
 ok   owned_prefixes includes the colour base
 ok   hand_value: one hand colour
