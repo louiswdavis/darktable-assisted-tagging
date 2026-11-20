@@ -1,14 +1,19 @@
-
---- stderr ---
-Traceback (most recent call last):
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_compare_detectors.py", line 8, in <module>
-    import compare_detectors as CD  # noqa: E402
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/compare_detectors.py", line 20, in <module>
-    from compare_ocr import MODELS, photos  # noqa: E402
-    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/compare_ocr.py", line 17, in <module>
-    from ocr import OCR_CROP_DIM, NumberReader
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/ocr.py", line 11, in <module>
-    import numpy as np
-ModuleNotFoundError: No module named 'numpy'
+ok   summarise: one row per detector per threshold
+ok   summarise: frames counted once per detector
+ok   summarise: frames_with_car at 0.20
+ok   summarise: frames_with_car at 0.35 drops the 0.25 box
+ok   summarise: boxes at 0.20
+ok   summarise: boxes_per_frame rounded
+ok   summarise: missed_cars = truth frames with no box at threshold
+ok   summarise: no missed cars when every truth frame has a box
+ok   summarise: truth False frames never count as missed
+ok   summarise: ms_mean over all frames
+ok   summarise: ms_p90 nearest-rank
+ok   summarise: ms is independent of threshold
+ok   summarise: default thresholds
+ok   summarise: missed_cars None when no row has truth
+ok   disagreements: frames whose box counts differ, sorted by frame
+ok   disagreements: counts per detector id
+ok   disagreements: empty when every frame agrees
+ok   read_truth: path → has vehicle, via manifest ids
+all tests passed

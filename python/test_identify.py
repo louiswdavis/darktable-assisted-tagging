@@ -1034,6 +1034,15 @@ def run_tests():
     named = [r.split(",") for r in open(results, encoding="utf-8").read().splitlines() if r.split(",")[3]]
     check("only-entries: every row naming an entry carries Check match (anchor_flag 1)",
           (len(named), all(r[12] == "1" for r in named)), (3, True))
+    hand_manifest = os.path.join(img, "hand-manifest.csv")
+    with open(manifest, encoding="utf-8") as src, open(hand_manifest, "w", encoding="utf-8") as f:
+        f.write(src.read().replace(f'"3","{X}/3.jpg","5"', f'"3","{X}/3.jpg","5","","","","VER"'))
+    args.manifest = hand_manifest
+    I.identify(args, dict(fake_models))
+    args.manifest = manifest
+    flags = {r.split(",")[0]: (r.split(",")[2], r.split(",")[12]) for r in open(results, encoding="utf-8").read().splitlines()}
+    check("only-entries: the user's own hand tag is no guess, so no Check match; the reads still get one",
+          (flags["3"], flags["1"]), (("hand", ""), ("number", "1")))
     args.only_entries = "NOPE"
     I.identify(args, dict(fake_models))
     check("only-entries: no row names an entry outside the pool",

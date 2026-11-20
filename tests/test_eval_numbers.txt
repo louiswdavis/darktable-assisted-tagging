@@ -1,10 +1,37 @@
-
---- stderr ---
-Traceback (most recent call last):
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_eval_numbers.py", line 12, in <module>
-    import eval_numbers as En
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/eval_numbers.py", line 23, in <module>
-    from ocr import digit_runs, drop_reason, pick_reads
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/ocr.py", line 11, in <module>
-    import numpy as np
-ModuleNotFoundError: No module named 'numpy'
+ok   drop: passes
+ok   drop: detection under the floor
+ok   drop: letters
+ok   drop: too small
+ok   drop: score checked first
+ok   drop: a lower floor lets it through
+ok   pick: best region per number, lower of det and rec, best first
+ok   pick: matrix of each read
+ok   pick: nothing passes
+ok   pick: a mixed-text region gives each digit run
+ok   drop: a year alone has no number
+ok   cause: a mixed region that read it is below min_read
+ok   cause: no region
+ok   cause: recognised wrong
+ok   cause: dropped with its reason
+ok   cause: passing region under min_read
+ok   cause: accepted read lost in matching
+ok   weak: right number between the two floors
+ok   weak: under WEAK_READ_MIN
+ok   replay: dropped region leaves the box unread
+ok   replay: OCR_MIN_SCORE=0.7 and min_read=0.7 read it
+ok   replay: OCR_MIN_SCORE=0.7 alone reads it as a weak read
+ok   replay: a weak read whose matrix can't spell it stays unread
+ok   replay: two numbers read in one box is no number read
+ok   replay: the live run's noise number is left out
+ok   set: parses known names
+ok   noise: the live run's knobs give the live run's noise numbers
+ok   noise: a lower min_read finds the number the live run didn't count
+ok   noise: a box that kept no regions counts with its stored reads
+ok   noise: a higher min_read drops the live run's noise number
+ok   noise: a boxes.json from before noise numbers has none
+ok   gate: a box under the gate replays unread
+ok   gate: NUMBER_GATE_MIN=0 replays its regions
+ok   gate: a box with no number share is never gated
+ok   main: a gated box is its own cause and agrees with the live run
+ok   main: --set min_read replays with its own noise numbers
+all tests passed

@@ -28,7 +28,7 @@ with open(common.__file__, "rb") as f:
     digest = hashlib.sha256(f.read().replace(b"\r\n", b"\n")).hexdigest()
 check("common.py matches the shared copy", digest, COMMON_SHA256)
 # Shared byte for byte with the culling repo: bump VEHICLE_DETECT_SHA256 in its test_score_images.py too.
-VEHICLE_DETECT_SHA256 = "e9a370e307644a72ba6db5065113d042ab9fa4486e5a928e7ef2a295a4914d52"
+VEHICLE_DETECT_SHA256 = "46d5ddc552d6be7266dab6ba42ac83002ec5bfb3ad4ed2f998e511bb5da82d2c"
 with open(os.path.join(os.path.dirname(common.__file__), "vehicle_detect.py"), "rb") as f:
     digest = hashlib.sha256(f.read().replace(b"\r\n", b"\n")).hexdigest()
 check("vehicle_detect.py matches the shared copy", digest, VEHICLE_DETECT_SHA256)

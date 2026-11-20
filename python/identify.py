@@ -1640,17 +1640,18 @@ def identify(args, models: dict):
     if rules.partial_references and stale_teams:
         log("team references for tags no entry carries under the team root (ignored): " + ", ".join(stale_teams))
 
-    with WorkerPool(models) as pool:
+    with WorkerPool(models) as worker_pool:  # not `pool`: that name is the --only-entries pool
         cache = IdentifyCache(args.cache, prune=True)
         DetectionCache(models.get("detections", ""), prune=True).close()
         try:
-            analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache, args.progress, pool)
+            analyses = run_frames([r[1] for r in rows if verify or r[0] not in fully_tagged], models, cache, args.progress,
+                                  worker_pool)
             if cancel_requested(args.progress):
                 log("cancelled")
                 sys.exit(130)
             # --verify compares each frame's own reading with its tags: no inference from burst mates
             if not verify:
-                analyses = rescue_frames(rows, analyses, models, cache, pool, args.progress)
+                analyses = rescue_frames(rows, analyses, models, cache, worker_pool, args.progress)
         finally:
             cache.close()
         log(index.use_run_centre([decode(e) for a in analyses.values() if a for e in a.get("emb", []) if e]))
@@ -1694,7 +1695,7 @@ def identify(args, models: dict):
         frames, burst_of, box0_sims, detail, _ = match_all(analyses, quiet=True)
         wanted = hires_wanted(frames, detail, analyses)
         if wanted and not cancel_requested(args.progress):
-            analyses = refine_frames(wanted, analyses, models, args.cache, pool, args.progress)
+            analyses = refine_frames(wanted, analyses, models, args.cache, worker_pool, args.progress)
     write_progress(args.progress, 0, 1, "matching")
     frames, burst_of, box0_sims, detail, noise = match_all(analyses)
 
