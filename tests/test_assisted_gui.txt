@@ -103,6 +103,7 @@ ok   stale Unidentified: an image skipped as tagged by hand loses the earlier ru
 ok   stale Unidentified: an image identified now loses an Unidentified tag missing from the ledger
 ok   stale Unidentified: an image whose hand tags name a car loses it
 ok   stale Unidentified: a hand Unidentified tag stays on an image still unidentified
+ok   reload: the entry's number tags are created in darktable
 ok   missing: with every entry carried, says so
 ok   missing: with every entry carried, identify.py does not run
 ok   missing: identify.py gets the missing entries in start-list order

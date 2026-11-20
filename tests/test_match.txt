@@ -262,4 +262,14 @@ ok   new numbers: a noise number is never new
 ok   new numbers: two boxes of one frame count that frame once
 ok   new numbers: both of a frame's boxes are named when the burst qualifies
 ok   new numbers: two bursts each qualifying both count
+ok   paddock index: upper-case ids to entry ids
+ok   paddock hit: a listed id names its entry
+ok   paddock hit: case is ignored on the list's side
+ok   paddock hit: an unlisted id names nobody
+ok   paddock hit: under min_read names nobody
+ok   paddock hit: reads naming two entries name nobody
+ok   paddock hit: two reads of one entry keep the better
+ok   paddock hit: an entry outside the pool is not named
+ok   paddock hit: an id two entries carry names nobody
+ok   paddock hit: no reads, no entry
 all tests passed

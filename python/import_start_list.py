@@ -254,6 +254,7 @@ def merge(collection_dir: str, entries: list) -> dict:
         inline = next((i for i in (False, True) if dump(json.loads(text), i).rstrip() == text.rstrip()), None)
     existing = data.setdefault("entries", [])
     renamed = _rename_demos(existing, entries)
+    _split_clashing_numbers(existing, entries)
     filled = _fill_paddocks(existing, entries)
     ids = {e.get("id") for e in existing if isinstance(e, dict)}
     race_numbers = {str(e.get("number", "")) for e in existing
@@ -299,6 +300,23 @@ def _rename_demos(existing: list, entries: list) -> list:
             if e.get("car") == old_id:
                 e["car"] = new_id
     return renamed
+
+
+def _split_clashing_numbers(existing: list, entries: list):
+    """An imported race row keyed by its number whose existing entry holds that number under a
+    different paddock id is another car, unless both name the same driver (then the paddock was hand
+    corrected: it is kept). The other car takes the id `<number>-<paddock>` instead of being skipped as
+    a duplicate; the id is the same on every import, so a re-import still skips it. An existing entry
+    with no paddock id is the same car and keeps the number id (the paddock is filled in)."""
+    held = {e.get("id"): e for e in existing if isinstance(e, dict)}
+    for entry in entries:
+        paddock = re.sub(r"\s+", "", entry.get("paddock", ""))
+        old = held.get(entry["id"])
+        if not paddock or old is None or entry["id"] != entry.get("number") or not old.get("paddock"):
+            continue
+        same_driver = old.get("name") and entry.get("name") and old["name"].split(" / ")[0] == entry["name"]
+        if str(old["paddock"]).upper() != paddock.upper() and not same_driver:
+            entry["id"] = f"{entry['number']}-{paddock}"
 
 
 def _fill_paddocks(existing: list, entries: list) -> int:

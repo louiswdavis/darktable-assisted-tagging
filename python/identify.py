@@ -41,7 +41,7 @@ import entries_file
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
-from match import (HAND, IDENTIFIED, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NOISE_MIN_BESIDE_SHARE, NOISE_MIN_PARTNERS, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, NEW_NUMBER_MIN_FRAMES, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads, noise_numbers, new_numbers, without_noise, number_index, numbers_of,
+from match import (HAND, NO_NUMBER, IDENTIFIED, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NOISE_MIN_BESIDE_SHARE, NOISE_MIN_PARTNERS, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, NEW_NUMBER_MIN_FRAMES, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads, noise_numbers, new_numbers, without_noise, number_index, numbers_of, paddock_hit, paddock_index,
                    burst_colours, burst_consensus, closer_car_match, colour_check, colour_overturns, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera, sure_cars,
                    match_livery, match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
@@ -324,8 +324,8 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
             continue
         number = item.get("number", "")
         number = str(number) if isinstance(number, int) and not isinstance(number, bool) else number
-        if not isinstance(number, str) or (number and not re.fullmatch(r"\d{1,3}", number)):
-            raise bad(f'entry "{eid}": number must be 1–3 digits')
+        if not isinstance(number, str) or (number and number != NO_NUMBER and not re.fullmatch(r"\d{1,3}", number)):
+            raise bad(f'entry "{eid}": number must be 1–3 digits, or - for a car with none')
         team = item.get("team", "")
         if not isinstance(team, str) or _BAD_TAG.search(team):
             raise bad(f'entry "{eid}": team must be text without , ; or "')
@@ -335,7 +335,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         co_driver = item.get("co_driver", "")
         if not isinstance(co_driver, str) or _BAD_TAG.search(co_driver):
             raise bad(f'entry "{eid}": co_driver must be text without , ; or "')
-        for key in ("extra", "make", "model"):
+        for key in ("extra", "make", "model", "paddock"):
             value = item.get(key, "")
             if not isinstance(value, str) or _BAD_TAG.search(value) or "|" in value:
                 raise bad(f'entry "{eid}": {key} must be text without , ; " or |')
@@ -357,7 +357,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         if number in shows:
             raise bad(f'entry "{eid}": shows repeats its own number {number}')
         entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, rules.families, bad), camera, colour, name, car,
-                             co_driver, tuple(dict.fromkeys(shows)))
+                             co_driver, tuple(dict.fromkeys(shows)), item.get("paddock", ""))
     if kind == "people":
         if rules_raw is None:
             log("warning: entries.json has no rules block, so the face thresholds use defaults")
@@ -381,7 +381,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
 def write_entries_csv(entries: dict, path: str):
     with open(path, "w", newline="", encoding="utf-8") as f:
         for e in entries.values():
-            f.write(f"{e.id},{e.team},{e.number},{';'.join(e.tags)},{e.name},{e.co_driver},{e.colour},{e.car}\n")
+            f.write(f"{e.id},{e.team},{'' if e.number == NO_NUMBER else e.number},{';'.join(e.tags)},{e.name},{e.co_driver},{e.colour},{e.car}\n")
 
 
 def write_rules_csv(rules: Rules, from_entries: tuple, path: str):
@@ -413,7 +413,7 @@ def tag_plan(name: str, entries: dict, rules: Rules, refs: dict) -> str:
     """The exact tags every outcome writes in this collection, for the user to read."""
     lines = [f"Tag plan for {name}", "", "Identified (by number, livery or burst): the vehicle's entry tags."]
     for e in entries.values():
-        how = f"#{e.number}" if e.number else "no number, livery only"
+        how = f"#{e.number}" if numbers_of(e) else "no number, livery only"
         n = refs.get(e.id, 0)
         lines.append(f"  {e.id} ({how}{', ' + e.team if e.team else ''}; {n} reference{'s' if n != 1 else ''})")
         lines.extend(f"      {t}" for t in e.tags)
@@ -435,10 +435,10 @@ def tag_plan(name: str, entries: dict, rules: Rules, refs: dict) -> str:
     lines.extend(f"      {t}" for t in rules.unidentified) if rules.unidentified else lines.append("      (nothing)")
     lines += ["", "Diagnostics (only with the diagnostic tags preference on): rules.diagnostics."]
     lines.extend(f"  {k:<12} {v or '(off)'}" for k, v in rules.diagnostics)
-    number_only = [e.id for e in entries.values() if not refs.get(e.id) and e.number]
-    never = [e.id for e in entries.values() if not refs.get(e.id) and not e.number]
+    number_only = [e.id for e in entries.values() if not refs.get(e.id) and (numbers_of(e) or e.paddock)]
+    never = [e.id for e in entries.values() if not refs.get(e.id) and not numbers_of(e) and not e.paddock]
     if number_only:
-        lines += ["", "No references yet, so identified by number only: " + ", ".join(number_only)]
+        lines += ["", "No references yet, so identified by number or paddock id only: " + ", ".join(number_only)]
     if never:
         lines += ["", "No number and no references, so never identified until references are added: "
                   + ", ".join(never)]
@@ -553,6 +553,7 @@ def frame_key(filepath: str, models: dict) -> list:
             *(keys["siglip"] if models.get("siglip") else []),
             *(number_gate_key() if models.get("number_gate") and models.get("siglip") else []),
             *(["ocr-regions-1"] if models.get("ocr_regions") else []),
+            *(["paddock-1", *sorted(models["paddocks"])] if models.get("paddocks") else []),
             *(["second-reader-1", *keys["second"]] if models.get("ocr_second") else [])]
 
 
@@ -634,6 +635,7 @@ def _init_worker(models: dict, siglip_texts=None):
         return
     _W["reader"] = NumberReader(models["ocr_det"], models["ocr_rec"], keep_regions=bool(models.get("ocr_regions")),
                                 second_path=models.get("ocr_second", ""))
+    _W["reader"].paddocks = models.get("paddocks", frozenset())
     _W["embedder"] = Embedder(models["embedder"])
     _W["segmenter"] = Segmenter(models["segmenter"]) if models.get("segmenter") else None
     _siglip(models)  # the detector loads in frame_entry, on the first frame that detects
@@ -714,7 +716,7 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
     read: its `ocr` is [] and its `ocr_trace` GATED_TRACE. Under --verify it is still read, for its
     `ocr_regions` only, so eval_numbers.py can replay another gate. With the second reader on,
     `ocr_second` sums the reader's last_second over the boxes read."""
-    ocr, trace, ctc, emb, pod, hist, overlap, masked, shares, regions, number_shares = [], [], [], [], [], [], [], [], [], [], []
+    ocr, trace, ctc, emb, pod, hist, overlap, masked, shares, regions, number_shares, paddock = [], [], [], [], [], [], [], [], [], [], [], []
     turns, second = {}, {}
     palette = _W["models"].get("car_colour")
     gate = _W.get("siglip") if _W["models"].get("number_gate") else None
@@ -725,7 +727,7 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
     for i, (b, (seen, state)) in enumerate(zip(boxes, seen_boxes)):
         overlap.append(state)
         if wanted is not None and i not in wanted:
-            for skipped in (pod, masked, ocr, trace, ctc, emb, *([hist] if _W["models"].get("colour") else []),
+            for skipped in (pod, masked, ocr, trace, ctc, paddock, emb, *([hist] if _W["models"].get("colour") else []),
                             *([shares] if palette else []), *([regions] if keep_regions else []),
                             *([number_shares] if gate else [])):
                 skipped.append(None)
@@ -748,6 +750,7 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
             ocr.append([])
             trace.append(GATED_TRACE)
             ctc.append({})
+            paddock.append([])
         else:
             ocr.append([[d, c] for d, c in reads])
             for turn, n in _W["reader"].last_turns.items():
@@ -756,6 +759,7 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
                 second[key] = second.get(key, 0) + n
             trace.append(_W["reader"].last_trace)
             ctc.append(_W["reader"].last_ctc)
+            paddock.append([[code, conf] for code, conf in _W["reader"].last_paddocks])
         if keep_regions:
             regions.append(_W["reader"].last_regions)
         emb.append(encode(_W["embedder"].embed(crop)))
@@ -766,6 +770,8 @@ def _read_boxes(rgb, boxes: list, hi=None, vecs=None, frame=None, wanted=None) -
                                                                  vec=vecs[i] if plain else None))
     out = {"boxes": [list(b) for b in boxes], "ocr": ocr, "ocr_trace": trace, "ocr_ctc": ctc, "ocr_turns": turns,
            "pod": pod, "emb": emb, "overlap": overlap, "masked": masked}
+    if _W["reader"].paddocks:
+        out["ocr_paddock"] = paddock
     if hist:
         out["hist"] = hist
     if palette:
@@ -908,6 +914,7 @@ def check_models(models: dict, siglip: bool = True):
     if not siglip:
         return loaded["embedder"]
     _W["reader"] = loaded["ocr_det"]
+    _W["reader"].paddocks = models.get("paddocks", frozenset())
     _W["siglip"] = loaded.get("siglip")
     if models.get("siglip"):
         log("box check: on (SigLIP 2)" + ("; colour reader: SigLIP 2" if models.get("car_colour") else ""))
@@ -1181,7 +1188,7 @@ def refine_frames(wanted: dict, analyses: dict, models: dict, cache_path: str, p
         if not read:
             continue
         a = dict(analyses[p])
-        for key in ("ocr", "ocr_trace", "ocr_ctc", "ocr_regions", "emb", "hist", "car_colour", "number_share"):
+        for key in ("ocr", "ocr_trace", "ocr_ctc", "ocr_paddock", "ocr_regions", "emb", "hist", "car_colour", "number_share"):
             if key in a and key in read:
                 a[key] = [read[key][i] if i in idx else v for i, v in enumerate(a[key])]
         a["hires"] = [i in idx for i in range(len(a["boxes"]))]
@@ -1361,6 +1368,11 @@ def match_frame(image_id: str, a: dict, index: ReferenceIndex, entries: dict, ru
                                rules.min_read, pool)
         if r.method == "number" and r.list_read and r.confidence < rules.min_read:
             r = replace(r, list_read=r.list_read + " (weak read)")
+        paddock_reads = a["ocr_paddock"][i] if "ocr_paddock" in a else None
+        paddock_id, paddock_conf = paddock_hit([tuple(c) for c in paddock_reads or []], entries, pool, rules.min_read)
+        if paddock_id and r.method != "number":
+            r = BoxResult(i, "number", paddock_id, confidence=paddock_conf, colour=r.colour, colour_flag=r.colour_flag,
+                          list_read=entries[paddock_id].paddock)
         read_entry = r.entry_id if r.method == "number" else ""
         r = match_team(r, team_sims, entries, pool)
         pod = a["pod"][i]
@@ -1561,10 +1573,10 @@ def entry_list_check(entries: dict, counts: dict) -> list:
         refs[car] = refs.get(car, 0) + counts.get(eid, 0)
     lines = [f"number {n} is on more than one car ({', '.join(ids)}): a read of it names none of them, only livery can"
              for n, ids in number_index(entries).items() if len({car_of[i] for i in ids}) > 1]
-    unfindable = [e.id for e in entries.values() if not numbers_of(e) and not refs[car_of[e.id]]]
+    unfindable = [e.id for e in entries.values() if not numbers_of(e) and not e.paddock and not refs[car_of[e.id]]]
     if unfindable:
         have, them = ("entry has", "it") if len(unfindable) == 1 else ("entries have", "them")
-        lines.append(f"{len(unfindable)} {have} no number and no references, so nothing can identify {them}: {named(unfindable)}")
+        lines.append(f"{len(unfindable)} {have} no number, no paddock id and no references, so nothing can identify {them}: {named(unfindable)}")
     no_refs = [e.id for e in entries.values() if numbers_of(e) and not refs[car_of[e.id]]]
     if counts and no_refs:
         have, them = ("has", "it") if len(no_refs) == 1 else ("have", "them")
@@ -1578,6 +1590,7 @@ def identify(args, models: dict):
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
+    models["paddocks"] = frozenset(paddock_index(entries)) if rules.kind != "people" else frozenset()
     models["number_gate"] = rules.kind != "people" and rules.number_gate
     models["second_reader"] = rules.kind != "people" and rules.second_reader
     models["ocr_second"] = models.get("ocr_second", "") if models["second_reader"] else ""
@@ -2077,6 +2090,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = "", siglip: 
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
+    models["paddocks"] = frozenset(paddock_index(entries)) if rules.kind != "people" else frozenset()
     models["segmenter"] = segmenter_path(models.get("detector", ""), models.get("segmenter", "")) if rules.kind != "people" else ""
     embedder = check_models(models, siglip)
     index = open_index(collection, models, rules, embedder, args.progress)
@@ -2244,6 +2258,7 @@ def audit_references(args, models: dict):
     models["kind"] = rules.kind
     models["colour"] = rules.kind != "people" and rules.colour_weight > 0
     models["car_colour"] = rules.colour_palette if rules.kind != "people" and "colour" in rules.families else None
+    models["paddocks"] = frozenset(paddock_index(entries)) if rules.kind != "people" else frozenset()
     models["segmenter"] = ""
     index = open_index(collection, models, rules, check_models(models, siglip=False), args.progress)
     if cancel_requested(args.progress):

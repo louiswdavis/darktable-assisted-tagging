@@ -57,11 +57,16 @@ class Entry:
     car: str = ""  # a double-driven car's id (the lower entry's id), set on both entries; "" when unshared
     co_driver: str = ""  # a rally co-driver, the value of the co-driver tag family; "" when none
     shows: tuple = ()  # other numbers the car carries (an old event's number left on the door); () when none
+    paddock: str = ""  # the letter+digits code on the car beside its number (D14); "" when none
+
+
+NO_NUMBER = "-"  # hand-set number for a car that genuinely has none; fills the number key, is never read
 
 
 def numbers_of(e: Entry) -> tuple:
-    """The numbers a read can name `e` by: its entry number, then any it also shows."""
-    return tuple(n for n in (e.number, *e.shows) if n)
+    """The numbers a read can name `e` by: its entry number, then any it also shows. The hand-set
+    NO_NUMBER is not one."""
+    return tuple(n for n in (e.number, *e.shows) if n and n != NO_NUMBER)
 
 
 def number_index(entries: dict) -> dict:
@@ -72,6 +77,31 @@ def number_index(entries: dict) -> dict:
         for n in numbers_of(e):
             by_number.setdefault(n, []).append(e.id)
     return by_number
+
+
+def paddock_index(entries: dict) -> dict:
+    """{PADDOCK ID: [entry ids]} (upper-case) over the entries that list a paddock id."""
+    by_paddock: dict = {}
+    for e in entries.values():
+        if e.paddock:
+            by_paddock.setdefault(e.paddock.upper(), []).append(e.id)
+    return by_paddock
+
+
+def paddock_hit(paddocks: list, entries: dict, pool: set = None, min_read: float = 0.0) -> tuple:
+    """(entry id, confidence) when the paddock reads (`paddocks`: [(id, confidence)]) at min_read or
+    above name exactly one entry in `pool` (None is every entry), else ("", 0.0): two entries
+    sharing an id, or reads naming two entries, are no read."""
+    index = paddock_index(entries)
+    named = {}
+    for code, conf in paddocks:
+        ids = [i for i in index.get(code.upper(), []) if pool is None or i in pool]
+        if conf >= min_read and len(ids) == 1:
+            named[ids[0]] = max(named.get(ids[0], 0.0), conf)
+    if len(named) != 1:
+        return "", 0.0
+    (eid, conf), = named.items()
+    return eid, conf
 
 
 @dataclass(frozen=True)

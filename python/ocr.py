@@ -47,16 +47,29 @@ CTC_TRIM_BLANK = 0.995  # leading and trailing steps this sure of blank carry no
 DB_MIN_SIDE = 3  # PaddleOCR DBPostProcess min_size: a text box's shorter side, in letterbox pixels
 
 
-def digit_runs(text: str) -> list:
+def digit_runs(text: str, paddocks=frozenset()) -> list:
     """The race numbers in recognised text, in order, each once: a token that is all digits once
     look-alikes are folded counts whole (l4 → 14); in any other token only its ASCII digits count
     (14A → 14, #7 → 7, RALLYE → none). Runs over NUMBER_MAX_DIGITS (2026) are dropped. Superscript
-    and circled digits are not ASCII, so they never count."""
+    and circled digits are not ASCII, so they never count. A token that is one of `paddocks`
+    (upper-case listed paddock ids) is a paddock id, not a number: D14 gives no 14."""
     out = []
     for token in _TOKEN_BREAK.split(text.lower()):
+        if token.upper() in paddocks:
+            continue
         folded = token.translate(_DIGIT_LOOKALIKES)
         runs = [folded] if folded.isascii() and folded.isdigit() else re.findall("[0-9]+", token)
         out += [r for r in runs if len(r) <= NUMBER_MAX_DIGITS and r not in out]
+    return out
+
+
+def paddock_runs(text: str, paddocks) -> list:
+    """The listed paddock ids (`paddocks`, upper-case) read in recognised text, in order, each once.
+    A token must equal an id whole, ignoring case: "D14" reads D14, "D140" and "AD14" read nothing."""
+    out = []
+    for token in _TOKEN_BREAK.split(text.upper()):
+        if token in paddocks and token not in out:
+            out.append(token)
     return out
 
 
@@ -346,35 +359,55 @@ class ParseqRecogniser:
         return "".join(chars), float(min(confs, default=0.0))
 
 
-def drop_reason(region: dict, min_score: float = OCR_MIN_SCORE, min_height: float = NUMBER_MIN_HEIGHT) -> str:
+def drop_reason(region: dict, min_score: float = OCR_MIN_SCORE, min_height: float = NUMBER_MIN_HEIGHT,
+                paddocks=frozenset()) -> str:
     """Why a text region (NumberReader.last_regions) gives no number: "score" (detection under
-    min_score), "not_digits" (no digit_runs), "height" (under min_height of the crop) or, where the
-    second reader read it (`second`), "disagree" (none of its numbers is one the second reader read
-    too), first failing first; "" when it passes."""
+    min_score), "not_digits" (no digit_runs; a token in `paddocks` is no number), "height" (under
+    min_height of the crop) or, where the second reader read it (`second`), "disagree" (none of its
+    numbers is one the second reader read too), first failing first; "" when it passes."""
     if region["det"] < min_score:
         return "score"
-    if not digit_runs(region["text"]):
+    if not digit_runs(region["text"], paddocks):
         return "not_digits"
     if region["share"] < min_height:
         return "height"
-    if "second" in region and not set(digit_runs(region["text"])) & set(digit_runs(region["second"])):
+    if "second" in region and not set(digit_runs(region["text"], paddocks)) & set(digit_runs(region["second"], paddocks)):
         return "disagree"
     return ""
 
 
-def pick_reads(regions: list, min_score: float = OCR_MIN_SCORE, min_height: float = NUMBER_MIN_HEIGHT) -> tuple:
+def pick_paddocks(regions: list, paddocks, min_score: float = OCR_MIN_SCORE, min_height: float = NUMBER_MIN_HEIGHT) -> list:
+    """[(paddock id, confidence)] most confident first from text regions (NumberReader.last_regions):
+    each listed id (`paddocks`, upper-case) read whole in a region detected at min_score or above and
+    at least min_height of the crop, confidence the lower of detection and read. Where the second
+    reader read the region, it must have read the id too."""
+    best = {}
+    for region in regions:
+        if region["det"] < min_score or region["share"] < min_height:
+            continue
+        codes = paddock_runs(region["text"], paddocks)
+        if "second" in region:
+            codes = [c for c in codes if c in paddock_runs(region["second"], paddocks)]
+        both = min(region["det"], region["rec"])
+        for code in codes:
+            best[code] = max(best.get(code, -1.0), both)
+    return sorted(best.items(), key=lambda kv: kv[1], reverse=True)
+
+
+def pick_reads(regions: list, min_score: float = OCR_MIN_SCORE, min_height: float = NUMBER_MIN_HEIGHT,
+               paddocks=frozenset()) -> tuple:
     """([(digits, confidence)] most confident first, {digits: digit matrix}) from text regions
     (NumberReader.last_regions): each distinct number's best passing region, confidence the lower of
     detection and read. A region with several digit runs gives each one, all with its whole matrix;
-    where the second reader read it, only the runs it read too. Shared by NumberReader.read and
-    eval_numbers' replay, so both decide alike."""
+    where the second reader read it, only the runs it read too. A token in `paddocks` gives no
+    number. Shared by NumberReader.read and eval_numbers' replay, so both decide alike."""
     best, ctc = {}, {}
     for region in regions:
-        if drop_reason(region, min_score, min_height):
+        if drop_reason(region, min_score, min_height, paddocks):
             continue
         both = min(region["det"], region["rec"])
-        agreed = digit_runs(region["second"]) if "second" in region else None
-        for digits in digit_runs(region["text"]):
+        agreed = digit_runs(region["second"], paddocks) if "second" in region else None
+        for digits in digit_runs(region["text"], paddocks):
             if agreed is not None and digits not in agreed:
                 continue
             if both > best.get(digits, -1.0):
@@ -389,6 +422,8 @@ class NumberReader:
         self.last_ctc: dict = {}
         self.last_turns: dict = {}
         self.last_second: dict = {}
+        self.paddocks = frozenset()  # listed paddock ids (upper-case): read whole as paddock ids, never as numbers
+        self.last_paddocks: list = []  # [(paddock id, confidence)] the last read() found, most confident first
         self.keep_regions = keep_regions  # --verify: last_regions holds every region, for eval_numbers
         self.last_regions: list = []
         for label, p in (("OCR text detection", det_path), ("OCR text recognition", rec_path),
@@ -428,15 +463,16 @@ class NumberReader:
             share = height_share(quad, h, w)
             trace.append([min(float(conf), read_conf), text, round(share, 3)])
             regions.append({"det": float(conf), "rec": float(read_conf), "text": text, "share": float(share), "matrix": matrix})
-            if self.second and digit_runs(text):
+            if self.second and (digit_runs(text, self.paddocks) or paddock_runs(text, self.paddocks)):
                 regions[-1]["second"] = self.second.read_word(src, np.roll(q, -(turn // 90), axis=0))[0]
-        reads, ctc = pick_reads(regions)
+        reads, ctc = pick_reads(regions, paddocks=self.paddocks)
+        self.last_paddocks = pick_paddocks(regions, self.paddocks)
         self.last_trace = sorted(trace, reverse=True)[:5]
         self.last_ctc = ctc
         self.last_turns = turns
         self.last_second = ({"checked": sum("second" in r for r in regions),
-                             "disagreed": sum(drop_reason(r) == "disagree" for r in regions)} if self.second else {})
-        self.last_regions = [dict(r, dropped=drop_reason(r)) for r in regions] if self.keep_regions else []
+                             "disagreed": sum(drop_reason(r, paddocks=self.paddocks) == "disagree" for r in regions)} if self.second else {})
+        self.last_regions = [dict(r, dropped=drop_reason(r, paddocks=self.paddocks)) for r in regions] if self.keep_regions else []
         return reads
 
 

@@ -3,6 +3,21 @@ ok   count: 0 is plural
 ok   count: 1 is singular
 ok   count: 2 is plural
 ok   count: an irregular plural
+ok   exif_time_to_epoch: nil, malformed and pre-1970 are undated
+ok   exif_time_to_epoch: seconds apart
+ok   fmt_eta: too early, no progress and finished are blank
+ok   fmt_eta: 10 of 20 after 60s leaves 1m 00s
+ok   image_exists: found, nil and erroring lookups
+ok   tags_of: names become keys
+ok   write_rows: writes one CSV line per row
+ok   write_rows: content
+ok   write_rows: unwritable path is false
+ok   plugin_root: preference wins
+ok   plugin_root: python/ folder's parent
+ok   plugin_root: plain script folder
+ok   plugin_root: no script uses this_dir
+ok   python_bin: falls back to system python3
+ok   python_bin: uses the bin darktable finds
 ok   shell_quote: Windows escapes quotes, keeps %
 ok   shell_quote: POSIX escapes single quotes
 ok   parse_csv_line: quoted comma and doubled quote
@@ -18,25 +33,25 @@ ok   sweep_temp: removes only this prefix's stale files
 ok   sweep_temp: newer file kept
 ok   sweep_temp: other prefix kept
 ok   error_guard: results pass through
-Assisted Tagging panel install: test_assisted_tagging.lua:80: boom
+Assisted Tagging panel install: test_assisted_tagging.lua:106: boom
 stack traceback:
 	[C]: in global 'error'
-	test_assisted_tagging.lua:80: in function <test_assisted_tagging.lua:80>
+	test_assisted_tagging.lua:106: in function <test_assisted_tagging.lua:106>
 	[C]: in global 'xpcall'
 	./plugin_common.lua:346: in local 'guard'
-	test_assisted_tagging.lua:80: in main chunk
+	test_assisted_tagging.lua:106: in main chunk
 	[C]: in ?
 ok   error_guard: error returns nil
 ok   error_guard: log has label and traceback
 ok   error_guard: toast names the log file
-Assisted Tagging button Derive: test_assisted_tagging.lua:85: cb
+Assisted Tagging button Derive: test_assisted_tagging.lua:111: cb
 stack traceback:
 	[C]: in global 'error'
-	test_assisted_tagging.lua:85: in function <test_assisted_tagging.lua:85>
+	test_assisted_tagging.lua:111: in function <test_assisted_tagging.lua:111>
 	[C]: in global 'xpcall'
 	./plugin_common.lua:346: in function <./plugin_common.lua:345>
 	(...tail calls...)
-	test_assisted_tagging.lua:86: in main chunk
+	test_assisted_tagging.lua:112: in main chunk
 	[C]: in ?
 ok   guarded_widget_maker: callback errors are logged with kind + label
 ok   guarded_widget_maker: other props untouched
@@ -337,7 +352,16 @@ ok   columns_spec names every role, none as empty
 ok   one_entry_csv: header row of the typed roles, then the trimmed entry
 ok   one_entry_csv: each role maps its own header, shares-car none
 ok   one_entry_csv: a blank number and paddock is refused
+ok   lacks_number_tag: no tags
+ok   lacks_number_tag: a colour tag only
+ok   lacks_number_tag: a locked photo with no number tag
+ok   lacks_number_tag: a number tag
+ok   lacks_number_tag: number family off
 ok   one_entry_csv: a paddock id alone is accepted
+ok   stale_checks: a number tag clears Unidentified, keeps Check match
+ok   stale_checks: an entry's tags clear it with no number root
+ok   stale_checks: no number tag and no entry keeps Unidentified
+ok   stale_checks: Check colour and Number seen stay
 ok   ledger round-trips
 ok   ledger output is sorted
 ok   an empty ledger formats to nothing

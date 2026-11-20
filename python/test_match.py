@@ -742,6 +742,20 @@ def run_tests():
                                                    burst, ENTRIES, {}).items()},
           {"115": ["f1", "f2", "f3", "g1", "g2", "g3"]})
 
+    # paddock ids: an exact read of a listed id names its entry
+    padded = dict(ENTRIES, HAM=replace(ENTRIES["HAM"], paddock="D14"), LEC=replace(ENTRIES["LEC"], paddock="c6"))
+    check("paddock index: upper-case ids to entry ids", Mt.paddock_index(padded), {"D14": ["HAM"], "C6": ["LEC"]})
+    check("paddock hit: a listed id names its entry", Mt.paddock_hit([("D14", 0.9)], padded), ("HAM", 0.9))
+    check("paddock hit: case is ignored on the list's side", Mt.paddock_hit([("C6", 0.8)], padded), ("LEC", 0.8))
+    check("paddock hit: an unlisted id names nobody", Mt.paddock_hit([("D15", 0.9)], padded), ("", 0.0))
+    check("paddock hit: under min_read names nobody", Mt.paddock_hit([("D14", 0.4)], padded, min_read=0.5), ("", 0.0))
+    check("paddock hit: reads naming two entries name nobody", Mt.paddock_hit([("D14", 0.9), ("C6", 0.9)], padded), ("", 0.0))
+    check("paddock hit: two reads of one entry keep the better", Mt.paddock_hit([("D14", 0.6), ("D14", 0.9)], padded), ("HAM", 0.9))
+    check("paddock hit: an entry outside the pool is not named", Mt.paddock_hit([("D14", 0.9)], padded, pool={"LEC"}), ("", 0.0))
+    shared_id = dict(padded, TSU=replace(ENTRIES["TSU"], paddock="D14"))
+    check("paddock hit: an id two entries carry names nobody", Mt.paddock_hit([("D14", 0.9)], shared_id), ("", 0.0))
+    check("paddock hit: no reads, no entry", Mt.paddock_hit([], padded), ("", 0.0))
+
     if failures == 0:
         print("all tests passed")
         sys.exit(0)

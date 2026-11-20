@@ -73,6 +73,27 @@ check("one read per digit run", O.digit_runs("l4-22"), ["14", "22"])
 check("| reads as 1", O.digit_runs("|4"), ["14"])
 check("S4 keeps its S in the read", O.digit_runs("S4"), ["4"])
 
+# paddock ids: a listed id read whole is a paddock read, and its digits are no number
+PAD = frozenset({"D14", "C6"})
+check("a listed paddock id gives no number", O.digit_runs("D14", PAD), [])
+check("a paddock id beside the number leaves the number", O.digit_runs("D14 100", PAD), ["100"])
+check("an unlisted letter+digits token still gives its digits", O.digit_runs("A11", PAD), ["11"])
+check("paddock ids are matched ignoring case", O.digit_runs("d14", PAD), [])
+check("paddock_runs reads a listed id whole", O.paddock_runs("D14", PAD), ["D14"])
+check("paddock_runs ignores case and keeps order, each once", O.paddock_runs("c6 d14 D14", PAD), ["C6", "D14"])
+check("paddock_runs: a longer token is not the id", O.paddock_runs("D140 AD14", PAD), [])
+check("paddock_runs: nothing listed reads nothing", O.paddock_runs("D14", frozenset()), [])
+region = {"det": 0.9, "rec": 0.97, "text": "D14", "share": 0.2, "matrix": None}
+check("pick_paddocks: a clean region reads its id", O.pick_paddocks([region], PAD), [("D14", 0.9)])
+check("pick_paddocks: a weak detection reads nothing", O.pick_paddocks([dict(region, det=0.2)], PAD), [])
+check("pick_paddocks: a tiny region reads nothing", O.pick_paddocks([dict(region, share=0.01)], PAD), [])
+check("pick_paddocks: the second reader must read it too", O.pick_paddocks([dict(region, second="D1")], PAD), [])
+check("pick_paddocks: the second reader agreeing keeps it", O.pick_paddocks([dict(region, second="d14")], PAD), [("D14", 0.9)])
+check("pick_paddocks: the best region wins", O.pick_paddocks([region, dict(region, det=0.99, rec=0.99)], PAD), [("D14", 0.99)])
+check("pick_reads: a paddock region gives no number", O.pick_reads([region], paddocks=PAD)[0], [])
+check("pick_reads: with no paddocks listed D14 still gives 14", [d for d, _ in O.pick_reads([region])[0]], ["14"])
+check("drop_reason: a paddock-only region is not_digits for numbers", O.drop_reason(region, paddocks=PAD), "not_digits")
+
 # height_share: quads are bottom-left, top-left, top-right, bottom-right in letterbox pixels.
 def quad(top, bottom, left=10, right=60):
     return np.array([[left, bottom], [left, top], [right, top], [right, bottom]], np.float32)
@@ -272,6 +293,16 @@ check("NumberReader: both readers agreeing gives the number", [d for d, _ in rea
 check("NumberReader: last_second counts the check", reader.last_second, {"checked": 1, "disagreed": 0})
 check("NumberReader: no second reader reads as before",
       [d for d, _ in O.NumberReader(os.path.join(models, "det.onnx"), os.path.join(models, "rec.onnx")).read(crop)], ["42"])
+# The fake recogniser's charset has no letters, so a listed id the fake can read ("42") stands in
+# for D14: the plumbing is real, a letter read needs the real model (a Windows run).
+check("NumberReader: no paddocks listed, nothing in last_paddocks", reader.last_paddocks, [])
+reader.paddocks = frozenset({"42"})
+check("NumberReader: a listed id is no number", reader.read(crop), [])
+check("NumberReader: a listed id read by both readers is a paddock read", [c for c, _ in reader.last_paddocks], ["42"])
+parseq_text = "17"
+reader.read(crop)
+check("NumberReader: a listed id the second reader disagrees on is no paddock read", reader.last_paddocks, [])
+reader.paddocks = frozenset()
 if real_ort:
     sys.modules["onnxruntime"] = real_ort
 else:

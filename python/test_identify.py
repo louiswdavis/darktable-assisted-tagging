@@ -3,6 +3,7 @@
 # plus vehicle_detect.py's decode and vehicles.py's crop, on synthetic files; no models needed.
 
 import ast
+import dataclasses
 import json
 import os
 import re
@@ -42,9 +43,9 @@ TSU = {"id": "TSU", "number": 22, "team": "Red Bull", "tags": ["F1|Red Bull", "F
 
 # Only the team family is on, rooted at F1: VER and TSU build exactly the tags they list.
 FIXTURE_SETTINGS = {"family_colour": False, "family_number": False, "family_driver": False, "family_co_driver": False, "family_extra": False,
-                    "family_vehicle": False, "family_team_root": "F1"}
+                    "family_vehicle": False, "family_paddock": False, "family_team_root": "F1"}
 ALL_FAMILIES = {"colour": "Assisted Tagging|Motorsport|Colour", "number": "Assisted Tagging|Motorsport|Number", "team": "Assisted Tagging|Motorsport|Team",
-                "driver": "Assisted Tagging|Motorsport|Driver", "co_driver": "Assisted Tagging|Motorsport|Co-driver", "extra": "Assisted Tagging|Motorsport|Class", "vehicle": "Assisted Tagging|Motorsport|Vehicle"}
+                "driver": "Assisted Tagging|Motorsport|Driver", "co_driver": "Assisted Tagging|Motorsport|Co-driver", "extra": "Assisted Tagging|Motorsport|Class", "vehicle": "Assisted Tagging|Motorsport|Vehicle", "paddock": "Assisted Tagging|Motorsport|Paddock"}
 
 
 def collection(data, root=None, settings=FIXTURE_SETTINGS) -> str:
@@ -99,9 +100,14 @@ def run_tests():
     check("duplicate id is rejected", load_error([VER, VER]), 'entry "VER" appears twice')
     check("a comma in a tag is rejected", load_error([dict(VER, tags=["a,b"])]),
           'entry "VER": tags: tag "a,b" can\'t contain , ; or "')
-    check("a non-digit number is rejected", load_error([dict(VER, number="1a")]), 'entry "VER": number must be 1–3 digits')
+    check("a non-digit number is rejected", load_error([dict(VER, number="1a")]), 'entry "VER": number must be 1–3 digits, or - for a car with none')
     check("a shows list loads as a tuple", I.load_collection(collection([dict(VER, shows=["44", "44"])]))[0]["VER"].shows,
           ("44",))
+    no_number = I.load_collection(collection([dict(VER, number="-")], settings=dict(FIXTURE_SETTINGS, family_number=True)))[0]["VER"]
+    check("a - number is accepted and kept", no_number.number, "-")
+    check("a - number builds the number tag", "Assisted Tagging|Motorsport|Number|-" in no_number.tags, True)
+    check("a - number is not a readable number", I.numbers_of(no_number), ())
+    check("a - number is not indexed", I.number_index({"VER": no_number}), {})
     check("a paddock field is accepted", I.load_collection(collection([dict(VER, paddock="H3")]))[0]["VER"].id, "VER")
     check("a non-list shows is rejected", load_error([dict(VER, shows="44")]),
           'entry "VER": shows must be a list of 1–3 digit numbers, e.g. ["44"]')
@@ -326,6 +332,8 @@ def run_tests():
     check("entries.csv rows", open(os.path.join(out, "e.csv"), encoding="utf-8").read().splitlines()[1],
           "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda,,,,")
     name_entries = I.load_collection(collection([dict(VER, name="Max Verstappen", co_driver="Gianpiero Lambiase")]))[0]
+    I.write_entries_csv({"VER": dataclasses.replace(entries["VER"], number="-")}, os.path.join(out, "dash.csv"))
+    check("a - number leaves entries.csv's number column empty", open(os.path.join(out, "dash.csv"), encoding="utf-8").read().splitlines()[0].split(",")[2], "")
     I.write_entries_csv(name_entries, os.path.join(out, "n.csv"))
     check("entries.csv ends with the name and co-driver", open(os.path.join(out, "n.csv"), encoding="utf-8").read().splitlines()[0],
           "VER,Red Bull,1,F1|Red Bull;F1|Red Bull|Verstappen,Max Verstappen,Gianpiero Lambiase,,")
@@ -349,7 +357,7 @@ def run_tests():
     check("the plan lists the teammates' shared tags", "  Red Bull (VER, TSU):\n      F1|Red Bull\n" in plan, True)
     check("the plan lists the unidentified tags", "rules.unidentified.\n      F1|Check" in plan, True)
     check("the plan names entries it can only find by number",
-          "No references yet, so identified by number only: TSU" in plan, True)
+          "No references yet, so identified by number or paddock id only: TSU" in plan, True)
     check("the plan names entries it can never find yet",
           "No number and no references, so never identified until references are added: SC" in plan, True)
     none_plan = I.tag_plan("F1", entries, I.Rules(team_only="none"), {})
@@ -373,6 +381,38 @@ def run_tests():
     FP._FINGERPRINT = ""
     check("restoring the constant restores the fingerprint", FP.analysis_fingerprint(), fp)
     check("the cache key is stable", I.frame_key(frame, models), key)
+    check("an empty paddock list leaves the cache key alone", I.frame_key(frame, dict(models, paddocks=frozenset())), key)
+    padded_key = I.frame_key(frame, dict(models, paddocks=frozenset({"D14"})))
+    check("a paddock list changes the cache key", padded_key != key, True)
+    check("another paddock list changes it again", I.frame_key(frame, dict(models, paddocks=frozenset({"D14", "C6"}))) != padded_key, True)
+
+    # ---- paddock read: an exact read of an entry's paddock id names it like a number read
+    pad_entries, pad_rules, _fe = I.load_collection(collection([
+        {"id": "100", "number": "100", "team": "T", "name": "A", "paddock": "D14"},
+        {"id": "7", "number": "7", "team": "T", "name": "B"}], settings={}))
+    check("an entry's paddock loads", {k: e.paddock for k, e in pad_entries.items()}, {"100": "D14", "7": ""})
+    check("the paddock family builds its tag", pad_entries["100"].tags[-1], "Assisted Tagging|Motorsport|Paddock|D14")
+    bad_paddock = settings_error([{"id": "100", "number": "100", "team": "T", "paddock": "D,14"}], {})
+    check("a paddock id with a comma is rejected", "paddock" in bad_paddock, True)
+
+    class NoReferences:
+        def best_per_entry(self, emb, hist, weight):
+            return []
+
+    def paddock_frame(ocr, paddock):
+        a = {"boxes": [[0, 0, 10, 10, 0.9]], "frame": (100, 100), "ocr": [ocr], "ocr_trace": [[]], "pod": [None],
+             "emb": [encode(np.zeros(4, np.float32))]}
+        if paddock is not None:
+            a["ocr_paddock"] = [paddock]
+        return I.match_frame("img", a, NoReferences(), pad_entries, pad_rules, {}, [], [], {}, {}, quiet=True)[0]
+
+    hit = paddock_frame([], [["D14", 0.9]])
+    check("a paddock read names its entry as a number read", (hit.method, hit.entry_id, hit.list_read), ("number", "100", "D14"))
+    check("a paddock read carries its confidence", hit.confidence, 0.9)
+    check("an unlisted paddock read names nobody", paddock_frame([], [["D99", 0.9]]).method, "none")
+    check("no paddock reads in the analysis name nobody", paddock_frame([], None).method, "none")
+    check("a weak paddock read names nobody", paddock_frame([], [["D14", 0.01]]).method, "none")
+    check("a number read keeps its own entry over a paddock read", paddock_frame([["7", 0.95]], [["D14", 0.95]]).entry_id, "7")
     saved = V.HIRES_MIN_GAIN
     V.HIRES_MIN_GAIN = saved + 0.1
     FP._FINGERPRINT = ""
@@ -468,6 +508,7 @@ def run_tests():
         last_trace, last_ctc, calls = [], [], 0
         keep_regions, last_regions, last_turns = False, [], {}
         second, last_second = None, {}
+        paddocks, last_paddocks = frozenset(), []
 
         def read(self, crop):
             self.calls += 1
@@ -487,6 +528,11 @@ def run_tests():
     check("the hires re-read reads only the wanted box", (I._W["reader"].calls, read["ocr"][0], read["ocr"][1]),
           (1, None, []))
     check("the hires re-read keeps the per-box list shape", (len(read["emb"]), read["pod"]), (2, [None, None]))
+    check("no paddock ids listed, no paddock reads kept", "ocr_paddock" in read, False)
+    I._W["reader"].paddocks, I._W["reader"].last_paddocks = frozenset({"D14"}), [("D14", 0.9)]
+    check("listed paddock ids keep each read box's paddock reads, None for the skipped",
+          I.hires_frame(("/x/1.cr3", two, [100, 66], [1]))["ocr_paddock"], [None, [["D14", 0.9]]])
+    I._W["reader"].paddocks, I._W["reader"].last_paddocks = frozenset(), []
     check("a decode not wide enough over the analysis frame isn't re-read",
           I.hires_frame(("/x/1.cr3", two, [250, 166], [1])), {})
     check("the wanted boxes join the hires key", I.hires_key(two, [1]) != I.hires_key(two, [0, 1]), True)
@@ -1197,11 +1243,11 @@ def run_tests():
           I.entry_list_check(listed, {"A": 3, "F": 1}),
           ["entry list: number 14 is on more than one car (A, B): a read of it names none of them, only livery can",
            "entry list: number 22 is on more than one car (C, D): a read of it names none of them, only livery can",
-           "entry list: 1 entry has no number and no references, so nothing can identify it: E",
+           "entry list: 1 entry has no number, no paddock id and no references, so nothing can identify it: E",
            "entry list: 3 of 6 entries have no references, so only a number read finds them: B, C, D"])
     check("entry list: with no references at all, entries that have a number aren't listed",
           I.entry_list_check({k: listed[k] for k in "CE"}, {}),
-          ["entry list: 1 entry has no number and no references, so nothing can identify it: E"])
+          ["entry list: 1 entry has no number, no paddock id and no references, so nothing can identify it: E"])
     pair = {"A": I.Entry("A", "14", "", (), car="A"), "B": I.Entry("B", "14", "", (), car="A")}
     check("entry list: a double-driven car's two entries share its number and its references", I.entry_list_check(pair, {"B": 2}), [])
     many = {f"E{n}": I.Entry(f"E{n}", str(n), "", ()) for n in range(1, 19)}

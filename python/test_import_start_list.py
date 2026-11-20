@@ -208,6 +208,14 @@ def run_tests():
         check("a re-import fills a missing paddock on existing entries and keeps one already set",
               [(e["id"], e.get("paddock")) for e in entries_of(demo)],
               [("8", "X1"), ("14", "H4"), ("A0", "A0"), ("Office1", "Office 1")])
+        clash = os.path.join(tmp, "clash.csv")
+        write(clash, "Car No,Driver,Paddock\n8,Other Eight,D14\n14,Same Fourteen,H4\n")
+        M.main([demo, "--csv", clash])
+        check("the same number under a different paddock id is a new entry keyed <number>-<paddock>; the same paddock is skipped",
+              [(e["id"], e["number"], e.get("paddock")) for e in entries_of(demo)],
+              [("8", "8", "X1"), ("14", "14", "H4"), ("A0", "8", "A0"), ("Office1", "9", "Office 1"), ("8-D14", "8", "D14")])
+        M.main([demo, "--csv", clash])
+        check("a re-import of the split entry adds nothing", len(entries_of(demo)), 5)
         demo_twice = os.path.join(tmp, "demo_twice.csv")
         write(demo_twice, "Car No,Driver,Class,Paddock\n3,A,Demonstration,A1\n4,B,Demonstration,A1\n")
         check("a demo paddock listed twice fails", exits_2([demo, "--csv", demo_twice]), 2)
