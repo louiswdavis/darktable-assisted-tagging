@@ -235,4 +235,16 @@ ok   closer car: a closer car under the anchor floor drops
 ok   closer car: the photo's other box is that car already, so drops
 ok   closer car: the burst's sure cars name another car, so drops
 ok   closer car: the burst's sure cars include the closer car, so moves
+ok   new numbers: 3 frames of a burst read 115, no entry has it
+ok   new numbers: the frames count however the box was matched (16 beside it on f2)
+ok   new numbers: 2 frames are not enough
+ok   new numbers: 3 frames across 2 bursts are not enough
+ok   new numbers: a frame alone is its own burst
+ok   new numbers: reads below WEAK_READ_MIN don't count
+ok   new numbers: a number an entry has is never new
+ok   new numbers: only 1 to 3 digits, as Find New Entries lists
+ok   new numbers: a noise number is never new
+ok   new numbers: two boxes of one frame count that frame once
+ok   new numbers: both of a frame's boxes are named when the burst qualifies
+ok   new numbers: two bursts each qualifying both count
 all tests passed

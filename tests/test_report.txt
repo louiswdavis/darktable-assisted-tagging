@@ -36,6 +36,9 @@ ok   render: ids with markdown characters sit in code spans
 ok   render: a dropped hint is listed and counted
 ok   render: no hint, no hint line
 ok   render: the summary lists the run's noise numbers and entry-list findings
+ok   render: the summary lists possible new entries (ticket 88)
+ok   render: a box names the numbers no entry has
+ok   render: no new numbers, no possible-new-entries line
 ok   render: a boxes.json without noise numbers or entry-list findings has neither line
 ok   render: frames resolved by pooled burst have their own section, weakest first
 ok   render: no pooled frame, no pooled section
