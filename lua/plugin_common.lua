@@ -304,6 +304,11 @@ function C.image_label(img)
     return ok and label or "image no longer in the library"
 end
 
+-- "1 image" / "2 images" for a toast or alert: `plural` defaults to `noun` plus "s".
+function C.count(n, noun, plural)
+    return n .. " " .. (n == 1 and noun or plural or noun .. "s")
+end
+
 -- pcall that also logs a failure with its traceback as "<what> failed: ...". Returns what pcall returns.
 function C.logged_call(log, what, fn)
     return xpcall(fn, function(err)
@@ -1454,12 +1459,14 @@ function C.alerts_box(new_widget, path, log, fixes)
     local current, current_run = "", alerts.items[1] and alerts.items[1].run or 0
     local header = new_widget("section_label") { label = "To Check" }
     local rows, more = {}, new_widget("label") { label = "", halign = "start", visible = false }
+    local plugin_title = (path:match("assisted_(%a+)%.checks") or "plugin"):gsub("^%l", string.upper)
+    plugin_title = "Assisted " .. plugin_title
     local save
     local function images_of(ids)
         local images = {}
         for _, id in ipairs(ids) do images[#images + 1] = dt.database.get_image(id) end
         if #images < #ids then
-            dt.print(string.format("%d of these photos are no longer in the library.", #ids - #images))
+            dt.print(string.format("%s: Couldn't open %s, no longer in the library.", plugin_title, C.count(#ids - #images, "image")))
         end
         return images
     end

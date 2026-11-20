@@ -17,7 +17,7 @@ end
 -- plugin_common.lua ---------------------------------------------------------------
 -- The same file in all three plugin repos; COMMON_HASH pins it. After changing it, copy it to the
 -- other two repos and put the hash this prints into their tests too.
-local COMMON_HASH = "4028fb69"
+local COMMON_HASH = "6850b432"
 local script_dir = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
 local PC = dofile(script_dir .. "/plugin_common.lua")
 local function fnv1a(text)
@@ -29,6 +29,10 @@ local cf = assert(io.open(script_dir .. "/plugin_common.lua", "rb"))
 local common_text = cf:read("a"):gsub("\r\n", "\n")
 cf:close()
 check("plugin_common.lua matches COMMON_HASH (copy it to the other repos after a change)", fnv1a(common_text), COMMON_HASH)
+check("count: 0 is plural", PC.count(0, "image"), "0 images")
+check("count: 1 is singular", PC.count(1, "image"), "1 image")
+check("count: 2 is plural", PC.count(2, "image"), "2 images")
+check("count: an irregular plural", PC.count(2, "entry", "entries"), "2 entries")
 check("shell_quote: Windows escapes quotes, keeps %", PC.shell_quote('C:\\x %y% "z"', true), '"C:\\x %y% \\"z\\""')
 check("shell_quote: POSIX escapes single quotes", PC.shell_quote("a'b", false), "'a'\\''b'")
 check("parse_csv_line: quoted comma and doubled quote", PC.parse_csv_line('1,"a ""x"", b.jpg",3\r', 3)[2], 'a "x", b.jpg')
@@ -160,9 +164,9 @@ local lk, n_runs = T.latest_group_keys({
     { id = 4, tags = { [G12 .. "|0001"] = true } },
     { id = 5, tags = { ["F1|Ferrari"] = true } },
 })
-check("latest_group_keys keeps each photo's own run", lk[1] == lk[2] and lk[3] == lk[4] and lk[1] ~= lk[3], true)
+check("latest_group_keys keeps each image's own run", lk[1] == lk[2] and lk[3] == lk[4] and lk[1] ~= lk[3], true)
 check("latest_group_keys counts runs", n_runs, 2)
-check("latest_group_keys leaves untagged photos out", lk[5], nil)
+check("latest_group_keys leaves untagged images out", lk[5], nil)
 local lng = T.number_groups({ 1, 2, 3, 4, 5 }, lk)
 check("latest_group_keys -> two groups plus a single",
     table.concat({ lng[1], lng[2], lng[3], lng[4], lng[5] }, ","), "1,1,2,2,3")
@@ -181,9 +185,9 @@ local gk2, multi = T.tag_group_keys({
     { id = 3, tags = { [G12 .. "|0002"] = true, [G12 .. "|0001"] = true } },
 }, G12)
 check("tag_group_keys takes the first child by name", gk2[3], "0001")
-check("tag_group_keys reports the photo", multi[1], 3)
+check("tag_group_keys reports the image", multi[1], 3)
 local gk3 = T.tag_group_keys({ { id = 4, tags = { [G10 .. "|0001"] = true } } }, G12)
-check("tag_group_keys leaves unmatched photos out", gk3[4], nil)
+check("tag_group_keys leaves unmatched images out", gk3[4], nil)
 
 local nk = T.native_group_keys({ { id = 1, leader = 5 }, { id = 2, leader = 5 }, { id = 3 } })
 check("native_group_keys maps leaders", nk[1] .. nk[2] .. tostring(nk[3]), "55nil")
@@ -281,7 +285,7 @@ check("colour_relation: Pink/Red near is 0", T.colour_relation("Pink", "Red"), 0
 check("colour_relation: Green/Purple differ", T.colour_relation("Green", "Purple"), -1)
 check("colour_vote: near colours support the leader", table.concat({ T.colour_vote({ Blue = 4, Purple = 3, Green = 2 }) }, " "), "Blue 9 9")
 check("colour_vote: an unrelated colour gives no support", table.concat({ T.colour_vote({ Blue = 4, Red = 3 }) }, " "), "Blue 4 7")
-check("colour_vote: a tie for the most photos names no colour", tostring((T.colour_vote({ Blue = 2, Purple = 2 }))), "nil")
+check("colour_vote: a tie for the most images names no colour", tostring((T.colour_vote({ Blue = 2, Purple = 2 }))), "nil")
 
 -- derive_plan / hand_source --------------------------------------------------
 do
@@ -311,9 +315,9 @@ do
     check("derive number: entry tags already on, colour missing, adds only the colour",
         plan({ ["M|Number|4"] = true, ["M|Team|Gamma"] = true, ["M|Driver|Di"] = true }, "number"),
         "AT|Derived|From number;M|Colour|Green / ")
-    check("derive number: a locked photo gets nothing",
+    check("derive number: a locked image gets nothing",
         plan({ ["M|Number|2"] = true, [T.LOCKED_TAG or "Assisted Tagging|Locked"] = true }, "number"), " / its tags are locked")
-    check("derive colour: a locked photo gets nothing",
+    check("derive colour: a locked image gets nothing",
         plan({ ["M|Colour|Red"] = true, [T.LOCKED_TAG or "Assisted Tagging|Locked"] = true }, "colour"), " / its tags are locked")
     check("LOCKED_TAG: Assisted Tagging|Locked", T.LOCKED_TAG, "Assisted Tagging|Locked")
     -- a shared car: entries.csv's 8th column names the car (the lower entry's id) on both entries,
@@ -631,21 +635,21 @@ check("group_source: different colours give the union and clash on them",
     .. table.concat(clashes, ", "), "true Motorsport|Colour|Blue, Motorsport|Colour|Red")
 local filled, none = T.group_source({ { ["Motorsport|Colour|Red"] = true, ["Num|12"] = true }, { ["Num|12"] = true },
     {} }, source_roots)
-check("group_source: photos missing the colour or every tag fill in without a clash",
+check("group_source: images missing the colour or every tag fill in without a clash",
     tostring(filled["Motorsport|Colour|Red"]) .. " " .. #none, "true 0")
 check("group_source: different entry tags under one parent clash",
     table.concat(select(2, T.group_source({ { ["Rallye|112"] = true }, { ["Rallye|35"] = true } }, source_roots)), ", "),
     "Rallye|112, Rallye|35")
 local _, same = T.group_source({ { ["Num|12"] = true }, { ["Num|12"] = true } }, source_roots)
 local _, single = T.group_source({ { ["Num|12"] = true } }, source_roots)
-check("group_source: matching photos or one photo don't clash", #same .. " " .. #single, "0 0")
+check("group_source: matching images or one image don't clash", #same .. " " .. #single, "0 0")
 local crossed, crossed_clashes = T.group_source({ { ["Num|12"] = true }, { ["Motorsport|Colour|Red"] = true } }, source_roots)
-check("group_source: a number on one photo and a colour on another merge without a clash",
+check("group_source: a number on one image and a colour on another merge without a clash",
     tostring(crossed["Num|12"] and crossed["Motorsport|Colour|Red"]) .. " " .. #crossed_clashes, "true 0")
-check("group_source: a double-driven car's two numbers clash when separate photos hold them",
+check("group_source: a double-driven car's two numbers clash when separate images hold them",
     table.concat(select(2, T.group_source({ { ["Num|30"] = true, ["Num|730"] = true }, { ["Num|30"] = true, ["Num|730"] = true },
         { ["Num|30"] = true }, { ["Num|730"] = true } }, source_roots)), ", "), "Num|30, Num|730")
-check("group_source: photos all holding both numbers of a car don't clash",
+check("group_source: images all holding both numbers of a car don't clash",
     #select(2, T.group_source({ { ["Num|30"] = true, ["Num|730"] = true }, { ["Num|30"] = true, ["Num|730"] = true } },
         source_roots)), 0)
 
@@ -719,17 +723,26 @@ local shared_entries = {
     ["12"] = { car = "", tags = { "Rally|12" } },
 }
 local shared_order = { "90", "790", "12" }
-check("missing_entries: an entry one photo carries is not missing",
+check("missing_entries: an entry one image carries is not missing",
     table.concat(T.missing_entries({ { ["Rally|12"] = true } }, shared_entries, shared_order), ","), "90,790")
-check("missing_entries: a photo of 90 carries the shared car, so 790 is not missing either",
+check("missing_entries: a image of 90 carries the shared car, so 790 is not missing either",
     table.concat(T.missing_entries({ { ["Rally|90"] = true, ["Rally|90|Driver A"] = true } }, shared_entries, shared_order), ","), "12")
-check("missing_entries: no photo of the shared car lists both its entries, in start-list order",
+check("missing_entries: no image of the shared car lists both its entries, in start-list order",
     table.concat(T.missing_entries({}, shared_entries, shared_order), ","), "90,790,12")
 check("missing_entries: hand-added tags (no ledger) count as carried",
     #T.missing_entries({ tsu_tags }, { TSU = { car = "", tags = { "F1|Red Bull", "F1|Red Bull|Tsunoda" } } }, { "TSU" }), 0)
-check("missing_entries: a photo carrying two entries' tags carries neither",
+check("missing_entries: a image carrying two entries' tags carries neither",
     table.concat(T.missing_entries({ { ["Rally|12"] = true, ["Rally|90"] = true, ["Rally|90|Driver A"] = true } },
         shared_entries, shared_order), ","), "90,790,12")
+local lock_roots = { number = "Rally|Number" }
+local number_entries = {
+    ["12"] = { car = "", number = "12", name = "A", tags = { "Rally|12", "Rally|12|A" } },
+    ["13"] = { car = "", number = "13", name = "B", tags = { "Rally|13", "Rally|13|B" } },
+}
+check("missing_entries: a locked image with only a number tag carries that entry",
+    table.concat(T.missing_entries({ { [T.LOCKED_TAG] = true, ["Rally|Number|12"] = true } }, number_entries, { "12", "13" }, lock_roots), ","), "13")
+check("missing_entries: an unlocked number-only image carries nothing",
+    table.concat(T.missing_entries({ { ["Rally|Number|12"] = true } }, number_entries, { "12", "13" }, lock_roots), ","), "12,13")
 check("entry_tags_note: no entry tag at all", T.entry_tags_note({ ["Holiday"] = true }, car_entries, { "30", "730", "12" }),
     "it carries no entry's tags")
 
@@ -806,15 +819,15 @@ do
     check("13-column row has no new number", nn[35][1].new_number, "")
     local NS = "Assisted Tagging|Identification|Number seen"
     local w31, d31, id31 = T.wanted_tags(nn[31], entries, crules)
-    check("a new number on a matched photo adds Number seen and keeps the match", tostring(d31[NS .. "|115"]) .. tostring(id31), "truetrue")
+    check("a new number on a matched image adds Number seen and keeps the match", tostring(d31[NS .. "|115"]) .. tostring(id31), "truetrue")
     local _, d32 = T.wanted_tags(nn[32], entries, crules)
     check("new numbers and an unmatched read each add Number seen",
           tostring(d32[NS .. "|115"]) .. tostring(d32[NS .. "|207"]) .. tostring(d32[NS .. "|9"]), "truetruetrue")
     local text, ids, why = T.new_number_alert(nn, { 33, 31, 32, 34 }, { [31] = "a.ARW", [32] = "b.ARW", [33] = "c.ARW", [34] = "d.ARW" })
     check("new number alert text", text,
-          "Possible new entries: 115 (2 photos), 207 (2 photos). Find New Entries (Tools page) adds them.")
-    check("new number alert photos in run order", table.concat(ids, ","), "33,31,32")
-    check("new number alert photo lines", table.concat(why, " / "),
+          "Possible new entries: 115 (2 images), 207 (2 images). Find New Entries (Tools page) adds them.")
+    check("new number alert images in run order", table.concat(ids, ","), "33,31,32")
+    check("new number alert image lines", table.concat(why, " / "),
           "c.ARW: read 207, no entry has it / a.ARW: read 115, no entry has it / b.ARW: read 115 and 207, no entry has them")
     check("no new numbers, no alert", T.new_number_alert(nn, { 34, 35 }, {}), nil)
     check("owned_prefixes: no colour root, no colour prefix", #T.owned_prefixes(T.default_rules()), 1)
@@ -869,13 +882,13 @@ do
     check("parse_header_report: empty output", #(T.parse_header_report("")), 0)
     check("columns_spec names every role, none as empty",
         T.columns_spec({ number = "Nr", driver = "Pilot" }),
-        "number=Nr;driver=Pilot;co-driver=;team=;class=;make=;model=;shares-car=;paddock=")
-    local text, spec = T.one_entry_csv({ number = " 12 ", driver = "Smith", team = 'A, "B" Racing', make = "Ford" })
+        "number=Nr;driver=Pilot;co-driver=;team=;class=;make=;model=;colour=;shares-car=;paddock=")
+    local text, spec = T.one_entry_csv({ number = " 12 ", driver = "Smith", team = 'A, "B" Racing', make = "Ford", colour = "Red" })
     check("one_entry_csv: header row of the typed roles, then the trimmed entry",
-        text, '"number","driver","co-driver","team","class","make","model","paddock"\n'
-            .. '"12","Smith","","A, ""B"" Racing","","Ford","",""\n')
+        text, '"number","driver","co-driver","team","class","make","model","colour","paddock"\n'
+            .. '"12","Smith","","A, ""B"" Racing","","Ford","","Red",""\n')
     check("one_entry_csv: each role maps its own header, shares-car none", spec,
-        "number=number;driver=driver;co-driver=co-driver;team=team;class=class;make=make;model=model;shares-car=;paddock=paddock")
+        "number=number;driver=driver;co-driver=co-driver;team=team;class=class;make=make;model=model;colour=colour;shares-car=;paddock=paddock")
     local none, why = T.one_entry_csv({ number = "  ", driver = "Smith" })
     check("one_entry_csv: a blank number is refused", none == nil and why, "Type the entry's number first.")
 end
@@ -959,13 +972,13 @@ do
         T.colour_done_message({ "101", "98" }, { "112" }, 0, 0, 0, 0), "Colour saved for entries 101, 98. Already right: entry 112.")
     check("colour_done_message: nothing to change, with what was left out",
         T.colour_done_message({}, { "112" }, 5, 0, 0, 2),
-        "Nothing to change, entry 112 already has the right colour. Left out: colour not read on 5 photos; "
-        .. "2 photos read as a different colour from the saved one, which was kept (see log).")
+        "Nothing to change, entry 112 already has the right colour. Left out: colour not read on 5 images; "
+        .. "2 images read as a different colour from the saved one, which was kept (see log).")
     check("colour_done_message: nothing saved",
         T.colour_done_message({}, {}, 3, 2, 1, 0),
-        "No entry colour saved. Left out: colour not read on 3 photos; 2 photos already had a colour tag and match no single entry; 1 photo failed (see log).")
-    check("colour_done_message: the photos tagged come first",
-        T.colour_done_message({ "35" }, {}, 0, 0, 0, 0, 3), "Colour tag added to 3 photos. Colour saved for entry 35.")
+        "No entry colour saved. Left out: colour not read on 3 images; 2 images already had a colour tag and match no single entry; 1 image failed (see log).")
+    check("colour_done_message: the images tagged come first",
+        T.colour_done_message({ "35" }, {}, 0, 0, 0, 0, 3), "Colour tag added to 3 images. Colour saved for entry 35.")
     local failed = T.parse_reference_results("1,failed,,\n2,read,set,VER\n")
     check("colour_summary: failed rows are counted", table.concat({ #T.colour_summary(failed), select(3, T.colour_summary(failed)) }, ","), "1,0,1")
 end
@@ -1086,7 +1099,7 @@ do
         img(1, { [NR .. "|7"] = true, ["M|Team|Sauber"] = true, ["M|Driver|Bearman"] = true }),
     }, ne, roots, SEEN)), "")
     -- test_new_entries_order
-    check("new entries: most photos first, then number", shape(T.new_entry_candidates({
+    check("new entries: most images first, then number", shape(T.new_entry_candidates({
         img(1, { [SEEN .. "|115"] = true, [SEEN .. "|9"] = true, [SEEN .. "|30"] = true }),
         img(2, { [SEEN .. "|30"] = true }),
     }, ne, roots, SEEN)), "number:30:30 r1,2 h; number:9:9 r1 h; number:115:115 r1 h")
@@ -1100,11 +1113,11 @@ do
         img(1, { [NR .. "|12"] = true, ["M|Team|Smith, Jones"] = true, ["M|Driver|O\"Neil"] = true }),
     }, ne, roots, SEEN)), "")
     check("candidate_label: read", T.candidate_label({ kind = "number", number = "115", value = "115", read = { 1, 2 }, hand = {} }),
-        "115    read on 2 photos")
-    check("candidate_label: both ways, one photo", T.candidate_label({ kind = "number", number = "88", value = "88", read = { 1 }, hand = { 2, 3 } }),
-        "88    read on 1 photo, hand-tagged on 2 photos")
+        "115    read on 2 images")
+    check("candidate_label: both ways, one image", T.candidate_label({ kind = "number", number = "88", value = "88", read = { 1 }, hand = { 2, 3 } }),
+        "88    read on 1 image, hand-tagged on 2 images")
     check("candidate_label: field", T.candidate_label({ kind = "team", entry = "12", number = "12", value = "Ferrari", read = {}, hand = { 1 } }),
-        "12: team Ferrari    hand-tagged on 1 photo")
+        "12: team Ferrari    hand-tagged on 1 image")
     -- test_same_field_twice
     local t1 = { kind = "team", entry = "12", number = "12", value = "Ferrari" }
     local t2 = { kind = "team", entry = "12", number = "12", value = "AF Corse" }
@@ -1137,9 +1150,9 @@ do
     check("new entries: a hand co-driver tag makes a co_driver row", shape(T.new_entry_candidates({
         img(1, { [NR .. "|25"] = true, ["M|Co-driver|Moss"] = true }) }, rally, co_roots, SEEN)), "co_driver:25:Moss r h1")
     check("candidate_label: split", T.candidate_label(split[1]),
-        '21: split "Smith / Jones" → driver Smith, co-driver Jones    read on 1 photo')
+        '21: split "Smith / Jones" → driver Smith, co-driver Jones    read on 1 image')
     check("candidate_label: co-driver", T.candidate_label({ kind = "co_driver", entry = "25", number = "25", value = "Moss", read = {}, hand = { 1 } }),
-        "25: co-driver Moss    hand-tagged on 1 photo")
+        "25: co-driver Moss    hand-tagged on 1 image")
     local s21 = split[1]
     check("check_additions: a split and a co-driver", T.check_additions({ s21,
         { kind = "co_driver", entry = "21", number = "21", value = "Jones" } }, co_roots),

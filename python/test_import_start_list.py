@@ -90,7 +90,7 @@ def run_tests():
         except M.BadInput:
             check("map_header needs a number column", "BadInput", "BadInput")
         try:
-            M.parse_columns("colour=Paint")
+            M.parse_columns("livery=Paint")
             check("parse_columns rejects an unknown role", None, "BadInput")
         except M.BadInput:
             check("parse_columns rejects an unknown role", "BadInput", "BadInput")
@@ -105,7 +105,7 @@ def run_tests():
         check("header_report lists headers then each role's mapped header",
               M.header_report("Nr;Pilot;Team\n1;A;B\n").split("\n"),
               ["header\tNr", "header\tPilot", "header\tTeam", "role\tnumber\tNr", "role\tdriver\tPilot", "role\tco-driver\t",
-               "role\tteam\tTeam", "role\tclass\t", "role\tmake\t", "role\tmodel\t", "role\tshares-car\t", "role\tpaddock\t"])
+               "role\tteam\tTeam", "role\tclass\t", "role\tmake\t", "role\tmodel\t", "role\tcolour\t", "role\tshares-car\t", "role\tpaddock\t"])
 
         codir = os.path.join(tmp, "codrivers")
         os.makedirs(codir)
@@ -130,6 +130,13 @@ def run_tests():
         check("fields follow id, number, name, team order", list(entries_of(vdir)[0]),
               ["id", "number", "name", "extra", "make", "model"])
         check("the Vehicle column isn't read as a role", "vehicle" in M.map_header(["Car No", "Vehicle"], {}), False)
+        cdir = os.path.join(tmp, "colours")
+        os.makedirs(cdir)
+        ccsv = os.path.join(tmp, "colours.csv")
+        write(ccsv, "No.,Driver,Colour\n8,Hall,Red\n9,Ito,\n")
+        M.main([cdir, "--csv", ccsv])
+        check("a colour column → colour; an empty one is left out",
+              entries_of(cdir), [{"id": "8", "number": "8", "name": "Hall", "colour": "Red"}, {"id": "9", "number": "9", "name": "Ito"}])
         nomake = os.path.join(tmp, "nomake.csv")
         write(nomake, "number,model\n5,Escort\n")
         check("a model with no make fails", exits_2([vdir, "--csv", nomake]), 2)

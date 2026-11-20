@@ -871,14 +871,14 @@ end
 
 -- The check-button text of a Find New Entries row.
 function M.candidate_label(row)
-    local function photos(n) return n == 1 and "1 photo" or (n .. " photos") end
+    local function images(n) return C.count(n, "image") end
     local seen
     if #row.read > 0 and #row.hand > 0 then
-        seen = "read on " .. photos(#row.read) .. ", hand-tagged on " .. photos(#row.hand)
+        seen = "read on " .. images(#row.read) .. ", hand-tagged on " .. images(#row.hand)
     elseif #row.read > 0 then
-        seen = "read on " .. photos(#row.read)
+        seen = "read on " .. images(#row.read)
     else
-        seen = "hand-tagged on " .. photos(#row.hand)
+        seen = "hand-tagged on " .. images(#row.hand)
     end
     local what
     if row.kind == "number" then
@@ -1061,10 +1061,8 @@ function M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_fail
     local function named(ids)
         return (#ids == 1 and "entry " or "entries ") .. table.concat(ids, ", ")
     end
-    local function photos(n)
-        return n == 1 and "1 photo" or n .. " photos"
-    end
-    local msg = (n_tagged or 0) > 0 and ("Colour tag added to " .. photos(n_tagged) .. ". ") or ""
+    local function images(n) return C.count(n, "image") end
+    local msg = (n_tagged or 0) > 0 and ("Colour tag added to " .. images(n_tagged) .. ". ") or ""
     if #set_ids > 0 then
         msg = msg .. "Colour saved for " .. named(set_ids) .. "."
         if #already_ids > 0 then msg = msg .. " Already right: " .. named(already_ids) .. "." end
@@ -1074,11 +1072,11 @@ function M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_fail
         msg = msg .. "No entry colour saved."
     end
     local left = {}
-    if n_unread > 0 then left[#left + 1] = "colour not read on " .. photos(n_unread) end
-    if n_skipped > 0 then left[#left + 1] = photos(n_skipped) .. " already had a colour tag and match no single entry" end
-    if n_failed > 0 then left[#left + 1] = photos(n_failed) .. " failed" end
-    if (n_disagree or 0) > 0 then left[#left + 1] = photos(n_disagree) .. " got no colour tag, the colours disagree" end
-    if n_differs > 0 then left[#left + 1] = photos(n_differs) .. " read as a different colour from the saved one, which was kept" end
+    if n_unread > 0 then left[#left + 1] = "colour not read on " .. images(n_unread) end
+    if n_skipped > 0 then left[#left + 1] = images(n_skipped) .. " already had a colour tag and match no single entry" end
+    if n_failed > 0 then left[#left + 1] = images(n_failed) .. " failed" end
+    if (n_disagree or 0) > 0 then left[#left + 1] = images(n_disagree) .. " got no colour tag, the colours disagree" end
+    if n_differs > 0 then left[#left + 1] = images(n_differs) .. " read as a different colour from the saved one, which was kept" end
     if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (see log)." end
     return msg
 end
@@ -1196,11 +1194,13 @@ end
 
 -- The entries no photo carries, in `order`. `tag_sets` holds one { [tag] = true } per photo in the
 -- collection, hand tags and locked photos included. A photo of either entry of a shared car carries
--- the car, so both its entries count as carried.
-function M.missing_entries(tag_sets, entries, order)
+-- the car, so both its entries count as carried. A locked photo also counts when only its number,
+-- driver or co-driver tag names an entry (`roots`, M.family_roots).
+function M.missing_entries(tag_sets, entries, order, roots)
     local carried = {}
     for _, have in ipairs(tag_sets) do
         local id = M.entry_for_tags(have, entries, order)
+        if not id and roots and M.is_locked(have) then id = M.hand_entry(have, nil, entries, roots) end
         if id then carried[(entries[id].car or "") ~= "" and entries[id].car or id] = true end
     end
     local missing = {}
@@ -1282,12 +1282,12 @@ function M.new_number_alert(rows_of, ids, file_of)
         return a < b
     end)
     local parts = {}
-    for _, digits in ipairs(numbers) do parts[#parts + 1] = string.format("%s (%d photos)", digits, photos_of[digits]) end
+    for _, digits in ipairs(numbers) do parts[#parts + 1] = string.format("%s (%s)", digits, C.count(photos_of[digits], "image")) end
     return "Possible new entries: " .. table.concat(parts, ", ") .. ". Find New Entries (Tools page) adds them.", hit, why
 end
 
 -- The start-list import's column roles, as import_start_list.py ROLES names them.
-M.IMPORT_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "shares-car", "paddock" }
+M.IMPORT_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "colour", "shares-car", "paddock" }
 
 -- `import_start_list.py --header` output → (CSV headers in order, {role = mapped header or ""}).
 function M.parse_header_report(out)
@@ -1312,7 +1312,7 @@ function M.columns_spec(picked)
 end
 
 -- The one-entry tab's roles. No shares-car: the import needs both entries of a shared car in the same list.
-M.ENTRY_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "paddock" }
+M.ENTRY_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "colour", "paddock" }
 
 -- {role = typed text} → (a one-entry start-list CSV, its --columns value), or (nil, problem) when number is blank.
 function M.one_entry_csv(typed)
@@ -1740,11 +1740,11 @@ local TAG_TOGGLES = {
     { key = "check_colour", kind = "check", label = "Check colour",
       when = "The number read is confident but the car's colour differs from its entry's. Delete this tag once checked." },
     { key = "check_match", kind = "check", label = "Check match",
-      when = "A livery, burst or neighbour match didn't look like the car's anchors (refs you tagged or picked, or strong number reads), so no entry tag was added. Tag the photo by hand if it is that car. With closer_car_margin (settings.json) above 0, a match clearly closer to another car's anchors is tagged as that car and keeps this tag: check it." },
+      when = "A livery, burst or neighbour match didn't look like the car's anchors (refs you tagged or picked, or strong number reads), so no entry tag was added. Tag the image by hand if it is that car. With closer_car_margin (settings.json) above 0, a match clearly closer to another car's anchors is tagged as that car and keeps this tag: check it." },
     { key = "shot", kind = "check", label = "Shot",
       when = "Solo: one vehicle found. Pack: two or three." },
     { key = "shot_crowded", kind = "check", label = "Shot crowded",
-      when = "Four vehicles were found, the most a photo is checked for, so more may be in frame and the number read may belong to another one: check it by hand." },
+      when = "Four vehicles were found, the most an image is checked for, so more may be in frame and the number read may belong to another one: check it by hand." },
     { key = "derived", kind = "diag", label = "Derived from",
       when = "An entry's tags were added. From identification: Identify's models picked the entry. From number / From driver: your hand tag named it. From colour: Derive from Colour found one entry of that colour." },
 }
@@ -2197,7 +2197,7 @@ local entries, entry_order, rules = {}, {}, M.default_rules()
 local function missing_in(images)
     local tag_sets = {}
     for i, img in ipairs(images or {}) do tag_sets[i] = tags_of(img) end
-    return M.missing_entries(tag_sets, entries, entry_order)
+    return M.missing_entries(tag_sets, entries, entry_order, M.family_roots(settings))
 end
 local tag_checks = {} -- TAG_TOGGLES key → its check button (set by install_panel)
 
@@ -2714,14 +2714,14 @@ local function prepare_run(images, replace_manual, job)
     for _, id in ipairs(primary_ids) do
         if size_of[burst_of[id]] >= 2 then grouped = grouped + 1 end
     end
-    local msg = string.format("group support %s: %d of %d photos in groups of 2+", mechanism, grouped, #primaries)
+    local msg = string.format("group support %s: %d of %d images in groups of 2+", mechanism, grouped, #primaries)
     if mechanism == "tags" then
         if node then
             msg = msg .. string.format(", node %s", node)
         else
-            msg = msg .. (n_runs > 0 and string.format(", latest run per photo (%d runs)", n_runs) or ", no grouping tags found")
+            msg = msg .. (n_runs > 0 and string.format(", latest run per image (%d runs)", n_runs) or ", no grouping tags found")
         end
-        if node and next(key_of) == nil then msg = msg .. " (matches no selected photo)" end
+        if node and next(key_of) == nil then msg = msg .. " (matches no selected image)" end
         if #multi > 0 then msg = msg .. ", several children on ids " .. table.concat(multi, ",") end
     end
     log(msg)
@@ -2937,10 +2937,10 @@ function M.clear_marks(images)
         write_ledger(ledger, _("The cleared images keep their old ledger rows, so tags you add to them by hand "
             .. "can be removed by the next run or clear."))
         if stopped then
-            say(string.format(_("Assisted Tagging: Stopped; cleared %d tags from %d images. "
-                .. "The rest keep their marks, clear again to finish."), n_tags, n_images))
+            say(string.format(_("Assisted Tagging: Stopped; cleared %d tags from %s. "
+                .. "The rest keep their marks, clear again to finish."), n_tags, C.count(n_images, "image")))
         else
-            say(string.format(_("Assisted Tagging: Cleared %d tags from %d images."), n_tags, n_images))
+            say(string.format(_("Assisted Tagging: Cleared %d tags from %s."), n_tags, C.count(n_images, "image")))
         end
     end)
     finish_job(job)
@@ -3030,7 +3030,7 @@ function M.derive_images(images, mode)
         write_ledger(ledger)
         local msg = "Assisted Tagging: " .. label
         if n_derived > 0 then
-            msg = msg .. string.format(stopped and " stopped early: %d images derived so far." or " done: %d images derived.", n_derived)
+            msg = msg .. string.format(stopped and " stopped early: %s derived so far." or " done: %s derived.", C.count(n_derived, "image"))
         else
             msg = msg .. (stopped and " stopped early: no image derived." or ": no image derived.")
         end
@@ -3040,9 +3040,9 @@ function M.derive_images(images, mode)
         if failed > 0 then left[#left + 1] = string.format("%d couldn't be tagged", failed) end
         if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (reasons in the log)." end
         say(msg)
-        if #check_ids > 0 then alerts.add(string.format("%d photos marked Check colour.", #check_ids), check_ids) end
-        if #skipped_ids > 0 then alerts.add(string.format("%d photos skipped (reasons in the log).", #skipped_ids), skipped_ids) end
-        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log).", #failed_ids), failed_ids) end
+        if #check_ids > 0 then alerts.add(string.format("%s marked Check colour.", C.count(#check_ids, "image")), check_ids) end
+        if #skipped_ids > 0 then alerts.add(string.format("%s skipped (reasons in the log).", C.count(#skipped_ids, "image")), skipped_ids) end
+        if #failed_ids > 0 then alerts.add(string.format("%s couldn't be tagged (see log).", C.count(#failed_ids, "image")), failed_ids) end
     end)
     finish_job(job)
     if not okr then notify_error(_("Assisted Tagging: Couldn't derive tags. ") .. tostring(err)) end
@@ -3096,18 +3096,18 @@ local function apply_results(run, job)
                 read_of[#read_of + 1] = id .. "=" .. r.colour
             end
         end
-        say(string.format("Assisted Tagging: Verify only, no tags changed. %d images checked, %d differ from their tags (see the report's conflict section).", #ids, #differ.ids))
+        say(string.format("Assisted Tagging: Verify only, no tags changed. %s checked, %d with a different entry from their tags (see the report's conflict section).", C.count(#ids, "image"), #differ.ids))
         if #differ.ids > 0 then
-            alerts.add(string.format("%d photos read a different entry from the one their tags name. Fix runs Identify on them with your tags replaced.",
-                #differ.ids), differ.ids, "identify_replace", differ.why)
+            alerts.add(string.format("%s read a different entry from the one their tags name. Fix runs Identify on them with your tags replaced.",
+                C.count(#differ.ids, "image")), differ.ids, "identify_replace", differ.why)
         end
         if #clash.ids > 0 then
-            alerts.add(string.format("%d photos read a different colour from their entry's in entries.json. The tag or the entry can be wrong. Fix adds the Check colour tag.",
-                #clash.ids), clash.ids, "check_colour", clash.why)
+            alerts.add(string.format("%s read a different colour from their entry's in entries.json. The tag or the entry can be wrong. Fix adds the Check colour tag.",
+                C.count(#clash.ids, "image")), clash.ids, "check_colour", clash.why)
         end
         if #tag_clash.ids > 0 then
-            alerts.add(string.format("%d photos' Colour tag differs from the colour read. Fix replaces the Colour tag with the colour read.",
-                #tag_clash.ids), tag_clash.ids, "colour_tag:" .. table.concat(read_of, ","), tag_clash.why)
+            alerts.add(string.format("The Colour tag differs from the colour read on %s. Fix replaces the Colour tag with the colour read.",
+                C.count(#tag_clash.ids, "image")), tag_clash.ids, "colour_tag:" .. table.concat(read_of, ","), tag_clash.why)
         end
         return
     end
@@ -3256,8 +3256,8 @@ local function apply_results(run, job)
         if cancelled(job) then
             wait_for_writes()
             show_status("")
-            say(string.format("Assisted Tagging: Stopped while writing tags; %d of %d images were updated. Run again to finish.",
-                i, #primaries))
+            say(string.format("Assisted Tagging: Stopped while writing tags; %d of %s were updated. Run again to finish.",
+                i, C.count(#primaries, "image")))
             return
         end
     end
@@ -3274,7 +3274,7 @@ local function apply_results(run, job)
                          { "hand", "by your tag" } }) do
         if by_method[m[1]] > 0 then parts[#parts + 1] = string.format("%d %s", by_method[m[1]], m[2]) end
     end
-    local msg = string.format("Assisted Tagging: Done. %d of %d images tagged", n_tagged, #primaries)
+    local msg = string.format("Assisted Tagging: Done. %d of %s tagged", n_tagged, C.count(#primaries, "image"))
     if #parts > 0 then msg = msg .. " (vehicles: " .. table.concat(parts, ", ") .. ")" end
     if n_unidentified > 0 then msg = msg .. string.format(", %d unidentified", n_unidentified) end
     if n_skipped > 0 then msg = msg .. string.format(", %d already tagged (skipped)", n_skipped) end
@@ -3285,10 +3285,10 @@ local function apply_results(run, job)
     if first_error then log("first tag write error: " .. first_error) end
     for _, t in ipairs(TAG_TOGGLES) do
         local ids = flagged[t.key]
-        if ids then alerts.add(string.format("%d photos tagged %s.", #ids, t.label), ids) end
+        if ids then alerts.add(string.format("%s tagged %s.", C.count(#ids, "image"), t.label), ids) end
     end
-    if #missing_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log).", #missing_ids), missing_ids) end
-    if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be updated (see log).", #failed_ids), failed_ids) end
+    if #missing_ids > 0 then alerts.add(string.format("%s couldn't be read (see log).", C.count(#missing_ids, "image")), missing_ids) end
+    if #failed_ids > 0 then alerts.add(string.format("%s couldn't be updated (see log).", C.count(#failed_ids, "image")), failed_ids) end
     local new_ids, file_of = {}, {}
     for _, img in ipairs(primaries) do
         local id = tonumber(img.id)
@@ -3325,7 +3325,7 @@ local function library_neighbour_rows(images, job)
                 end
             end
         end)
-        if not okr then log("couldn't read film roll " .. tostring(film.path) .. "; its photos lend no neighbour support") end
+        if not okr then log("couldn't read film roll " .. tostring(film.path) .. "; its images lend no neighbour support") end
     end
     local rows = {}
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
@@ -3336,7 +3336,7 @@ local function library_neighbour_rows(images, job)
     start = os.time()
     for i, c in ipairs(near) do
         if i % every == 0 then show_stage(job, "neighbours", 0.5 + 0.5 * i / #near) end
-        show_count("reading nearby photo", i, #near, start, every)
+        show_count("reading nearby image", i, #near, start, every)
         local have = tags_of(c.img)
         -- a photo carrying all of an entry's tags, or one the user's hand tag names
         local eid = M.entry_for_tags(have, entries, entry_order)
@@ -3360,7 +3360,7 @@ function M.identify_images(images, replace_manual, verify_only, only_entries)
     identify_cancellable = true
     if identify_button then identify_button.label = _("Cancel") end
     start_log(verify_only and "verify started" or "identify started", #images)
-    log(string.format("settings: replace manual %s, cars per photo %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s, order weight %s",
+    log(string.format("settings: replace manual %s, cars per image %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s, order weight %s",
         tostring(replace_manual and true or false),
         tostring(settings.cars_per_photo),
         tostring(settings.use_hints),
@@ -3402,7 +3402,7 @@ function M.identify_images(images, replace_manual, verify_only, only_entries)
             flush_log()
             local lib_rows = library_neighbour_rows(images, job)
             show_stage(job, "neighbours", 1)
-            log(string.format("neighbour: %d unselected tagged photos shot near the selection, %ds",
+            log(string.format("neighbour: %d unselected tagged images shot near the selection, %ds",
                 #lib_rows, os.time() - stage_start))
             flush_log()
             if #lib_rows > 0 then
@@ -3458,8 +3458,8 @@ function M.identify_images(images, replace_manual, verify_only, only_entries)
                     ids[#ids + 1] = tonumber(id)
                     why[#why + 1] = string.format("%s: reads %s", name_of[id], p[3])
                 end
-                alerts.add(string.format("Entry %s is %s in entries.json, but %s of its %s photos read %s. Fix sets its colour to %s.",
-                    p[1], p[2], p[4], p[5], p[3], p[3]), ids, "entry_colour:" .. p[1] .. "=" .. p[3], why)
+                alerts.add(string.format("Entry %s is %s in entries.json, but %s of its %s read %s. Fix sets its colour to %s.",
+                    p[1], p[2], p[4], C.count(tonumber(p[5]) or 0, "image"), p[3], p[3]), ids, "entry_colour:" .. p[1] .. "=" .. p[3], why)
             end
         end
     end)
@@ -3748,7 +3748,7 @@ function M.add_found_entries(ticked, image_of)
     end
     if not reload_lists(true) then return true end
     local n_images = retag_added_numbers(ticked, image_of, roots.number, M.named_rules(rules, settings).diag.number_seen)
-    say(string.format("Assisted Tagging: %s; %d photos tagged with their new number.", capital(out), n_images))
+    say(string.format("Assisted Tagging: %s; %s tagged with their new number.", capital(out), C.count(n_images, "image")))
     return true
 end
 
@@ -3776,7 +3776,7 @@ function M.derive_colour(images, colour_of, to_group)
         local any_group = false
         for _, group_members in pairs(members_of) do any_group = any_group or #group_members > 1 end
         if not any_group then
-            dt.print(_("Assisted Tagging: None of the selected photos is in a darktable group with other photos."))
+            dt.print(_("Assisted Tagging: None of the selected images is in a darktable group with other images."))
             return
         end
     end
@@ -3843,7 +3843,7 @@ function M.derive_colour(images, colour_of, to_group)
             end
         end
         if #rows == 0 then
-            say(_("Assisted Tagging: Every selected photo already has a colour tag and none names one entry, so nothing was read."))
+            say(_("Assisted Tagging: Every selected image already has a colour tag and none names one entry, so nothing was read."))
             return
         end
         -- no hand colour tag for an entry: the colour tag most of its selected photos carry stands in
@@ -3853,10 +3853,10 @@ function M.derive_colour(images, colour_of, to_group)
             local top, support, total = M.colour_vote(counts)
             if not by_hand[eid] and top and support >= M.COLOUR_TAG_MIN_PHOTOS and support >= total * M.COLOUR_TAG_MIN_SHARE then
                 agreed[eid] = top
-                log(string.format("entry %s: %d of its %d colour-tagged photos are tagged %s or a near colour, sent as its colour",
+                log(string.format("entry %s: %d of its %d colour-tagged images are tagged %s or a near colour, sent as its colour",
                     eid, support, total, top))
             elseif not by_hand[eid] then
-                log(string.format("entry %s: its photos' colour tags don't agree enough (%d of %d for %s and near colours; needs %d photos and %d%%), so they change nothing",
+                log(string.format("entry %s: its images' colour tags don't agree enough (%d of %d for %s and near colours; needs %d images and %d%%), so they change nothing",
                     eid, support, total, top or "no single colour", M.COLOUR_TAG_MIN_PHOTOS, math.floor(M.COLOUR_TAG_MIN_SHARE * 100 + 0.5)))
             end
         end
@@ -3882,7 +3882,7 @@ function M.derive_colour(images, colour_of, to_group)
             local agreed_colour = top and support >= total * M.COLOUR_TAG_MIN_SHARE and top or nil
             if not agreed_colour and total > 0 and #untagged > 0 then
                 n_disagree = n_disagree + #untagged
-                log(string.format("%s: the colours read disagree (%d of %d for %s and near colours; needs %d%%), so %d photos got no colour tag",
+                log(string.format("%s: the colours read disagree (%d of %d for %s and near colours; needs %d%%), so %d images got no colour tag",
                     key == "selection" and "selection" or "group " .. tostring(key), support, total, top or "no single colour",
                     math.floor(M.COLOUR_TAG_MIN_SHARE * 100 + 0.5), #untagged))
             end
@@ -3919,10 +3919,10 @@ function M.derive_colour(images, colour_of, to_group)
             elseif p[2] == "failed" then failed_ids[#failed_ids + 1] = tonumber(p[1]) end
         end
         if #differ_ids > 0 then
-            alerts.add(string.format("%d photos read a different colour from their entry's.", #differ_ids), differ_ids)
+            alerts.add(string.format("%s read a different colour from their entry's.", C.count(#differ_ids, "image")), differ_ids)
         end
-        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log).", #failed_ids), failed_ids) end
-        if #tag_failed > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log).", #tag_failed), tag_failed) end
+        if #failed_ids > 0 then alerts.add(string.format("%s couldn't be read (see log).", C.count(#failed_ids, "image")), failed_ids) end
+        if #tag_failed > 0 then alerts.add(string.format("%s couldn't be tagged (see log).", C.count(#tag_failed, "image")), tag_failed) end
     end)
     finish_reference_job(state, okr, err, "Couldn't identify colours.")
 end
@@ -3980,10 +3980,10 @@ local function fix_tags(label, images, plan, touch_locked)
         end
         wait_for_writes()
         write_ledger(ledger)
-        say(string.format("Assisted Tagging: %s done, %d tag changes on %d photos%s.", label, n_tags,
-            #images - #failed_ids - n_locked,
-            n_locked > 0 and string.format(", %d locked photo%s left alone", n_locked, n_locked == 1 and "" or "s") or ""))
-        if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log).", #failed_ids), failed_ids) end
+        say(string.format("Assisted Tagging: %s done, %d tag changes on %s%s.", label, n_tags,
+            C.count(#images - #failed_ids - n_locked, "image"),
+            n_locked > 0 and string.format(", %s left alone", C.count(n_locked, "locked image")) or ""))
+        if #failed_ids > 0 then alerts.add(string.format("%s couldn't be tagged (see log).", C.count(#failed_ids, "image")), failed_ids) end
     end)
     finish_job(job)
     if not okr then notify_error(string.format("Assisted Tagging: %s failed. %s", label, tostring(err))) end
@@ -4094,11 +4094,11 @@ function M.copy_tags_to_group(images, ask)
         if #group_members > 1 then units[#units + 1] = { synced = group.synced, members = group_members } end
     end
     if #units == 0 then
-        dt.print(_("Assisted Tagging: None of the selected photos is in a darktable group with other photos."))
+        dt.print(_("Assisted Tagging: None of the selected images is in a darktable group with other images."))
         return
     end
     copy_merged(_("Copy Tags to Group"), units, ask, function(n_merged, shown)
-        return string.format(_("The selected photos in %d groups hold different tags of one family (%s). Copy merges them, so every photo in those groups gets all of them."),
+        return string.format(_("The selected images in %d groups hold different tags of one family (%s). Copy merges them, so every image in those groups gets all of them."),
             n_merged, shown)
     end, entries, named)
 end
@@ -4117,7 +4117,7 @@ function M.copy_tags_to_selection(images, ask)
     local synced = {}
     for _, img in ipairs(images) do synced[#synced + 1] = M.group_sync_tags(tags_of(img), entries, named) end
     copy_merged(_("Copy Tags to Selection"), { { synced = synced, members = images } }, ask, function(n_merged, shown)
-        return string.format(_("The selected photos hold different tags of one family (%s). Copy merges them, so every selected photo gets all of them."),
+        return string.format(_("The selected images hold different tags of one family (%s). Copy merges them, so every selected image gets all of them."),
             shown)
     end, entries, named)
 end
@@ -4171,13 +4171,13 @@ function M.promote_references(images)
         local parsed, notes = M.parse_reference_results(results)
         for _, p in ipairs(parsed) do counts[p[2]] = (counts[p[2]] or 0) + 1 end
         local msg = counts.added > 0
-            and string.format("Assisted Tagging: Saved vehicles from %d images as references. Crops are in %s/refs.",
-                counts.added, current_collection())
+            and string.format("Assisted Tagging: Saved vehicles from %s as references. Crops are in %s/refs.",
+                C.count(counts.added, "image"), current_collection())
             or "Assisted Tagging: No vehicle saved as a reference."
         local colour_notes = M.colour_note_extras(notes)
         if #colour_notes > 0 then msg = msg .. " " .. table.concat(colour_notes, "; ") .. "." end
         local left = {}
-        if counts.none_promotable > 0 then left[#left + 1] = string.format("%d images had no vehicle confident enough", counts.none_promotable) end
+        if counts.none_promotable > 0 then left[#left + 1] = string.format("%s had no vehicle confident enough", C.count(counts.none_promotable, "image")) end
         if counts.flagged > 0 then left[#left + 1] = string.format("%d flagged by the audit checks", counts.flagged) end
         if counts.stale > 0 then left[#left + 1] = string.format("%d changed since the run (run Identify again)", counts.stale) end
         if counts.failed > 0 then left[#left + 1] = string.format("%d failed", counts.failed) end
@@ -4417,7 +4417,7 @@ local function start_identify_missing()
     dt.print(_("Assisted Tagging: Reading the collection's tags to find the missing entries…"))
     local missing = missing_in(dt.collection)
     if #missing == 0 then
-        dt.print(_("Assisted Tagging: Every entry has a photo."))
+        dt.print(_("Assisted Tagging: Every entry has a image."))
         return
     end
     -- a photo that already carries an entry (an earlier run's tags included) is not rerun: its
@@ -4427,7 +4427,7 @@ local function start_identify_missing()
         if not M.entry_for_tags(tags_of(img), entries, entry_order) then leftovers[#leftovers + 1] = img end
     end
     if #dt.gui.action_images > 0 and #leftovers == 0 then
-        dt.print(_("Assisted Tagging: Every selected photo already has an entry."))
+        dt.print(_("Assisted Tagging: Every selected image already has an entry."))
         return
     end
     M.identify_images(leftovers, false, false, missing)
@@ -4536,7 +4536,7 @@ collection_store = function()
     store.export_options = { {
         key = "refs",
         label = "References",
-        tooltip = "Also export refs/ (the reference crops and sources.json). They go out as full JPG crops of your photos: in a people collection they are face photos. Run caches and refs-quarantine never go.",
+        tooltip = "Also export refs/ (the reference crops and sources.json). They go out as full JPG crops of your images: in a people collection they are face images. Run caches and refs-quarantine never go.",
     } }
     function store.export_label(name, _key)
         local files, bytes = tree_size(dir(name) .. "/refs")
@@ -4663,7 +4663,7 @@ local function install_panel()
     end
     -- One picker per role: (none) + the chosen CSV's headers, preset to the usual names.
     local ROLE_LABELS = { number = _("Number"), driver = _("Driver"), ["co-driver"] = _("Co-Driver"), team = _("Team"),
-        class = _("Class"), make = _("Make"), model = _("Model"), ["shares-car"] = _("Shares Car With"), paddock = _("Paddock") }
+        class = _("Class"), make = _("Make"), model = _("Model"), colour = _("Colour"), ["shares-car"] = _("Shares Car With"), paddock = _("Paddock") }
     local column_headers = {} -- the chosen CSV's headers; {} until one is read
     local column_combos = {}
     for i, role in ipairs(M.IMPORT_ROLES) do
@@ -4787,7 +4787,7 @@ local function install_panel()
     local found_box = new_widget("box") { orientation = "vertical" }
     local add_found_button = new_widget("button") {
         label = _("Add Ticked to entries.json"),
-        tooltip = _("Add the ticked numbers as new entries and the ticked teams, drivers and co-drivers to their entries; a ticked split turns a \"Driver / Co-driver\" name into a driver and a co-driver. The previous file is saved as entries.json.bak. Photos that read an added number get its number tag."),
+        tooltip = _("Add the ticked numbers as new entries and the ticked teams, drivers and co-drivers to their entries; a ticked split turns a \"Driver / Co-driver\" name into a driver and a co-driver. The previous file is saved as entries.json.bak. Images that read an added number get its number tag."),
         visible = false,
         clicked_callback = function() end,
     }
@@ -4811,16 +4811,16 @@ local function install_panel()
     end)
     local find_button = new_widget("button") {
         label = _("Find New Entries"),
-        tooltip = _("List the numbers the selected photos read or carry by hand that entries.json lacks, the teams, drivers and co-drivers you tagged by hand on entries that have none, and entries whose name still holds \"Driver / Co-driver\" to split. Nothing is added until you tick it."),
+        tooltip = _("List the numbers the selected images read or carry by hand that entries.json lacks, the teams, drivers and co-drivers you tagged by hand on entries that have none, and entries whose name still holds \"Driver / Co-driver\" to split. Nothing is added until you tick it."),
         clicked_callback = function()
             local images = dt.gui.action_images
             local rows, image_of = M.find_new_entries(images)
             if not rows then return end
             found.image_of = image_of
             if #rows == 0 then
-                show_found(rows, string.format(_("No new entries in %d selected photos."), #images))
+                show_found(rows, string.format(_("No new entries in %s."), C.count(#images, "selected image")))
             else
-                show_found(rows, string.format(_("New in %d selected photos:"), #images))
+                show_found(rows, string.format(_("New in %s:"), C.count(#images, "selected image")))
             end
         end,
     }
@@ -4867,7 +4867,7 @@ local function install_panel()
     }
     local copy_group_button = new_widget("button") {
         label = _("Copy Tags to Group"),
-        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other photo in the group, so the group matches. When the copy names an entry, Check match goes, and a photo that had no entry also loses Unidentified and Number seen. Other diagnostics, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. A selected image missing a tag gets it filled in. Asks first only when a group's selected images hold different tags of one family, such as two colours."),
+        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other image in the group, so the group matches. When the copy names an entry, Check match goes, and a image that had no entry also loses Unidentified and Number seen. Other diagnostics, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. A selected image missing a tag gets it filled in. Asks first only when a group's selected images hold different tags of one family, such as two colours."),
         clicked_callback = function()
             copy_confirm_box.visible = false
             M.copy_tags_to_group(dt.gui.action_images, function(text, go)
@@ -4879,7 +4879,7 @@ local function install_panel()
     }
     local copy_selection_button = new_widget("button") {
         label = _("Copy Tags to Selection"),
-        tooltip = _("Merge the selected images' entry and family tags (number, colour, team…) across all of them, so each one fills in the tags it lacks. Photos outside the selection, group mates too, are untouched. When the copy names an entry, Check match goes, and a photo that had no entry also loses Unidentified and Number seen. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. Asks first only when the selected images hold different tags of one family, such as two colours."),
+        tooltip = _("Merge the selected images' entry and family tags (number, colour, team…) across all of them, so each one fills in the tags it lacks. Images outside the selection, group mates too, are untouched. When the copy names an entry, Check match goes, and a image that had no entry also loses Unidentified and Number seen. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. Asks first only when the selected images hold different tags of one family, such as two colours."),
         clicked_callback = function()
             copy_confirm_box.visible = false
             M.copy_tags_to_selection(dt.gui.action_images, function(text, go)
@@ -4913,7 +4913,7 @@ local function install_panel()
     }
     missing_button = new_widget("button") {
         label = _("Identify Missing Entries"),
-        tooltip = _("Identify the selected photos that name no entry, choosing only from the entries no photo in the collection carries yet. Every result gets Check match: review it with Verify Selection."),
+        tooltip = _("Identify the selected images that name no entry, choosing only from the entries no image in the collection carries yet. Every result gets Check match: review it with Verify Selection."),
         clicked_callback = start_identify_missing,
     }
     entry_combo = new_widget("combobox") {
@@ -4940,12 +4940,12 @@ local function install_panel()
     }
     local colour_group_button = new_widget("button") {
         label = _("Identify Colour for Group"),
-        tooltip = _("Read the paintwork of each selected photo's largest car (a selected photo's colour tag counts as its reading). The colour two thirds of a group's selected photos agree on goes to every photo in that darktable group without a colour tag; a group whose readings disagree gets none. Photos that name one entry (all of its tags, or a number, driver or co-driver tag) also vote on that entry's colour in entries.json: it is filled when it has none; a colour tag you applied replaces it, and so does the colour tag Identify wrote when at least 3 of the entry's selected photos carry the same one and they are two thirds of its colour-tagged photos (photos tagged Check colour don't count). Photos that already have a colour tag or are locked keep theirs. Saves no references. Needs the Colour family on (page 4)."),
+        tooltip = _("Read the paintwork of each selected image's largest car (a selected image's colour tag counts as its reading). The colour two thirds of a group's selected images agree on goes to every image in that darktable group without a colour tag; a group whose readings disagree gets none. Images that name one entry (all of its tags, or a number, driver or co-driver tag) also vote on that entry's colour in entries.json: it is filled when it has none; a colour tag you applied replaces it, and so does the colour tag Identify wrote when at least 3 of the entry's selected images carry the same one and they are two thirds of its colour-tagged images (images tagged Check colour don't count). Images that already have a colour tag or are locked keep theirs. Saves no references. Needs the Colour family on (page 4)."),
         clicked_callback = function() M.derive_colour(dt.gui.action_images, nil, true) end,
     }
     local colour_selection_button = new_widget("button") {
         label = _("Identify Colour for Selection"),
-        tooltip = _("Read the paintwork of each selected photo's largest car (a selected photo's colour tag counts as its reading). The colour two thirds of them agree on goes to every selected photo without a colour tag; photos outside the selection, group mates too, are untouched. Readings that disagree tag nothing. Photos that name one entry (all of its tags, or a number, driver or co-driver tag) also vote on that entry's colour in entries.json: it is filled when it has none; a colour tag you applied replaces it, and so does the colour tag Identify wrote when at least 3 of the entry's selected photos carry the same one and they are two thirds of its colour-tagged photos (photos tagged Check colour don't count). Photos that already have a colour tag or are locked keep theirs. Saves no references. Needs the Colour family on (page 4)."),
+        tooltip = _("Read the paintwork of each selected image's largest car (a selected image's colour tag counts as its reading). The colour two thirds of them agree on goes to every selected image without a colour tag; images outside the selection, group mates too, are untouched. Readings that disagree tag nothing. Images that name one entry (all of its tags, or a number, driver or co-driver tag) also vote on that entry's colour in entries.json: it is filled when it has none; a colour tag you applied replaces it, and so does the colour tag Identify wrote when at least 3 of the entry's selected images carry the same one and they are two thirds of its colour-tagged images (images tagged Check colour don't count). Images that already have a colour tag or are locked keep theirs. Saves no references. Needs the Colour family on (page 4)."),
         clicked_callback = function() M.derive_colour(dt.gui.action_images) end,
     }
     local promote_button = new_widget("button") {
@@ -4986,7 +4986,7 @@ local function install_panel()
     local tag_rows, name_entries, tag_row_boxes = {}, {}, {}
     -- Per family: its switch and the root its tags sit under (family_<key>_root).
     local family_rows = {
-        colour = { _("Colour"), _("Read each car's paintwork colour and write it as <root>|<colour>. Also needed by Check colour and entry colours (Identify Colour and the reference actions). Turning it on re-reads every photo once.") },
+        colour = { _("Colour"), _("Read each car's paintwork colour and write it as <root>|<colour>. Also needed by Check colour and entry colours (Identify Colour and the reference actions). Turning it on re-reads every image once.") },
         number = { _("Number"), _("Write an identified entry's race number as <root>|<number>.") },
         team = { _("Team"), _("Write an identified entry's team as <root>|<team>. A team tag you applied by hand is also the hint that narrows matching.") },
         driver = { _("Driver"), _("Write an identified entry's name as <root>|<name>.") },
@@ -5040,7 +5040,7 @@ local function install_panel()
     local shown_support = "native" -- last shown or picked: the combo's callback acts only on a change
     local group_support_combo = new_widget("combobox") {
         label = _("Grouping Support"),
-        tooltip = _("What groups photos for shared identification. Native groups: darktable's image groups. Grouping tags: the children of the tag node below. None: every photo is its own group.\nDefault: native groups. Pick grouping tags after an Assisted Grouping run you have not applied as darktable groups."),
+        tooltip = _("What groups images for shared identification. Native groups: darktable's image groups. Grouping tags: the children of the tag node below. None: every image is its own group.\nDefault: native groups. Pick grouping tags after an Assisted Grouping run you have not applied as darktable groups."),
         changed_callback = function(self)
             local key = support_keys[self.selected]
             if not key or key == shown_support then return end
@@ -5058,7 +5058,7 @@ local function install_panel()
     local shown_run_tag = "none" -- last shown or picked: the combo's callback acts only on a change
     local run_tag_combo = new_widget("combobox") {
         label = _("Tag Each Run"),
-        tooltip = _("Add a timestamp tag (Assisted Tagging|Run|YYYY-MM-DD HH:MM) so the latest run's photos can be filtered apart from earlier ones. Changed images: only copies whose tags this run added or removed. All images: every copy the run processes, which writes to every copy each run and can stall darktable for minutes on a large shoot. Stamps accumulate; remove old ones in darktable's tag manager.\nDefault: no images. Pick changed images when re-running a shoot and you want to review only what changed."),
+        tooltip = _("Add a timestamp tag (Assisted Tagging|Run|YYYY-MM-DD HH:MM) so the latest run's images can be filtered apart from earlier ones. Changed images: only copies whose tags this run added or removed. All images: every copy the run processes, which writes to every copy each run and can stall darktable for minutes on a large shoot. Stamps accumulate; remove old ones in darktable's tag manager.\nDefault: no images. Pick changed images when re-running a shoot and you want to review only what changed."),
         changed_callback = function(self)
             local key = run_tag_keys[self.selected]
             if not key or key == shown_run_tag then return end
@@ -5075,8 +5075,8 @@ local function install_panel()
     local CARS_LABELS = { solo = "one car (solo)", packs = "several cars (packs)" }
     local shown_cars = "solo" -- last shown or picked: the combo's callback acts only on a change
     local cars_combo = new_widget("combobox") {
-        label = _("Cars per Photo"),
-        tooltip = _("One car: only the largest car in each photo is tagged; a smaller car counts only when its number is read, so background traffic adds no car or colour tags. Several cars: every car found is tagged, for racing where cars share a shot.\nDefault: one car. Pick several cars for circuit racing."),
+        label = _("Cars per Image"),
+        tooltip = _("One car: only the largest car in each image is tagged; a smaller car counts only when its number is read, so background traffic adds no car or colour tags. Several cars: every car found is tagged, for racing where cars share a shot.\nDefault: one car. Pick several cars for circuit racing."),
         changed_callback = function(self)
             local key = cars_keys[self.selected]
             if not key or key == shown_cars then return end
@@ -5086,8 +5086,8 @@ local function install_panel()
         _(CARS_LABELS[cars_keys[1]]), _(CARS_LABELS[cars_keys[2]]),
     }
     local group_node_entry = new_widget("entry") {
-        placeholder = _("Grouping tag node (blank = latest run per photo)"),
-        tooltip = _("Grouping tags only: the tag node whose children are the groups, e.g. Assisted Grouping|2026-01-01 12:00:00|Group. Blank uses each photo's own latest Assisted Grouping run, so photos regrouped by a later run and photos left on an earlier run both keep their groups.\nDefault: blank. Set it to pin one run."),
+        placeholder = _("Grouping tag node (blank = latest run per image)"),
+        tooltip = _("Grouping tags only: the tag node whose children are the groups, e.g. Assisted Grouping|2026-01-01 12:00:00|Group. Blank uses each image's own latest Assisted Grouping run, so images regrouped by a later run and images left on an earlier run both keep their groups.\nDefault: blank. Set it to pin one run."),
         text = "",
     }
     local tolerance_entry = new_widget("entry") {

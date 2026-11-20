@@ -5,12 +5,12 @@
   python python/import_start_list.py COLLECTION_DIR --csv START_LIST.csv --header
 
 A CSV has a header row; MAP says which header holds which role, as `role=header` pairs joined
-by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car, paddock); `role=` says the
+by ";" (roles: number, driver, co-driver, team, class, make, model, colour, shares-car, paddock); `role=` says the
 CSV has none. A role left out of MAP is found by its usual names (ALIASES); only `number` is
 required. --header prints the headers and that mapping for the panel's column pickers. Pasted text (an entry list copied from a PDF)
 has one entry per line, number first, then "driver / co-driver"; lines without a leading number
 are skipped and counted. Each entry becomes {"id": number, "number": number, "name": driver,
-"co_driver": co-driver, "team": team, "extra": class, "make": make, "model": model, "paddock": paddock}, with the empty fields
+"co_driver": co-driver, "team": team, "extra": class, "make": make, "model": model, "colour": colour, "paddock": paddock}, with the empty fields
 left out; a model needs a make. The Class and Vehicle tag families build the tags from them. A `shares-car` column names the other entry
 driving the same car; both rows must name each other, and the higher number gets `"car": "<lower id>"`.
 A row whose `class` starts with "Demo" (a demonstration run) gets its own `paddock` value as id
@@ -34,7 +34,7 @@ import sys
 from common import atomic_write
 from entries_file import dump
 
-ROLES = ("number", "driver", "co-driver", "team", "class", "make", "model", "shares-car", "paddock")
+ROLES = ("number", "driver", "co-driver", "team", "class", "make", "model", "colour", "shares-car", "paddock")
 ALIASES = {
     "number": ("number", "no", "no.", "#", "nr", "num", "car", "car no", "car no.", "car number", "start no", "start number"),
     "driver": ("driver", "name", "pilot", "driver name", "competitor"),
@@ -43,6 +43,7 @@ ALIASES = {
     "class": ("class", "category", "cat", "cat."),
     "make": ("make", "manufacturer"),
     "model": ("model",),
+    "colour": ("colour", "color", "car colour", "car color", "livery colour"),
     "shares-car": ("shares car with", "shares car", "shared car"),
     "paddock": ("paddock", "paddock id", "paddock no"),
 }
@@ -185,7 +186,8 @@ def entries_from(rows: list) -> tuple:
         if model and not make:
             raise BadInput(f"row {n}: model {model} has no make")
         paddock = _BAD_TAG.sub("", row.get("paddock", "")).strip()
-        for key, value in (("extra", klass), ("make", make), ("model", model), ("paddock", paddock)):
+        colour = _BAD_TAG.sub("", row.get("colour", "")).strip()
+        for key, value in (("extra", klass), ("make", make), ("model", model), ("colour", colour), ("paddock", paddock)):
             if value:
                 entry[key] = value
         entries.append(entry)
@@ -340,7 +342,7 @@ def main(argv=None):
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--csv", help="a start list with a header row")
     src.add_argument("--text", help="pasted lines, number first")
-    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model, shares-car, paddock); role= for none')
+    parser.add_argument("--columns", default="", help='role=header pairs joined by ";" (roles: number, driver, co-driver, team, class, make, model, colour, shares-car, paddock); role= for none')
     parser.add_argument("--header", action="store_true", help="with --csv: print the headers and how the usual names map them, write nothing")
     args = parser.parse_args(argv)
     if args.header and not args.csv:
