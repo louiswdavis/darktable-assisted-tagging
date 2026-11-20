@@ -464,7 +464,7 @@ To rename a diagnostic tag for one collection:
 
 1. In the panel, open **4 Tags Written**.
 2. Type the new base name in the text box under the diagnostic's switch (it shows the default name as a placeholder; blank means the default).
-3. Choose **actions** → **update preset**.
+3. Choose **Actions** → **update preset**.
 
 The next run writes the new name. `settings.json` ends up with, for example:
 
@@ -555,20 +555,20 @@ The plugin keeps a ledger (`assisted_tagging/ledger.csv` in darktable's config d
 
 ## Presets
 
-In Assisted Tagging each collection is a preset: the **preset** picker at the top of the panel lists your collections, and a collection's panel settings live in its folder as `settings.json`, beside `entries.json`.
+In Assisted Tagging each collection is a preset: the **Preset** picker at the top of the panel lists your collections, and a collection's panel settings live in its folder as `settings.json`, beside `entries.json`.
 
-- **preset**: `template` first, then every collection folder with an `entries.json`, by name. Picking one loads its entries and its settings. The panel opens on the last one you picked.
+- **Preset**: `template` first, then every collection folder with an `entries.json`, by name. Picking one loads its entries and its settings. The panel opens on the last one you picked.
 - **template**: the built-in defaults. It shows only the **New Collection** controls; pick a collection to identify. A collection can't be named `template`.
-- **actions** beside it: **update preset "<name>"** saves the panel's settings into the collection's `settings.json`; **rename preset…** renames the collection folder (type the name, then **OK**); **delete preset** asks first, then deletes `settings.json` only, never the folder, `entries.json` or the references, so the collection goes back to the defaults. **store new preset…** copies the selected collection to a new folder (entries, references and all) with the panel's settings: type the name, **OK**, then it shows how many reference crops and MB it will copy and waits for **Store**. It is refused on **template** and while a run is going. Empty new collections still come from the **New Collection** controls.
-- **unsaved changes** shows under the picker when the panel differs from the saved settings. Switching collections drops them. Text fields have no change signal, so their edits show when **actions** is opened or a run starts.
-- Every run and reference action uses the settings the panel shows, whether or not you clicked **update preset**: the action writes them to a temporary settings file for that job. **unsaved changes** only means the panel differs from `settings.json`; it never means a run will use older values.
+- **Actions** beside it: **update preset "<name>"** saves the panel's settings into the collection's `settings.json`; **rename preset…** renames the collection folder (type the name, then **OK**); **delete preset** asks first, then deletes `settings.json` only, never the folder, `entries.json` or the references, so the collection goes back to the defaults. **store new preset…** copies the selected collection to a new folder (entries, references and all) with the panel's settings: type the name, **OK**, then it shows how many reference crops and MB it will copy and waits for **Store**. It is refused on **template** and while a run is going. Empty new collections still come from the **New Collection** controls.
+- **Unsaved Changes** shows under the picker when the panel differs from the saved settings. Switching collections drops them. Text fields have no change signal, so their edits show when **Actions** is opened or a run starts.
+- Every run and reference action uses the settings the panel shows, whether or not you clicked **update preset**: the action writes them to a temporary settings file for that job. **Unsaved Changes** only means the panel differs from `settings.json`; it never means a run will use older values.
 - A new collection has no `settings.json` and uses the defaults until its first **update preset**. A setting missing from the file uses its default; **update preset** writes every setting. A value that's no longer valid uses the default and logs one line naming the collection and setting.
 - A `settings.json` that can't be read or parsed: the panel says so, names the file, and keeps its current values. The plugin never rewrites a broken file; fix or delete it.
 - While a run is going (or queued), switching, renaming and deleting are refused until it finishes.
 
 ## Panel options
 
-At the top: the **preset** picker and **actions** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json` and `settings.json`. On `template` the panel shows only **New Collection**. On a collection it shows **Open entries.json** and **Open settings.json** (see [1 collection](#1-collection)), then the page buttons **1 collection ▸**, **2 bursts ▸**, **3 matching ▸**, **4 tags written ▸**, **5 run ▸** and **6 references ▸**: clicking one opens its contents below it (its label ends in **▾**) and folds the others; clicking the open one folds it. The open page is remembered across restarts. Below the pages sit the [To check](#to-check) box and the progress line. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
+At the top: the **Preset** picker and **Actions** (see [Presets](#presets)), and **Reload**, which rereads the collections folder and the active collection's `entries.json` and `settings.json`. On `template` the panel shows only **New Collection**. On a collection it shows **Open entries.json** and **Open settings.json** (see [1 collection](#1-collection)), then the page buttons **1 collection ▸**, **2 bursts ▸**, **3 matching ▸**, **4 tags written ▸**, **5 run ▸** and **6 references ▸**: clicking one opens its contents below it (its label ends in **▾**) and folds the others; clicking the open one folds it. The open page is remembered across restarts. Below the pages sit the [To check](#to-check) box and the progress line. darktable's reset button (↺ in the panel header) puts every setting back to the template defaults.
 
 ### New Collection
 
@@ -631,9 +631,9 @@ See [Building references](#building-references) for each action. The three add a
 
 Everything in pages 2 to 6 except **Replace Manual Tags** is saved with the collection by **update preset**. **Replace Manual Tags** is saved in darktable's preferences instead, so it carries across collections and restarts.
 
-### To check
+### To Check
 
-A box headed **To check**, above the progress line, lists what a run leaves for you to look at, so a toast that went by unseen isn't lost. It shows only when it has items. Each item reads `<action>: <what happened>` in full, wrapped over as many lines as it needs. Where the run knows which photos and why, a read-only list under it gives one line per photo: `<file>: <reason>`. The buttons sit below. The newest run's items sit on top. Older runs' items move below an *Earlier runs (before HH:MM): may not hold any more* line, since a later run can have settled them; they stay until you remove them, so a Fix still works.
+A box headed **To Check**, above the progress line, lists what a run leaves for you to look at, so a toast that went by unseen isn't lost. It shows only when it has items. Each item reads `<action>: <what happened>` in full, wrapped over as many lines as it needs. Where the run knows which photos and why, a read-only list under it gives one line per photo: `<file>: <reason>`. The buttons sit below. The newest run's items sit on top. Older runs' items move below an *Earlier runs (before HH:MM): may not hold any more* line, since a later run can have settled them; they stay until you remove them, so a Fix still works.
 
 - errors from any action;
 - **Identify**: photos tagged by each check tag (Check colour and the others that are on), photos that couldn't be read or updated;
@@ -647,7 +647,7 @@ A box headed **To check**, above the progress line, lists what a run leaves for 
 
 - **Select** beside a line selects its photos in the lighttable. Photos removed from the library since are skipped, and a toast counts them. Lines about photos darktable couldn't read or update have no **Select**: those photos may be gone.
 - **Fix** beside a line makes the change that line describes, to its photos only, and removes the line. Lines without a fix have no **Fix**.
-- The next run of the same action replaces that action's lines; other actions' lines stay. **Clear list**, under the items, empties the box.
+- The next run of the same action replaces that action's lines; other actions' lines stay. **Clear List**, under the items, empties the box.
 - Six lines show; more add `and N more (see the log)`. The list is saved to `assisted_tagging.checks.txt` in darktable's config folder, so it survives a restart.
 
 ## Preferences
@@ -828,7 +828,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 
 1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers`, `test_import_start_list` and `test_identify`.
 2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, **Open entries.json**, the page buttons *1 collection ▾* (open, its settings below it) to *6 references ▸*. No `LUA ERROR` in the darktable log.
-3. **A collection.** Set the plugins folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **preset** dropdown.
+3. **A collection.** Set the plugins folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **Preset** dropdown.
 
 **Grouping support** (one run per mode, on a selection holding a burst)
 
@@ -846,7 +846,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 
 10. **Cancel.** Start **Identify Selection** on a large selection and click it again. *Expect:* "Assisted Tagging: cancelled, no tags were changed."
 11. **No selection.** Clear the selection and click **Identify Selection**. *Expect:* "Assisted Tagging: select some images first".
-12. **Diagnostic switches.** Identify a batch with every switch on. Under **Tags Written** in the panel, turn off *Shot* and *By livery*, choose **actions** → **update preset**, then identify the same batch again. *Expect:* the same entry tags as before; no image in the batch has `…|Identification|Shot|…` or `…|By livery`; the other diagnostics are still there. No `LUA ERROR`.
+12. **Diagnostic switches.** Identify a batch with every switch on. Under **Tags Written** in the panel, turn off *Shot* and *By livery*, choose **Actions** → **update preset**, then identify the same batch again. *Expect:* the same entry tags as before; no image in the batch has `…|Identification|Shot|…` or `…|By livery`; the other diagnostics are still there. No `LUA ERROR`.
 13. **Start list import.** Save a 100-row CSV (`No.;Driver;Co-Driver;Entrant;Class`), choose it under **Start List** and click **Import Start List**. *Expect:* "added 100 entries to …entries.json"; the entries have `name` (the driver), `co_driver`, `team` and `extra` (the class); `entries.json.bak` is the previous file. Click **Import Start List** again. *Expect:* "added 0 entries … skipped 100 already listed: 1, 2, …". Open the **paste text** tab, paste `7 Smith / Jones` and a line without a number, and import. *Expect:* "added 1 entries … 1 line(s) without a leading number ignored" when 7 is new, and the box is cleared. Open the **one entry** tab, type number `8`, driver `Smith`, team `Smith Racing`, and import. *Expect:* "added 1 entries", entry 8 has `name` Smith and `team` Smith Racing, and the boxes are cleared. Import with the number box blank. *Expect:* "type the entry's number first.", nothing written. In an `entries.json` copy, set one entry's `name` to `Smith / Jones` with no `co_driver`, select a photo carrying its number tag and click **Find New Entries**. *Expect:* a `split "Smith / Jones" → driver Smith, co-driver Jones` row; ticking it and adding gives that entry `"name": "Smith", "co_driver": "Jones"`.
 
 14. **Old settings.** Remove `tag_shot_crowded` and `tag_shot_crowded_name` from a collection's `settings.json` (keep `tag_shot` off), then click **Reload**. *Expect:* the log shows `settings.json: tag_shot_crowded, tag_shot_crowded_name copied from the Shot switch (old settings)`, and *Shot crowded* is off in **4 Tags Written**.

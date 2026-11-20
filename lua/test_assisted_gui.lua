@@ -352,11 +352,11 @@ check("the progress line sits at the foot of the panel, outside the folding page
 -- To check ------------------------------------------------------------------------
 local to_check = panel[#panel - 1]
 check("To check sits above the progress line, outside the folding pages",
-    type(to_check) == "table" and to_check[1] and to_check[1][2] and to_check[1][2].label, "To check")
-to_check = type(to_check) == "table" and to_check[1] and to_check[1][2] and to_check[1][2].label == "To check" and to_check or { {}, {} }
+    type(to_check) == "table" and to_check[1] and to_check[1][2] and to_check[1][2].label, "To Check")
+to_check = type(to_check) == "table" and to_check[1] and to_check[1][2] and to_check[1][2].label == "To Check" and to_check or { {}, {} }
 check("To check: a blank line sits above the heading", (to_check[1][1] or {}).kind .. " [" .. tostring((to_check[1][1] or {}).label) .. "]", "label [ ]")
 check("To check: Clear list is the box's last line, not beside the heading",
-    tostring((to_check[#to_check] or {}).label) .. " " .. tostring(widget_where(to_check[1], "button", "label", "Clear list") ~= nil), "Clear list false")
+    tostring((to_check[#to_check] or {}).label) .. " " .. tostring(widget_where(to_check[1], "button", "label", "Clear List") ~= nil), "Clear List false")
 local CHECKS_FILE = ROOT .. "/config/assisted_tagging.checks.txt"
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
@@ -375,7 +375,7 @@ fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("To check: the next fill colours run replaces its items", (read_file(CHECKS_FILE) or ""):find("Fill Entry Colours", 1, true), nil)
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
-;(widget_where(to_check, "button", "label", "Clear list") or { clicked_callback = function() end }).clicked_callback()
+;(widget_where(to_check, "button", "label", "Clear List") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Clear empties the box", to_check.visible, false)
 check("To check: Clear empties the saved list", read_file(CHECKS_FILE), "")
 check("To check: a row without a fix has no Fix button", (widget_where(to_check, "button", "label", "Fix") or {}).visible, false)
@@ -419,7 +419,7 @@ check("To check: a fix argument and the photo list survive a save and load", lin
 local blue = image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" })
 PYTHON.results, PYTHON.overturns, PYTHON.runs, prints = "1,0,number,112,,0.9,,solo,0,Blue,1,,0\n",
     "entry,stored,seen,n,total,ids\n112,Pink,Blue,1,1,1\n", {}, {}
-;(widget_where(to_check, "button", "label", "Clear list") or { clicked_callback = function() end }).clicked_callback()
+;(widget_where(to_check, "button", "label", "Clear List") or { clicked_callback = function() end }).clicked_callback()
 T.identify_images({ blue }, false, true)
 PYTHON.overturns = nil
 local function row(i) return to_check[i + 1] or { {}, {}, { {}, {} } } end
@@ -462,7 +462,7 @@ check("Entry colour Fix: sends the colour read as the entry's colour", PYTHON.ru
 check("Entry colour Fix: its row is gone", (read_file(CHECKS_FILE) or ""):find("entry_colour", 1, true), nil)
 
 -- a timeline: the newest run's items on top, older runs' below an "Earlier runs" line
-;(widget_where(to_check, "button", "label", "Clear list") or { clicked_callback = function() end }).clicked_callback()
+;(widget_where(to_check, "button", "label", "Clear List") or { clicked_callback = function() end }).clicked_callback()
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("timeline: one run's items have no Earlier runs line", row(1)[4] and row(1)[4].visible, false)
@@ -677,11 +677,11 @@ local function choose(combo, text)
     return false
 end
 
-local actions = widget_where(panel, "combobox", "label", "actions")
+local actions = widget_where(panel, "combobox", "label", "Actions")
 local out = ROOT .. "/export"
 make_dir(out)
 check("presets: export is offered for the Rallye collection", choose(actions, "export preset…"), true)
-widget_where(panel, "file_chooser_button", "title", "folder to export the preset into").value = out
+widget_where(panel, "file_chooser_button", "title", "Folder to Export the Preset Into").value = out
 prints = {}
 widget_where(panel, "button", "label", "Export").clicked_callback()
 check("presets: export toast", last_print():find('preset "Rallye" exported to ' .. out .. "/Rallye.atpreset", 1, true) ~= nil, true)
@@ -698,7 +698,7 @@ choose(actions, "export preset…")
 local refs_box = widget_where(panel, "check_button", "tooltip", "Also export refs/ (the reference crops and sources.json). They go out as full JPG crops of your photos: in a people collection they are face photos. Run caches and refs-quarantine never go.")
 check("presets: the references box shows the size", refs_box.label:match("^references %(2 files, ") ~= nil, true)
 refs_box.value = true
-widget_where(panel, "file_chooser_button", "title", "folder to export the preset into").value = refs_out
+widget_where(panel, "file_chooser_button", "title", "Folder to Export the Preset Into").value = refs_out
 widget_where(panel, "button", "label", "Export").clicked_callback()
 check("presets: ticked references are exported", read_file(refs_out .. "/Rallye.atpreset/refs/112/1_b0.jpg"), "crop")
 check("presets: sources.json goes with them", read_file(refs_out .. "/Rallye.atpreset/refs/sources.json"), "{}")
@@ -709,7 +709,7 @@ choose(actions, "export preset…")
 check("presets: the references box is unticked when export opens again", refs_box.value, false)
 
 check("presets: import is offered", choose(actions, "import preset…"), true)
-widget_where(panel, "file_chooser_button", "title", "preset bundle (.atpreset folder)").value = out .. "/Rallye.atpreset"
+widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Folder)").value = out .. "/Rallye.atpreset"
 write_file(out .. "/Rallye.atpreset/entries.json", '[{"entry": "112"}]')
 prints = {}
 widget_where(panel, "button", "label", "Import").clicked_callback()
@@ -720,7 +720,7 @@ check("presets: Rallye keeps its own entry list", read_file(ROOT .. "/collection
 check("presets: a bundle without refs imports none", read_file(ROOT .. "/collections/Rallye (2)/refs/sources.json"), nil)
 
 choose(actions, "import preset…")
-widget_where(panel, "file_chooser_button", "title", "preset bundle (.atpreset folder)").value = refs_out .. "/Rallye.atpreset"
+widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Folder)").value = refs_out .. "/Rallye.atpreset"
 prints = {}
 widget_where(panel, "button", "label", "Import").clicked_callback()
 check("presets: the refs bundle imports as Rallye (3)", last_print():find('imported "Rallye (3)"', 1, true) ~= nil, true)
@@ -729,7 +729,7 @@ check("presets: Rallye (3) holds sources.json", read_file(ROOT .. "/collections/
 
 write_file(out .. "/Rallye.atpreset/manifest.json",
     '{"version": 1, "plugin": "assisted_tagging", "preset": "Hill", "files": "preset.json"}')
-widget_where(panel, "file_chooser_button", "title", "preset bundle (.atpreset folder)").value = out .. "/Rallye.atpreset"
+widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Folder)").value = out .. "/Rallye.atpreset"
 prints = {}
 widget_where(panel, "button", "label", "Import").clicked_callback()
 check("presets: a bundle without entries.json is refused", last_print():find("the bundle has no entries.json", 1, true) ~= nil, true)
