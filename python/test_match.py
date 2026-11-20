@@ -671,6 +671,36 @@ def run_tests():
     check("closer car: the burst's sure cars include the closer car, so moves",
           closer("60", 0.50, 0.90, 0.1, sure={"108", "60"})[:2], ("livery", "60"))
 
+    # new numbers: a number no entry has, read on 3+ frames of one burst (ticket 88)
+    burst = {"f1": "b1", "f2": "b1", "f3": "b1", "f4": "b1", "g1": "b2", "g2": "b2", "g3": "b2"}
+    three = {"f1": {0: [("115", 0.9)]}, "f2": {0: [("115", 0.8), ("16", 0.95)]}, "f3": {1: [("115", 0.7)]}}
+    check("new numbers: 3 frames of a burst read 115, no entry has it",
+          Mt.new_numbers(three, burst, ENTRIES, {}), {"115": {"f1": [0], "f2": [0], "f3": [1]}})
+    check("new numbers: the frames count however the box was matched (16 beside it on f2)",
+          list(Mt.new_numbers(three, burst, ENTRIES, {})), ["115"])
+    check("new numbers: 2 frames are not enough",
+          Mt.new_numbers({k: three[k] for k in ("f1", "f2")}, burst, ENTRIES, {}), {})
+    check("new numbers: 3 frames across 2 bursts are not enough",
+          Mt.new_numbers({"f1": three["f1"], "f2": three["f2"], "g1": {0: [("115", 0.9)]}}, burst, ENTRIES, {}), {})
+    check("new numbers: a frame alone is its own burst",
+          Mt.new_numbers({"x1": {0: [("115", 0.9)]}, "x2": {0: [("115", 0.9)]}, "x3": {0: [("115", 0.9)]}}, {}, ENTRIES, {}), {})
+    check("new numbers: reads below WEAK_READ_MIN don't count",
+          Mt.new_numbers({**three, "f3": {1: [("115", 0.69)]}}, burst, ENTRIES, {}), {})
+    check("new numbers: a number an entry has is never new",
+          Mt.new_numbers({f: {0: [("44", 0.9)]} for f in ("f1", "f2", "f3")}, burst, ENTRIES, {}), {})
+    check("new numbers: only 1 to 3 digits, as Find New Entries lists",
+          Mt.new_numbers({f: {0: [("1150", 0.9), ("A11", 0.9)]} for f in ("f1", "f2", "f3")}, burst, ENTRIES, {}), {})
+    check("new numbers: a noise number is never new",
+          Mt.new_numbers(three, burst, ENTRIES, {"115": 3}), {})
+    check("new numbers: two boxes of one frame count that frame once",
+          Mt.new_numbers({"f1": {0: [("115", 0.9)], 1: [("115", 0.9)]}, "f2": three["f2"]}, burst, ENTRIES, {}), {})
+    check("new numbers: both of a frame's boxes are named when the burst qualifies",
+          Mt.new_numbers({**three, "f1": {0: [("115", 0.9)], 1: [("115", 0.8)]}}, burst, ENTRIES, {})["115"]["f1"], [0, 1])
+    check("new numbers: two bursts each qualifying both count",
+          {d: sorted(f) for d, f in Mt.new_numbers({**three, **{g: {0: [("115", 0.9)]} for g in ("g1", "g2", "g3")}},
+                                                   burst, ENTRIES, {}).items()},
+          {"115": ["f1", "f2", "f3", "g1", "g2", "g3"]})
+
     if failures == 0:
         print("all tests passed")
         sys.exit(0)

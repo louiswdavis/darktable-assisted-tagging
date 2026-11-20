@@ -809,13 +809,15 @@ def run_tests():
     check("a flagged row has 1 in the order flag", I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, order_flag=True), "solo"),
           "7,0,number,VER,,0.850,,solo,1,,,,")
     check("a row ends with the colour and its flag",
-          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, colour="Red", colour_flag=True), "solo").endswith(",Red,1,,"), True)
-    check("a row with no colour, sponsor or anchor flag ends with four empty fields", I.format_row("7", BoxResult(0, "none"), "solo").endswith(",,,,"), True)
+          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, colour="Red", colour_flag=True), "solo").endswith(",Red,1,,,"), True)
+    check("a row with no colour, sponsor, anchor flag or new number ends with five empty fields", I.format_row("7", BoxResult(0, "none"), "solo").endswith(",,,,,"), True)
     check("a row ends with its sponsor words",
-          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, sponsor="Castrol;Shell"), "solo").endswith(",,,Castrol;Shell,"), True)
+          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, sponsor="Castrol;Shell"), "solo").endswith(",,,Castrol;Shell,,"), True)
     check("a row ends with the anchor flag",
-          I.format_row("7", BoxResult(0, "none", "", "VER", anchor_flag=True), "solo").endswith(",1"), True)
-    check("a row has thirteen fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 13)
+          I.format_row("7", BoxResult(0, "none", "", "VER", anchor_flag=True), "solo").endswith(",1,"), True)
+    check("a row ends with its new numbers",
+          I.format_row("7", BoxResult(0, "number", "VER", "", 0.85, new_number="115;207"), "solo").endswith(",,115;207"), True)
+    check("a row has fourteen fields", len(I.format_row("7", BoxResult(0, "none"), "solo").split(",")), 14)
 
     # ---- pooled burst livery (experimental)
     drivers = {"VER": I.Entry("VER", "1", "Red Bull", ("F1|Red Bull|VER",)),

@@ -3,7 +3,7 @@ write one result row per vehicle for assisted_tagging.lua.
 
 Modes:
   identify.py MANIFEST RESULTS ...            id,filepath,burst_id[,protected tags,hint prefixes,capture epoch] →
-                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot,order_flag,colour,colour_flag,sponsor,anchor_flag
+                                              id,box,method,entry,alt_entry,confidence,unmatched_number,shot,order_flag,colour,colour_flag,sponsor,anchor_flag,new_number
                                               (+ --boxes-out: the per-vehicle boxes.json)
   identify.py MANIFEST RESULTS --add-reference id,filepath,entry_id → id,status
   identify.py MANIFEST RESULTS --promote-boxes --boxes-in F   id,filepath,"" → id,status
@@ -41,7 +41,7 @@ import entries_file
 from colour import colour_hist
 from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
-from match import (HAND, IDENTIFIED, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NOISE_MIN_BESIDE_SHARE, NOISE_MIN_PARTNERS, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads, noise_numbers, without_noise, number_index, numbers_of,
+from match import (HAND, IDENTIFIED, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NOISE_MIN_BESIDE_SHARE, NOISE_MIN_PARTNERS, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, NEW_NUMBER_MIN_FRAMES, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads, noise_numbers, new_numbers, without_noise, number_index, numbers_of,
                    burst_colours, burst_consensus, closer_car_match, colour_check, colour_overturns, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera, sure_cars,
                    match_livery, match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
@@ -850,7 +850,7 @@ def box_hint(tag_prefixes: list, sponsor: list) -> tuple:
 def format_row(image_id: str, r: BoxResult, shot: str = "") -> str:
     return (f"{image_id},{r.box},{r.method},{r.entry_id},{r.alt_entry_id},"
             f"{r.confidence:.3f},{r.unmatched_number},{shot},{'1' if r.order_flag else ''},"
-            f"{r.colour},{'1' if r.colour_flag else ''},{r.sponsor},{'1' if r.anchor_flag else ''}")
+            f"{r.colour},{'1' if r.colour_flag else ''},{r.sponsor},{'1' if r.anchor_flag else ''},{r.new_number}")
 
 
 def describe_box(r: BoxResult, ocr: list, sims: list, box: list, frame: list) -> str:
@@ -1268,12 +1268,14 @@ def archive_run(files: list, archive_dir: str, keep: int):
 
 
 def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entries: dict, counts: dict,
-                sponsor_keywords: tuple = (), min_read: float = Rules.min_read, noise: dict = None, entry_list: tuple = ()) -> dict:
+                sponsor_keywords: tuple = (), min_read: float = Rules.min_read, noise: dict = None, entry_list: tuple = (),
+                new: dict = None) -> dict:
     """The run's per-vehicle record (see the README for the shape). `skipped` lists images
     left alone because they already carry one entry's full tag set; each image's `status` is
     ok, no_vehicle or error. `entries` and `thresholds` give the debug report what it needs.
     `noise` is the run's noise numbers (match.noise_numbers), which eval_numbers.py replays;
-    `entry_list` is entry_list_check's lines. The report shows both."""
+    `entry_list` is entry_list_check's lines; `new` is match.new_numbers' result, kept as
+    `new_numbers` {digits: photo count}. The report shows all three."""
     images, skipped = {}, []
     for image_id, results in frames.items():
         if any(r.method == "skipped" for r in results):
@@ -1291,7 +1293,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                           "method": r.method, "confidence": round(r.confidence, 4),
                           "candidates": [[e, round(s, 4)] for e, s in b["sims"][:5]],
                           "ocr": b["ocr"], "ocr_trace": b.get("ocr_trace", []), "decided_by": rule, "gap": round(gap, 4),
-                          "unmatched_number": r.unmatched_number, "conflict": r.method == "conflict", "order_flag": r.order_flag,
+                          "unmatched_number": r.unmatched_number, "new_number": r.new_number, "conflict": r.method == "conflict", "order_flag": r.order_flag,
                           "pod": b.get("pod", {}), "pod_colour": b.get("pod_colour", ""), "hint": b.get("hint", {}), "overlap": b.get("overlap", ""), "hires": b.get("hires", False), "masked": b.get("masked", False), "rescued": b.get("rescued", {}),
                           "colour": r.colour, "colour_shares": b.get("colour_shares", {}), "list_read": r.list_read,
                           "read_entry": b.get("read_entry", "")})
@@ -1314,6 +1316,7 @@ def build_boxes(collection: str, frames: dict, shots: dict, detail: dict, entrie
                            "noise_min_beside_share": NOISE_MIN_BESIDE_SHARE},
             "noise_numbers": dict(noise or {}),
             "entry_list": list(entry_list),
+            "new_numbers": {d: len(f) for d, f in (new or {}).items()},
             "sponsor_keywords": dict(sponsor_keywords),
             "entries": {e.id: {"team": e.team, "number": e.number, "tags": list(e.tags), "camera": e.camera,
                                     "colour": e.colour, "car": e.car, "refs": counts.get(e.id, 0)}
@@ -1838,6 +1841,20 @@ def identify(args, models: dict):
             out.writerow(["entry", "stored", "seen", "n", "total", "ids"])
             out.writerows([eid, stored, seen, n, total, " ".join(ids)] for eid, stored, seen, n, total, ids in overturns)
 
+    # After every matching pass, which it leaves alone: a solo photo's smaller boxes are background traffic
+    new = {} if verify else new_numbers(
+        {fid: {i: [tuple(c) for c in b["ocr"]] for i, b in enumerate(d["boxes"])
+               if b["overlap"] != HIDDEN and (rules.cars_per_photo != "solo" or i == 0)}
+         for fid, d in detail.items()}, burst_of, entries, noise)
+    for digits, by_frame in new.items():
+        for fid, boxes in by_frame.items():
+            log(f"{fid}: box {'/'.join(map(str, boxes))}: read {digits}, no entry has it")
+            frames[fid] = [replace(r, new_number=";".join(filter(None, (r.new_number, digits)))) if r.box in boxes else r
+                           for r in frames[fid]]
+    if new:
+        log("new numbers: " + ", ".join(f"{d} ({len(f)} photos)" for d, f in new.items())
+            + f"; read on {NEW_NUMBER_MIN_FRAMES}+ photos of a burst, no entry has them")
+
     # After consensus, so a burst-filled box is checked too. Solo shots only: see match.conflicts.
     # A hand-tagged image's box naming another entry is one too, whatever tags the two entries share;
     # one naming the hand-tagged entry never is, though its built tags may not include the tag that named it.
@@ -1853,7 +1870,7 @@ def identify(args, models: dict):
     by_method = write_results(args.results, frames, shots)
     if args.boxes_out or args.report_out:
         write_run_outputs(args, build_boxes(args.collection, frames, shots, detail, entries, counts, rules.sponsor_keywords,
-                                            rules.min_read, noise, entry_list))
+                                            rules.min_read, noise, entry_list, new))
     write_collection_outputs(args, collection, entries, rules, from_entries)
     log("vehicles by method: " + ", ".join(f"{m} {n}" for m, n in sorted(by_method.items())))
 

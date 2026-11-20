@@ -327,10 +327,12 @@ function M.wanted_tags(rows, entries, rules, hand_from)
         -- Independent of the outcome above: OCR read a number that matched zero or 2+
         -- entries, so it couldn't drive identification, but it's worth seeing. One tag
         -- per distinct digit string read on this box.
-        if r.unmatched_number and r.unmatched_number ~= "" then
+        -- A new number (ticket 88) is one no entry has, read across a burst: tagged even on a matched box,
+        -- so Find New Entries lists it.
+        for _, seen in ipairs({ r.unmatched_number, r.new_number }) do
             local base = rules.diag.number_seen
-            if base and base ~= "" then
-                for _, digits in ipairs(split(r.unmatched_number, ";")) do
+            if seen and seen ~= "" and base and base ~= "" then
+                for _, digits in ipairs(split(seen, ";")) do
                     diag[base .. "|" .. digits] = true
                 end
             end
@@ -1202,7 +1204,7 @@ end
 function M.read_results(text)
     local rows_of, errored, skipped = {}, {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 13) or M.parse_csv_line(line, 12) or M.parse_csv_line(line, 11) or M.parse_csv_line(line, 10) or M.parse_csv_line(line, 9)
+        local p = M.parse_csv_line(line, 14) or M.parse_csv_line(line, 13) or M.parse_csv_line(line, 12) or M.parse_csv_line(line, 11) or M.parse_csv_line(line, 10) or M.parse_csv_line(line, 9)
         local id = p and tonumber(p[1])
         if id and p[3] == "error" then
             errored[id] = true
@@ -1213,10 +1215,43 @@ function M.read_results(text)
             table.insert(rows_of[id], { box = tonumber(p[2]), method = p[3], entry_id = p[4],
                                          alt_entry_id = p[5], unmatched_number = p[7], shot = p[8], order_flag = p[9] == "1",
                                          colour = p[10] or "", colour_flag = p[11] == "1", sponsor = p[12] or "",
-                                         anchor_flag = p[13] == "1" })
+                                         anchor_flag = p[13] == "1", new_number = p[14] or "" })
         end
     end
     return rows_of, errored, skipped
+end
+
+-- Identify's To Check item for new numbers (ticket 88): text, the photos in `ids` order that read
+-- one, and a line per photo. nil when no row has a new number. file_of: image id → file name.
+function M.new_number_alert(rows_of, ids, file_of)
+    local photos_of, numbers, hit, why = {}, {}, {}, {}
+    for _, id in ipairs(ids) do
+        local mine, seen = {}, {}
+        for _, r in ipairs(rows_of[id] or {}) do
+            for _, digits in ipairs(split(r.new_number or "", ";")) do
+                if digits ~= "" and not seen[digits] then
+                    seen[digits] = true
+                    mine[#mine + 1] = digits
+                    if not photos_of[digits] then numbers[#numbers + 1] = digits end
+                    photos_of[digits] = (photos_of[digits] or 0) + 1
+                end
+            end
+        end
+        if #mine > 0 then
+            table.sort(mine)
+            hit[#hit + 1] = id
+            why[#why + 1] = string.format("%s: read %s, no entry has %s", file_of[id] or tostring(id),
+                table.concat(mine, " and "), #mine == 1 and "it" or "them")
+        end
+    end
+    if #hit == 0 then return nil end
+    table.sort(numbers, function(a, b)
+        if photos_of[a] ~= photos_of[b] then return photos_of[a] > photos_of[b] end
+        return a < b
+    end)
+    local parts = {}
+    for _, digits in ipairs(numbers) do parts[#parts + 1] = string.format("%s (%d photos)", digits, photos_of[digits]) end
+    return "Possible new entries: " .. table.concat(parts, ", ") .. ". Find New Entries (page 1) adds them.", hit, why
 end
 
 -- The start-list import's column roles, as import_start_list.py ROLES names them.
@@ -3204,6 +3239,14 @@ local function apply_results(run, job)
     end
     if #missing_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log)", #missing_ids), missing_ids) end
     if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be updated (see log)", #failed_ids), failed_ids) end
+    local new_ids, file_of = {}, {}
+    for _, img in ipairs(primaries) do
+        local id = tonumber(img.id)
+        new_ids[#new_ids + 1] = id
+        file_of[id] = img.filename
+    end
+    local new_text, new_hit, new_why = M.new_number_alert(rows_of, new_ids, file_of)
+    if new_text then alerts.add(new_text, new_hit, nil, new_why) end
 end
 
 -- replace_manual: lift the protection of tags the user applied by hand.
@@ -5013,9 +5056,7 @@ local function install_panel()
         },
         tag_rows,
         { new_widget("section_label") { label = _("Identify (Models; Writes Tags)") },
-          replace_manual_check, run_tag_combo, identify_button, verify_button,
-          new_widget("section_label") { label = _("Colour (Models; Writes Tags and entries.json)") },
-          derive_colour_button },
+          replace_manual_check, run_tag_combo, identify_button, verify_button },
         { new_widget("section_label") { label = _("Add to One Entry (Uses the Entry List)") },
           entry_combo, add_button,
           new_widget("section_label") { label = _("Add by Tags or Last Run (Entry List Not Used)") },
@@ -5024,6 +5065,8 @@ local function install_panel()
           suggest_crops_check, quarantine_check, audit_button },
         { new_widget("section_label") { label = _("Derive (Lookups Only; Adds Tags)") },
           derive_number_button, derive_from_colour_button,
+          new_widget("section_label") { label = _("Read Colour (Models; Writes Tags and entries.json)") },
+          derive_colour_button,
           new_widget("section_label") { label = _("Copy (Writes Tags as Your Own)") },
           copy_group_button, copy_selection_button, copy_confirm_box,
           new_widget("section_label") { label = _("Undo") },

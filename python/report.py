@@ -94,7 +94,7 @@ def rows(data: dict) -> list:
                         "score": box.get("score"), "decided_by": box["decided_by"], "gap": box["gap"],
                         "top1": round(top1_of(box), 4),
                         "margin": round(margin_of(box), 4), "candidates": box["candidates"],
-                        "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []), "list_read": box.get("list_read", ""), "pod": box.get("pod", {}), "hint": box.get("hint", {}),
+                        "ocr": box["ocr"], "ocr_trace": box.get("ocr_trace", []), "list_read": box.get("list_read", ""), "new_number": box.get("new_number", ""), "pod": box.get("pod", {}), "hint": box.get("hint", {}),
                         **({"colour": box.get("colour", ""), "colour_shares": box["colour_shares"]} if "colour_shares" in box else {}),
                         "lever": lever(cat, box, entries)})
     return out
@@ -263,6 +263,8 @@ def describe(r: dict) -> str:
                                             for c, t, *rest in r["ocr_trace"][:3]))
     elif "ocr_trace" in r:
         parts.append("ocr saw no text")
+    if r.get("new_number"):
+        parts.append("no entry has " + " or ".join(r["new_number"].split(";")) + ", read across the burst")
     if r.get("pod"):
         parts.append(f"pod {pod_colour(r['pod']) or 'unclear'} (yellow {r['pod']['yellow']:.3f}, aspect {r['pod']['aspect']:.1f})")
     if r.get("colour_shares"):
@@ -306,6 +308,9 @@ def render_md(data: dict, all_rows: list, summary: dict, top: int, extra: dict =
     if noise:
         out.append("- noise numbers (left out of a box's reads when it has another): "
                    + ", ".join(f"{d} (beside {n} numbers)" for d, n in noise.items()))
+    if data.get("new_numbers"):
+        out.append("- possible new entries (no entry has them, read on 3+ photos of a burst): "
+                   + ", ".join(f"{d} ({n} photos)" for d, n in data["new_numbers"].items()))
     out += [f"- {line}" for line in data.get("entry_list", [])]
     bands = extra["detector_bands"]
     if bands and top > 0:

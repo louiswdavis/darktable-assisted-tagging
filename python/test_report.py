@@ -139,6 +139,12 @@ def run_tests():
           [ln for ln in fmd.splitlines() if "noise numbers" in ln or "entry list" in ln],
           ["- noise numbers (left out of a box's reads when it has another): 3 (beside 4 numbers), 44 (beside 3 numbers)",
            "- entry list: number 14 is on more than one car (A, B): a read of it names none of them, only livery can"])
+    newd = dict(data({"x": image([dict(box(), new_number="115;207")])}), new_numbers={"115": 3, "207": 4})
+    nmd = R.render_md(newd, R.rows(newd), R.summarize(newd, R.rows(newd)), 5)
+    check("render: the summary lists possible new entries (ticket 88)",
+          "- possible new entries (no entry has them, read on 3+ photos of a burst): 115 (3 photos), 207 (4 photos)" in nmd, True)
+    check("render: a box names the numbers no entry has", "no entry has 115 or 207, read across the burst" in nmd, True)
+    check("render: no new numbers, no possible-new-entries line", "possible new entries" in fmd, False)
     check("render: a boxes.json without noise numbers or entry-list findings has neither line",
           any("noise numbers" in ln or "entry list" in ln for ln in R.render_md(d, R.rows(d), R.summarize(d, R.rows(d)), 5).splitlines()), False)
 

@@ -759,6 +759,24 @@ do
     check("a dropped match is unidentified", id23, false)
     check("mask_diag: check_match off blanks it", select(2, T.wanted_tags(am[23], entries, T.mask_diag(crules, { check_match = true })))[CM], nil)
     check("owned: match check tag", T.owned_tags(entries, rules)[CM], true)
+    -- ticket 88: a number no entry has, read across a burst
+    local nn = T.read_results("31,0,number,VER,,0.950,,solo,,Red,,,,115\n32,0,none,,,0.000,9,solo,,,,,,115;207\n"
+        .. "33,0,number,VER,,0.950,,solo,,Red,,,,207\n34,0,number,VER,,0.950,,solo,,Red,,,,\n35,0,number,VER,,0.950,,solo,,,,,")
+    check("14-column row carries its new numbers", nn[31][1].new_number .. "|" .. nn[32][1].new_number, "115|115;207")
+    check("13-column row has no new number", nn[35][1].new_number, "")
+    local NS = "Assisted Tagging|Identification|Number seen"
+    local w31, d31, id31 = T.wanted_tags(nn[31], entries, crules)
+    check("a new number on a matched photo adds Number seen and keeps the match", tostring(d31[NS .. "|115"]) .. tostring(id31), "truetrue")
+    local _, d32 = T.wanted_tags(nn[32], entries, crules)
+    check("new numbers and an unmatched read each add Number seen",
+          tostring(d32[NS .. "|115"]) .. tostring(d32[NS .. "|207"]) .. tostring(d32[NS .. "|9"]), "truetruetrue")
+    local text, ids, why = T.new_number_alert(nn, { 33, 31, 32, 34 }, { [31] = "a.ARW", [32] = "b.ARW", [33] = "c.ARW", [34] = "d.ARW" })
+    check("new number alert text", text,
+          "Possible new entries: 115 (2 photos), 207 (2 photos). Find New Entries (page 1) adds them.")
+    check("new number alert photos in run order", table.concat(ids, ","), "33,31,32")
+    check("new number alert photo lines", table.concat(why, " / "),
+          "c.ARW: read 207, no entry has it / a.ARW: read 115, no entry has it / b.ARW: read 115 and 207, no entry has them")
+    check("no new numbers, no alert", T.new_number_alert(nn, { 34, 35 }, {}), nil)
     check("owned_prefixes: no colour root, no colour prefix", #T.owned_prefixes(T.default_rules()), 1)
     local pre = T.owned_prefixes(crules)
     local has = false

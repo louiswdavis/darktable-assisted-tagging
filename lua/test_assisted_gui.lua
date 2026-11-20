@@ -402,11 +402,11 @@ local function button_labels(box)
     end
     return table.concat(out, ", ")
 end
-check("Run page: model runs only, main button first",
-    button_labels(page_body(panel, "Run")), "Identify Selection, Verify Selection, Derive Colour")
-check("Tools page: lookups, copies, then Undo",
+check("Run page: Identify and Verify only, main button first",
+    button_labels(page_body(panel, "Run")), "Identify Selection, Verify Selection")
+check("Tools page: derives (colour read last), copies, then Undo",
     button_labels(page_body(panel, "Tools")),
-    "Derive from Number, Derive from Colour, Copy Tags to Group, Copy Tags to Selection, Clear Tagging Marks")
+    "Derive from Number, Derive from Colour, Derive Colour, Copy Tags to Group, Copy Tags to Selection, Clear Tagging Marks")
 
 check("the progress line sits at the foot of the panel, outside the folding pages",
       panel[#panel].kind, "label")

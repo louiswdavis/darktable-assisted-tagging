@@ -21,6 +21,7 @@ BURST_SIM_SLACK = 0.05  # ...or within this of its top-1
 # (burst_list_read); without digit matrices, that many frames must read the same number
 WEAK_READ_MIN = 0.7  # the rally's old-reader misreads of a lone letter as 5 sat at about 0.6
 WEAK_AGREE_MIN = 2
+NEW_NUMBER_MIN_FRAMES = 3  # frames of one burst reading a number no entry has before it's flagged (new_numbers)
 
 CONFUSABLE_DIGITS = {frozenset(p) for p in ("56", "17", "06", "08", "38", "35", "14")}  # pairs OCR swaps on race numbers
 MISREAD_TOP_N = 3  # a misread number only backs an entry in the livery's own top N
@@ -107,6 +108,9 @@ class BoxResult:
     # The rules.sponsor_keywords words read on the box as tag values, ";"-joined, when the sponsor
     # family is on; "" otherwise. Carried through every later rewrite like `colour`.
     sponsor: str = ""
+    # new_numbers' digits this box read, ";"-joined: a possible new entry. Set after every matching
+    # pass and independent of `method`; "" otherwise.
+    new_number: str = ""
 
 
 @dataclass(frozen=True)
@@ -280,6 +284,26 @@ def without_noise(ocr: list, noise: dict) -> list:
     alone in a box can still be the car's own."""
     kept = [(d, c) for d, c in ocr if d not in noise]
     return kept or ocr
+
+
+def new_numbers(reads: dict, burst_of: dict, entries: dict, noise: dict) -> dict:
+    """{digits: {image id: [boxes]}} of 1-3 digit numbers (what Find New Entries lists) no entry has that NEW_NUMBER_MIN_FRAMES or more frames
+    of one burst read at WEAK_READ_MIN or more: a car missing from entries.json. `reads` is
+    {image id: {box: [(digits, confidence)]}}, the raw reads before list scoring, so a read the list
+    gave a look-alike entry still counts. A frame missing from `burst_of` is its own burst; noise
+    numbers never count."""
+    listed = number_index(entries)
+    seen: dict = {}
+    for fid, boxes in reads.items():
+        for box, ocr in boxes.items():
+            for d in {d for d, c in ocr if c >= WEAK_READ_MIN and d.isdigit() and len(d) <= 3
+                           and d not in noise and d not in listed}:
+                seen.setdefault((burst_of.get(fid, fid), d), {}).setdefault(fid, []).append(box)
+    out: dict = {}
+    for (_, d), by_frame in seen.items():
+        if len(by_frame) >= NEW_NUMBER_MIN_FRAMES:
+            out.setdefault(d, {}).update(by_frame)
+    return {d: {fid: sorted(boxes) for fid, boxes in sorted(f.items())} for d, f in sorted(out.items())}
 
 
 def list_scores(ocr: list, ctc, entries: dict):
