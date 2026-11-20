@@ -227,101 +227,171 @@ ok   an Orientation-6 JPEG decodes upright (portrait)
 ok   a crop of an upright box keeps the upright aspect
 ok   crops are never upscaled
 ok   box selection clips, filters and sorts
-skip non-ASCII model load (models/ not downloaded)
+ok   an ONNX model loads from a non-ASCII path
+ok   the parent frees SigLIP 2's text model once its vectors are made
+ok   starting the pool hands the workers both prompt sets and frees the parent's text model
+ok   a worker's SigLIP 2 has no text model
+ok   a worker answers from the parent's vectors as the parent did
+ok   a palette the parent didn't prepare raises
+ok   a file that isn't a model fails at startup with exit-2 input error
+ok   the worker pool is capped
 
 FAIL crashed before finishing; later checks did not run
 Traceback (most recent call last):
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_identify.py", line 1505, in <module>
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 1505, in <module>
     run_tests()
     ~~~~~~~~~^^
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_identify.py", line 918, in run_tests
-    parent = S.SigLIP(siglip_vision)
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/siglip.py", line 87, in __init__
-    import onnxruntime as ort
-ModuleNotFoundError: No module named 'onnxruntime'
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 1025, in run_tests
+    I.identify(args, dict(fake_models))
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 1694, in identify
+    frames, burst_of, box0_sims, detail, _ = match_all(analyses, quiet=True)
+                                             ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 1689, in match_all
+    frames[image_id] = match_frame(image_id, a, index, entries, rules, team_of, tag_hints_of[image_id],
+                       ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                                   detail[image_id]["boxes"], box0_sims, noise, quiet, pool)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 1360, in match_frame
+    r, hint = hinted_match(i, reads, [(k, s) for k, s in sims if k in coloured], coloured, prefixes, source, ctc,
+              ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                           rules.min_read, pool)
+                           ^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\match.py", line 656, in hinted_match
+    return match_box(box, ocr, sims, entries, ctc, pool), {}
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\match.py", line 354, in match_box
+    allowed = entries if pool is None else {eid: e for eid, e in entries.items() if eid in pool}
+                                                                                    ^^^^^^^^^^^
+TypeError: argument of type 'InlinePool' is not iterable
 
 
 --- stderr ---
-22:11:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
-22:11:48 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so the face thresholds use defaults
-22:11:48 py: rules.min_sim in entries.json is deprecated; move it to settings.json
-22:11:48 py: rules.margin in entries.json is deprecated; move it to settings.json
-22:11:48 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: entries.json: 1 entries upgraded (class, make/model → fields)
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: entries.json: 1 entries upgraded (class, make/model → fields)
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so the face thresholds use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-22:11:48 py: rules.order_weight in entries.json is deprecated; move it to settings.json
-22:11:48 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
-22:11:48 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
-22:11:48 py: rescue: started
-22:11:48 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/2.jpg: rescued a vehicle from 1.jpg (crop similarity 4.0)
-22:11:48 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 0 to decode
-22:11:48 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/2.jpg: rescued a vehicle from 1.jpg (crop similarity 4.0)
-22:11:48 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
-22:11:48 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/2.jpg: rescued a vehicle from 3.jpg (crop similarity 4.0)
-22:11:48 py: rescue: 2 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 1 to decode
-22:11:48 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/c2.jpg: couldn't rescue, left as no vehicle (UnidentifiedImageError: cannot identify image file '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/c2.jpg')
+22:12:37 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: rules.diagnostics.burst in entries.json is deprecated; move it to settings.json
+22:12:37 py: rules.diagnostics.team in entries.json is deprecated; move it to settings.json
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so the face thresholds use defaults
+22:12:37 py: rules.min_sim in entries.json is deprecated; move it to settings.json
+22:12:37 py: rules.margin in entries.json is deprecated; move it to settings.json
+22:12:37 py: rules.min_face_px in entries.json is deprecated; move it to settings.json
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: entries.json: 1 entries upgraded (class, make/model → fields)
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: entries.json: 1 entries upgraded (class, make/model → fields)
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so the face thresholds use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:37 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:12:38 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:38 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:38 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:12:38 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:38 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:12:38 py: rules.order_weight in entries.json is deprecated; move it to settings.json
+22:12:38 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:12:38 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
+22:12:38 py: rescue: started
+22:12:38 py: C:\Users\Louis\AppData\Local\Temp\tmpt66v9ej2\2.jpg: rescued a vehicle from 1.jpg (crop similarity 4.0)
+22:12:38 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 0 to decode
+22:12:38 py: C:\Users\Louis\AppData\Local\Temp\tmpt66v9ej2\2.jpg: rescued a vehicle from 1.jpg (crop similarity 4.0)
+22:12:38 py: rescue: 1 frames with no vehicle have a candidate where a burst-mate's car is, 0 from cache, 1 to decode
+22:12:38 py: C:\Users\Louis\AppData\Local\Temp\tmpt66v9ej2\2.jpg: rescued a vehicle from 3.jpg (crop similarity 4.0)
+22:12:38 py: rescue: 2 frames with no vehicle have a candidate where a burst-mate's car is, 1 from cache, 1 to decode
+22:12:38 py: C:\Users\Louis\AppData\Local\Temp\tmpt66v9ej2\c2.jpg: couldn't rescue, left as no vehicle (UnidentifiedImageError: cannot identify image file 'C:\\Users\\Louis\\AppData\\Local\\Temp\\tmpt66v9ej2\\c2.jpg')
 Traceback (most recent call last):
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/identify.py", line 1099, in rescue_frames
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 1099, in rescue_frames
     results[job[0]] = fut.result()
                       ~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py", line 443, in result
+  File "C:\Python313\Lib\concurrent\futures\_base.py", line 449, in result
     return self.__get_result()
            ~~~~~~~~~~~~~~~~~^^
-  File "/opt/homebrew/Cellar/python@3.14/3.14.5/Frameworks/Python.framework/Versions/3.14/lib/python3.14/concurrent/futures/_base.py", line 395, in __get_result
+  File "C:\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
     raise self._exception
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/test_identify.py", line 510, in submit
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\test_identify.py", line 510, in submit
     fut.set_result(fn(job))
                    ~~^^^^^
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/identify.py", line 804, in rescue_frame
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 804, in rescue_frame
     rgb = decode_rgb(path)
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 84, in decode_rgb
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicle_detect.py", line 84, in decode_rgb
     return decode_rgb_sized(filepath, fast_jpeg)[0]
            ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 112, in decode_rgb_sized
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicle_detect.py", line 112, in decode_rgb_sized
     rgb, _, full = _open_rgb(filepath, fast_jpeg)
                    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/louis.davis/Documents/codebases/darktable/darktable-assisted-tagging/python/vehicle_detect.py", line 63, in _open_rgb
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicle_detect.py", line 63, in _open_rgb
     img = Image.open(source)
-  File "/private/tmp/claude-502/-Users-louis-davis-Documents-codebases/2603ec1c-e622-4c6b-8230-bd648c07fddb/scratchpad/venv/lib/python3.14/site-packages/PIL/Image.py", line 3730, in open
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\.venv\Lib\site-packages\PIL\Image.py", line 3730, in open
     raise UnidentifiedImageError(msg)
-PIL.UnidentifiedImageError: cannot identify image file '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/c2.jpg'
+PIL.UnidentifiedImageError: cannot identify image file 'C:\\Users\\Louis\\AppData\\Local\\Temp\\tmpt66v9ej2\\c2.jpg'
 
-22:11:48 py: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmplttcjkr2/2.jpg: rescued a vehicle from 3.jpg (crop similarity 4.0)
+22:12:38 py: C:\Users\Louis\AppData\Local\Temp\tmpt66v9ej2\2.jpg: rescued a vehicle from 3.jpg (crop similarity 4.0)
+22:12:59 py: worker pool: 4 workers, models load once per worker for the whole run
+22:13:05 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+22:13:05 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+22:13:05 py: rescue: done, 27s, peak memory 3020 MB (workers not included)
+22:13:05 py: loading models: started
+22:13:05 py: loading models: done, 0s, peak memory 3020 MB (workers not included)
+22:13:05 py: references: started
+22:13:05 py: collection tmpwj_lo6n9 has no references yet: only numbers can identify a car
+22:13:05 py: references: done, 0s, peak memory 3020 MB (workers not included)
+22:13:05 py: checking cache: started
+22:13:05 py: analysing: 5 frames, 0 from cache, 5 to decode
+22:13:05 py: checking cache: done, 0s, peak memory 3020 MB (workers not included)
+22:13:05 py: analysing: started
+22:13:05 py: analysing: done, 0s, peak memory 3020 MB (workers not included)
+22:13:05 py: starting workers: started
+22:13:05 py: starting workers: done, 0s, peak memory 3020 MB (workers not included)
+22:13:05 py: analysing: started
+22:13:05 py: C:\Users\Louis\AppData\Local\Temp\frames_osczq_3w/5.jpg: couldn't analyse (FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Louis\\AppData\\Local\\Temp\\frames_osczq_3w/5.jpg')
+Traceback (most recent call last):
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 997, in run_frames
+    out[p] = fut.result()
+             ~~~~~~~~~~^^
+  File "C:\Python313\Lib\concurrent\futures\_base.py", line 449, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "C:\Python313\Lib\concurrent\futures\_base.py", line 401, in __get_result
+    raise self._exception
+  File "C:\Python313\Lib\concurrent\futures\thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\identify.py", line 658, in analyse_frame
+    small, (w, h) = decode_rgb_sized(filepath, fast_jpeg=True)
+                    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicle_detect.py", line 112, in decode_rgb_sized
+    rgb, _, full = _open_rgb(filepath, fast_jpeg)
+                   ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\python\vehicle_detect.py", line 63, in _open_rgb
+    img = Image.open(source)
+  File "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins\darktable-assisted-tagging\.venv\Lib\site-packages\PIL\Image.py", line 3654, in open
+    fp = builtins.open(filename, "rb")
+FileNotFoundError: [Errno 2] No such file or directory: 'C:\\Users\\Louis\\AppData\\Local\\Temp\\frames_osczq_3w/5.jpg'
+
+22:13:05 py: analysis: 5 frames in 0s, 6408 frames/min (4 workers), largest worker peak memory 3020 MB
+22:13:05 py: detections: 0 cached, 4 detected
+22:13:05 py: analysis: turned reads won 0 regions (180° 0, 90° 0, 270° 0)
+22:13:05 py: livery: raw similarity (0 references and 3 boxes, under 20)
