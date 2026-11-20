@@ -457,6 +457,52 @@ function M.hand_family_tags(have, ledger_set, roots)
     return out
 end
 
+-- The tags in `have` that Copy tags to group syncs: entry tags and tags under a family root (every
+-- family, on or off; `rules` from M.named_rules). Never diagnostics, unidentified tags, run stamps or
+-- the user's other tags.
+function M.group_sync_tags(have, entries, rules)
+    local entry_tag, skip, prefixes, diag_prefixes = {}, {}, {}, {}
+    for _, e in pairs(entries) do
+        for _, t in ipairs(e.tags) do entry_tag[t] = true end
+    end
+    for _, t in ipairs(rules.unidentified) do skip[t] = true end
+    for _, t in pairs(rules.diag) do skip[t] = true end
+    for _, t in pairs(M.DIAG_TAGS) do skip[t] = true end
+    for _, root in pairs(rules.families) do
+        if root ~= "" then prefixes[#prefixes + 1] = root .. "|" end
+    end
+    for _, base in ipairs({ rules.diag.number_seen or "", rules.diag.derived or "" }) do
+        if base ~= "" then diag_prefixes[#diag_prefixes + 1] = base .. "|" end
+    end
+    local out = {}
+    for name in pairs(have) do
+        local synced = entry_tag[name] or false
+        for _, p in ipairs(prefixes) do
+            if name:sub(1, #p) == p then synced = true end
+        end
+        for _, p in ipairs(diag_prefixes) do
+            if name:sub(1, #p) == p then synced = false end
+        end
+        if synced and not skip[name] then out[name] = true end
+    end
+    return out
+end
+
+-- One group's source for Copy tags to group: the union of its selected photos' synced tags
+-- (`synced`: one M.group_sync_tags set per selected photo), and whether those photos differ.
+function M.group_source(synced)
+    local source, differs = {}, false
+    for _, set in ipairs(synced) do
+        for name in pairs(set) do source[name] = true end
+    end
+    for _, set in ipairs(synced) do
+        for name in pairs(source) do
+            if not set[name] then differs = true end
+        end
+    end
+    return source, differs
+end
+
 -- The values the user set by hand under `root`, sorted. Empty for no root.
 local function hand_values(have, ledger_set, root)
     local out = {}
@@ -3623,8 +3669,9 @@ function M.fill_entry_colours(images, colour_of)
 end
 
 -- To check fixes ------------------------------------------------------------------
--- Runs a fix that writes tags: plan(img, have) returns the names to attach and the names to detach.
--- Tags it attaches go in the ledger as the plugin's.
+-- Runs a fix that writes tags: plan(img, have) returns the names to attach, the names to detach and,
+-- optionally, names to drop from the ledger. Tags it attaches go in the ledger as the plugin's
+-- unless dropped, which makes them the user's.
 local function fix_tags(label, images, plan)
     if queue_if_busy(label, #images > 0, function() fix_tags(label, images, plan) end) then return end
     if not can_start(images) or not take_settings() then return end
@@ -3639,7 +3686,7 @@ local function fix_tags(label, images, plan)
         local n_tags, writes, failed_ids = 0, 0, {}
         for i, img in ipairs(images) do
             job.percent = (i - 1) / #images
-            local attach, detach = plan(img, tags_of(img))
+            local attach, detach, forget = plan(img, tags_of(img))
             local mine = ledger[tonumber(img.id)] or {}
             local okw, werr = pcall(function()
                 for _, name in ipairs(detach) do
@@ -3651,6 +3698,7 @@ local function fix_tags(label, images, plan)
                     mine[name] = true
                 end
             end)
+            for _, name in ipairs(forget or {}) do mine[name] = nil end
             ledger[tonumber(img.id)] = next(mine) and mine or nil
             if okw then
                 n_tags = n_tags + #attach + #detach
@@ -3703,6 +3751,69 @@ end
 fixes.entry_colour = function(images, arg)
     local eid, colour = arg:match("^(.-)=(.*)$")
     M.fill_entry_colours(images, { [eid] = colour })
+end
+
+-- Copy tags to group: in each darktable group holding selected photos, the selected photos' synced
+-- tags (M.group_sync_tags) overwrite every member's, as hand tags: they leave the ledger, so Identify
+-- keeps them. Tags never cross groups. When a group's selected photos differ, their tags are merged,
+-- so ask(text, go) is called instead and go() copies once the user confirms.
+function M.copy_tags_to_group(images, ask)
+    if not images or #images == 0 then
+        dt.print(_("Assisted Tagging: select some images first"))
+        return
+    end
+    if not take_settings() then return end
+    load_entries_csv()
+    local named = M.named_rules(rules, settings)
+    -- group leader id → the first selected photo in it and each selected photo's synced tags
+    local selected_of, order = {}, {}
+    for _, img in ipairs(images) do
+        local leader_id = (img.group_leader or img).id
+        if not selected_of[leader_id] then
+            selected_of[leader_id] = { img = img, synced = {} }
+            order[#order + 1] = leader_id
+        end
+        local synced = selected_of[leader_id].synced
+        synced[#synced + 1] = M.group_sync_tags(tags_of(img), entries, named)
+    end
+    local source_of, members, n_merged = {}, {}, 0
+    for _, leader_id in ipairs(order) do
+        local group = selected_of[leader_id]
+        local group_members = group.img:get_group_members()
+        if #group_members > 1 then
+            local source, differs = M.group_source(group.synced)
+            if differs then n_merged = n_merged + 1 end
+            for _, member in ipairs(group_members) do
+                source_of[member.id] = source
+                members[#members + 1] = member
+            end
+        end
+    end
+    if #members == 0 then
+        dt.print(_("Assisted Tagging: none of the selected photos is in a darktable group with other photos."))
+        return
+    end
+    local function go()
+        fix_tags(_("Copy tags to group"), members, function(img, have)
+            local source = source_of[img.id]
+            local attach, detach = {}, {}
+            for name in pairs(source) do
+                if not have[name] then attach[#attach + 1] = name end
+            end
+            for name in pairs(M.group_sync_tags(have, entries, named)) do
+                if not source[name] then detach[#detach + 1] = name end
+            end
+            table.sort(attach)
+            table.sort(detach)
+            return attach, detach, sorted_names(source)
+        end)
+    end
+    if n_merged > 0 then
+        ask(string.format(_("The selected photos in %d groups have different tags. Copy merges them: every photo in those groups gets all of their tags."),
+            n_merged), go)
+        return
+    end
+    go()
 end
 
 -- Saves the confident vehicles (number-read, or a clear livery match) that the last
@@ -4404,6 +4515,48 @@ local function install_panel()
         tooltip = _("For each selected image with one colour tag, add the tags of the one entry with that colour (narrowed by your team tags) and Derived|From colour. Skips the image when several entries or none have that colour, or when it has a number tag (use Derive from number). Lookup only: no model runs, nothing is removed. Needs entry colours in entries.json (Fill entry colours). Writes darktable tags and the tag ledger only."),
         clicked_callback = function() M.derive_images(dt.gui.action_images, "colour") end,
     }
+    -- Copy tags to group asks here before merging differing photos (darktable Lua has no dialog)
+    local copy_confirm_label = new_widget("label") { label = "", halign = "start" }
+    local copy_confirm_go
+    local copy_confirm_box
+    copy_confirm_box = new_widget("box") {
+        orientation = "vertical",
+        visible = false,
+        copy_confirm_label,
+        new_widget("box") {
+            orientation = "horizontal",
+            new_widget("button") {
+                label = _("Merge and copy"),
+                clicked_callback = function()
+                    copy_confirm_box.visible = false
+                    copy_confirm_go()
+                end,
+            },
+            new_widget("button") { label = _("Cancel"), clicked_callback = function() copy_confirm_box.visible = false end },
+        },
+    }
+    local copy_group_button = new_widget("button") {
+        label = _("Copy tags to group"),
+        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other photo in the group, so the group matches. Diagnostics, unidentified tags, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace manual tags is ticked. When a group's selected images differ, asks before merging their tags."),
+        clicked_callback = function()
+            copy_confirm_box.visible = false
+            M.copy_tags_to_group(dt.gui.action_images, function(text, go)
+                local lines, line = {}, ""
+                for word in text:gmatch("%S+") do
+                    if line ~= "" and #line + 1 + #word > C.ALERT_WRAP then
+                        lines[#lines + 1] = line
+                        line = word
+                    else
+                        line = line == "" and word or line .. " " .. word
+                    end
+                end
+                lines[#lines + 1] = line
+                copy_confirm_label.label = table.concat(lines, "\n")
+                copy_confirm_go = go
+                copy_confirm_box.visible = true
+            end)
+        end,
+    }
     status_label = new_widget("label") { label = "", halign = "start" }
     replace_manual_check = new_widget("check_button") {
         label = _("Replace manual tags"),
@@ -4714,6 +4867,8 @@ local function install_panel()
           replace_manual_check, run_tag_combo, verify_button, identify_button,
           new_widget("section_label") { label = _("derive (lookups only; adds tags)") },
           derive_number_button, derive_colour_button,
+          new_widget("section_label") { label = _("group (copies tags within each darktable group)") },
+          copy_group_button, copy_confirm_box,
           new_widget("section_label") { label = _("undo") },
           clear_marks_button },
         { new_widget("section_label") { label = _("add to one entry (uses the entry list)") },

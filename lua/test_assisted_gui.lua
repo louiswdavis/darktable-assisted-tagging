@@ -496,6 +496,96 @@ PYTHON.results = "8,-1,no_vehicle,,,0.000,,,\n"
 T.identify_images({ still_unknown }, false, false)
 check("stale Unidentified: a hand Unidentified tag stays on a photo still unidentified", has_tag(still_unknown, UNIDENTIFIED), true)
 
+-- Copy tags to group -----------------------------------------------------------------
+-- a photo in a darktable group: its leader is the image with id `leader_id`
+local grouped_by_id = {}
+local function grouped(id, filename, tag_names, leader_id)
+    local img = image(id, filename, tag_names)
+    img.group = leader_id
+    function img:get_group_members()
+        local out = {}
+        for _, other in pairs(grouped_by_id) do
+            if other.group == self.group then out[#out + 1] = other end
+        end
+        table.sort(out, function(a, b) return a.id < b.id end)
+        return out
+    end
+    grouped_by_id[id] = img
+    return setmetatable(img, { __index = function(self, key)
+        if key == "group_leader" then return grouped_by_id[self.group] end end })
+end
+local copy_button = widget_where(panel, "button", "label", "Copy tags to group")
+local copy_confirm = widget_where(panel, "button", "label", "Merge and copy")
+local CHECK_COLOUR = "Assisted Tagging|Identification|Check colour"
+local function tag_list(img)
+    local out = {}
+    for _, t in ipairs(img.tags) do out[#out + 1] = t.name end
+    table.sort(out)
+    return table.concat(out, ", ")
+end
+local function ledger_rows_for(id)
+    local n = 0
+    for line in (read_file(ROOT .. "/config/assisted_tagging/ledger.csv") or ""):gmatch("[^\n]+") do
+        -- `lib,id,tag`, or `id,tag` from before the library column
+        if (line:match("^[^,]*,(%d+),") or line:match("^(%d+),")) == tostring(id) then n = n + 1 end
+    end
+    return n
+end
+
+local source = grouped(101, "DSC00101.JPG", { "Rallye|112", "Colour|Red", "Number|112" }, 101)
+local member = grouped(102, "DSC00102.JPG", { "Rallye|35", "Colour|Blue", "Number|35", CHECK_COLOUR, "Hand|Tag" }, 101)
+local bare = grouped(103, "DSC00103.JPG", {}, 101)
+local other_source = grouped(201, "DSC00201.JPG", { "Rallye|35", "Colour|Blue" }, 201)
+local other_member = grouped(202, "DSC00202.JPG", { "Number|7" }, 201)
+write_file(ROOT .. "/config/assisted_tagging/ledger.csv", "102,Rallye|35\n102,Colour|Blue\n")
+prints, dt.gui.action_images = {}, { source, other_source }
+check("copy to group: the button is on the panel", copy_button ~= nil, true)
+;(copy_button or { clicked_callback = function() end }).clicked_callback()
+check("copy to group: the source's tags replace the member's entry and family tags", tag_list(member),
+    "Assisted Tagging|Identification|Check colour, Colour|Red, Hand|Tag, Number|112, Rallye|112")
+check("copy to group: a member with no tags gets them all", tag_list(bare), "Colour|Red, Number|112, Rallye|112")
+check("copy to group: the source keeps its tags", tag_list(source), "Colour|Red, Number|112, Rallye|112")
+check("copy to group, two groups: the second group copies its own source", tag_list(other_member), "Colour|Blue, Rallye|35")
+check("copy to group, two groups: no tag crosses between groups",
+    tostring(has_tag(other_member, "Rallye|112")) .. " " .. tostring(has_tag(bare, "Rallye|35")), "false false")
+check("copy to group: the copies are the user's, the ledger has no row for them",
+    ledger_rows_for(101) + ledger_rows_for(102) + ledger_rows_for(103) + ledger_rows_for(202), 0)
+check("copy to group: the end message", printed("Assisted Tagging: Copy tags to group done"), true)
+
+PYTHON.results, PYTHON.runs = "102,0,number,35,,0.9,,solo,0,,0,,0\n", {}
+T.identify_images({ member }, false, false)
+check("copy to group: Identify reading another car keeps the copied tags",
+    tostring(has_tag(member, "Rallye|112")) .. " " .. tostring(has_tag(member, "Colour|Red")), "true true")
+
+local differ_a = grouped(301, "DSC00301.JPG", { "Rallye|112", "Colour|Red" }, 301)
+local differ_b = grouped(302, "DSC00302.JPG", { "Number|112" }, 301)
+local differ_c = grouped(303, "DSC00303.JPG", { "Colour|Blue" }, 301)
+prints, dt.gui.action_images = {}, { differ_a, differ_b }
+;(copy_button or { clicked_callback = function() end }).clicked_callback()
+local confirm_box
+local function find_confirm(widget)
+    for _, child in ipairs(widget) do
+        if type(child) == "table" then
+            if child.kind == "box" and widget_where(child, "button", "label", "Merge and copy") and child.visible ~= nil then
+                confirm_box = child
+            end
+            find_confirm(child)
+        end
+    end
+end
+find_confirm(panel)
+check("copy to group, selected photos differ: the confirm box shows", confirm_box and confirm_box.visible, true)
+check("copy to group, selected photos differ: the confirm names the count",
+    confirm_box and confirm_box[1].label:gsub("\n", " "),
+    "The selected photos in 1 groups have different tags. Copy merges them: every photo in those groups gets all of their tags.")
+check("copy to group, selected photos differ: nothing is written before the confirm", tag_list(differ_c), "Colour|Blue")
+;(copy_confirm or { clicked_callback = function() end }).clicked_callback()
+check("copy to group, Merge and copy: every photo gets the merged tags",
+    tag_list(differ_a) .. " / " .. tag_list(differ_b) .. " / " .. tag_list(differ_c),
+    "Colour|Red, Number|112, Rallye|112 / Colour|Red, Number|112, Rallye|112 / Colour|Red, Number|112, Rallye|112")
+check("copy to group, Merge and copy: the confirm box hides", confirm_box and confirm_box.visible, false)
+dt.gui.action_images = {}
+
 -- Picks a menu entry by its text, as a click in darktable does.
 local function choose(combo, text)
     for i = 1, #combo do

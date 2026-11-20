@@ -85,6 +85,20 @@ ok   stale Unidentified: a photo skipped as tagged by hand loses the earlier run
 ok   stale Unidentified: a photo identified now loses an Unidentified tag missing from the ledger
 ok   stale Unidentified: a photo whose hand tags name a car loses it
 ok   stale Unidentified: a hand Unidentified tag stays on a photo still unidentified
+ok   copy to group: the button is on the panel
+ok   copy to group: the source's tags replace the member's entry and family tags
+ok   copy to group: a member with no tags gets them all
+ok   copy to group: the source keeps its tags
+ok   copy to group, two groups: the second group copies its own source
+ok   copy to group, two groups: no tag crosses between groups
+ok   copy to group: the copies are the user's, the ledger has no row for them
+ok   copy to group: the end message
+ok   copy to group: Identify reading another car keeps the copied tags
+ok   copy to group, selected photos differ: the confirm box shows
+ok   copy to group, selected photos differ: the confirm names the count
+ok   copy to group, selected photos differ: nothing is written before the confirm
+ok   copy to group, Merge and copy: every photo gets the merged tags
+ok   copy to group, Merge and copy: the confirm box hides
 ok   presets: export is offered for the Rallye collection
 ok   presets: export toast
 ok   presets: the bundle carries the entry list
