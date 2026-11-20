@@ -235,6 +235,19 @@ def run_tests():
     check("a split run of one hand-tagged frame fills to the burst's edge", summary(out["5"][0]), ("burst", "COL", ""))
     check("the gap between the two cars stays unfilled", summary(out["3"][0]), ("none", "", ""))
 
+    # ticket 69: `why` collects, per frame a burst left blank, the burst's entry and the rule that stopped it
+    def why_of(fr, *args):
+        why = {}
+        Mt.burst_consensus(fr, {k: "b" for k in fr}, *args, why=why)
+        return why
+
+    check("why: too small a share of the burst agrees", why_of(sparse).get("3"), ("VER", "low share"))
+    check("why: only one frame reads the car", why_of({"1": frames["1"], "3": frames["3"]}).get("3"), ("VER", "one read"))
+    check("why: a gap between two cars", why_of(between).get("3"), ("", "between cars"))
+    check("why: the frame's own box doesn't look like the car", why_of(pack, None, None, sims).get("3"),
+          ("VER", "looks unlike"))
+    check("why: filled frames and anchors are not listed", sorted(why_of(cars)), [])
+
     # review fix 9: a team-only result for another team is evidence of a different car
     other_team = {
         "1": [BoxResult(0, "number", "VER", "", 0.9)],

@@ -771,28 +771,35 @@ def _supported(sims: list, eid: str) -> bool:
 
 
 def _burst_fill(frames: dict, fid: str, eid: str, confidence: float, entries, box0_sims: dict = None,
-                solo: bool = False) -> list:
+                solo: bool = False, why: dict = None) -> list:
     """The frame's rows with box 0 set to the burst's entry, or the rows unchanged when the frame is
     already identified on box 0 or as a whole (a car on box 1 alone is another car in a pack), already
     identifies the entry on another box (a team-only result naming it is upgraded), has no box 0, shows a team-only result for another team (a different car), the
     confidence is under BURST_MIN_CONFIDENCE (waived when `solo`: a SOLO_ANCHOR_CONF read anchors the
     burst), or (with `box0_sims`) box 0's own similarities don't back the entry. A frame where no
-    vehicle was found (a lone box -1 `none` row) takes the entry on that row: nothing in it contradicts the burst."""
+    vehicle was found (a lone box -1 `none` row) takes the entry on that row: nothing in it contradicts the burst.
+    With `why`, a frame left unchanged that is not an anchor itself gets why[fid] = (eid, reason)."""
     rows = frames[fid]
+
+    def blank(reason):
+        if why is not None:
+            why[fid] = (eid, reason)
+        return rows
+
     if _anchor_rows(rows) or any(r.entry_id == eid and r.method in BURST_ANCHORS for r in rows):
         return rows
     if confidence < BURST_MIN_CONFIDENCE and not solo:
-        return rows
+        return blank("low share")
     if all(r.box < 0 and r.method == "none" for r in rows):
         return [replace(r, method="burst", entry_id=eid, alt_entry_id="", confidence=confidence) for r in rows]
     if not any(r.box == 0 for r in rows):
-        return rows
+        return blank("no box 0")
     if box0_sims is not None and not (fid in box0_sims and (not box0_sims[fid] or _supported(box0_sims[fid], eid))):
-        return rows  # empty sims (a collection without references) leave nothing to contradict the burst
+        return blank("looks unlike")  # empty sims (a collection without references) leave nothing to contradict the burst
     if entries and eid in entries and any(
             r.method == "team" and r.entry_id in entries and entries[r.entry_id].team != entries[eid].team
             for r in rows):
-        return rows
+        return blank("other team")
     return [replace(r, method="burst", entry_id=eid, alt_entry_id="", confidence=confidence) if r.box == 0 else r
             for r in rows]
 
@@ -842,7 +849,8 @@ def _smooth_spikes(ids: list, frames: dict) -> dict:
     return out
 
 
-def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None, box0_sims: dict = None) -> dict:
+def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = None, box0_sims: dict = None,
+                    why: dict = None) -> dict:
     """frames: image id → [BoxResult]. A frame whose box 0 wasn't identified (and no hand tag)
     takes its burst's entry on its largest box when at least BURST_MIN_AGREE
     frames agree on that entry (a number, livery, neighbour or hand result), or one number read reaches
@@ -851,7 +859,9 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
     evidence of a different car. A burst that names several entries is split at the identity
     changes (see _split_burst) using `order` (image id → sort key, shooting order; default the
     order of `frames`), so each stretch fills only from its own car. With `box0_sims` (image id → box 0's
-    [(entry id, sim)]) a frame is filled only when its own box backs the entry; see _supported."""
+    [(entry id, sim)]) a frame is filled only when its own box backs the entry; see _supported.
+    With `why` (filled in place), each frame of an anchored burst left blank maps to (burst entry, reason):
+    "one read", "between cars" (entry ""), or a _burst_fill reason."""
     members: dict = {}
     for fid in frames:
         members.setdefault(burst_of.get(fid, fid), []).append(fid)
@@ -865,18 +875,26 @@ def burst_consensus(frames: dict, burst_of: dict, entries=None, order: dict = No
             ordered = sorted(ids, key=order.__getitem__) if order else ids
             smoothed = _smooth_spikes(ordered, frames)
             out.update({fid: smoothed[fid] for fid in ids})
+            spanned = set()
             for eid, span, n, solo in _split_burst(ordered, smoothed):
+                spanned.update(span)
                 for fid in span:
-                    out[fid] = _burst_fill(smoothed, fid, eid, n / len(span), entries, box0_sims, solo)
+                    out[fid] = _burst_fill(smoothed, fid, eid, n / len(span), entries, box0_sims, solo, why)
+            if why is not None:
+                for fid in ids:
+                    if fid not in spanned and not _anchor_rows(smoothed[fid]):
+                        why[fid] = ("", "between cars")
             continue
         if len(agree) != 1:
             continue
         (eid, n), = agree.items()
         solo = any(r.entry_id == eid and _solo(r) for fid in ids for r in _anchor_rows(frames[fid]))
         if n < BURST_MIN_AGREE and not solo:
+            if why is not None:
+                why.update({fid: (eid, "one read") for fid in ids if not _anchor_rows(frames[fid])})
             continue
         for fid in ids:
-            out[fid] = _burst_fill(frames, fid, eid, n / len(ids), entries, box0_sims, solo)
+            out[fid] = _burst_fill(frames, fid, eid, n / len(ids), entries, box0_sims, solo, why)
     return out
 
 

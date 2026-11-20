@@ -492,7 +492,8 @@ end
 -- (`synced`: one M.group_sync_tags set per selected photo; `roots`: family key → root), and the
 -- sorted tags that clash. A tag's family is the family root it sits under, else its parent path.
 -- Two photos clash when both hold tags of one family and those tags differ; a photo with none of
--- a family's tags only gets them filled in.
+-- a family's tags only gets them filled in. The two entries of a double-driven car clash too when
+-- different photos hold them: the number and driver may really be swapped between photos.
 function M.group_source(synced, roots)
     local prefixes = {}
     for _, root in pairs(roots or {}) do

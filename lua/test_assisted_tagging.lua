@@ -607,6 +607,15 @@ check("group_source: different entry tags under one parent clash",
 local _, same = T.group_source({ { ["Num|12"] = true }, { ["Num|12"] = true } }, source_roots)
 local _, single = T.group_source({ { ["Num|12"] = true } }, source_roots)
 check("group_source: matching photos or one photo don't clash", #same .. " " .. #single, "0 0")
+local crossed, crossed_clashes = T.group_source({ { ["Num|12"] = true }, { ["Motorsport|Colour|Red"] = true } }, source_roots)
+check("group_source: a number on one photo and a colour on another merge without a clash",
+    tostring(crossed["Num|12"] and crossed["Motorsport|Colour|Red"]) .. " " .. #crossed_clashes, "true 0")
+check("group_source: a double-driven car's two numbers clash when separate photos hold them",
+    table.concat(select(2, T.group_source({ { ["Num|30"] = true, ["Num|730"] = true }, { ["Num|30"] = true, ["Num|730"] = true },
+        { ["Num|30"] = true }, { ["Num|730"] = true } }, source_roots)), ", "), "Num|30, Num|730")
+check("group_source: photos all holding both numbers of a car don't clash",
+    #select(2, T.group_source({ { ["Num|30"] = true, ["Num|730"] = true }, { ["Num|30"] = true, ["Num|730"] = true } },
+        source_roots)), 0)
 
 -- group_stale_checks: a copy carrying an entry tag clears the "no entry found" checks from a member
 -- that had none; Check match goes from every member; nothing goes when the copy names no entry

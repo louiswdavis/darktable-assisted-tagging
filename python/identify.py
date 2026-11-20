@@ -1797,7 +1797,16 @@ def identify(args, models: dict):
         log(f"neighbour: resolved {resolved}, flagged {flagged} (order weight {rules.order_weight:g}, tolerance {rules.neighbour_tolerance})")
         frames = aided
     if not verify:
-        frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims)
+        blanks: dict = {}
+        frames = burst_consensus(frames, burst_of, entries, shooting_order, box0_sims, why=blanks)
+        for fid in sorted(blanks, key=shooting_order.__getitem__):
+            eid, reason = blanks[fid]
+            log(f"{fid}: burst {eid or '-'} not filled ({reason})")
+        by_reason: dict = {}
+        for _, reason in blanks.values():
+            by_reason[reason] = by_reason.get(reason, 0) + 1
+        log(f"burst fill: {len(blanks)} frames left blank in bursts with a car"
+            + "".join(f", {reason} {n}" for reason, n in sorted(by_reason.items(), key=lambda kv: -kv[1])))
         # after consensus, so a burst-filled box votes and takes the car's colour too
         frames, recoloured = burst_colours(frames, burst_of, {(fid, i): b["colour_shares"] for fid, d in detail.items()
                                                               for i, b in enumerate(d["boxes"])})

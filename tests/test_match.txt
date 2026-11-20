@@ -64,6 +64,11 @@ ok   one hand-tagged pack frame fills its car's box 0 across the burst
 ok   an entry seen only on box 1 never fills box 0
 ok   a split run of one hand-tagged frame fills to the burst's edge
 ok   the gap between the two cars stays unfilled
+ok   why: too small a share of the burst agrees
+ok   why: only one frame reads the car
+ok   why: a gap between two cars
+ok   why: the frame's own box doesn't look like the car
+ok   why: filled frames and anchors are not listed
 ok   burst doesn't override a team-only result for another team
 ok   burst does upgrade a team-only result for its own team
 ok   two frames' weak reads agree: number
