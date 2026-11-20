@@ -61,16 +61,16 @@ ok   an anchor is not its own evidence
 all tests passed
 
 --- stderr ---
-20:56:09 py: references: 1 had no recorded source; set by file name (_b<n> = number read, else hand)
-20:56:09 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:56:09 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:56:09 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:56:09 py: references: stopped after 1 of 2; the rest are embedded next time
-20:56:09 py: references: 1 had no recorded source; set by file name (_b<n> = number read, else hand)
-20:56:09 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:56:09 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:56:09 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
-20:56:09 py: references: 1 had no recorded source; set by file name (_b<n> = number read, else hand)
-20:56:09 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:56:10 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
-20:56:10 py: references: 2 had no recorded source; set by file name (_b<n> = number read, else hand)
+21:21:07 py: references: 1 had no recorded source; set by file name (_b<n> = number read, else hand)
+21:21:07 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+21:21:07 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+21:21:07 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+21:21:07 py: references: stopped after 1 of 2; the rest are embedded next time
+21:21:07 py: references: 1 had no recorded source; set by file name (_b<n> = number read, else hand)
+21:21:07 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+21:21:07 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+21:21:08 py: reference refs/VER/2.jpg can't be read, skipped (UnidentifiedImageError); delete or replace it
+21:21:08 py: references: 1 had no recorded source; set by file name (_b<n> = number read, else hand)
+21:21:08 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+21:21:08 py: references: embedding 2 (new or replaced, or the embedder or blur setting changed)
+21:21:08 py: references: 2 had no recorded source; set by file name (_b<n> = number read, else hand)

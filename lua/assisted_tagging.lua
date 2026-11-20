@@ -5200,6 +5200,7 @@ local function install_panel()
     preset_ctl = make_preset_controls({
         prefix = "Assisted Tagging",
         plugin = "assisted_tagging",
+        plugin_folder = plugin_folder_pref,
         schema = M.PRESET_SCHEMA,
         store = collection_store(),
         read_panel = read_panel,

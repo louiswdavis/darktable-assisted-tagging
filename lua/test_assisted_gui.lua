@@ -832,10 +832,10 @@ local function choose(combo, text)
 end
 
 local actions = widget_where(panel, "combobox", "label", "Actions")
-local out = ROOT .. "/export"
-make_dir(out)
+-- bundles always go to <plugin folder>/exports; no folder to pick
+local out = ROOT .. "/plugins/darktable-assisted-tagging/exports"
 check("presets: export is offered for the Rallye collection", choose(actions, "export preset…"), true)
-widget_where(panel, "file_chooser_button", "title", "Folder to Export the Preset Into").value = out
+check("presets: export has no folder chooser", widget_where(panel, "file_chooser_button", "title", "Folder to Export the Preset Into"), nil)
 prints = {}
 widget_where(panel, "button", "label", "Export").clicked_callback()
 check("presets: export toast", last_print():find('Preset "Rallye" exported to ' .. out .. "/Rallye.atpreset", 1, true) ~= nil, true)
@@ -846,19 +846,21 @@ check("presets: the manifest lists both files",
 check("presets: unticked references stay behind", read_file(out .. "/Rallye.atpreset/refs/sources.json"), nil)
 
 -- references, ticked: refs/ goes whole, index.npz beside it stays behind
-local refs_out = ROOT .. "/export-refs"
-make_dir(refs_out)
 choose(actions, "export preset…")
 local refs_box = widget_where(panel, "check_button", "tooltip", "Also export refs/ (the reference crops and sources.json). They go out as full JPG crops of your photos: in a people collection they are face photos. Run caches and refs-quarantine never go.")
 check("presets: the references box shows the size", refs_box.label:match("^references %(2 files, ") ~= nil, true)
 refs_box.value = true
-widget_where(panel, "file_chooser_button", "title", "Folder to Export the Preset Into").value = refs_out
+prints = {}
 widget_where(panel, "button", "label", "Export").clicked_callback()
-check("presets: ticked references are exported", read_file(refs_out .. "/Rallye.atpreset/refs/112/1_b0.jpg"), "crop")
-check("presets: sources.json goes with them", read_file(refs_out .. "/Rallye.atpreset/refs/sources.json"), "{}")
-check("presets: index.npz stays behind", read_file(refs_out .. "/Rallye.atpreset/index.npz"), nil)
+-- the first bundle is still there, so this one takes the next free name
+local refs_bundle = out .. "/Rallye (2).atpreset"
+check("presets: a second export takes a free name", last_print():find("exported to " .. refs_bundle, 1, true) ~= nil, true)
+check("presets: the first bundle is left alone", read_file(out .. "/Rallye.atpreset/refs/sources.json"), nil)
+check("presets: ticked references are exported", read_file(refs_bundle .. "/refs/112/1_b0.jpg"), "crop")
+check("presets: sources.json goes with them", read_file(refs_bundle .. "/refs/sources.json"), "{}")
+check("presets: index.npz stays behind", read_file(refs_bundle .. "/index.npz"), nil)
 check("presets: the manifest lists refs",
-    (read_file(refs_out .. "/Rallye.atpreset/manifest.json") or ""):find('"files": "preset.json,entries.json,refs"', 1, true) ~= nil, true)
+    (read_file(refs_bundle .. "/manifest.json") or ""):find('"files": "preset.json,entries.json,refs"', 1, true) ~= nil, true)
 choose(actions, "export preset…")
 check("presets: the references box is unticked when export opens again", refs_box.value, false)
 
@@ -874,7 +876,7 @@ check("presets: Rallye keeps its own entry list", read_file(ROOT .. "/collection
 check("presets: a bundle without refs imports none", read_file(ROOT .. "/collections/Rallye (2)/refs/sources.json"), nil)
 
 choose(actions, "import preset…")
-widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Folder)").value = refs_out .. "/Rallye.atpreset"
+widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Folder)").value = refs_bundle
 prints = {}
 widget_where(panel, "button", "label", "Import").clicked_callback()
 check("presets: the refs bundle imports as Rallye (3)", last_print():find('Imported "Rallye (3)"', 1, true) ~= nil, true)

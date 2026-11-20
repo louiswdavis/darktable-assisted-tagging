@@ -2233,8 +2233,8 @@ def audit_references(args, models: dict):
         sys.exit(130)
     if len(set(index.entry)) < 2:
         raise InputError(f"{args.collection} needs references for at least 2 entries to audit; add some first")
-    def on_progress(done, total):
-        write_progress(args.progress, done, total)
+    def on_progress(done, total, cached):
+        write_progress(args.progress, done, total, "checking frames", cached)
         return not cancel_requested(args.progress)
 
     try:

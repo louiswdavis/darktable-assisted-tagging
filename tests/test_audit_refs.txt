@@ -1,0 +1,13 @@
+ok   progress: cached refs counted before any detection
+ok   progress: only the new ref is detected
+ok   shares stay aligned with path
+ok   boxes stay aligned with path
+ok   progress: all cached gives one done tick
+ok   progress: all cached detects nothing
+ok   cancel raises AuditCancelled
+all tests passed
+
+--- stderr ---
+21:21:07 py: checking frames: 2 cached, 1 to detect
+21:21:07 py: checking frames: 3 cached, 0 to detect
+21:21:07 py: checking frames: 0 cached, 2 to detect

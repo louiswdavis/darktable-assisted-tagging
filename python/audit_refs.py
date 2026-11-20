@@ -291,11 +291,12 @@ def frame_audit(collection_dir, path, detector, on_progress=None, need_boxes=Fal
     Shares and the detected boxes are cached in FRAME_CACHE_NAME beside the index, keyed by each ref
     file's size and mtime and by the detector file and threshold, so a re-run only detects new or changed
     refs. need_boxes also re-detects refs cached without boxes (caches from before boxes were stored).
-    on_progress(done, total) is called per ref; a False return raises AuditCancelled (results found so
+    on_progress(done, total, cached) is called before each detection (once when nothing needs one),
+    with the cache hits already in done; a False return raises AuditCancelled (results found so
     far stay cached). Returns (shares, boxes), each aligned with `path`; a ref's boxes are
     [x0, y0, x1, y1] lists in its own pixels."""
     from PIL import Image
-    from vehicles import DETECTOR_MIN_SCORE, detect_vehicles
+    from vehicles import DETECTOR_MIN_SCORE, detect_vehicles, log
     from vehicle_detect import detect, load_detector
     cache_path = os.path.join(collection_dir, FRAME_CACHE_NAME)
     detector = load_detector(detector)
@@ -306,18 +307,25 @@ def frame_audit(collection_dir, path, detector, on_progress=None, need_boxes=Fal
             saved = json.load(f)
         if saved.get("detector") == detector_id:
             cached = saved.get("refs", {})
-    shares, all_boxes = [], []
+    shares, all_boxes = [None] * len(path), [None] * len(path)
+    todo = []
+    for i, rel in enumerate(path):
+        file = os.path.join(collection_dir, *rel.split("/"))
+        stamp = _file_stamp(file)
+        hit = cached.get(rel)
+        if hit and hit["stamp"] == stamp and (not need_boxes or "boxes" in hit):
+            shares[i], all_boxes[i] = hit["share"], hit.get("boxes", [])
+        else:
+            todo.append((i, rel, file, stamp))
+    done = len(path) - len(todo)
+    log(f"checking frames: {done} cached, {len(todo)} to detect")
     try:
-        for i, rel in enumerate(path):
-            if on_progress and not on_progress(i, len(path)):
+        # cache hits are counted up front, so the progress and its ETA cover only the detections
+        if not todo and on_progress and not on_progress(done, len(path), done):
+            raise AuditCancelled()
+        for k, (i, rel, file, stamp) in enumerate(todo):
+            if on_progress and not on_progress(done + k, len(path), done):
                 raise AuditCancelled()
-            file = os.path.join(collection_dir, *rel.split("/"))
-            stamp = _file_stamp(file)
-            hit = cached.get(rel)
-            if hit and hit["stamp"] == stamp and (not need_boxes or "boxes" in hit):
-                shares.append(hit["share"])
-                all_boxes.append(hit.get("boxes", []))
-                continue
             with Image.open(file) as im:
                 rgb = np.array(im.convert("RGB"))
             boxes, _ = detect_vehicles(rgb, detect(rgb, detector))
@@ -325,8 +333,7 @@ def frame_audit(collection_dir, path, detector, on_progress=None, need_boxes=Fal
             share = max(((b[2] - b[0]) * (b[3] - b[1]) / (w * h) for b in boxes), default=0.0)
             plain = [[float(v) for v in b[:4]] for b in boxes]
             cached[rel] = {"stamp": stamp, "share": share, "boxes": plain}
-            shares.append(share)
-            all_boxes.append(plain)
+            shares[i], all_boxes[i] = share, plain
     finally:
         with open(cache_path, "w", encoding="utf-8") as f:
             json.dump({"detector": detector_id, "refs": cached}, f)

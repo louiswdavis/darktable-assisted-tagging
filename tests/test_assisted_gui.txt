@@ -156,12 +156,15 @@ ok   lock, identify: an unlocked photo's row has an empty locked field
 ok   unlock: the Locked tag goes, the tags stay
 ok   unlock: the tags stay yours
 ok   presets: export is offered for the Rallye collection
+ok   presets: export has no folder chooser
 ok   presets: export toast
 ok   presets: the bundle carries the entry list
 ok   presets: the bundle carries the settings
 ok   presets: the manifest lists both files
 ok   presets: unticked references stay behind
 ok   presets: the references box shows the size
+ok   presets: a second export takes a free name
+ok   presets: the first bundle is left alone
 ok   presets: ticked references are exported
 ok   presets: sources.json goes with them
 ok   presets: index.npz stays behind
