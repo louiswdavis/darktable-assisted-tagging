@@ -243,7 +243,7 @@ check("derive colour: the done message counts the photos tagged", printed("Assis
 
 PYTHON.results = "1,added,set,112\n"
 run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
-check("fill colours, Identify's entry tag + hand colour: no crash", printed("couldn't fill entry colours"), false)
+check("fill colours, Identify's entry tag + hand colour: no crash", printed("couldn't derive colours"), false)
 check("fill colours, Identify's entry tag + hand colour: the row names the entry and the colour",
     run and run.manifest, T.csv_line({ 1, "/photos/DSC00001.JPG", "112", "Red" }) .. "\n")
 check("fill colours: runs in colours-only mode", run ~= nil and flag(run.argv, "--add-reference") == "--colours-only", true)
