@@ -812,7 +812,7 @@ do
           tostring(d32[NS .. "|115"]) .. tostring(d32[NS .. "|207"]) .. tostring(d32[NS .. "|9"]), "truetruetrue")
     local text, ids, why = T.new_number_alert(nn, { 33, 31, 32, 34 }, { [31] = "a.ARW", [32] = "b.ARW", [33] = "c.ARW", [34] = "d.ARW" })
     check("new number alert text", text,
-          "Possible new entries: 115 (2 photos), 207 (2 photos). Find New Entries (page 1) adds them.")
+          "Possible new entries: 115 (2 photos), 207 (2 photos). Find New Entries (Tools page) adds them.")
     check("new number alert photos in run order", table.concat(ids, ","), "33,31,32")
     check("new number alert photo lines", table.concat(why, " / "),
           "c.ARW: read 207, no entry has it / a.ARW: read 115, no entry has it / b.ARW: read 115 and 207, no entry has them")

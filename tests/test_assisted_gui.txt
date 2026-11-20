@@ -50,7 +50,8 @@ ok   no button changes the selection
 ok   no widget is placed twice in the panel
 ok   Derive from Colour is on the panel
 ok   Run page: Identify and Verify, then the colour reads
-ok   Tools page: derives, copies, locks, then Undo
+ok   Tools page: derives, copies, locks, new entries, then Undo
+ok   Collection page: Find New Entries has moved to Tools
 ok   the progress line sits at the foot of the panel, outside the folding pages
 ok   To check sits above the progress line, outside the folding pages
 ok   To check: a blank line sits above the heading

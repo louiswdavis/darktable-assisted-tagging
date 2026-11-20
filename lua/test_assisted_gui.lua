@@ -417,9 +417,11 @@ local function button_labels(box)
 end
 check("Run page: Identify and Verify, then the colour reads",
     button_labels(page_body(panel, "Run")), "Identify Selection, Verify Selection, Identify Missing Entries, Identify Colour for Group, Identify Colour for Selection")
-check("Tools page: derives, copies, locks, then Undo",
+check("Tools page: derives, copies, locks, new entries, then Undo",
     button_labels(page_body(panel, "Tools")),
-    "Derive from Number, Derive from Colour, Copy Tags to Group, Copy Tags to Selection, Lock In Tags, Unlock Tags, Clear Tagging Marks")
+    "Derive from Number, Derive from Colour, Copy Tags to Group, Copy Tags to Selection, Lock In Tags, Unlock Tags, Find New Entries, Add Ticked to entries.json, Clear Tagging Marks")
+check("Collection page: Find New Entries has moved to Tools",
+    button_labels(page_body(panel, "Collection")):find("Find New Entries", 1, true), nil)
 
 check("the progress line sits at the foot of the panel, outside the folding pages",
       panel[#panel].kind, "label")

@@ -1283,7 +1283,7 @@ function M.new_number_alert(rows_of, ids, file_of)
     end)
     local parts = {}
     for _, digits in ipairs(numbers) do parts[#parts + 1] = string.format("%s (%d photos)", digits, photos_of[digits]) end
-    return "Possible new entries: " .. table.concat(parts, ", ") .. ". Find New Entries (page 1) adds them.", hit, why
+    return "Possible new entries: " .. table.concat(parts, ", ") .. ". Find New Entries (Tools page) adds them.", hit, why
 end
 
 -- The start-list import's column roles, as import_start_list.py ROLES names them.
@@ -5211,8 +5211,7 @@ local function install_panel()
     local page_widgets = {
         { plan_button,
           new_widget("label") { label = _("Start List"), halign = "start" },
-          start_list_tab_box, start_list_stack, import_start_list_button,
-          find_button, found_title, found_box, add_found_button },
+          start_list_tab_box, start_list_stack, import_start_list_button },
         {
             group_support_combo,
             new_widget("label") { label = _("Grouping Tag Node"), halign = "start" },
@@ -5248,6 +5247,8 @@ local function install_panel()
           copy_group_button, copy_selection_button, copy_confirm_box,
           new_widget("section_label") { label = _("Lock (Writes Tags as Your Own)") },
           lock_button, unlock_button,
+          new_widget("section_label") { label = _("New Entries (Writes entries.json)") },
+          find_button, found_title, found_box, add_found_button,
           new_widget("section_label") { label = _("Undo") },
           clear_marks_button },
     }
