@@ -231,6 +231,9 @@ ok   group_source: different colours give the union and clash on them
 ok   group_source: photos missing the colour or every tag fill in without a clash
 ok   group_source: different entry tags under one parent clash
 ok   group_source: matching photos or one photo don't clash
+ok   group_stale_checks: an unidentified member loses Unidentified, Check match and Number seen
+ok   group_stale_checks: an identified member keeps Number seen, loses Check match
+ok   group_stale_checks: a copy with no entry tag clears nothing
 ok   owned: entry tags
 ok   owned: unidentified rule tags
 ok   owned: renamed diagnostics

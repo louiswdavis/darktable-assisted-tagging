@@ -223,7 +223,7 @@ local function fill(images)
 end
 
 local run = fill({ image(2, "DSC00002.JPG", { "Somewhere|Else" }) })
-check("fill colours, no entry tags: says no image names an entry", printed("no selected image carries all of one entry's tags"), true)
+check("fill colours, no entry tags: says no image names an entry", printed("No selected image carries all of one entry's tags"), true)
 check("fill colours, no entry tags: no crash", printed("couldn't fill entry colours"), false)
 check("fill colours: says it started as soon as it is clicked", printed("Assisted Tagging: Fill entry colours started on 1 image…"), true)
 check("fill colours, no entry tags: identify.py isn't started", run, nil)
@@ -236,7 +236,7 @@ check("fill colours, Identify's entry tag + hand colour: no crash", printed("cou
 check("fill colours, Identify's entry tag + hand colour: the row names the entry and the colour",
     run and run.manifest, T.csv_line({ 1, "/photos/DSC00001.JPG", "112", "Red" }) .. "\n")
 check("fill colours: runs in colours-only mode", run ~= nil and flag(run.argv, "--add-reference") == "--colours-only", true)
-check("fill colours: reports the entry set", printed("Assisted Tagging: colour saved for entry 112. File:"), true)
+check("fill colours: reports the entry set", printed("Assisted Tagging: Colour saved for entry 112. File:"), true)
 
 -- Identify wrote every tag: one photo's colour tag is not enough to replace the entry's colour
 local ledger_text = ""
@@ -295,13 +295,13 @@ check("add references, hand entry tag: no crash", printed("couldn't add referenc
 check("add references, hand entry tag: the row names the entry", run and run.manifest ~= nil
     and run.manifest:find(T.csv_line({ 3, "/photos/DSC00003.JPG", "35" }), 1, true) == 1, true)
 check("add references, hand entry tag: reports the reference added",
-    last_print(), "Assisted Tagging: added 1 references to their entries. Crops are in Rallye/refs.")
+    last_print(), "Assisted Tagging: Added 1 references to their entries. Crops are in Rallye/refs.")
 check("add references: the run keeps a settings.json-only value", run and run.settings
     and run.settings:find('"closer_car_margin": 0.12', 1, true) ~= nil, true)
 PYTHON.results = "3,no_vehicle,,35\n"
 add({ image(3, "DSC00003.JPG", { "Rallye|35" }) })
 check("add references, no vehicle found: says nothing was added and why",
-    last_print(), "Assisted Tagging: no reference added. Left out: 1 had no vehicle found (see log).")
+    last_print(), "Assisted Tagging: No reference added. Left out: 1 had no vehicle found (see log).")
 
 -- Clear tagging marks ---------------------------------------------------------------
 local marked = image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red", "Hand|Tag" })
@@ -309,7 +309,7 @@ selection, prints = { marked }, {}
 local sleeps = {}
 dt.control.sleep = function(ms) sleeps[#sleeps + 1] = ms end
 T.clear_marks({ marked })
-check("clear: the tags are cleared", printed("Assisted Tagging: cleared 2 tags from 1 images."), true)
+check("clear: the tags are cleared", printed("Assisted Tagging: Cleared 2 tags from 1 images."), true)
 check("clear: pauses once after the image with writes", #sleeps == 1 and sleeps[1] >= 20, true)
 check("clear: the log has the timing line", (read_file(ROOT .. "/config/assisted_tagging.log") or ""):find(
     "clear: timing: 1 of 1 images in %d+s; [%d.]+s in tag writes, [%d.]+s waiting for darktable, [%d.]+s paused; 2 tag writes\n") ~= nil, true)
@@ -318,7 +318,7 @@ check("clear: the job bar is closed", jobs[#jobs].valid, false)
 prints = {}
 T.clear_marks({ marked })
 check("clear: the next clear runs, the panel isn't left busy",
-    printed("Assisted Tagging: nothing to clear; the selection has no tagging marks."), true)
+    printed("Assisted Tagging: Nothing to clear; the selection has no tagging marks."), true)
 
 -- the x on the job bar, clicked during the pause after the first image
 local first, second, third = image(2, "DSC00002.JPG", { "Rallye|112", "Colour|Red" }),
@@ -329,7 +329,7 @@ T.clear_marks({ first, second, third })
 check("clear, cancelled: the first image is cleared, the others keep their tags",
     #first.tags .. " " .. #second.tags .. " " .. #third.tags, "0 2 2")
 check("clear, cancelled: says how far it got", last_print(),
-    "Assisted Tagging: stopped; cleared 2 tags from 1 images. The rest keep their marks, clear again to finish.")
+    "Assisted Tagging: Stopped; cleared 2 tags from 1 images. The rest keep their marks, clear again to finish.")
 dt.control.sleep = function() end
 T.clear_marks({ first, second, third })
 check("clear, after a cancel: the next clear finishes the rest", #second.tags + #third.tags, 0)
@@ -352,8 +352,11 @@ check("the progress line sits at the foot of the panel, outside the folding page
 -- To check ------------------------------------------------------------------------
 local to_check = panel[#panel - 1]
 check("To check sits above the progress line, outside the folding pages",
-    type(to_check) == "table" and to_check[1] and to_check[1][1] and to_check[1][1].label, "To check")
-to_check = type(to_check) == "table" and to_check[1] and to_check[1][1] and to_check[1][1].label == "To check" and to_check or { {}, {} }
+    type(to_check) == "table" and to_check[1] and to_check[1][2] and to_check[1][2].label, "To check")
+to_check = type(to_check) == "table" and to_check[1] and to_check[1][2] and to_check[1][2].label == "To check" and to_check or { {}, {} }
+check("To check: a blank line sits above the heading", (to_check[1][1] or {}).kind .. " [" .. tostring((to_check[1][1] or {}).label) .. "]", "label [ ]")
+check("To check: Clear list is the box's last line, not beside the heading",
+    tostring((to_check[#to_check] or {}).label) .. " " .. tostring(widget_where(to_check[1], "button", "label", "Clear list") ~= nil), "Clear list false")
 local CHECKS_FILE = ROOT .. "/config/assisted_tagging.checks.txt"
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
@@ -372,7 +375,7 @@ fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("To check: the next fill colours run replaces its items", (read_file(CHECKS_FILE) or ""):find("Fill entry colours", 1, true), nil)
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
-;(widget_where(to_check, "button", "label", "Clear") or { clicked_callback = function() end }).clicked_callback()
+;(widget_where(to_check, "button", "label", "Clear list") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Clear empties the box", to_check.visible, false)
 check("To check: Clear empties the saved list", read_file(CHECKS_FILE), "")
 check("To check: a row without a fix has no Fix button", (widget_where(to_check, "button", "label", "Fix") or {}).visible, false)
@@ -416,7 +419,7 @@ check("To check: a fix argument and the photo list survive a save and load", lin
 local blue = image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" })
 PYTHON.results, PYTHON.overturns, PYTHON.runs, prints = "1,0,number,112,,0.9,,solo,0,Blue,1,,0\n",
     "entry,stored,seen,n,total,ids\n112,Pink,Blue,1,1,1\n", {}, {}
-;(widget_where(to_check, "button", "label", "Clear") or { clicked_callback = function() end }).clicked_callback()
+;(widget_where(to_check, "button", "label", "Clear list") or { clicked_callback = function() end }).clicked_callback()
 T.identify_images({ blue }, false, true)
 PYTHON.overturns = nil
 local function row(i) return to_check[i + 1] or { {}, {}, { {}, {} } } end
@@ -459,7 +462,7 @@ check("Entry colour Fix: sends the colour read as the entry's colour", PYTHON.ru
 check("Entry colour Fix: its row is gone", (read_file(CHECKS_FILE) or ""):find("entry_colour", 1, true), nil)
 
 -- a timeline: the newest run's items on top, older runs' below an "Earlier runs" line
-;(widget_where(to_check, "button", "label", "Clear") or { clicked_callback = function() end }).clicked_callback()
+;(widget_where(to_check, "button", "label", "Clear list") or { clicked_callback = function() end }).clicked_callback()
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("timeline: one run's items have no Earlier runs line", row(1)[4] and row(1)[4].visible, false)
@@ -561,12 +564,12 @@ check("copy to group: Identify reading another car keeps the copied tags",
 
 prints, dt.gui.action_images = {}, {}
 ;(copy_button or { clicked_callback = function() end }).clicked_callback()
-check("copy to group, nothing selected: asks for a selection", last_print(), "Assisted Tagging: select some images first")
+check("copy to group, nothing selected: asks for a selection", last_print(), "Assisted Tagging: Select some images first.")
 local alone = grouped(401, "DSC00401.JPG", { "Rallye|112" }, 401)
 prints, dt.gui.action_images = {}, { alone }
 ;(copy_button or { clicked_callback = function() end }).clicked_callback()
 check("copy to group, a photo alone in its group: says so, writes nothing", last_print(),
-    "Assisted Tagging: none of the selected photos is in a darktable group with other photos.")
+    "Assisted Tagging: None of the selected photos is in a darktable group with other photos.")
 
 local differ_a = grouped(301, "DSC00301.JPG", { "Rallye|112", "Colour|Red" }, 301)
 local differ_b = grouped(302, "DSC00302.JPG", { "Number|112", "Colour|Green" }, 301)
@@ -609,6 +612,19 @@ dt.gui.action_images = { fill_a, fill_b }
 check("copy to group, a selected photo missing the colour: copies without the confirm",
     tostring(confirm_box and confirm_box.visible) .. " " .. tag_list(fill_b) .. " / " .. tag_list(fill_c),
     "false Colour|Red, Rallye|112 / Colour|Red, Rallye|112")
+
+-- a member Identify left unidentified loses its stale checks; an identified one keeps Number seen
+local ID = "Assisted Tagging|Identification|"
+local stale_a = grouped(321, "DSC00321.JPG", { "Rallye|112" }, 321)
+local stale_b = grouped(322, "DSC00322.JPG", { ID .. "Unidentified", ID .. "Check match", ID .. "Number seen|115",
+    ID .. "Shot|Solo" }, 321)
+local stale_c = grouped(323, "DSC00323.JPG", { "Rallye|35", ID .. "Number seen|7", ID .. "Check match" }, 321)
+dt.gui.action_images = { stale_a }
+;(copy_button or { clicked_callback = function() end }).clicked_callback()
+check("copy to group: an unidentified member drops Unidentified, Check match and Number seen", tag_list(stale_b),
+    ID .. "Shot|Solo, Rallye|112")
+check("copy to group: an identified member keeps Number seen, drops Check match", tag_list(stale_c),
+    ID .. "Number seen|7, Rallye|112")
 dt.gui.action_images = {}
 
 -- Picks a menu entry by its text, as a click in darktable does.

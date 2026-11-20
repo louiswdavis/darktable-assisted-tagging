@@ -20,7 +20,7 @@ ok   fill colours, number tag only: the rows name the entry and the agreed colou
 ok   add references, no entry tags: no crash
 ok   add references, no entry tags: identify.py isn't started
 ok   add references: says it started as soon as it is clicked
-     add references, no entry tags, says: Assisted Tagging: no selected image carries all of one entry's tags, so nothing was added.
+     add references, no entry tags, says: Assisted Tagging: No selected image carries all of one entry's tags, so nothing was added.
 ok   add references, hand entry tag: no crash
 ok   add references, hand entry tag: the row names the entry
 ok   add references, hand entry tag: reports the reference added
@@ -38,6 +38,8 @@ ok   clear, after a cancel: the next clear finishes the rest
 ok   no button changes the selection
 ok   the progress line sits at the foot of the panel, outside the folding pages
 ok   To check sits above the progress line, outside the folding pages
+ok   To check: a blank line sits above the heading
+ok   To check: Clear list is the box's last line, not beside the heading
 ok   To check: a photo fill colours couldn't read shows in the box
 ok   To check: the row names the action and the count
 ok   To check: the item is saved for a restart
@@ -103,6 +105,8 @@ ok   copy to group, Cancel: the box hides and nothing is written
 ok   copy to group, Merge and copy: every photo gets the merged tags
 ok   copy to group, Merge and copy: the confirm box hides
 ok   copy to group, a selected photo missing the colour: copies without the confirm
+ok   copy to group: an unidentified member drops Unidentified, Check match and Number seen
+ok   copy to group: an identified member keeps Number seen, drops Check match
 ok   presets: export is offered for the Rallye collection
 ok   presets: export toast
 ok   presets: the bundle carries the entry list

@@ -17,7 +17,7 @@ end
 -- plugin_common.lua ---------------------------------------------------------------
 -- The same file in all three plugin repos; COMMON_HASH pins it. After changing it, copy it to the
 -- other two repos and put the hash this prints into their tests too.
-local COMMON_HASH = "7c7f5edf"
+local COMMON_HASH = "8305c0ad"
 local script_dir = (arg and arg[0] or ""):match("^(.*)[/\\]") or "."
 local PC = dofile(script_dir .. "/plugin_common.lua")
 local function fnv1a(text)
@@ -608,6 +608,22 @@ local _, same = T.group_source({ { ["Num|12"] = true }, { ["Num|12"] = true } },
 local _, single = T.group_source({ { ["Num|12"] = true } }, source_roots)
 check("group_source: matching photos or one photo don't clash", #same .. " " .. #single, "0 0")
 
+-- group_stale_checks: a copy carrying an entry tag clears the "no entry found" checks from a member
+-- that had none; Check match goes from every member; nothing goes when the copy names no entry
+local stale_entries = { ["112"] = { tags = { "Rallye|112" } } }
+local stale_have = {}
+for _, name in ipairs({ "Unknown car", sync_named.diag.none, sync_named.diag.check_match, "Num|Seen|115",
+    sync_named.diag.check_order, sync_named.diag.shot_solo, "Hand|Tag" }) do stale_have[name] = true end
+check("group_stale_checks: an unidentified member loses Unidentified, Check match and Number seen",
+    table.concat(T.group_stale_checks(stale_have, { ["Rallye|112"] = true }, stale_entries, sync_named), ", "),
+    table.concat({ sync_named.diag.check_match, sync_named.diag.none, "Num|Seen|115", "Unknown car" }, ", "))
+stale_have["Rallye|112"] = true
+check("group_stale_checks: an identified member keeps Number seen, loses Check match",
+    table.concat(T.group_stale_checks(stale_have, { ["Rallye|112"] = true }, stale_entries, sync_named), ", "),
+    sync_named.diag.check_match)
+check("group_stale_checks: a copy with no entry tag clears nothing",
+    #T.group_stale_checks(stale_have, { ["Num|112"] = true }, stale_entries, sync_named), 0)
+
 -- owned_tags / tag_changes (Review Focus 5) ---------------------------------
 local owned = T.owned_tags(entries, rules)
 check("owned: entry tags", owned["F1|Ferrari|Hamilton"], true)
@@ -858,14 +874,14 @@ do
     local none_set, none_already, none_unread, none_failed = T.colour_summary({})
     check("colour_summary: nothing read, all zero", #none_set .. "," .. #none_already .. "," .. none_unread .. "," .. none_failed, "0,0,0,0")
     check("colour_done_message: saved, with one already right",
-        T.colour_done_message({ "101", "98" }, { "112" }, 0, 0, 0, 0), "colour saved for entries 101, 98. Already right: entry 112.")
+        T.colour_done_message({ "101", "98" }, { "112" }, 0, 0, 0, 0), "Colour saved for entries 101, 98. Already right: entry 112.")
     check("colour_done_message: nothing to change, with what was left out",
         T.colour_done_message({}, { "112" }, 5, 0, 0, 2),
-        "nothing to change, entry 112 already has the right colour. Left out: colour not read on 5 photos; "
+        "Nothing to change, entry 112 already has the right colour. Left out: colour not read on 5 photos; "
         .. "2 photos read as a different colour from the saved one, which was kept (see log).")
     check("colour_done_message: nothing saved",
         T.colour_done_message({}, {}, 3, 2, 1, 0),
-        "no colour saved. Left out: colour not read on 3 photos; 2 photos skipped, no single entry matches the tags; 1 photo failed (see log).")
+        "No colour saved. Left out: colour not read on 3 photos; 2 photos skipped, no single entry matches the tags; 1 photo failed (see log).")
     local failed = T.parse_reference_results("1,failed,,\n2,read,set,VER\n")
     check("colour_summary: failed rows are counted", table.concat({ #T.colour_summary(failed), select(3, T.colour_summary(failed)) }, ","), "1,0,1")
 end
@@ -1336,9 +1352,9 @@ do -- model auto-pick: first installed file on each job's best-first list
     choice = T.model_choice(reader, present_of({}))
     check("required job with nothing installed is an error", choice.err, T.missing_model_message(reader))
     check("missing reader names the base reader and its yml", T.missing_model_message(reader),
-        'Assisted Tagging: no number reader model in models/. Install en_PP-OCRv5_mobile_rec.onnx and its .yml (README, "Models").')
+        'Assisted Tagging: No number reader model in models/. Install en_PP-OCRv5_mobile_rec.onnx and its .yml (README, "Models").')
     check("missing text finder names its base", T.missing_model_message(T.MODEL_LISTS["text finder"]),
-        'Assisted Tagging: no text finder model in models/. Install text_detection_en_ppocrv3_2023may.onnx (README, "Models").')
+        'Assisted Tagging: No text finder model in models/. Install text_detection_en_ppocrv3_2023may.onnx (README, "Models").')
 
     on_disk = present_of({ "m/en_PP-OCRv5_mobile_rec.onnx", "m/text_recognition_CRNN_EN_2021sep.onnx" })
     choice = T.model_choice(reader, function(file) return T.model_present("m/" .. file, reader.job, on_disk) end,

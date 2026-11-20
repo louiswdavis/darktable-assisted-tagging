@@ -1533,16 +1533,20 @@ function C.alerts_box(new_widget, path, log, fixes)
         save()
     end
     local clear = new_widget("button") {
-        label = "Clear",
+        label = "Clear list",
         tooltip = "Empty this list. Each run replaces its own items anyway.",
         clicked_callback = function()
             alerts.items = {}
             save()
         end,
     }
-    local body = { orientation = "vertical", new_widget("box") { orientation = "horizontal", header, clear } }
+    -- a blank line above the heading sets the box apart from the section before it; Clear list
+    -- sits under the items, on its own line
+    local body = { orientation = "vertical",
+        new_widget("box") { orientation = "vertical", new_widget("label") { label = " " }, header } }
     for _, row in ipairs(rows) do body[#body + 1] = row.box end
     body[#body + 1] = more
+    body[#body + 1] = clear
     alerts.widget = new_widget("box")(body)
     show()
     return alerts

@@ -536,6 +536,37 @@ function M.group_source(synced, roots)
     return source, clashes
 end
 
+-- The check tags in `have` (one group member's tags) that a group copy of `source` makes stale,
+-- sorted. Only when `source` holds an entry tag: Check match always goes (the copy overrides the
+-- doubtful match); Unidentified, the entries.json unidentified tags and Number seen go only from a
+-- member that held no entry tag, since Number seen on an identified photo can be a second car.
+function M.group_stale_checks(have, source, entries, rules)
+    local entry_tag = {}
+    for _, e in pairs(entries) do
+        for _, t in ipairs(e.tags) do entry_tag[t] = true end
+    end
+    local function holds_entry(set)
+        for name in pairs(set) do
+            if entry_tag[name] then return true end
+        end
+        return false
+    end
+    if not holds_entry(source) then return {} end
+    local stale, seen_prefix = {}, nil
+    if (rules.diag.check_match or "") ~= "" then stale[rules.diag.check_match] = true end
+    if not holds_entry(have) then
+        for _, t in ipairs(rules.unidentified) do stale[t] = true end
+        if (rules.diag.none or "") ~= "" then stale[rules.diag.none] = true end
+        if (rules.diag.number_seen or "") ~= "" then seen_prefix = rules.diag.number_seen .. "|" end
+    end
+    local out = {}
+    for name in pairs(have) do
+        if stale[name] or (seen_prefix and name:sub(1, #seen_prefix) == seen_prefix) then out[#out + 1] = name end
+    end
+    table.sort(out)
+    return out
+end
+
 -- The values the user set by hand under `root`, sorted. Empty for no root.
 local function hand_values(have, ledger_set, root)
     local out = {}
@@ -1006,12 +1037,12 @@ function M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_fail
     end
     local msg
     if #set_ids > 0 then
-        msg = "colour saved for " .. named(set_ids) .. "."
+        msg = "Colour saved for " .. named(set_ids) .. "."
         if #already_ids > 0 then msg = msg .. " Already right: " .. named(already_ids) .. "." end
     elseif #already_ids > 0 then
-        msg = "nothing to change, " .. named(already_ids) .. (#already_ids == 1 and " already has" or " already have") .. " the right colour."
+        msg = "Nothing to change, " .. named(already_ids) .. (#already_ids == 1 and " already has" or " already have") .. " the right colour."
     else
-        msg = "no colour saved."
+        msg = "No colour saved."
     end
     local function photos(n)
         return n == 1 and "1 photo" or n .. " photos"
@@ -1772,7 +1803,7 @@ function M.pick_log_line(job, picked, missing_better, no_yml)
 end
 
 function M.missing_model_message(item)
-    return string.format('Assisted Tagging: no %s model in models/. Install %s (README, "Models").',
+    return string.format('Assisted Tagging: No %s model in models/. Install %s (README, "Models").',
         item.job, item.base or item.files[#item.files])
 end
 
@@ -1874,7 +1905,7 @@ local DEFAULT_COLLECTIONS_ROOT = dt.configuration.config_dir .. "/assisted_taggi
 if dt.gui then
     C.register_shared_prefs(dt)
     dt.preferences.register("assisted_tagging", "collections_root", "directory",
-        "Assisted Tagging: collections folder",
+        "Assisted Tagging: Collections folder",
         "Folder with one folder per collection (entries.json + refs). Empty = assisted_tagging/collections in darktable's config folder",
         "")
 end
@@ -1895,7 +1926,7 @@ local function identify_script()
     if folder ~= "" then
         local script = folder .. "/python/identify.py"
         if not file_exists(script) then
-            error(string.format("Assisted Tagging: the plugins folder preference gives %s, which has no python/identify.py. Point it at the folder holding darktable-assisted-tagging, or clear it to auto-detect.", folder), 0)
+            error(string.format("Assisted Tagging: The plugins folder preference gives %s, which has no python/identify.py. Point it at the folder holding darktable-assisted-tagging, or clear it to auto-detect.", folder), 0)
         end
         return script
     end
@@ -2181,7 +2212,7 @@ local function run_python(args, job, from, to, hint, staged)
     local launched, why = run_async_python(py, argv, LOG_PATH, true, DONE_PATH)
     if not launched then
         run_log.release()
-        notify_error("Assisted Tagging: couldn't start identify.py: " .. why .. ".")
+        notify_error("Assisted Tagging: Couldn't start identify.py: " .. why .. ".")
         return nil, "launch"
     end
     if staged then show_stage(job, "starting Python", 0) end
@@ -2327,7 +2358,7 @@ end
 -- Returns true once the lists loaded.
 local function reload_lists(quiet, show_plan, reread_settings)
     if busy or not orphan_gone() then
-        if not quiet then dt.print(_("Assisted Tagging: busy, try again when the current run finishes.")) end
+        if not quiet then dt.print(_("Assisted Tagging: Busy, try again when the current run finishes.")) end
         return false
     end
     -- rereads the collection folders; a selected collection that has gone falls back to template
@@ -2373,14 +2404,14 @@ local function reload_lists(quiet, show_plan, reread_settings)
         lists_loaded, loaded = true, true
         refresh_entry_combo()
         if #names == 0 then
-            say(string.format("Assisted Tagging: no collections yet. Pick template in the preset list and use new collection, "
-                .. "or a folder with an entries.json in %s (see the README), then click Reload.", collections_root()))
+            say(string.format("Assisted Tagging: No collections yet. Pick the template preset and click New collection, "
+                .. "or add a folder with an entries.json in %s (see the README), then click Reload.", collections_root()))
         elseif current_collection() == "" then
             if not quiet then
                 say(string.format("Assisted Tagging: %d collections. Pick one in the preset list.", #names))
             end
         elseif show_plan then
-            say(string.format("Assisted Tagging: the tags each outcome writes in %s are listed in %s/%s/tag-plan.txt",
+            say(string.format("Assisted Tagging: The tags each outcome writes in %s are listed in %s/%s/tag-plan.txt.",
                 current_collection(), collections_root(), current_collection()))
         elseif not quiet then
             say(string.format("Assisted Tagging: %d collections; %s has %d entries.", #names,
@@ -2389,7 +2420,7 @@ local function reload_lists(quiet, show_plan, reread_settings)
     end)
     busy = false
     flush_log()
-    if not okr then notify_error(_("Assisted Tagging: couldn't reload collections. ") .. tostring(err)) end
+    if not okr then notify_error(_("Assisted Tagging: Couldn't reload collections. ") .. tostring(err)) end
     return loaded
 end
 
@@ -2514,25 +2545,25 @@ end
 -- A run's preconditions; prints why and returns false when it can't start.
 local function can_start(images, needs_no_images)
     if busy then
-        dt.print(_("Assisted Tagging: another job is still running. Wait for it to finish, or cancel it first."))
+        dt.print(_("Assisted Tagging: Another job is still running. Wait for it to finish, or cancel it first."))
         return false
     end
     if not orphan_gone() then
         if os.time() - orphan_since < 60 then
-            dt.print(_("Assisted Tagging: the last run is still stopping. Try again in a moment."))
+            dt.print(_("Assisted Tagging: The last run is still stopping. Try again in a moment."))
         else -- the wrapper writes the done file once python exits, so ending it unblocks this
             dt.print(IS_WINDOWS
-                and _("Assisted Tagging: the last run's python.exe hasn't stopped. End it in Task Manager (Details tab), then try again.")
-                or _("Assisted Tagging: the last run's identify.py hasn't stopped. Run: pkill -f identify.py, then try again."))
+                and _("Assisted Tagging: The last run's python.exe hasn't stopped. End it in Task Manager (Details tab), then try again.")
+                or _("Assisted Tagging: The last run's identify.py hasn't stopped. Run: pkill -f identify.py, then try again."))
         end
         return false
     end
     if not needs_no_images and (not images or #images == 0) then
-        dt.print(_("Assisted Tagging: select some images first"))
+        dt.print(_("Assisted Tagging: Select some images first."))
         return false
     end
     if current_collection() == "" then
-        dt.print(string.format("Assisted Tagging: no collection selected. Create one in %s (see the README), then click Reload.",
+        dt.print(string.format("Assisted Tagging: No collection selected. Create one in %s (see the README), then click Reload.",
             collections_root()))
         return false
     end
@@ -2720,7 +2751,7 @@ local function write_ledger(ledger, consequence, keep_gone)
     end
     if not ok_w then
         log("ledger: couldn't save " .. LEDGER_PATH .. " after two tries: " .. tostring(err))
-        notify_error(_("Assisted Tagging: couldn't save the tag ledger ") .. LEDGER_PATH .. " (" .. tostring(err)
+        notify_error(_("Assisted Tagging: Couldn't save the tag ledger ") .. LEDGER_PATH .. " (" .. tostring(err)
             .. "). " .. (consequence or _("Tags this run attached will count as yours next run.")))
     end
 end
@@ -2730,7 +2761,7 @@ end
 local function finish_job(job)
     local ok_j, err_j = pcall(end_job, job)
     busy = false
-    if not ok_j then notify_error(_("Assisted Tagging: couldn't close the job bar: ") .. tostring(err_j)) end
+    if not ok_j then notify_error(_("Assisted Tagging: Couldn't close the job bar: ") .. tostring(err_j)) end
 end
 
 -- Detaches every tag the ledger says this plugin attached to the selected images, from any
@@ -2756,7 +2787,7 @@ function M.clear_marks(images)
             end
         end
         if #records == 0 then
-            say(_("Assisted Tagging: nothing to clear; the selection has no tagging marks."))
+            say(_("Assisted Tagging: Nothing to clear; the selection has no tagging marks."))
             return
         end
         local n_tags, n_images = 0, 0
@@ -2811,14 +2842,14 @@ function M.clear_marks(images)
         write_ledger(ledger, _("The cleared images keep their old ledger rows, so tags you add to them by hand "
             .. "can be removed by the next run or clear."))
         if stopped then
-            say(string.format(_("Assisted Tagging: stopped; cleared %d tags from %d images. "
+            say(string.format(_("Assisted Tagging: Stopped; cleared %d tags from %d images. "
                 .. "The rest keep their marks, clear again to finish."), n_tags, n_images))
         else
-            say(string.format(_("Assisted Tagging: cleared %d tags from %d images."), n_tags, n_images))
+            say(string.format(_("Assisted Tagging: Cleared %d tags from %d images."), n_tags, n_images))
         end
     end)
     finish_job(job)
-    if not okr then notify_error(_("Assisted Tagging: couldn't clear tagging marks. ") .. tostring(err)) end
+    if not okr then notify_error(_("Assisted Tagging: Couldn't clear tagging marks. ") .. tostring(err)) end
     log("clear finished")
     flush_log()
     run_next()
@@ -2840,7 +2871,7 @@ function M.derive_images(images, mode)
         job = start_job(label, #images)
         load_entries_csv()
         if not next(entries) then
-            say(_("Assisted Tagging: no entries loaded; pick the collection (or Reload) first."))
+            say(_("Assisted Tagging: No entries loaded; pick the collection (or Reload) first."))
             return
         end
         local s = settings
@@ -2919,7 +2950,7 @@ function M.derive_images(images, mode)
         if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log)", #failed_ids), failed_ids) end
     end)
     finish_job(job)
-    if not okr then notify_error(_("Assisted Tagging: couldn't derive tags. ") .. tostring(err)) end
+    if not okr then notify_error(_("Assisted Tagging: Couldn't derive tags. ") .. tostring(err)) end
     log("derive finished")
     flush_log()
     run_next()
@@ -2970,7 +3001,7 @@ local function apply_results(run, job)
                 read_of[#read_of + 1] = id .. "=" .. r.colour
             end
         end
-        say(string.format("Assisted Tagging: verify only, no tags changed. %d images checked, %d differ from their tags (see the report's conflict section).", #ids, #differ.ids))
+        say(string.format("Assisted Tagging: Verify only, no tags changed. %d images checked, %d differ from their tags (see the report's conflict section).", #ids, #differ.ids))
         if #differ.ids > 0 then
             alerts.add(string.format("%d photos read a different entry from the one their tags name. Fix runs Identify on them with your tags replaced.",
                 #differ.ids), differ.ids, "identify_replace", differ.why)
@@ -3130,7 +3161,7 @@ local function apply_results(run, job)
         if cancelled(job) then
             wait_for_writes()
             show_status("")
-            say(string.format("Assisted Tagging: stopped while writing tags; %d of %d images were updated. Run again to finish.",
+            say(string.format("Assisted Tagging: Stopped while writing tags; %d of %d images were updated. Run again to finish.",
                 i, #primaries))
             return
         end
@@ -3148,7 +3179,7 @@ local function apply_results(run, job)
                          { "hand", "by your tag" } }) do
         if by_method[m[1]] > 0 then parts[#parts + 1] = string.format("%d %s", by_method[m[1]], m[2]) end
     end
-    local msg = string.format("Assisted Tagging: done. %d of %d images tagged", n_tagged, #primaries)
+    local msg = string.format("Assisted Tagging: Done. %d of %d images tagged", n_tagged, #primaries)
     if #parts > 0 then msg = msg .. " (vehicles: " .. table.concat(parts, ", ") .. ")" end
     if n_unidentified > 0 then msg = msg .. string.format(", %d unidentified", n_unidentified) end
     if n_skipped > 0 then msg = msg .. string.format(", %d already tagged (skipped)", n_skipped) end
@@ -3290,7 +3321,7 @@ function M.identify_images(images, replace_manual, verify_only)
 
         -- Burst consensus needs whole bursts, so a cancelled run applies nothing.
         if why == "cancelled" or code == 130 then
-            say(_("Assisted Tagging: cancelled, no tags were changed."))
+            say(_("Assisted Tagging: Cancelled, no tags were changed."))
             return
         end
         if code == nil then return end -- stalled or couldn't launch; already reported
@@ -3343,12 +3374,12 @@ function M.identify_images(images, replace_manual, verify_only)
     set_idle_label()
     log(string.format("finish: button reset, %ds; removing temp files", os.time() - finish_start))
     flush_log()
-    if not okr then notify_error(_("Assisted Tagging: couldn't run. ") .. tostring(err)) end
+    if not okr then notify_error(_("Assisted Tagging: Couldn't run. ") .. tostring(err)) end
     if not ok_l then
-        notify_error(_("Assisted Tagging: couldn't save the tag ledger: ") .. tostring(err_l)
+        notify_error(_("Assisted Tagging: Couldn't save the tag ledger: ") .. tostring(err_l)
             .. ". " .. _("Tags this run attached will count as yours next run."))
     end
-    if not ok_j then notify_error(_("Assisted Tagging: couldn't close the job bar: ") .. tostring(err_j)) end
+    if not ok_j then notify_error(_("Assisted Tagging: Couldn't close the job bar: ") .. tostring(err_j)) end
     cleanup_tmp()
     log(string.format("finish: temp files removed, %ds", os.time() - finish_start))
     log("run finished")
@@ -3371,7 +3402,7 @@ local function run_reference_job(state, rows, mode_args, what)
     flush_log()
     show_status("")
     if why == "cancelled" or code == 130 then
-        say(_("Assisted Tagging: cancelled. References already saved stay in the collection."))
+        say(_("Assisted Tagging: Cancelled. References already saved stay in the collection."))
         return nil
     end
     if code == nil then return nil end -- stalled or couldn't launch; already reported
@@ -3420,7 +3451,7 @@ function M.add_references(images, entry_id)
     if queue_if_busy(_("Add references"), images and #images > 0, function() M.add_references(images, entry_id) end) then return end
     if not can_start(images) then return end
     if entry_id == nil and #entry_order == 0 then
-        dt.print(_("Assisted Tagging: the collection has no entries yet. Add them to its entries.json, then click Reload."))
+        dt.print(_("Assisted Tagging: The collection has no entries yet. Add them to its entries.json, then click Reload."))
         return
     end
     if not take_settings() then return end
@@ -3457,7 +3488,7 @@ function M.add_references(images, entry_id)
             end
         end
         if #rows == 0 then
-            say(_("Assisted Tagging: no selected image carries all of one entry's tags, so nothing was added."))
+            say(_("Assisted Tagging: No selected image carries all of one entry's tags, so nothing was added."))
             return
         end
         -- a chosen car makes picked refs (anchors, like hand ones; refs/sources.json records which)
@@ -3475,9 +3506,9 @@ function M.add_references(images, entry_id)
             else failed = failed + 1 end
         end
         local msg = added > 0
-            and string.format("Assisted Tagging: added %d references to %s. Crops are in %s/refs.", added,
+            and string.format("Assisted Tagging: Added %d references to %s. Crops are in %s/refs.", added,
                 entry_id or "their entries", current_collection())
-            or "Assisted Tagging: no reference added."
+            or "Assisted Tagging: No reference added."
         local colour_notes = M.colour_note_extras(notes)
         if #colour_notes > 0 then msg = msg .. " " .. table.concat(colour_notes, "; ") .. "." end
         local left = {}
@@ -3538,7 +3569,7 @@ local function retag_added_numbers(rows, image_of, number_root, seen_base)
         end
     end
     write_ledger(ledger, _("The number tags just attached will count as yours next run."))
-    if failed then notify_error(_("Assisted Tagging: some number tags couldn't be attached: ") .. failed) end
+    if failed then notify_error(_("Assisted Tagging: Some number tags couldn't be attached: ") .. failed) end
     return n_images
 end
 
@@ -3562,7 +3593,7 @@ end
 -- entries.json was written; on false the message is already on screen.
 function M.add_found_entries(ticked, image_of)
     if busy or not orphan_gone() then
-        dt.print(_("Assisted Tagging: busy, try again when the current run finishes."))
+        dt.print(_("Assisted Tagging: Busy, try again when the current run finishes."))
         return false
     end
     if not take_settings() then return false end
@@ -3576,7 +3607,7 @@ function M.add_found_entries(ticked, image_of)
     local lines = {}
     for _, row in ipairs(M.addition_rows(ticked)) do lines[#lines + 1] = M.csv_line(row) end
     if not write_file_atomic(path, table.concat(lines, "\n") .. "\n") then
-        notify_error(_("Assisted Tagging: couldn't write the additions to darktable's tmp folder."))
+        notify_error(_("Assisted Tagging: Couldn't write the additions to darktable's tmp folder."))
         return false
     end
     local script = identify_script()
@@ -3585,10 +3616,10 @@ function M.add_found_entries(ticked, image_of)
     -- cmd.exe strips the outer quotes of a quoted command line, so the whole thing gets one more pair
     if IS_WINDOWS then cmd = '"' .. cmd .. '"' end
     log("add new entries: " .. cmd)
-    dt.print(_("Assisted Tagging: adding the ticked entries to entries.json…"))
+    dt.print(_("Assisted Tagging: Adding the ticked entries to entries.json…"))
     local p = io.popen(cmd)
     if not p then
-        notify_error(_("Assisted Tagging: couldn't start Python to add the entries."))
+        notify_error(_("Assisted Tagging: Couldn't start Python to add the entries."))
         return false
     end
     local out = (p:read("a") or ""):gsub("%s+$", "")
@@ -3609,12 +3640,12 @@ function M.fill_entry_colours(images, colour_of)
     if queue_if_busy(_("Fill entry colours"), images and #images > 0, function() M.fill_entry_colours(images, colour_of) end) then return end
     if not can_start(images) then return end
     if #entry_order == 0 then
-        dt.print(_("Assisted Tagging: the collection has no entries yet. Add them to its entries.json, then click Reload."))
+        dt.print(_("Assisted Tagging: The collection has no entries yet. Add them to its entries.json, then click Reload."))
         return
     end
     if not take_settings() then return end
     if not settings.family_colour then
-        dt.print(_("Assisted Tagging: tick the Colour family (page 4, tags written) first."))
+        dt.print(_("Assisted Tagging: Tick the Colour family (page 4, tags written) first."))
         return
     end
     busy = true
@@ -3663,7 +3694,7 @@ function M.fill_entry_colours(images, colour_of)
             end
         end
         if #rows == 0 then
-            say(_("Assisted Tagging: no selected image carries all of one entry's tags, so no colour was read. Select photos already tagged with their car (by Identify or by you)."))
+            say(_("Assisted Tagging: No selected image carries all of one entry's tags, so no colour was read. Select photos already tagged with their car (by Identify or by you)."))
             return
         end
         -- no hand colour tag for an entry: the colour tag most of its selected photos carry stands in
@@ -3792,7 +3823,7 @@ end
 -- so ask(text, go) is called instead and go() copies once the user confirms.
 function M.copy_tags_to_group(images, ask)
     if not images or #images == 0 then
-        dt.print(_("Assisted Tagging: select some images first"))
+        dt.print(_("Assisted Tagging: Select some images first."))
         return
     end
     -- a running job reads settings, entries and rules, so they are not reloaded under it
@@ -3826,7 +3857,7 @@ function M.copy_tags_to_group(images, ask)
         end
     end
     if #members == 0 then
-        dt.print(_("Assisted Tagging: none of the selected photos is in a darktable group with other photos."))
+        dt.print(_("Assisted Tagging: None of the selected photos is in a darktable group with other photos."))
         return
     end
     local function go()
@@ -3838,6 +3869,9 @@ function M.copy_tags_to_group(images, ask)
             end
             for name in pairs(M.group_sync_tags(have, entries, named)) do
                 if not source[name] then detach[#detach + 1] = name end
+            end
+            for _, name in ipairs(M.group_stale_checks(have, source, entries, named)) do
+                detach[#detach + 1] = name
             end
             table.sort(attach)
             table.sort(detach)
@@ -3863,7 +3897,7 @@ function M.promote_references(images)
     if not can_start(images) then return end
     local boxes = boxes_path()
     if not file_exists(boxes) then
-        dt.print(_("Assisted Tagging: no records for this collection yet. Run Identify first."))
+        dt.print(_("Assisted Tagging: No records for this collection yet. Run Identify first."))
         return
     end
     if not take_settings() then return end
@@ -3888,9 +3922,9 @@ function M.promote_references(images)
         local parsed, notes = M.parse_reference_results(results)
         for _, p in ipairs(parsed) do counts[p[2]] = (counts[p[2]] or 0) + 1 end
         local msg = counts.added > 0
-            and string.format("Assisted Tagging: saved vehicles from %d images as references. Crops are in %s/refs.",
+            and string.format("Assisted Tagging: Saved vehicles from %d images as references. Crops are in %s/refs.",
                 counts.added, current_collection())
-            or "Assisted Tagging: no vehicle saved as a reference."
+            or "Assisted Tagging: No vehicle saved as a reference."
         local colour_notes = M.colour_note_extras(notes)
         if #colour_notes > 0 then msg = msg .. " " .. table.concat(colour_notes, "; ") .. "." end
         local left = {}
@@ -3939,7 +3973,7 @@ function M.audit_references()
         local found = flagged == 0 and "nothing flagged."
             or string.format("flagged: %d mislabel suspects, %d cross-entry copies, %d outliers, %d colour outliers, %d odd crops; %d flagged by 2+ checks (start there).",
                 c.mislabel or 0, c.copies or 0, c.outliers or 0, c.colour or 0, c.crops or 0, c.strongest or 0)
-        say(string.format("Assisted Tagging: audit done, %d references checked, %s%s Details in %s",
+        say(string.format("Assisted Tagging: Audit done, %d references checked, %s%s Details in %s",
             c.references or 0, found, crops_note, report))
     end)
     finish_reference_job(state, okr, err, "couldn't audit references.")
@@ -3951,24 +3985,24 @@ local BAD_FOLDER_CHARS = '[/\\:*?"<>|]'
 -- why and returning nil when it can't proceed. Doesn't touch disk.
 local function new_collection_path(raw_name)
     if busy then
-        dt.print(_("Assisted Tagging: another job is still running. Wait for it to finish, or cancel it first."))
+        dt.print(_("Assisted Tagging: Another job is still running. Wait for it to finish, or cancel it first."))
         return nil
     end
     if not orphan_gone() then
-        dt.print(_("Assisted Tagging: the last run is still stopping. Try again in a moment."))
+        dt.print(_("Assisted Tagging: The last run is still stopping. Try again in a moment."))
         return nil
     end
     local name = (raw_name or ""):gsub("^%s+", ""):gsub("%s+$", "")
     if name == "" then
-        dt.print(_("Assisted Tagging: type a name for the new collection first"))
+        dt.print(_("Assisted Tagging: Type a name for the new collection first."))
         return nil
     end
     if name:find(BAD_FOLDER_CHARS) then
-        dt.print(_('Assisted Tagging: collection name can\'t contain / \\ : * ? " < > |'))
+        dt.print(_('Assisted Tagging: Collection name can\'t contain / \\ : * ? " < > |'))
         return nil
     end
     if name:lower() == "template" then
-        dt.print(_('Assisted Tagging: "template" is the built-in preset, pick another name'))
+        dt.print(_('Assisted Tagging: "template" is the built-in preset. Pick another name.'))
         return nil
     end
     local dir = collections_root() .. "/" .. name
@@ -4009,7 +4043,7 @@ local function open_in_app(path)
     end
     log("open: " .. cmd)
     if not file_exists(path) or not os.execute(cmd) then
-        notify_error(string.format(_("Assisted Tagging: Could not open %s"), path))
+        notify_error(string.format(_("Assisted Tagging: Couldn't open %s."), path))
     end
 end
 
@@ -4018,7 +4052,7 @@ end
 -- already defines the structure, just not your actual entries.
 function M.create_collection_from_example(example, raw_name)
     if not example then
-        dt.print(_("Assisted Tagging: pick an example first"))
+        dt.print(_("Assisted Tagging: Pick an example first."))
         return
     end
     local name, dir = new_collection_path(raw_name)
@@ -4027,14 +4061,14 @@ function M.create_collection_from_example(example, raw_name)
     local example_dir = examples_root() .. "/" .. example
     local text = read_file(example_dir .. "/entries.json")
     if not text then
-        notify_error(string.format(_("Assisted Tagging: couldn't read the %s example's entries.json."), example))
+        notify_error(string.format(_("Assisted Tagging: Couldn't read the %s example's entries.json."), example))
         return
     end
     make_collection_dir(dir)
     local f = io.open(dir .. "/entries.json", "w")
     if not f then
         notify_error(string.format(
-            _("Assisted Tagging: couldn't create %s/entries.json (check the collections folder preference)."), dir))
+            _("Assisted Tagging: Couldn't create %s/entries.json (check the collections folder preference)."), dir))
         return
     end
     f:write(text)
@@ -4043,13 +4077,13 @@ function M.create_collection_from_example(example, raw_name)
     if settings_text then
         local ok, err = write_file_atomic(dir .. "/settings.json", settings_text)
         if not ok then
-            notify_error(string.format(_("Assisted Tagging: couldn't create %s/settings.json: %s"), dir, tostring(err)))
+            notify_error(string.format(_("Assisted Tagging: Couldn't create %s/settings.json: %s"), dir, tostring(err)))
             return
         end
     end
 
     say(string.format(
-        _("Assisted Tagging: created %s from the %s example. Edit its entries.json with your own entries, "
+        _("Assisted Tagging: Created %s from the %s example. Edit its entries.json with your own entries, "
             .. "then click Reload."), name, example))
     open_new_collection(name)
 end
@@ -4058,7 +4092,7 @@ end
 -- `images` (see M.derive_entries), then adds each image as its entry's reference.
 function M.create_collection(images, raw_name)
     if not images or #images == 0 then
-        dt.print(_("Assisted Tagging: select some tagged images first"))
+        dt.print(_("Assisted Tagging: Select some tagged images first."))
         return
     end
     local name, dir = new_collection_path(raw_name)
@@ -4072,7 +4106,7 @@ function M.create_collection(images, raw_name)
     end
     local derived, entry_of, skipped, thin = M.derive_entries(image_rows)
     if #derived == 0 then
-        dt.print(_("Assisted Tagging: none of the selected images carry a hierarchical tag "
+        dt.print(_("Assisted Tagging: None of the selected images carry a hierarchical tag "
             .. "(e.g. Series|Team|Driver) shared by at least " .. M.MIN_REFS_PER_ENTRY .. " of the selected images"))
         return
     end
@@ -4080,7 +4114,7 @@ function M.create_collection(images, raw_name)
     make_collection_dir(dir)
     if not write_file_atomic(dir .. "/entries.json", M.entries_json(derived)) then
         notify_error(string.format(
-            _("Assisted Tagging: couldn't create %s/entries.json (check the collections folder preference)."), dir))
+            _("Assisted Tagging: Couldn't create %s/entries.json (check the collections folder preference)."), dir))
         return
     end
 
@@ -4092,11 +4126,11 @@ function M.create_collection(images, raw_name)
         extra[#extra + 1] = string.format(
             _("%d skipped (fewer than %d images shared their tag)"), #thin, M.MIN_REFS_PER_ENTRY)
     end
-    say(string.format(_("Assisted Tagging: created %s with %d entr%s%s."), name, #derived,
+    say(string.format(_("Assisted Tagging: Created %s with %d entr%s%s."), name, #derived,
         #derived == 1 and "y" or "ies", #extra > 0 and (" (" .. table.concat(extra, ", ") .. ")") or ""))
 
     if not open_new_collection(name) then
-        notify_error(string.format(_("Assisted Tagging: created %s but couldn't load it, so no references were added. "
+        notify_error(string.format(_("Assisted Tagging: Created %s but couldn't load it, so no references were added. "
             .. "Click Reload, then \"Add tagged images\" with the same images selected (why: assisted_tagging.log)."), name))
         return
     end
@@ -4116,7 +4150,7 @@ local function start_identify(allow_cancel, verify_only)
             identify_cancellable = false
             identify_button.label = _("Cancelling...")
             clear_queue()
-            dt.print(_("Assisted Tagging: cancelling, finishing the current step..."))
+            dt.print(_("Assisted Tagging: Cancelling, finishing the current step…"))
             return
         end
     end
@@ -4300,7 +4334,7 @@ local function install_panel()
         clicked_callback = function()
             local example = selected_example()
             if not example then
-                dt.print(_("Assisted Tagging: pick an example first"))
+                dt.print(_("Assisted Tagging: Pick an example first."))
                 return
             end
             open_in_app(examples_root() .. "/" .. example .. "/entries.json")
@@ -4434,19 +4468,19 @@ local function install_panel()
         tooltip = _("Add the open tab's entries (the CSV, the pasted text or the one typed entry) to the selected collection's entries.json. Numbers already listed are kept and reported; the previous file is saved as entries.json.bak."),
         clicked_callback = function()
             if busy or not orphan_gone() then
-                dt.print(_("Assisted Tagging: busy, try again when the current run finishes."))
+                dt.print(_("Assisted Tagging: Busy, try again when the current run finishes."))
                 return
             end
             local argv = {}
             local pasted = start_list_text.text or ""
             if start_list_stack.active == 2 then
                 if not pasted:match("%S") then
-                    dt.print(_("Assisted Tagging: paste the entries first."))
+                    dt.print(_("Assisted Tagging: Paste the entries first."))
                     return
                 end
                 local path = TMP_DIR .. "/assisted_tagging_start_list.txt"
                 if not write_file_atomic(path, pasted) then
-                    notify_error(_("Assisted Tagging: couldn't write the pasted list to darktable's tmp folder."))
+                    notify_error(_("Assisted Tagging: Couldn't write the pasted list to darktable's tmp folder."))
                     return
                 end
                 argv[#argv + 1] = "--text"
@@ -4461,7 +4495,7 @@ local function install_panel()
                 end
                 local path = TMP_DIR .. "/assisted_tagging_one_entry.csv"
                 if not write_file_atomic(path, text) then
-                    notify_error(_("Assisted Tagging: couldn't write the typed entry to darktable's tmp folder."))
+                    notify_error(_("Assisted Tagging: Couldn't write the typed entry to darktable's tmp folder."))
                     return
                 end
                 argv = { "--csv", path, "--columns", spec }
@@ -4477,10 +4511,10 @@ local function install_panel()
                     argv[#argv + 1] = M.columns_spec(picked)
                 end
             else
-                dt.print(_("Assisted Tagging: choose a start list CSV first."))
+                dt.print(_("Assisted Tagging: Choose a start list CSV first."))
                 return
             end
-            dt.print(_("Assisted Tagging: importing the start list…"))
+            dt.print(_("Assisted Tagging: Importing the start list…"))
             local ok, out = run_start_list_import(argv)
             log("import start list: " .. (out ~= "" and out or (ok and "no output" or "failed")))
             if not ok then
@@ -4578,7 +4612,7 @@ local function install_panel()
     }
     local copy_group_button = new_widget("button") {
         label = _("Copy tags to group"),
-        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other photo in the group, so the group matches. Diagnostics, unidentified tags, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace manual tags is ticked. A selected image missing a tag gets it filled in. Asks first only when a group's selected images hold different tags of one family, such as two colours."),
+        tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other photo in the group, so the group matches. When the copy names an entry, Check match goes, and a photo that had no entry also loses Unidentified and Number seen. Other diagnostics, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace manual tags is ticked. A selected image missing a tag gets it filled in. Asks first only when a group's selected images hold different tags of one family, such as two colours."),
         clicked_callback = function()
             copy_confirm_box.visible = false
             M.copy_tags_to_group(dt.gui.action_images, function(text, go)
@@ -4611,7 +4645,7 @@ local function install_panel()
         clicked_callback = function()
             local eid = selected_entry_id()
             if not eid then
-                dt.print(_("Assisted Tagging: pick an entry first. If the list is empty, add entries to the collection's entries.json and click Reload."))
+                dt.print(_("Assisted Tagging: Pick an entry first. If the list is empty, add entries to the collection's entries.json and click Reload."))
                 return
             end
             M.add_references(dt.gui.action_images, eid)
