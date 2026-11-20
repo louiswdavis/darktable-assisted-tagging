@@ -311,6 +311,11 @@ do
     check("derive number: entry tags already on, colour missing, adds only the colour",
         plan({ ["M|Number|4"] = true, ["M|Team|Gamma"] = true, ["M|Driver|Di"] = true }, "number"),
         "AT|Derived|From number;M|Colour|Green / ")
+    check("derive number: a locked photo gets nothing",
+        plan({ ["M|Number|2"] = true, [T.LOCKED_TAG or "Assisted Tagging|Locked"] = true }, "number"), " / its tags are locked")
+    check("derive colour: a locked photo gets nothing",
+        plan({ ["M|Colour|Red"] = true, [T.LOCKED_TAG or "Assisted Tagging|Locked"] = true }, "colour"), " / its tags are locked")
+    check("LOCKED_TAG: Assisted Tagging|Locked", T.LOCKED_TAG, "Assisted Tagging|Locked")
     check("derive number: a ledgered (plugin) number tag is not the user's",
         plan({ ["M|Number|2"] = true }, "number", { ["M|Number|2"] = true }), " / no number tag of yours names an entry")
     check("derive number: colour that differs adds Check colour",

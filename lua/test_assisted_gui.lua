@@ -224,8 +224,8 @@ end
 
 local run = fill({ image(2, "DSC00002.JPG", { "Somewhere|Else", "Colour|Red" }) })
 check("derive colour, colour tag and no entry: says there is nothing to read", printed("Every selected photo already has a colour tag and none names one entry"), true)
-check("derive colour, colour tag and no entry: no crash", printed("couldn't derive colours"), false)
-check("derive colour: says it started as soon as it is clicked", printed("Assisted Tagging: Derive Colour started on 1 image…"), true)
+check("derive colour, colour tag and no entry: no crash", printed("couldn't identify colours"), false)
+check("derive colour: says it started as soon as it is clicked", printed("Assisted Tagging: Identify Colour started on 1 image…"), true)
 check("derive colour, colour tag and no entry: identify.py isn't started", run, nil)
 check("derive colour, colour tag and no entry: the log says why", (read_file(ROOT .. "/config/assisted_tagging.log") or "")
     :find("DSC00002.JPG: skipped, it has a colour tag and its tags match no single entry: it carries no entry's tags", 1, true) ~= nil, true)
@@ -243,7 +243,7 @@ check("derive colour: the done message counts the photos tagged", printed("Assis
 
 PYTHON.results = "1,added,set,112\n"
 run = fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
-check("fill colours, Identify's entry tag + hand colour: no crash", printed("couldn't derive colours"), false)
+check("fill colours, Identify's entry tag + hand colour: no crash", printed("couldn't identify colours"), false)
 check("fill colours, Identify's entry tag + hand colour: the row names the entry and the colour",
     run and run.manifest, T.csv_line({ 1, "/photos/DSC00001.JPG", "112", "Red" }) .. "\n")
 check("fill colours: runs in colours-only mode", run ~= nil and flag(run.argv, "--add-reference") == "--colours-only", true)
@@ -303,6 +303,19 @@ run = fill({ image(7, "DSC00007.JPG", { "Number|112", "Colour|Red" }), image(8, 
 check("fill colours, number tag only: the rows name the entry and the agreed colour", run and run.manifest,
     T.csv_line({ 7, "/photos/DSC00007.JPG", "112", "Red" }) .. "\n" .. T.csv_line({ 8, "/photos/DSC00008.JPG", "112", "Red" }) .. "\n"
     .. T.csv_line({ 9, "/photos/DSC00009.JPG", "112", "Red" }) .. "\n")
+
+-- for Selection: one colour, the one most selected photos read, goes to every selected photo without one
+local sel_a, sel_b, sel_c = image(41, "DSC00041.JPG", {}), image(42, "DSC00042.JPG", {}), image(43, "DSC00043.JPG", {})
+PYTHON.results = "41,read,,,Blue\n42,read,,,Blue\n43,read,,,Red\n"
+fill({ sel_a, sel_b, sel_c })
+check("identify colour for selection: two of three read Blue, all three get Blue",
+    sel_a.tags[1].name .. " " .. sel_b.tags[1].name .. " " .. sel_c.tags[1].name, "Colour|Blue Colour|Blue Colour|Blue")
+-- a selected photo's colour tag is its vote, as a tag is what Copy Tags carries
+local sel_tagged, sel_bare = image(44, "DSC00044.JPG", { "Colour|Green" }), image(45, "DSC00045.JPG", {})
+PYTHON.results = "45,read,,,Red\n"
+fill({ sel_tagged, sel_bare })
+check("identify colour for selection: a split vote tags nothing", #sel_bare.tags .. " " .. sel_tagged.tags[1].name, "0 Colour|Green")
+check("identify colour for selection: a split vote is in the done message", printed("1 photo got no colour tag, the colours disagree"), true)
 
 -- Add references ------------------------------------------------------------------
 local function add(images, entry_id)
@@ -402,11 +415,11 @@ local function button_labels(box)
     end
     return table.concat(out, ", ")
 end
-check("Run page: Identify and Verify only, main button first",
-    button_labels(page_body(panel, "Run")), "Identify Selection, Verify Selection")
-check("Tools page: derives (colour read last), copies, then Undo",
+check("Run page: Identify and Verify, then the colour reads",
+    button_labels(page_body(panel, "Run")), "Identify Selection, Verify Selection, Identify Colour for Group, Identify Colour for Selection")
+check("Tools page: derives, copies, locks, then Undo",
     button_labels(page_body(panel, "Tools")),
-    "Derive from Number, Derive from Colour, Derive Colour, Copy Tags to Group, Copy Tags to Selection, Clear Tagging Marks")
+    "Derive from Number, Derive from Colour, Copy Tags to Group, Copy Tags to Selection, Lock In Tags, Unlock Tags, Clear Tagging Marks")
 
 check("the progress line sits at the foot of the panel, outside the folding pages",
       panel[#panel].kind, "label")
@@ -424,9 +437,9 @@ PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 check("To check: a photo fill colours couldn't read shows in the box", to_check.visible, true)
 check("To check: the row names the action and the count",
-    (to_check[2][1] or {}).text, "Derive Colour: 1 photos couldn't be read (see log)")
+    (to_check[2][1] or {}).text, "Identify Colour: 1 photos couldn't be read (see log)")
 check("To check: the item is saved for a restart",
-    (read_file(CHECKS_FILE) or ""):find("Derive Colour\t1 photos couldn't be read (see log)\t1\t", 1, true) ~= nil, true)
+    (read_file(CHECKS_FILE) or ""):find("Identify Colour\t1 photos couldn't be read (see log)\t1\t", 1, true) ~= nil, true)
 prints, selection_sets = {}, 0
 ;(widget_where(to_check, "button", "label", "Select") or { clicked_callback = function() end }).clicked_callback()
 check("To check: Select changes the selection", selection_sets, 1)
@@ -434,7 +447,7 @@ check("To check: Select says which photos are gone", printed("1 of these photos 
 selection_sets = 0
 PYTHON.results = "1,added,set,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
-check("To check: the next fill colours run replaces its items", (read_file(CHECKS_FILE) or ""):find("Derive Colour", 1, true), nil)
+check("To check: the next fill colours run replaces its items", (read_file(CHECKS_FILE) or ""):find("Identify Colour", 1, true), nil)
 PYTHON.results = "1,failed,,112\n"
 fill({ image(1, "DSC00001.JPG", { "Rallye|112", "Colour|Red" }) })
 ;(widget_where(to_check, "button", "label", "Clear List") or { clicked_callback = function() end }).clicked_callback()
@@ -531,13 +544,13 @@ check("timeline: one run's items have no Earlier runs line", row(1)[4] and row(1
 PYTHON.results, PYTHON.runs = "1,0,conflict,35,,0.9,,solo,0,,0,,0\n", {}
 T.identify_images({ image(1, "DSC00001.JPG", { "Rallye|112" }) }, false, true)
 check("timeline: the newest run's item comes first", label_of(1):match("^[^:]*"), "Verify")
-check("timeline: the older run's item moves below it", label_of(2):match("^[^:]*"), "Derive Colour")
+check("timeline: the older run's item moves below it", label_of(2):match("^[^:]*"), "Identify Colour")
 check("timeline: an Earlier runs line sits under the newest run", row(1)[4] and row(1)[4].visible
     and row(1)[4].label:find("^Earlier runs %(before %d%d:%d%d%): may not hold any more$") ~= nil, true)
 check("timeline: no Earlier runs line under the last item", row(2)[4] and row(2)[4].visible, false)
 local saved = require("plugin_common").alerts_parse(read_file(CHECKS_FILE))
 check("timeline: the saved list keeps the order and each run", #saved == 2 and saved[1].action .. ">" .. saved[2].action
-    .. " " .. tostring(saved[1].run > saved[2].run), "Verify>Derive Colour true")
+    .. " " .. tostring(saved[1].run > saved[2].run), "Verify>Identify Colour true")
 dt.database.get_image = function() return nil end
 
 -- the Unidentified tag goes once a later run finds the car, written by the plugin or not
@@ -598,6 +611,28 @@ local function ledger_rows_for(id)
     end
     return n
 end
+
+-- Identify Colour for Group: the selected photo's reading goes to its group mates without a colour tag
+local colour_lead = grouped(701, "DSC00701.JPG", {}, 701)
+local colour_mate = grouped(702, "DSC00702.JPG", {}, 701)
+local colour_red = grouped(703, "DSC00703.JPG", { "Colour|Red" }, 701)
+local colour_locked = grouped(704, "DSC00704.JPG", { "Rallye|112", "Assisted Tagging|Locked" }, 701)
+local colour_other = grouped(711, "DSC00711.JPG", {}, 711)
+prints, PYTHON.runs, PYTHON.results = {}, {}, "701,read,,,Blue\n"
+T.derive_colour({ colour_lead }, nil, true)
+check("identify colour for group: only the selected photo is read", PYTHON.runs[1] and PYTHON.runs[1].manifest,
+    T.csv_line({ 701, "/photos/DSC00701.JPG", "", "" }) .. "\n")
+check("identify colour for group: the selected photo and its untagged mate get the colour",
+    tag_list(colour_lead) .. " / " .. tag_list(colour_mate), "Colour|Blue / Colour|Blue")
+check("identify colour for group: a mate with a colour tag keeps it", tag_list(colour_red), "Colour|Red")
+check("identify colour for group: a locked mate is left alone", tag_list(colour_locked), "Assisted Tagging|Locked, Rallye|112")
+check("identify colour for group: another group is untouched", tag_list(colour_other), "")
+check("identify colour for group: the mate's tag is the plugin's in the ledger", ledger_rows_for(702), 1)
+prints, PYTHON.runs = {}, {}
+-- darktable puts every photo in a group, a lone photo leads its own
+T.derive_colour({ grouped(721, "DSC00721.JPG", {}, 721) }, nil, true)
+check("identify colour for group: a photo in no group says so", printed("None of the selected photos is in a darktable group with other photos."), true)
+for _, id in ipairs({ 701, 702, 703, 704, 711, 721 }) do grouped_by_id[id] = nil end
 
 local source = grouped(101, "DSC00101.JPG", { "Rallye|112", "Colour|Red", "Number|112" }, 101)
 local member = grouped(102, "DSC00102.JPG", { "Rallye|35", "Colour|Blue", "Number|35", CHECK_COLOUR, "Hand|Tag" }, 101)
@@ -725,6 +760,63 @@ prints, dt.gui.action_images = {}, { sel_left_out }
 ;(copy_selection_button or { clicked_callback = function() end }).clicked_callback()
 check("copy to selection, one photo: asks for two", last_print(),
     "Assisted Tagging: Select two or more images to copy tags between them.")
+dt.gui.action_images = {}
+
+-- Lock In Tags --------------------------------------------------------------------
+local LOCKED = "Assisted Tagging|Locked"
+local lock_button = widget_where(panel, "button", "label", "Lock In Tags")
+local unlock_button = widget_where(panel, "button", "label", "Unlock Tags")
+local locked_lead = grouped(601, "DSC00601.JPG", { "Rallye|112", "Number|112", "Colour|Red" }, 601)
+local locked_mate = grouped(602, "DSC00602.JPG", { "Rallye|35", "Colour|Blue" }, 601)
+write_file(ROOT .. "/config/assisted_tagging/ledger.csv", "601,Rallye|112\n601,Colour|Red\n602,Rallye|35\n")
+prints, dt.gui.action_images = {}, { locked_mate }
+check("lock: the buttons are on the panel", lock_button ~= nil and unlock_button ~= nil, true)
+;(lock_button or { clicked_callback = function() end }).clicked_callback()
+check("lock: the photo gets the Locked tag and keeps its tags", tag_list(locked_mate), "Assisted Tagging|Locked, Colour|Blue, Rallye|35")
+check("lock: its tags leave the ledger, the Locked tag never joins it", ledger_rows_for(602), 0)
+check("lock: other photos keep their ledger rows", ledger_rows_for(601), 2)
+
+prints, dt.gui.action_images = {}, { locked_lead }
+;(copy_button or { clicked_callback = function() end }).clicked_callback()
+check("lock, copy to group: a locked group mate keeps its own tags", tag_list(locked_mate), "Assisted Tagging|Locked, Colour|Blue, Rallye|35")
+check("lock, copy to group: the end message counts the locked photo", printed("1 locked photo left alone"), true)
+
+local sel_target = image(611, "DSC00611.JPG", {})
+prints, dt.gui.action_images = {}, { locked_mate, sel_target }
+;(copy_selection_button or { clicked_callback = function() end }).clicked_callback()
+check("lock, copy to selection: a locked photo is a source", tag_list(sel_target), "Colour|Blue, Rallye|35")
+check("lock, copy to selection: the locked source takes nothing back", tag_list(locked_mate), "Assisted Tagging|Locked, Colour|Blue, Rallye|35")
+
+local locked_number = image(621, "DSC00621.JPG", { "Number|112", LOCKED })
+prints = {}
+T.derive_images({ locked_number }, "number")
+check("lock, derive from number: a locked photo gets nothing", tag_list(locked_number), "Assisted Tagging|Locked, Number|112")
+
+local locked_no_colour = image(622, "DSC00622.JPG", { "Rallye|112", LOCKED })
+PYTHON.results = "622,read,,112,Blue\n"
+fill({ locked_no_colour })
+check("lock, derive colour: a locked photo gets no colour tag", tag_list(locked_no_colour), "Assisted Tagging|Locked, Rallye|112")
+
+local locked_identify = image(631, "DSC00631.JPG", { "Rallye|112", "Number|112", LOCKED })
+PYTHON.results, PYTHON.runs = "631,-1,skipped,,,0.000,,,\n", {}
+T.identify_images({ locked_identify }, true, false)
+local locked_row = PYTHON.runs[1] and T.parse_csv_line((PYTHON.runs[1].manifest or ""):match("[^\n]+") or "", 8)
+check("lock, identify with Replace Manual Tags: the manifest marks the photo locked", locked_row and locked_row[8], "1")
+check("lock, identify with Replace Manual Tags: the row names its entry", locked_row and locked_row[7], "112")
+check("lock, identify with Replace Manual Tags: its tags are sent as protected",
+    locked_row and locked_row[4]:find("Rallye|112", 1, true) ~= nil, true)
+check("lock, identify with Replace Manual Tags: the tags stay", tag_list(locked_identify), "Assisted Tagging|Locked, Number|112, Rallye|112")
+
+local unlocked_plain = image(632, "DSC00632.JPG", { "Rallye|112" })
+PYTHON.results, PYTHON.runs = "632,-1,skipped,,,0.000,,,\n", {}
+T.identify_images({ unlocked_plain }, false, false)
+local plain_row = PYTHON.runs[1] and T.parse_csv_line((PYTHON.runs[1].manifest or ""):match("[^\n]+") or "", 8)
+check("lock, identify: an unlocked photo's row has an empty locked field", plain_row and plain_row[8], "")
+
+prints, dt.gui.action_images = {}, { locked_mate }
+;(unlock_button or { clicked_callback = function() end }).clicked_callback()
+check("unlock: the Locked tag goes, the tags stay", tag_list(locked_mate), "Colour|Blue, Rallye|35")
+check("unlock: the tags stay yours", ledger_rows_for(602), 0)
 dt.gui.action_images = {}
 
 -- Picks a menu entry by its text, as a click in darktable does.

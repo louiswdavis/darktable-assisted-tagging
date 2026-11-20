@@ -1353,14 +1353,14 @@ def run_tests():
             off = "(no error)"
         except I.InputError as e:
             off = str(e)
-        check("colours-only needs the colour family", off, "Derive Colour needs the colour family (family_colour) on")
+        check("colours-only needs the colour family", off, "Identify Colour needs the colour family (family_colour) on")
         pcoll = collection({"kind": "people", "entries": [LH]}, root=root)
         try:
             ref_job(I.add_references, pcoll, f'"1","{real_jpg}","Lando Norris",""', colours_only=True)
             people = "(no error)"
         except I.InputError as e:
             people = str(e)
-        check("colours-only refuses a people collection", people, "Derive Colour is for vehicle collections")
+        check("colours-only refuses a people collection", people, "Identify Colour is for vehicle collections")
         check("colours-only saves no face reference", os.path.isdir(os.path.join(pcoll, "refs", "Lando Norris")), False)
     finally:
         I._W["detections"].close()

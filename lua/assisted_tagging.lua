@@ -37,6 +37,14 @@ M.cancel_requested = false
 M.module_installed = false
 M.event_registered = false
 
+-- Tag Lock In Tags puts on a photo the user is certain of. Not ledgered, so Clear Tagging Marks keeps it;
+-- every tag-writing action leaves a photo carrying it alone.
+M.LOCKED_TAG = "Assisted Tagging|Locked"
+
+function M.is_locked(have)
+    return have[M.LOCKED_TAG] == true
+end
+
 -- Default diagnostic tag per outcome; a collection's settings rename (tag_<key>_name) or drop
 -- (tag_<key>) each one. PRESET_SCHEMA's tag_<key>_name defaults repeat these.
 M.DIAG_TAGS = {
@@ -586,7 +594,7 @@ function M.hand_value(have, ledger_set, root)
     return #values == 1 and values[1] or nil
 end
 
--- Derive Colour: colour tags Identify wrote replace an entry's stored colour when at least
+-- Identify Colour: colour tags Identify wrote replace an entry's stored colour when at least
 -- this many of the entry's selected photos carry the leading colour or a near one (M.colour_vote),
 -- and that is this share of its colour-tagged selected photos.
 M.COLOUR_TAG_MIN_PHOTOS = 3
@@ -676,12 +684,16 @@ end
 -- hand number tags name (M.hand_entry). `mode` "colour": the one entry whose colour equals the
 -- image's single colour tag, narrowed by hand team tags; an image whose hand number names an entry
 -- is left to Derive from Number. Derive from Number also adds `<colour root>|<entry colour>` when the
--- image has no colour tag and the entry has a colour (Derive Colour) and the Colour family is on.
+-- image has no colour tag and the entry has a colour (Identify Colour) and the Colour family is on.
 -- `names`: { derived = marker base, check_colour = tag } ("" = off).
 -- Returns { entry_id, attach = sorted tag names, reason = why nothing was added ("" when added) };
 -- attach can hold only the Check colour tag when the number's entry and the colour tag differ.
 function M.derive_plan(have, ledger_set, entries, order, roots, mode, names)
     local plan = { attach = {}, reason = "" }
+    if M.is_locked(have) then
+        plan.reason = "its tags are locked"
+        return plan
+    end
     local add = {}
     local colours = values_under(have, roots.colour)
     local number_id, why = M.hand_entry(have, ledger_set, entries, { number = roots.number })
@@ -1039,10 +1051,10 @@ function M.colour_summary(rows)
     return set_ids, already_ids, unread, failed
 end
 
--- The Derive Colour done-message: the photos given a Colour tag, the entry outcome (saved, nothing
+-- The Identify Colour done-message: the photos given a Colour tag, the entry outcome (saved, nothing
 -- to change, or nothing saved), then what was left out, only the non-zero counts. n_skipped: photos
 -- that already had a colour tag and name no single entry, so there was nothing to do.
-function M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_failed, n_differs, n_tagged)
+function M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_failed, n_differs, n_tagged, n_disagree)
     local function named(ids)
         return (#ids == 1 and "entry " or "entries ") .. table.concat(ids, ", ")
     end
@@ -1062,6 +1074,7 @@ function M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_fail
     if n_unread > 0 then left[#left + 1] = "colour not read on " .. photos(n_unread) end
     if n_skipped > 0 then left[#left + 1] = photos(n_skipped) .. " already had a colour tag and match no single entry" end
     if n_failed > 0 then left[#left + 1] = photos(n_failed) .. " failed" end
+    if (n_disagree or 0) > 0 then left[#left + 1] = photos(n_disagree) .. " got no colour tag, the colours disagree" end
     if n_differs > 0 then left[#left + 1] = photos(n_differs) .. " read as a different colour from the saved one, which was kept" end
     if #left > 0 then msg = msg .. " Left out: " .. table.concat(left, "; ") .. " (see log)." end
     return msg
@@ -2693,7 +2706,7 @@ local function prepare_run(images, replace_manual, job)
     -- Protection and hints read the entries loaded at the last Reload or run, so Reload after
     -- editing entries.json.
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
-    local protected_of, hints_of, sent_protected_of, hand_of = {}, {}, {}, {}
+    local protected_of, hints_of, sent_protected_of, hand_of, locked_of = {}, {}, {}, {}, {}
     local use_hints = settings.use_hints
     local named = M.named_rules(rules, settings)
     local on_roots = M.family_roots(settings)
@@ -2714,8 +2727,12 @@ local function prepare_run(images, replace_manual, job)
                 if have[name] then kept[name] = true end
             end
             ledger[copy.id] = next(kept) and kept or nil
-            protected_of[copy.id] = replace_manual and {} or M.protected_tags(have, kept, entries)
-            hints_of[copy.id] = replace_manual and {} or M.hint_tags(have, kept, entries, team_root)
+            -- a locked copy's tags are never replaced, Replace Manual Tags or not
+            local locked = M.is_locked(have)
+            if locked then locked_of[copy.id] = true end
+            local replace = replace_manual and not locked
+            protected_of[copy.id] = replace and {} or M.protected_tags(have, kept, entries)
+            hints_of[copy.id] = replace and {} or M.hint_tags(have, kept, entries, team_root)
             -- the identifier sees protected tags for skip and conflict checks; with hints off a team tag
             -- is not among them, but protected_of still keeps the run from detaching it
             local sent = {}
@@ -2723,17 +2740,17 @@ local function prepare_run(images, replace_manual, job)
                 if use_hints or not hints_of[copy.id][name] then sent[name] = true end
             end
             -- a hand number, driver or co-driver tag is sent too, listed or not: a different reading is a conflict
-            hand_of[copy.id] = replace_manual and {} or M.hand_family_tags(have, kept, naming_roots)
+            hand_of[copy.id] = replace and {} or M.hand_family_tags(have, kept, naming_roots)
             for name in pairs(hand_of[copy.id]) do sent[name] = true end
             sent_protected_of[copy.id] = sent
             if not use_hints then hints_of[copy.id] = {} end
             -- other hand family tags (colour, an unlisted team) only stop a detach; sent to the
             -- identifier they'd read as entry tags
-            for name in pairs(replace_manual and {} or M.hand_family_tags(have, kept, named.families)) do
+            for name in pairs(replace and {} or M.hand_family_tags(have, kept, named.families)) do
                 protected_of[copy.id][name] = true
             end
             -- likewise hand-applied diagnostic, unidentified and number-seen tags
-            for name in pairs(replace_manual and {} or M.hand_diag_tags(have, kept, named)) do
+            for name in pairs(replace and {} or M.hand_diag_tags(have, kept, named)) do
                 protected_of[copy.id][name] = true
             end
         end
@@ -2742,8 +2759,9 @@ local function prepare_run(images, replace_manual, job)
     local rows, hand_from_of = {}, {}
     for _, img in ipairs(primaries) do
         -- a hand tag on any copy (e.g. only the RAW) counts for the shot
-        local sent, hints, hand = {}, {}, {}
+        local sent, hints, hand, locked = {}, {}, {}, false
         for _, copy in ipairs(group_of[img.id]) do
+            locked = locked or locked_of[copy.id] == true
             for name in pairs(sent_protected_of[copy.id]) do sent[name] = true end
             for name in pairs(hints_of[copy.id]) do hints[name] = true end
             for name in pairs(hand_of[copy.id]) do hand[name] = true end
@@ -2759,7 +2777,8 @@ local function prepare_run(images, replace_manual, job)
                             table.concat(sorted_names(sent), ";"),
                             table.concat(sorted_names(hints), ";"),
                             time_of[img.id] and tostring(time_of[img.id]) or "",
-                            hand_id or "" }
+                            hand_id or "",
+                            locked and "1" or "" }
     end
     return { primaries = primaries, group_of = group_of, protected_of = protected_of, ledger = ledger,
              hand_from_of = hand_from_of, applying = false }, rows
@@ -3688,14 +3707,34 @@ function M.add_found_entries(ticked, image_of)
     return true
 end
 
--- Derive Colour: every selected photo without a colour tag gets one (<colour root>|<colour>, the
--- plugin's in the ledger) from a fresh reading of its largest car; photos that name one entry also
--- vote on that entry's colour in entries.json (fill_colours' rules). A photo that already has a
--- colour tag keeps it; with an entry, its tag stands in for the reading as before.
+-- Identify Colour, like Copy Tags: the selected photos are read (a selected photo's colour tag is
+-- its vote instead), and the colour most of them agree on (colour_vote, COLOUR_TAG_MIN_SHARE) goes
+-- as <colour root>|<colour>, the plugin's in the ledger, to every photo without a colour tag in the
+-- selection, or with to_group, in each selected photo's darktable group (one vote per group).
+-- Locked photos are left alone. Photos that name one entry also vote on that entry's colour in
+-- entries.json (fill_colours' rules); with an entry, a colour tag stands in for the reading.
 -- colour_of (optional): entry id → colour, sent as that entry's hand colour (a To check Fix)
-function M.derive_colour(images, colour_of)
-    if queue_if_busy(_("Derive Colour"), images and #images > 0, function() M.derive_colour(images, colour_of) end) then return end
+function M.derive_colour(images, colour_of, to_group)
+    if queue_if_busy(_("Identify Colour"), images and #images > 0, function() M.derive_colour(images, colour_of, to_group) end) then return end
     if not can_start(images) then return end
+    -- unit key → the photos its agreed colour may go to; selection: one unit, group: one per group
+    local unit_of, members_of = {}, {}
+    for _, img in ipairs(images) do
+        local key = to_group and (img.group_leader or img).id or "selection"
+        unit_of[img.id] = key
+        if not members_of[key] then
+            members_of[key] = to_group and img:get_group_members() or {}
+        end
+        if not to_group then table.insert(members_of[key], img) end
+    end
+    if to_group then
+        local any_group = false
+        for _, group_members in pairs(members_of) do any_group = any_group or #group_members > 1 end
+        if not any_group then
+            dt.print(_("Assisted Tagging: None of the selected photos is in a darktable group with other photos."))
+            return
+        end
+    end
     if not take_settings() then return end
     if not settings.family_colour then
         dt.print(_("Assisted Tagging: Tick the Colour family (page 4, Tags Written) first."))
@@ -3703,11 +3742,11 @@ function M.derive_colour(images, colour_of)
     end
     busy = true
     M.cancel_requested = false
-    start_log("derive colour", #images)
+    start_log("identify colour", #images)
 
     local state = {}
-    local okr, err = C.logged_call(log, "derive colour", function()
-        state.job = start_job(_("Derive Colour"), #images)
+    local okr, err = C.logged_call(log, "identify colour", function()
+        state.job = start_job(_("Identify Colour"), #images)
         local rows, n_skipped, sent = {}, 0, {}
         local pick_of = select(2, with_paired_jpegs(images))
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
@@ -3715,8 +3754,8 @@ function M.derive_colour(images, colour_of)
         local check_colour = M.named_rules(rules, settings).diag.check_colour
         -- entry id → it has a hand colour tag; entry id → colour → photos carrying that colour tag
         local by_hand, tagged = {}, {}
-        -- source image id → the selected photos it reads for that have no colour tag; row → its photo had one
-        local to_tag, had_tag = {}, {}
+        -- source image id → the unit its reading votes in; unit key → colour → votes; row → its photo had a colour tag
+        local reader_unit, votes, had_tag = {}, {}, {}
         for _, img in ipairs(images) do
             local src = pick_of[img.id]
             local have = tags_of(img)
@@ -3729,11 +3768,18 @@ function M.derive_colour(images, colour_of)
                 local prefixes = sorted_names(M.hint_tags(have, ledger[img.id], entries, M.family_roots(settings).team))
                 if #prefixes == 1 then eid = prefixes[1] end
             end
-            if not has_colour_tag then
-                to_tag[src.id] = to_tag[src.id] or {}
-                table.insert(to_tag[src.id], img)
+            local locked = M.is_locked(have)
+            local key = unit_of[img.id]
+            votes[key] = votes[key] or {}
+            if has_colour_tag then
+                local tag_colour = M.hand_value(have, nil, colour_base)
+                if tag_colour then votes[key][tag_colour] = (votes[key][tag_colour] or 0) + 1 end
+            elseif not locked then
+                reader_unit[src.id] = key
             end
-            if not eid and has_colour_tag then
+            if locked and not eid then
+                log(string.format("%s: locked, skipped", img.filename))
+            elseif not eid and has_colour_tag then
                 n_skipped = n_skipped + 1
                 log(string.format("%s: skipped, it has a colour tag and its tags match no single entry: %s", img.filename,
                     M.entry_tags_note(have, entries, entry_order)))
@@ -3775,11 +3821,28 @@ function M.derive_colour(images, colour_of)
         local results = run_reference_job(state, rows, { "--add-reference", "--colours-only" }, "deriving colours")
         if not results then return end
         local parsed, notes = M.parse_reference_results(results)
-        -- the colour each photo without a colour tag read becomes its tag
-        local n_tagged, writes, tag_failed = 0, 0, {}
+        -- each reading votes in its unit; the colour a unit agrees on goes to its members without one
         for _, p in ipairs(parsed) do
-            for _, img in ipairs(p[5] ~= "" and to_tag[tonumber(p[1])] or {}) do
-                local name = colour_base .. "|" .. p[5]
+            local key = reader_unit[tonumber(p[1])]
+            if key and p[5] ~= "" then votes[key][p[5]] = (votes[key][p[5]] or 0) + 1 end
+        end
+        local n_tagged, n_disagree, writes, tag_failed = 0, 0, 0, {}
+        for key, group_members in pairs(members_of) do
+            local untagged = {}
+            for _, img in ipairs(group_members) do
+                local have = tags_of(img)
+                if #hand_values(have, nil, colour_base) == 0 and not M.is_locked(have) then untagged[#untagged + 1] = img end
+            end
+            local top, support, total = M.colour_vote(votes[key] or {})
+            local agreed_colour = top and support >= total * M.COLOUR_TAG_MIN_SHARE and top or nil
+            if not agreed_colour and total > 0 and #untagged > 0 then
+                n_disagree = n_disagree + #untagged
+                log(string.format("%s: the colours read disagree (%d of %d for %s and near colours; needs %d%%), so %d photos got no colour tag",
+                    key == "selection" and "selection" or "group " .. tostring(key), support, total, top or "no single colour",
+                    math.floor(M.COLOUR_TAG_MIN_SHARE * 100 + 0.5), #untagged))
+            end
+            for _, img in ipairs(agreed_colour and untagged or {}) do
+                local name = colour_base .. "|" .. agreed_colour
                 local okw, werr = pcall(function() tags.attach(tags.create(name), img) end)
                 if okw then
                     local mine = ledger[tonumber(img.id)] or {}
@@ -3804,7 +3867,7 @@ function M.derive_colour(images, colour_of)
         end
         local set_ids, already_ids, n_unread, n_failed = M.colour_summary(parsed)
         say(string.format("Assisted Tagging: %s File: %s",
-            M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_failed, notes.differs, n_tagged), entries_json_path()))
+            M.colour_done_message(set_ids, already_ids, n_unread, n_skipped, n_failed, notes.differs, n_tagged, n_disagree), entries_json_path()))
         local differ_ids, failed_ids = {}, {}
         for _, p in ipairs(parsed) do
             if p[3] == "differs" then differ_ids[#differ_ids + 1] = tonumber(p[1])
@@ -3816,15 +3879,15 @@ function M.derive_colour(images, colour_of)
         if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be read (see log)", #failed_ids), failed_ids) end
         if #tag_failed > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log)", #tag_failed), tag_failed) end
     end)
-    finish_reference_job(state, okr, err, "couldn't derive colours.")
+    finish_reference_job(state, okr, err, "couldn't identify colours.")
 end
 
 -- To check fixes ------------------------------------------------------------------
 -- Runs a fix that writes tags: plan(img, have) returns the names to attach, the names to detach and,
 -- optionally, names to drop from the ledger. Tags it attaches go in the ledger as the plugin's
 -- unless dropped, which makes them the user's.
-local function fix_tags(label, images, plan)
-    if queue_if_busy(label, #images > 0, function() fix_tags(label, images, plan) end) then return end
+local function fix_tags(label, images, plan, touch_locked)
+    if queue_if_busy(label, #images > 0, function() fix_tags(label, images, plan, touch_locked) end) then return end
     if not can_start(images) or not take_settings() then return end
     busy = true
     M.cancel_requested = false
@@ -3834,10 +3897,16 @@ local function fix_tags(label, images, plan)
         job = start_job(label, #images)
         load_entries_csv()
         local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
-        local n_tags, writes, failed_ids = 0, 0, {}
+        local n_tags, writes, failed_ids, n_locked = 0, 0, {}, 0
         for i, img in ipairs(images) do
             job.percent = (i - 1) / #images
-            local attach, detach, forget = plan(img, tags_of(img))
+            local have = tags_of(img)
+            if not touch_locked and M.is_locked(have) then
+                n_locked = n_locked + 1
+                log(string.format("%s: %s locked, left alone", label, C.image_label(img)))
+                goto next_image
+            end
+            local attach, detach, forget = plan(img, have)
             local mine = ledger[tonumber(img.id)] or {}
             local okw, werr = pcall(function()
                 for _, name in ipairs(detach) do
@@ -3862,10 +3931,13 @@ local function fix_tags(label, images, plan)
                 writes = 0
                 wait_for_writes()
             end
+            ::next_image::
         end
         wait_for_writes()
         write_ledger(ledger)
-        say(string.format("Assisted Tagging: %s done, %d tag changes on %d photos.", label, n_tags, #images - #failed_ids))
+        say(string.format("Assisted Tagging: %s done, %d tag changes on %d photos%s.", label, n_tags,
+            #images - #failed_ids - n_locked,
+            n_locked > 0 and string.format(", %d locked photo%s left alone", n_locked, n_locked == 1 and "" or "s") or ""))
         if #failed_ids > 0 then alerts.add(string.format("%d photos couldn't be tagged (see log)", #failed_ids), failed_ids) end
     end)
     finish_job(job)
@@ -4003,6 +4075,23 @@ function M.copy_tags_to_selection(images, ask)
         return string.format(_("The selected photos hold different tags of one family (%s). Copy merges them, so every selected photo gets all of them."),
             shown)
     end, entries, named)
+end
+
+-- Lock In Tags: every tag on the selected photos becomes the user's (off the ledger) and the photos
+-- get M.LOCKED_TAG, so no action changes their tags and Identify uses their entry as burst evidence.
+function M.lock_tags(images)
+    fix_tags(_("Lock In Tags"), images or {}, function(_img, have)
+        local forget = sorted_names(have)
+        forget[#forget + 1] = M.LOCKED_TAG
+        return M.is_locked(have) and {} or { M.LOCKED_TAG }, {}, forget
+    end, true)
+end
+
+-- Unlock Tags: takes M.LOCKED_TAG off the selected photos; their tags stay the user's.
+function M.unlock_tags(images)
+    fix_tags(_("Unlock Tags"), images or {}, function(_img, have)
+        return {}, M.is_locked(have) and { M.LOCKED_TAG } or {}
+    end, true)
 end
 
 -- Saves the confident vehicles (number-read, or a clear livery match) that the last
@@ -4696,12 +4785,12 @@ local function install_panel()
     }
     local derive_number_button = new_widget("button") {
         label = _("Derive from Number"),
-        tooltip = _("For each selected image whose number tag (added by you) names one entry, add that entry's tags and Derived|From number. Lookup only: no model runs, nothing is removed. An image with no colour tag also gets the entry's colour, when the entry has one (Derive Colour). Adds Check colour when the image's colour tag differs from the entry's colour. Writes darktable tags and the tag ledger only."),
+        tooltip = _("For each selected image whose number tag (added by you) names one entry, add that entry's tags and Derived|From number. Lookup only: no model runs, nothing is removed. An image with no colour tag also gets the entry's colour, when the entry has one (Identify Colour). Adds Check colour when the image's colour tag differs from the entry's colour. Writes darktable tags and the tag ledger only."),
         clicked_callback = function() M.derive_images(dt.gui.action_images, "number") end,
     }
     local derive_from_colour_button = new_widget("button") {
         label = _("Derive from Colour"),
-        tooltip = _("For each selected image with one colour tag, add the tags of the one entry with that colour (narrowed by your team tags) and Derived|From colour. Skips the image when several entries or none have that colour, or when it has a number tag (use Derive from Number). Lookup only: no model runs, nothing is removed. Needs entry colours in entries.json (Derive Colour). Writes darktable tags and the tag ledger only."),
+        tooltip = _("For each selected image with one colour tag, add the tags of the one entry with that colour (narrowed by your team tags) and Derived|From colour. Skips the image when several entries or none have that colour, or when it has a number tag (use Derive from Number). Lookup only: no model runs, nothing is removed. Needs entry colours in entries.json (Identify Colour). Writes darktable tags and the tag ledger only."),
         clicked_callback = function() M.derive_images(dt.gui.action_images, "colour") end,
     }
     -- Copy Tags to Group/selection ask here before merging differing photos (darktable Lua has no dialog)
@@ -4749,6 +4838,16 @@ local function install_panel()
             end)
         end,
     }
+    local lock_button = new_widget("button") {
+        label = _("Lock In Tags"),
+        tooltip = _("Mark the selected images' tags as certain: they all count as tags you applied by hand, and the images get Assisted Tagging|Locked. No action changes a locked image's tags, Replace Manual Tags included, and Identify uses its entry as the strongest evidence for the rest of its burst."),
+        clicked_callback = function() M.lock_tags(dt.gui.action_images) end,
+    }
+    local unlock_button = new_widget("button") {
+        label = _("Unlock Tags"),
+        tooltip = _("Take Assisted Tagging|Locked off the selected images. Their tags stay as tags you applied by hand."),
+        clicked_callback = function() M.unlock_tags(dt.gui.action_images) end,
+    }
     status_label = new_widget("label") { label = "", halign = "start" }
     replace_manual_check = new_widget("check_button") {
         label = _("Replace Manual Tags"),
@@ -4783,9 +4882,14 @@ local function install_panel()
         tooltip = _("For each selected image that already carries all of one entry's tags, save it as a reference of that entry. Also fills the entry's colour in entries.json when the Colour family is on (page 4)."),
         clicked_callback = function() M.add_references(dt.gui.action_images, nil) end,
     }
-    local derive_colour_button = new_widget("button") {
-        label = _("Derive Colour"),
-        tooltip = _("Give each selected photo without a colour tag one, read from the paintwork of its largest car. Photos that name one entry (all of its tags, or a number, driver or co-driver tag) also vote on that entry's colour in entries.json: it is filled when it has none; a colour tag you applied replaces it, and so does the colour tag Identify wrote when at least 3 of the entry's selected photos carry the same one and they are two thirds of its colour-tagged photos (photos tagged Check colour don't count). Photos that already have a colour tag keep it. Saves no references. Needs the Colour family on (page 4)."),
+    local colour_group_button = new_widget("button") {
+        label = _("Identify Colour for Group"),
+        tooltip = _("Read the paintwork of each selected photo's largest car (a selected photo's colour tag counts as its reading). The colour two thirds of a group's selected photos agree on goes to every photo in that darktable group without a colour tag; a group whose readings disagree gets none. Photos that name one entry (all of its tags, or a number, driver or co-driver tag) also vote on that entry's colour in entries.json: it is filled when it has none; a colour tag you applied replaces it, and so does the colour tag Identify wrote when at least 3 of the entry's selected photos carry the same one and they are two thirds of its colour-tagged photos (photos tagged Check colour don't count). Photos that already have a colour tag or are locked keep theirs. Saves no references. Needs the Colour family on (page 4)."),
+        clicked_callback = function() M.derive_colour(dt.gui.action_images, nil, true) end,
+    }
+    local colour_selection_button = new_widget("button") {
+        label = _("Identify Colour for Selection"),
+        tooltip = _("Read the paintwork of each selected photo's largest car (a selected photo's colour tag counts as its reading). The colour two thirds of them agree on goes to every selected photo without a colour tag; photos outside the selection, group mates too, are untouched. Readings that disagree tag nothing. Photos that name one entry (all of its tags, or a number, driver or co-driver tag) also vote on that entry's colour in entries.json: it is filled when it has none; a colour tag you applied replaces it, and so does the colour tag Identify wrote when at least 3 of the entry's selected photos carry the same one and they are two thirds of its colour-tagged photos (photos tagged Check colour don't count). Photos that already have a colour tag or are locked keep theirs. Saves no references. Needs the Colour family on (page 4)."),
         clicked_callback = function() M.derive_colour(dt.gui.action_images) end,
     }
     local promote_button = new_widget("button") {
@@ -4826,7 +4930,7 @@ local function install_panel()
     local tag_rows, name_entries, tag_row_boxes = {}, {}, {}
     -- Per family: its switch and the root its tags sit under (family_<key>_root).
     local family_rows = {
-        colour = { _("Colour"), _("Read each car's paintwork colour and write it as <root>|<colour>. Also needed by Check colour and entry colours (Derive Colour and the reference actions). Turning it on re-reads every photo once.") },
+        colour = { _("Colour"), _("Read each car's paintwork colour and write it as <root>|<colour>. Also needed by Check colour and entry colours (Identify Colour and the reference actions). Turning it on re-reads every photo once.") },
         number = { _("Number"), _("Write an identified entry's race number as <root>|<number>.") },
         team = { _("Team"), _("Write an identified entry's team as <root>|<team>. A team tag you applied by hand is also the hint that narrows matching.") },
         driver = { _("Driver"), _("Write an identified entry's name as <root>|<name>.") },
@@ -5056,7 +5160,9 @@ local function install_panel()
         },
         tag_rows,
         { new_widget("section_label") { label = _("Identify (Models; Writes Tags)") },
-          replace_manual_check, run_tag_combo, identify_button, verify_button },
+          replace_manual_check, run_tag_combo, identify_button, verify_button,
+          new_widget("section_label") { label = _("Identify Colour (Models; Writes Tags and entries.json)") },
+          colour_group_button, colour_selection_button },
         { new_widget("section_label") { label = _("Add to One Entry (Uses the Entry List)") },
           entry_combo, add_button,
           new_widget("section_label") { label = _("Add by Tags or Last Run (Entry List Not Used)") },
@@ -5065,10 +5171,10 @@ local function install_panel()
           suggest_crops_check, quarantine_check, audit_button },
         { new_widget("section_label") { label = _("Derive (Lookups Only; Adds Tags)") },
           derive_number_button, derive_from_colour_button,
-          new_widget("section_label") { label = _("Read Colour (Models; Writes Tags and entries.json)") },
-          derive_colour_button,
           new_widget("section_label") { label = _("Copy (Writes Tags as Your Own)") },
           copy_group_button, copy_selection_button, copy_confirm_box,
+          new_widget("section_label") { label = _("Lock (Writes Tags as Your Own)") },
+          lock_button, unlock_button,
           new_widget("section_label") { label = _("Undo") },
           clear_marks_button },
     }

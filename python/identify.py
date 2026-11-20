@@ -2079,7 +2079,7 @@ def run_reference_job(args, models: dict, handle_row, screen: str = "", siglip: 
 
 def add_references(args, models: dict):
     """Each manifest image becomes a reference for its entry (and, with the colour family on, reads
-    the car's colour into entries.json). `args.colours_only` reads the colour alone (Derive Colour): no
+    the car's colour into entries.json). `args.colours_only` reads the colour alone (Identify Colour): no
     reference is saved, team rows are "unread", a row with no entry id reads the photo's colour without
     proposing it to an entry, and a row is "read" (the colour in the results' 5th column) or "unread" by
     whether a colour came out."""
@@ -2154,9 +2154,9 @@ def add_references(args, models: dict):
         collection = os.path.join(args.collections_root, args.collection)
         only_rules = load_collection(collection, args.settings)[1]
         if only_rules.kind == "people":
-            raise InputError("Derive Colour is for vehicle collections")
+            raise InputError("Identify Colour is for vehicle collections")
         if "colour" not in only_rules.families:
-            raise InputError("Derive Colour needs the colour family (family_colour) on")
+            raise InputError("Identify Colour needs the colour family (family_colour) on")
     run_reference_job(args, models, handle, screen="" if colours_only else "warn")
 
 
