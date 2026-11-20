@@ -2540,6 +2540,7 @@ end
 local function set_idle_label()
     identify_cancellable = false
     if identify_button then identify_button.label = _("Identify Selection") end
+    if missing_button then missing_button.label = _("Identify Missing Entries") end
 end
 
 -- Each tag write queues a TAG_CHANGED event on darktable's GUI thread. A Lua widget update is
@@ -3359,6 +3360,7 @@ function M.identify_images(images, replace_manual, verify_only, only_entries)
     M.cancel_requested = false
     identify_cancellable = true
     if identify_button then identify_button.label = _("Cancel") end
+    if only_entries and missing_button then missing_button.label = _("Identifying missing entries…") end
     start_log(verify_only and "verify started" or "identify started", #images)
     log(string.format("settings: replace manual %s, cars per image %s, team hints %s, tag each run %s, grouping support %s, node %s, neighbour tolerance %s, order weight %s",
         tostring(replace_manual and true or false),
@@ -4415,8 +4417,12 @@ local function start_identify_missing()
         return
     end
     dt.print(_("Assisted Tagging: Reading the collection's tags to find the missing entries…"))
+    show_status(_("Finding the missing entries…"))
+    if missing_button then missing_button.label = _("Finding missing entries…") end
     local missing = missing_in(dt.collection)
     if #missing == 0 then
+        set_idle_label()
+        show_status("")
         dt.print(_("Assisted Tagging: Every entry has an image."))
         return
     end
@@ -4427,6 +4433,8 @@ local function start_identify_missing()
         if not M.entry_for_tags(tags_of(img), entries, entry_order) then leftovers[#leftovers + 1] = img end
     end
     if #dt.gui.action_images > 0 and #leftovers == 0 then
+        set_idle_label()
+        show_status("")
         dt.print(_("Assisted Tagging: Every selected image already has an entry."))
         return
     end
