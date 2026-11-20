@@ -362,7 +362,7 @@ do
         table.concat(T.derive_plan({ ["M|Number|30"] = true, ["M|Number|730"] = true }, nil, se, sorder, roots, "number", names).attach, ";"),
         "AT|Derived|From number;M|Colour|Red;M|Driver|Ames;M|Driver|Cole")
     check("derive number: a ledgered (plugin) number tag is not the user's",
-        plan({ ["M|Number|2"] = true }, "number", { ["M|Number|2"] = true }), " / no number tag of yours names an entry")
+        plan({ ["M|Number|2"] = true }, "number", { ["M|Number|2"] = true }), " / no number or paddock tag of yours names an entry")
     check("derive number: colour that differs adds Check colour",
         plan({ ["M|Number|1"] = true, ["M|Colour|Blue"] = true }, "number"),
         "AT|Check colour;AT|Derived|From number;M|Driver|Ann;M|Team|Alpha / ")
@@ -391,6 +391,24 @@ do
             { derived = "", check_colour = "" }).attach, ";"), "M|Colour|Blue;M|Driver|Bob;M|Team|Beta")
     check("hand_source: a number tag", T.hand_source({ ["M|Number|2"] = true }, nil, de, roots), "From number")
     check("hand_source: a driver tag", T.hand_source({ ["M|Driver|Bob"] = true }, nil, de, roots), "From driver")
+    local pe, porder = T.parse_entries_csv(table.concat({
+        "8,Alpha,8,M|Number|8;M|Paddock|H3,Ann,,,,H3",
+        "8-D14,Beta,8,M|Number|8;M|Driver|Bob;M|Paddock|D14,Bob,,,,D14",
+        "-1,Gamma,,M|Driver|Cy;M|Paddock|D6,Cy,,,,D6",
+    }, "\n"))
+    local proots = { number = "M|Number", paddock = "M|Paddock" }
+    local function pplan(have)
+        local p = T.derive_plan(have, nil, pe, porder, proots, "number", names)
+        return (p.entry_id or "") .. " / " .. p.reason
+    end
+    check("entries: a ninth field is the paddock id", pe["8-D14"].paddock .. "|" .. pe["8"].paddock, "D14|H3")
+    check("derive number: a hand paddock tag names its entry", pplan({ ["M|Paddock|D14"] = true }), "8-D14 / ")
+    check("derive number: a car with no number is named by its paddock tag", pplan({ ["M|Paddock|D6"] = true }), "-1 / ")
+    check("derive number: a number two cars share plus a paddock tag names one",
+        pplan({ ["M|Number|8"] = true, ["M|Paddock|D14"] = true }), "8-D14 / ")
+    check("derive number: a paddock tag no entry holds names none", pplan({ ["M|Paddock|Z9"] = true }),
+        " / no number or paddock tag of yours names an entry")
+    check("hand_source: a paddock tag", T.hand_source({ ["M|Paddock|D14"] = true }, nil, pe, proots), "From paddock")
     local mrules = T.default_rules()
     mrules.diag.derived = "AT|Derived"
     local _w, mdiag = T.wanted_tags({ { box = 0, method = "livery", entry_id = "1" } }, de, mrules)
