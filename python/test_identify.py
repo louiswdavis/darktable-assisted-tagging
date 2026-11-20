@@ -330,17 +330,19 @@ def run_tests():
     I.write_entries_csv(entries, os.path.join(out, "e.csv"))
     I.write_rules_csv(rules, _fe, os.path.join(out, "r.csv"))
     check("entries.csv rows", open(os.path.join(out, "e.csv"), encoding="utf-8").read().splitlines()[1],
-          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda,,,,")
+          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda,,,,,")
     name_entries = I.load_collection(collection([dict(VER, name="Max Verstappen", co_driver="Gianpiero Lambiase")]))[0]
     I.write_entries_csv({"VER": dataclasses.replace(entries["VER"], number="-")}, os.path.join(out, "dash.csv"))
     check("a - number leaves entries.csv's number column empty", open(os.path.join(out, "dash.csv"), encoding="utf-8").read().splitlines()[0].split(",")[2], "")
     I.write_entries_csv(name_entries, os.path.join(out, "n.csv"))
-    check("entries.csv ends with the name and co-driver", open(os.path.join(out, "n.csv"), encoding="utf-8").read().splitlines()[0],
-          "VER,Red Bull,1,F1|Red Bull;F1|Red Bull|Verstappen,Max Verstappen,Gianpiero Lambiase,,")
+    check("entries.csv holds the name and co-driver", open(os.path.join(out, "n.csv"), encoding="utf-8").read().splitlines()[0],
+          "VER,Red Bull,1,F1|Red Bull;F1|Red Bull|Verstappen,Max Verstappen,Gianpiero Lambiase,,,")
+    I.write_entries_csv({"VER": dataclasses.replace(entries["VER"], paddock="D14")}, os.path.join(out, "p.csv"))
+    check("entries.csv ends with the paddock id", open(os.path.join(out, "p.csv"), encoding="utf-8").read().splitlines()[0].rsplit(",", 1)[1], "D14")
     car_entries = I.load_collection(collection([AMES, COLE], settings=None))[0]
     I.write_entries_csv(car_entries, os.path.join(out, "c.csv"))
-    check("entries.csv ends with the shared car's id on both entries",
-          [line.rsplit(",", 1)[1] for line in open(os.path.join(out, "c.csv"), encoding="utf-8").read().splitlines()], ["30", "30"])
+    check("entries.csv holds the shared car's id on both entries",
+          [line.rsplit(",", 2)[1] for line in open(os.path.join(out, "c.csv"), encoding="utf-8").read().splitlines()], ["30", "30"])
     check("rules.csv rows", open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()[:3],
           ["team_only,shared tags", "unidentified,F1|Check", "diag_number,Assisted Tagging|Identification|By number"])
     rows = open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()

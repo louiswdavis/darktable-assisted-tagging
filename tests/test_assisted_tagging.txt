@@ -154,6 +154,12 @@ ok   derive colour: a number tag defers to Derive from Number, flagging the colo
 ok   derive: markers off add no marker
 ok   hand_source: a number tag
 ok   hand_source: a driver tag
+ok   entries: a ninth field is the paddock id
+ok   derive number: a hand paddock tag names its entry
+ok   derive number: a car with no number is named by its paddock tag
+ok   derive number: a number two cars share plus a paddock tag names one
+ok   derive number: a paddock tag no entry holds names none
+ok   hand_source: a paddock tag
 ok   wanted_tags: a model result marks From identification
 ok   wanted_tags: a hand result marks its source
 ok   owned_prefixes: the Derived base is owned per value

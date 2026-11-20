@@ -381,7 +381,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
 def write_entries_csv(entries: dict, path: str):
     with open(path, "w", newline="", encoding="utf-8") as f:
         for e in entries.values():
-            f.write(f"{e.id},{e.team},{'' if e.number == NO_NUMBER else e.number},{';'.join(e.tags)},{e.name},{e.co_driver},{e.colour},{e.car}\n")
+            f.write(f"{e.id},{e.team},{'' if e.number == NO_NUMBER else e.number},{';'.join(e.tags)},{e.name},{e.co_driver},{e.colour},{e.car},{e.paddock}\n")
 
 
 def write_rules_csv(rules: Rules, from_entries: tuple, path: str):

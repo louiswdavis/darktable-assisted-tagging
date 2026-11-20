@@ -223,16 +223,16 @@ local function split(s, sep)
     return out
 end
 
--- identify.py's entries.csv (id,team,number,tag;tag…,name,co_driver,colour,car) → entries by id, and the ids in
+-- identify.py's entries.csv (id,team,number,tag;tag…,name,co_driver,colour,car,paddock) → entries by id, and the ids in
 -- file order. car: the id both entries of a shared car name ("" when unshared).
 function M.parse_entries_csv(text)
     local entries, order = {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 8) or M.parse_csv_line(line, 7) or M.parse_csv_line(line, 6) or M.parse_csv_line(line, 5)
+        local p = M.parse_csv_line(line, 9) or M.parse_csv_line(line, 8) or M.parse_csv_line(line, 7) or M.parse_csv_line(line, 6) or M.parse_csv_line(line, 5)
             or M.parse_csv_line(line, 4)
         if p and p[1] ~= "" and p[4] ~= "" and not entries[p[1]] then
             entries[p[1]] = { id = p[1], team = p[2], number = p[3], tags = split(p[4], ";"), name = p[5] or "",
-                              co_driver = p[6] or "", colour = p[7] or "", car = p[8] or "" }
+                              co_driver = p[6] or "", colour = p[7] or "", car = p[8] or "", paddock = p[9] or "" }
             order[#order + 1] = p[1]
         end
     end
@@ -593,7 +593,8 @@ M.COLOUR_TAG_MIN_SHARE = 2 / 3
 
 -- The entry the user's hand tags name: a number tag (`roots.number`|<n>) names the entry with that
 -- number, a driver tag (`roots.driver`|<name>) the entry with that name, a co-driver tag
--- (`roots.co_driver`|<name>) the entry with that co_driver. A value two or more entries share names
+-- (`roots.co_driver`|<name>) the entry with that co_driver, a paddock tag (`roots.paddock`|<id>) the
+-- entry with that paddock id. A value two or more entries share names
 -- none of them by itself. The two entries of a shared car (`car`) count as one, named by the car's
 -- id, so a photo tagged with both crews' numbers names it. Returns the id; or nil, "ambiguous" when
 -- the tags only narrow it to several entries; or nil, "disagree" when they name different entries.
@@ -602,7 +603,8 @@ function M.hand_entry(have, ledger_set, entries, roots)
     local function car_of(id) return (entries[id].car or "") ~= "" and entries[id].car or id end
     local named, shared = {}, {}
     for _, f in ipairs({ { root = roots.number, field = "number" }, { root = roots.driver, field = "name" },
-                         { root = roots.co_driver, field = "co_driver" } }) do
+                         { root = roots.co_driver, field = "co_driver" },
+                         { root = roots.paddock, field = "paddock" } }) do
         for _, value in ipairs(hand_values(have, ledger_set, f.root)) do
             local ids = {}
             for id, e in pairs(entries) do
@@ -623,9 +625,11 @@ function M.hand_entry(have, ledger_set, entries, roots)
 end
 
 -- The "Derived from" leaf for a hand row (M.wanted_tags' hand_from): "From number" when the
--- user's number tags alone name the entry, else "From driver" (a driver or co-driver tag did).
+-- user's number tags alone name the entry, "From paddock" when number and paddock tags together do,
+-- else "From driver" (a driver or co-driver tag did).
 function M.hand_source(have, ledger_set, entries, roots)
-    return M.hand_entry(have, ledger_set, entries, { number = roots.number }) and "From number" or "From driver"
+    if M.hand_entry(have, ledger_set, entries, { number = roots.number }) then return "From number" end
+    return M.hand_entry(have, ledger_set, entries, { number = roots.number, paddock = roots.paddock }) and "From paddock" or "From driver"
 end
 
 -- Mirror of python/car_colour.py NEAR_COLOURS and colour_relation: 1 when an entry's colour and a
@@ -689,7 +693,7 @@ function M.derive_plan(have, ledger_set, entries, order, roots, mode, names)
     end
     local add = {}
     local colours = values_under(have, roots.colour)
-    local number_id, why = M.hand_entry(have, ledger_set, entries, { number = roots.number })
+    local number_id, why = M.hand_entry(have, ledger_set, entries, { number = roots.number, paddock = roots.paddock })
     if number_id and #colours == 1 and names.check_colour ~= "" and not have[names.check_colour]
         and M.colour_relation(entries[number_id].colour, colours[1]) == -1 then
         add[names.check_colour] = true
@@ -697,11 +701,11 @@ function M.derive_plan(have, ledger_set, entries, order, roots, mode, names)
     local id, leaf
     if mode == "number" then
         if number_id then
-            id, leaf = number_id, "From number"
+            id, leaf = number_id, M.hand_source(have, ledger_set, entries, roots)
         else
             plan.reason = why == "ambiguous" and "its number fits several entries"
                 or why == "disagree" and "its number tags name different entries"
-                or "no number tag of yours names an entry"
+                or "no number or paddock tag of yours names an entry"
         end
     elseif number_id then
         plan.reason = "it has a number tag: use Derive from Number"
@@ -2754,7 +2758,7 @@ local function prepare_run(images, replace_manual, job)
     local on_roots = M.family_roots(settings)
     local team_root = on_roots.team
     -- the families whose hand tags name a car (M.hand_entry)
-    local naming_roots = { number = on_roots.number, driver = on_roots.driver, co_driver = on_roots.co_driver }
+    local naming_roots = { number = on_roots.number, driver = on_roots.driver, co_driver = on_roots.co_driver, paddock = on_roots.paddock }
     local n_copies, n_read, start = 0, 0, os.time()
     for _, copies in pairs(group_of) do n_copies = n_copies + #copies end
     local every = math.max(1, n_copies // 200)
@@ -3365,7 +3369,7 @@ local function library_neighbour_rows(images, job)
     local rows = {}
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
     local on_roots = M.family_roots(settings)
-    local naming_roots = { number = on_roots.number, driver = on_roots.driver, co_driver = on_roots.co_driver }
+    local naming_roots = { number = on_roots.number, driver = on_roots.driver, co_driver = on_roots.co_driver, paddock = on_roots.paddock }
     local near = M.near_in_time(times, pool, M.NEIGHBOUR_MAX_GAP_S)
     local every = math.max(1, #near // 200)
     start = os.time()
