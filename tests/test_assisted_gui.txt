@@ -183,6 +183,7 @@ ok   presets: the manifest lists both files
 ok   presets: unticked references stay behind
 ok   presets: no staging folder is left behind
 ok   presets: the references box shows the size
+DIAG export with refs said: Assisted Tagging: Couldn't replace C:/Users/Louis/AppData/Local/Temp/at_gui_test_1795229398_787058/plugins/darktable-assisted-tagging/exports/Rallye.atpreset.zip.
 FAIL presets: a changed export replaces the zip: got false, want true
 ok   presets: no numbered copy
 FAIL presets: ticked references are exported: got nil, want crop
