@@ -1,5 +1,6 @@
 ok   family order
 ok   family sources
+ok   every entry field has a tag family or an opt-out
 ok   only the plate and sponsor families are off by default
 ok   setting keys
 ok   family_tag

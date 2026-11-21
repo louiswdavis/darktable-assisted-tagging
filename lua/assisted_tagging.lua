@@ -5120,18 +5120,24 @@ local function install_panel()
         tooltip = _("The matching entries (the first 20). Apply Entry to Selected tags the selected images with the one shown."),
         _("(no matches)"),
     }
-    local search_entry = new_widget("entry") {
+    local search_entry
+    local function run_search()
+        local query = search_entry.text or ""
+        search_results.text = M.search_entries(entries, entry_order, query)
+        search_ids = M.search_ids(entries, entry_order, query)
+        local labels = {}
+        for i = 1, math.min(#search_ids, 20) do labels[i] = entry_label(entries[search_ids[i]]) end
+        fill_combo(search_pick, #labels > 0 and labels or { _("(no matches)") }, 1)
+    end
+    search_entry = new_widget("entry") {
         placeholder = _("Search entries: number, brand, model, driver…"),
         tooltip = _("Type any part of a number, team, name, colour or tag. Every word must match something in the entry. Matching entries are listed below; nothing is changed until you click Apply Entry to Selected."),
         text = "",
-        changed_callback = function(self)
-            local query = self.text or ""
-            search_results.text = M.search_entries(entries, entry_order, query)
-            search_ids = M.search_ids(entries, entry_order, query)
-            local labels = {}
-            for i = 1, math.min(#search_ids, 20) do labels[i] = entry_label(entries[search_ids[i]]) end
-            fill_combo(search_pick, #labels > 0 and labels or { _("(no matches)") }, 1)
-        end,
+    }
+    local search_button = new_widget("button") {
+        label = _("Search"),
+        tooltip = _("List the entries matching the words typed above."),
+        clicked_callback = run_search,
     }
     local search_apply_button = new_widget("button") {
         label = _("Apply Entry to Selected"),
@@ -5445,7 +5451,7 @@ local function install_panel()
           new_widget("section_label") { label = _("Identify Colour (Models; Writes Tags and entries.json)") },
           colour_group_button, colour_selection_button },
         { new_widget("section_label") { label = _("Add to One Entry (Uses the Entry List)") },
-          search_entry, search_results, search_pick, search_apply_button, entry_combo, add_button,
+          search_entry, search_button, search_results, search_pick, search_apply_button, entry_combo, add_button,
           new_widget("section_label") { label = _("Add by Tags or Last Run (Entry List Not Used)") },
           add_tagged_button, promote_button,
           new_widget("section_label") { label = _("Audit") },

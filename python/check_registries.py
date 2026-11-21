@@ -1,6 +1,7 @@
 """Bookkeeping checks that run anywhere with plain Python (no cv2, numpy or onnx):
 - every constant of a module fingerprint.py lists is filed once in CACHE_INPUTS or
   CACHE_NEUTRAL, and nothing filed is missing (read from the source, nothing imported)
+- every entry field has a tag family or is listed in kinds.NO_TAG_FAMILY
 - lua/assisted_tagging.lua's PRESET_SCHEMA matches settings.SETTINGS_SCHEMA
   (settings.py is stdlib-only, so it is imported)
 The same checks run in test_identify.py and test_settings.py; this catches them first.
@@ -101,7 +102,22 @@ def shadow_problems() -> list:
     return out
 
 
+def family_problems() -> list:
+    """Entry fields of a kind that are neither a source of a tag family nor listed in kinds.NO_TAG_FAMILY,
+    and opt-outs naming a field no kind has or one a family now covers."""
+    sys.path.insert(0, HERE)
+    from families import FAMILIES
+    from kinds import KINDS, NO_TAG_FAMILY
+    covered = {s for fam in FAMILIES for s in fam.sources}
+    fields = set().union(*KINDS.values())
+    out = [f'entry field "{f}" has no tag family: add a Family with it as a source in families.py (and the Lua mirror), '
+           f"or list it in kinds.NO_TAG_FAMILY with a reason" for f in sorted(fields - covered - set(NO_TAG_FAMILY))]
+    out += [f'kinds.NO_TAG_FAMILY lists "{f}", which no kind accepts' for f in sorted(set(NO_TAG_FAMILY) - fields)]
+    out += [f'kinds.NO_TAG_FAMILY lists "{f}", but a family now uses it' for f in sorted(set(NO_TAG_FAMILY) & covered)]
+    return out
+
+
 if __name__ == "__main__":
-    found = fingerprint_problems() + schema_problems() + shadow_problems()
+    found = fingerprint_problems() + schema_problems() + shadow_problems() + family_problems()
     print("\n".join(found) if found else "registries ok")
     sys.exit(1 if found else 0)

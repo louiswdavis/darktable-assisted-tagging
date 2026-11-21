@@ -160,6 +160,11 @@ local dt = {
     -- a widget is its own property table: children in the array part, values as fields
     new_widget = function(kind)
         return function(props)
+            -- real darktable refuses a changed_callback on any other widget ("can't be written for type")
+            local changes = { combobox = true, slider = true, file_chooser_button = true }
+            if props.changed_callback and not changes[kind] then
+                error(('field "changed_callback" can\'t be written for type %s'):format(kind))
+            end
             props.kind = kind
             return props
         end
