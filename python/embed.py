@@ -8,6 +8,7 @@ import numpy as np
 import cv2
 
 from vehicle_detect import file_key
+from timing import timed
 
 EMBED_INPUT = 224
 DEGRADE_FACTOR = 4  # how far a reference crop is downscaled-then-upscaled by degrade()
@@ -57,7 +58,7 @@ class Embedder:
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 1  # the worker pool supplies the parallelism
         with open(model_path, "rb") as f:  # bytes, so a non-ASCII path can't trip a narrow-path API
-            self.session = ort.InferenceSession(f.read(), opts, providers=["CPUExecutionProvider"])
+            self.session = timed(ort.InferenceSession(f.read(), opts, providers=["CPUExecutionProvider"]), model_path)
 
     @cached_property
     def dim(self) -> int:

@@ -12,6 +12,7 @@ import numpy as np
 import cv2
 
 from vehicles import read_onnx
+from timing import timed
 from vehicle_detect import file_key
 
 OCR_MIN_SCORE = 0.80
@@ -246,7 +247,7 @@ def _onnx_session(path: str):
     opts.intra_op_num_threads = 1  # the worker pool supplies the parallelism
     with open(path, "rb") as f:  # bytes, so a non-ASCII path can't trip a narrow-path API
         session = ort.InferenceSession(f.read(), opts, providers=["CPUExecutionProvider"])
-    return session, session.get_inputs()[0].name
+    return timed(session, path), session.get_inputs()[0].name
 
 
 class PaddleDetector:

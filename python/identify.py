@@ -35,6 +35,7 @@ from dataclasses import dataclass, field, replace
 from vehicles import HIRES_ASPECT_TOL, HIRES_MIN_GAIN, MAX_BOXES, crop_box, detect, detect_vehicles, load_hires, log, peak_memory_mb
 from vehicle_detect import DetectionCache, boxes_in, decode_rgb, decode_rgb_sized, detect_cached, file_key, load_detector
 from common import atomic_write
+import timing
 from ocr import NUMBER_MIN_HEIGHT, OCR_CROP_DIM, OCR_MIN_SCORE, NumberReader, ocr_key, parseq_key
 import car_colour
 import entries_file
@@ -622,7 +623,11 @@ def _detection_tools(models: dict) -> tuple:
 def frame_entry(filepath: str, rgb, models: dict) -> tuple:
     """(the frame's shared detection entry, whether it came from the cache)."""
     detector, cache = _detection_tools(models)
-    return detect_cached(filepath, detector, cache, rgb=rgb)
+    start = time.perf_counter()
+    entry, hit = detect_cached(filepath, detector, cache, rgb=rgb)
+    if not hit:
+        timing.add(os.path.basename(models["detector"]), 1, time.perf_counter() - start)
+    return entry, hit
 
 
 def _init_worker(models: dict, siglip_texts=None):
@@ -653,8 +658,8 @@ def _siglip(models: dict):
 
 def analyse_frame(filepath: str) -> dict:
     """Boxes, OCR candidates and embeddings for one frame: the cached value, plus `detection_cached`
-    (whether the shared detection entry was already there) and `worker_peak_mb` (this worker's peak
-    memory so far), which run_frames pops off. Detection
+    (whether the shared detection entry was already there) `worker_peak_mb` (this worker's peak
+    memory so far) and `model_seconds` (timing.take()), which run_frames pops off. Detection
     reads a fast small decode; the full-size decode runs only when a vehicle box passes. Boxes,
     candidates and `frame` are in full-size pixels either way."""
     if _W["models"]["kind"] == "people":
@@ -678,7 +683,7 @@ def analyse_frame(filepath: str) -> dict:
         weak = boxes_in({"frame": [sw, sh], "boxes": weak}, w, h)
         out = _read_boxes(small, [])
     out.update(note=note, frame=[w, h], candidates=[list(b) for b in weak], detection_cached=hit,
-               worker_peak_mb=peak_memory_mb())
+               worker_peak_mb=peak_memory_mb(), model_seconds=timing.take())
     return out
 
 
@@ -1005,6 +1010,7 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, p
         try:
             out[p] = fut.result()
             worker_peak_mb = max(worker_peak_mb, out[p].pop("worker_peak_mb", 0.0))
+            timing.merge(out[p].pop("model_seconds", None))
             if out[p].pop("detection_cached", False):
                 hits += 1
             else:
@@ -1024,6 +1030,8 @@ def run_frames(paths: list, models: dict, cache: IdentifyCache, progress: str, p
         f"largest worker peak memory {worker_peak_mb:.0f} MB")
     if models["kind"] != "people":
         log(f"detections: {hits} cached, {detected} detected")
+    if timing.report():
+        log(timing.report("model time, analysis (CPU seconds summed over workers)"))
     log_box_check(out, models)
     log_reads("analysis", out.values())
     return out

@@ -8,6 +8,7 @@ two are found beside it by name. One image vector per crop answers both question
 import os
 
 from vehicle_detect import file_key
+from timing import timed
 
 TEXT_LEN = 64  # SigLIP 2 was trained on text padded to 64 tokens
 IMAGE_SIZE = 224
@@ -89,7 +90,7 @@ class SigLIP:
         vision, text, tokenizer = siglip_files(vision_path)
         opts = ort.SessionOptions()
         opts.intra_op_num_threads = 1  # the worker pool supplies the parallelism
-        self.vision = ort.InferenceSession(vision, opts, providers=["CPUExecutionProvider"])
+        self.vision = timed(ort.InferenceSession(vision, opts, providers=["CPUExecutionProvider"]), vision)
         self.texts: dict = dict(texts or {})  # prompts tuple → (labels, vectors)
         self.text = self.tok = None
         if texts is not None:
@@ -98,7 +99,7 @@ class SigLIP:
         for path in (text, tokenizer):
             if not os.path.isfile(path):
                 raise FileNotFoundError(f"{os.path.basename(path)} must sit beside {os.path.basename(vision)}")
-        self.text = ort.InferenceSession(text, opts, providers=["CPUExecutionProvider"])
+        self.text = timed(ort.InferenceSession(text, opts, providers=["CPUExecutionProvider"]), text)
         self.tok = Tokenizer.from_file(tokenizer)
         self.pad = self.tok.token_to_id("<pad>")
         self.eos = self.tok.token_to_id("<eos>")
