@@ -305,14 +305,16 @@ do -- search_entries: one box searches every field and tag
     }, "\n"))
     local pe, po = T.parse_entries_csv("9,Team C,9,M|Make|Audi,Lee,,,,,AB12 CDE")
     check("parse_entries_csv: the tenth column is the plate", pe["9"].plate, "AB12 CDE")
-    check("search: a plate is found by its letters", T.search_entries(pe, po, "ab12"), "9 (#9, Team C)")
+    local row12 = "12 (#12, Team A)\n  team: Team A\n  number: 12\n  name: Smith\n  co_driver: Jones\n  colour: Red\n  tag: M|Make|Mazda\n  tag: M|Model|MX-5"
+    local row7 = "7 (#7, Team B)\n  team: Team B\n  number: 7\n  name: Brown\n  tag: M|Make|Ford\n  tag: M|Model|Maze"
+    check("search: a plate is found by its letters and shown", T.search_entries(pe, po, "ab12"),
+        "9 (#9, Team C)\n  team: Team C\n  number: 9\n  name: Lee\n  plate: AB12 CDE\n  tag: M|Make|Audi")
     check("search: blank query lists nothing", T.search_entries(se, so, "  "), "")
-    check("search: a brand tag matches, case-blind, and shows the tag", T.search_entries(se, so, "MAZD"), "12 (#12, Team A): M|Make|Mazda")
-    check("search: a partial hits a brand and a model", T.search_entries(se, so, "maz"),
-        "12 (#12, Team A): M|Make|Mazda\n7 (#7, Team B): M|Model|Maze")
-    check("search: a driver name matches", T.search_entries(se, so, "brown"), "7 (#7, Team B)")
-    check("search: every word must match", T.search_entries(se, so, "maz red"), "12 (#12, Team A): M|Make|Mazda")
-    check("search: a number matches", T.search_entries(se, so, "12"), "12 (#12, Team A)")
+    check("search: a brand tag matches, case-blind, and shows the whole row", T.search_entries(se, so, "MAZD"), row12)
+    check("search: a partial hits a brand and a model, each as a full row", T.search_entries(se, so, "maz"), row12 .. "\n" .. row7)
+    check("search: a driver name matches", T.search_entries(se, so, "brown"), row7)
+    check("search: every word must match", T.search_entries(se, so, "maz red"), row12)
+    check("search: a number matches", T.search_entries(se, so, "12"), row12)
     check("search: no hit says so", T.search_entries(se, so, "zzz"), "No entries match.")
     local many, many_order = {}, {}
     for i = 1, 25 do
@@ -322,6 +324,7 @@ do -- search_entries: one box searches every field and tag
     end
     local out = T.search_entries(many, many_order, "e")
     check("search: results cap at 20 and count the rest", out:match("[^\n]+$"), "+5 more")
+    check("search: only 20 entries get a row", select(2, ("\n" .. out):gsub("\nE%d+\n  tag:", "")), 20)
 end
 
 -- colour_relation (mirror of car_colour.py) ---------------------------------

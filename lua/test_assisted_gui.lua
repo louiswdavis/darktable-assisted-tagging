@@ -382,6 +382,30 @@ T.clear_marks({ first, second, third })
 check("clear, after a cancel: the next clear finishes the rest", #second.tags + #third.tags, 0)
 check("no button changes the selection", selection_sets, 0)
 
+-- Audit: every panel action that takes images runs as a job (rule: progress-on-every-action).
+-- An action counts when its body starts a job itself or hands to one that does.
+do
+    local src = read_file("assisted_tagging.lua") or ""
+    local JOB_MARKERS = { "start_job(", "read_phase(", "fix_tags(", "copy_merged(", "derive_colour(", "identify_images(",
+        "add_references(", "run_reference_job(" }
+    -- not actions with a per-image loop: they pick or load lists, or only build a collection from files
+    local EXEMPT = { collapse_shots = true, prefer_paired = true, new_entry_candidates = true, derive_entries = true,
+        create_collection_from_example = true }
+    local missing, seen = {}, 0
+    for name, body in src:gmatch("\nfunction M%.([%w_]+)%(images[^\n]*\n(.-)\nend\n") do
+        if not EXEMPT[name] then
+            seen = seen + 1
+            local ok = false
+            for _, marker in ipairs(JOB_MARKERS) do
+                if body:find(marker, 1, true) then ok = true end
+            end
+            if not ok then missing[#missing + 1] = name end
+        end
+    end
+    check("audit: the action list was found", seen >= 12, true)
+    check("audit: every image action runs as a job: " .. table.concat(missing, ", "), #missing, 0)
+end
+
 -- Apply Entry to Selected runs as a job: bar, count, cancel
 local ae = { image(21, "DSC00021.JPG", {}), image(22, "DSC00022.JPG", {}), image(23, "DSC00023.JPG", {}) }
 local jobs_before = #jobs
@@ -393,6 +417,20 @@ check("apply entry: the bar reaches 100% and closes", jobs[#jobs].percent == 1 a
 check("apply entry: says it started and then how many it tagged",
     printed("Assisted Tagging: Apply Entry started on 3 images…") and ae_ran, true)
 check("apply entry: every image got the entry's tags", #ae[1].tags > 0 and #ae[1].tags == #ae[3].tags, true)
+-- Copy Tags to Selection: the click answers at once, the read pass and the write pass each run as a job
+local cs = { image(26, "DSC00026.JPG", { "Rallye|112" }), image(27, "DSC00027.JPG", {}) }
+local jobs_cs = #jobs
+prints = {}
+T.copy_tags_to_selection(cs, function() end)
+check("copy to selection: says the read pass started at once",
+    printed("Assisted Tagging: Copy Tags to Selection: reading tags started on 2 images…"), true)
+check("copy to selection: a job for the read pass and one for the write pass", #jobs, jobs_cs + 2)
+check("copy to selection: both bars are closed", jobs[#jobs].valid == false and jobs[#jobs - 1].valid == false, true)
+check("copy to selection: the write pass ran after the read pass", #cs[2].tags > 0, true)
+prints = {}
+T.copy_tags_to_selection({ image(28, "DSC00028.JPG", {}), image(29, "DSC00029.JPG", {}) }, function() end)
+check("copy to selection: the panel isn't left busy", printed("Another job is still running"), false)
+
 prints = {}
 T.apply_entry({ image(24, "DSC00024.JPG", {}) }, "112")
 check("apply entry: the panel isn't left busy for the next click", printed("Another job is still running"), false)
@@ -438,9 +476,9 @@ local function button_labels(box)
 end
 check("Run page: Identify and Verify, then the colour reads",
     button_labels(page_body(panel, "Run")), "Identify Selection, Verify Selection, Identify Missing Entries, Identify Colour for Group, Identify Colour for Selection")
-check("Tools page: derives, copies, locks, new entries, then Undo",
+check("Tools page: find entry, derives, copies, locks, new entries, then Undo",
     button_labels(page_body(panel, "Tools")),
-    "Derive from Number, Derive from Colour, Copy Tags to Group, Copy Tags from Group, Copy Tags to Selection, Lock In Tags, Unlock Tags, Find New Entries, Add Ticked to entries.json, Clear Tagging Marks")
+    "Search, Apply Entry to Selected, Derive from Number, Derive from Colour, Copy Tags to Group, Copy Tags from Group, Copy Tags to Selection, Lock In Tags, Unlock Tags, Find New Entries, Add Ticked to entries.json, Clear Tagging Marks")
 check("Collection page: Find New Entries has moved to Tools",
     button_labels(page_body(panel, "Collection")):find("Find New Entries", 1, true), nil)
 
