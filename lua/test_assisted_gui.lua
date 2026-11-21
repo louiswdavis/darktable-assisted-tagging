@@ -420,7 +420,7 @@ check("Run page: Identify and Verify, then the colour reads",
     button_labels(page_body(panel, "Run")), "Identify Selection, Verify Selection, Identify Missing Entries, Identify Colour for Group, Identify Colour for Selection")
 check("Tools page: derives, copies, locks, new entries, then Undo",
     button_labels(page_body(panel, "Tools")),
-    "Derive from Number, Derive from Colour, Copy Tags to Group, Copy Tags to Selection, Lock In Tags, Unlock Tags, Find New Entries, Add Ticked to entries.json, Clear Tagging Marks")
+    "Derive from Number, Derive from Colour, Copy Tags to Group, Copy Tags from Group, Copy Tags to Selection, Lock In Tags, Unlock Tags, Find New Entries, Add Ticked to entries.json, Clear Tagging Marks")
 check("Collection page: Find New Entries has moved to Tools",
     button_labels(page_body(panel, "Collection")):find("Find New Entries", 1, true), nil)
 
@@ -716,6 +716,32 @@ prints, dt.gui.action_images = {}, { alone }
 ;(copy_button or { clicked_callback = function() end }).clicked_callback()
 check("copy to group, an image alone in its group: says so, writes nothing", last_print(),
     "Assisted Tagging: None of the selected images is in a darktable group with other images.")
+
+-- Copy Tags from Group: the selected image pulls its unselected group mates' tags
+local from_button = widget_where(panel, "button", "label", "Copy Tags from Group")
+local pull_target = grouped(501, "DSC00501.JPG", { "Rallye|35", "Number|35", "Hand|Tag" }, 501)
+local pull_mate = grouped(502, "DSC00502.JPG", { "Rallye|112", "Colour|Red", "Number|112" }, 501)
+local pull_other = grouped(601, "DSC00601.JPG", {}, 601)
+local pull_other_mate = grouped(602, "DSC00602.JPG", { "Rallye|7" }, 601)
+write_file(ROOT .. "/config/assisted_tagging/ledger.csv", "501,Rallye|35\n")
+prints, dt.gui.action_images = {}, { pull_target }
+check("copy from group: the button is on the panel", from_button ~= nil, true)
+;(from_button or { clicked_callback = function() end }).clicked_callback()
+check("copy from group: the group mate's entry and family tags replace the selected image's",
+    tag_list(pull_target), "Colour|Red, Hand|Tag, Number|112, Rallye|112")
+check("copy from group: the mate keeps its tags", tag_list(pull_mate), "Colour|Red, Number|112, Rallye|112")
+check("copy from group: the copies are the user's, the ledger has no row for them", ledger_rows_for(501), 0)
+check("copy from group: the end message", printed("Assisted Tagging: Copy Tags from Group done"), true)
+-- a group whose other images carry nothing leaves the selected image's tags alone
+prints, dt.gui.action_images = {}, { grouped(603, "DSC00603.JPG", { "Rallye|35" }, 601) }
+;(from_button or { clicked_callback = function() end }).clicked_callback()
+check("copy from group: mates with no entry tags write nothing", last_print(),
+    "Assisted Tagging: None of the selected images has a group mate that carries entry or family tags.")
+check("copy from group: another group is untouched", tag_list(pull_other), "")
+prints, dt.gui.action_images = {}, {}
+;(from_button or { clicked_callback = function() end }).clicked_callback()
+check("copy from group, nothing selected: asks for a selection", last_print(), "Assisted Tagging: Select some images first.")
+for _, id in ipairs({ 501, 502, 601, 602, 603 }) do grouped_by_id[id] = nil end
 
 local differ_a = grouped(301, "DSC00301.JPG", { "Rallye|112", "Colour|Red" }, 301)
 local differ_b = grouped(302, "DSC00302.JPG", { "Number|112", "Colour|Green" }, 301)

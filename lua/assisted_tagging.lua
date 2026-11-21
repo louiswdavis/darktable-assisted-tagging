@@ -4225,6 +4225,53 @@ function M.copy_tags_to_group(images, ask)
     end, entries, named)
 end
 
+-- Copy Tags from Group: the reverse of Copy Tags to Group. In each darktable group holding selected
+-- photos, the synced tags (M.group_sync_tags) of the group's other, unselected photos overwrite the
+-- selected photos' (copy_merged). A group whose unselected photos hold no synced tags is left alone.
+function M.copy_tags_from_group(images, ask)
+    if not images or #images == 0 then
+        dt.print(_("Assisted Tagging: Select some images first."))
+        return
+    end
+    if queue_if_busy(_("Copy Tags from Group"), true, function() M.copy_tags_from_group(images, ask) end) then return end
+    if not take_settings() then return end
+    load_entries_csv()
+    local named = M.named_rules(rules, settings)
+    local selected_ids = {}
+    for _, img in ipairs(images) do selected_ids[img.id] = true end
+    -- group leader id → the group's selected photos
+    local selected_of, order = {}, {}
+    for _, img in ipairs(images) do
+        local leader_id = (img.group_leader or img).id
+        if not selected_of[leader_id] then
+            selected_of[leader_id] = { img = img, members = {} }
+            order[#order + 1] = leader_id
+        end
+        local members = selected_of[leader_id].members
+        members[#members + 1] = img
+    end
+    local units = {}
+    for _, leader_id in ipairs(order) do
+        local group = selected_of[leader_id]
+        local synced = {}
+        for _, mate in ipairs(group.img:get_group_members()) do
+            if not selected_ids[mate.id] then
+                local set = M.group_sync_tags(tags_of(mate), entries, named)
+                if next(set) then synced[#synced + 1] = set end
+            end
+        end
+        if #synced > 0 then units[#units + 1] = { synced = synced, members = group.members } end
+    end
+    if #units == 0 then
+        dt.print(_("Assisted Tagging: None of the selected images has a group mate that carries entry or family tags."))
+        return
+    end
+    copy_merged(_("Copy Tags from Group"), units, ask, function(n_merged, shown)
+        return string.format(_("The other images in %d groups hold different tags of one family (%s). Copy merges them, so the selected images in those groups get all of them."),
+            n_merged, shown)
+    end, entries, named)
+end
+
 -- Copy Tags to Selection: the selected photos' synced tags merge across all of them (copy_merged),
 -- so each fills in the tags it lacks. Photos outside the selection, group mates too, are untouched.
 function M.copy_tags_to_selection(images, ask)
@@ -5007,6 +5054,18 @@ local function install_panel()
             end)
         end,
     }
+    local copy_from_group_button = new_widget("button") {
+        label = _("Copy Tags from Group"),
+        tooltip = _("The reverse of Copy Tags to Group: each selected image takes the entry and family tags (number, colour, team…) of the other images in its darktable group, replacing its own of those. Groups whose other images carry none are skipped. The settled checks go and the copies count as tags you applied by hand, as for Copy Tags to Group. Asks first only when the group's other images hold different tags of one family, such as two colours. Writes darktable tags and the tag ledger only."),
+        clicked_callback = function()
+            copy_confirm_box.visible = false
+            M.copy_tags_from_group(dt.gui.action_images, function(text, go)
+                copy_confirm_label.text = text
+                copy_confirm_go = go
+                copy_confirm_box.visible = true
+            end)
+        end,
+    }
     local copy_selection_button = new_widget("button") {
         label = _("Copy Tags to Selection"),
         tooltip = _("Merge the selected images' entry and family tags (number, colour, team…) across all of them, so each one fills in the tags it lacks. Images outside the selection, group mates too, are untouched. When the copy names an entry, Check match goes, and an image that had no entry also loses Unidentified and Number seen. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. Asks first only when the selected images hold different tags of one family, such as two colours."),
@@ -5390,7 +5449,7 @@ local function install_panel()
         { new_widget("section_label") { label = _("Derive (Lookups Only; Adds Tags)") },
           derive_number_button, derive_from_colour_button,
           new_widget("section_label") { label = _("Copy (Writes Tags as Your Own)") },
-          copy_group_button, copy_selection_button, copy_confirm_box,
+          copy_group_button, copy_from_group_button, copy_selection_button, copy_confirm_box,
           new_widget("section_label") { label = _("Lock (Writes Tags as Your Own)") },
           lock_button, unlock_button,
           new_widget("section_label") { label = _("New Entries (Writes entries.json)") },

@@ -131,6 +131,14 @@ ok   copy to group: the end message
 ok   copy to group: Identify reading another car keeps the copied tags
 ok   copy to group, nothing selected: asks for a selection
 ok   copy to group, an image alone in its group: says so, writes nothing
+ok   copy from group: the button is on the panel
+ok   copy from group: the group mate's entry and family tags replace the selected image's
+ok   copy from group: the mate keeps its tags
+ok   copy from group: the copies are the user's, the ledger has no row for them
+ok   copy from group: the end message
+ok   copy from group: mates with no entry tags write nothing
+ok   copy from group: another group is untouched
+ok   copy from group, nothing selected: asks for a selection
 ok   copy to group, selected images differ: the confirm box shows
 ok   copy to group, selected images differ: the confirm names the count
 ok   copy to group, selected images differ: nothing is written before the confirm
