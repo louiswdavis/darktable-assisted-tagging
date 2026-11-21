@@ -34,10 +34,14 @@ Forked from [darktable-assisted-culling](https://github.com/louiswdavis/darktabl
 - darktable 5.6, built with Lua (the official builds are).
 - Python 3.10+ with the packages in `python/requirements.txt`: `opencv-python-headless` (4.x, pinned `<5`), `numpy`, `Pillow`, `rawpy`, `onnxruntime` and `PyYAML` (only the PaddleOCR text finder and readers use it).
 - About 160 MB of models, listed below.
+- Windows: `git` and `curl` (Windows 10+ ships `curl`). Linking the plugin needs Developer Mode on (`Win + R`, then `ms-settings:developers`) or an Administrator prompt; without either, copy the files instead (step 2).
 
 `rawpy` needs `libraw`. The Windows and macOS wheels bundle it; on Linux install `libraw-dev` first, or skip `rawpy` if you only shoot JPEG.
 
 ## Install
+
+Do the steps in order: Python, darktable, plugins folder, models.
+Commands come first under each step; the reasons follow them.
 
 ### 1. Python side
 
@@ -54,16 +58,68 @@ python3 -m venv .venv
 .venv/bin/python -m pip install -r python/requirements.txt
 ```
 
-### 2. Models
+### 2. darktable side
+
+Run these from the repo root, the folder holding `README.md`. darktable's config directory is `~/.config/darktable` on Linux/macOS and `%LOCALAPPDATA%\darktable` on Windows.
+
+Linux / macOS:
+
+```
+mkdir -p ~/.config/darktable/lua/contrib
+ln -s "$(pwd)/lua/assisted_tagging.lua" ~/.config/darktable/lua/contrib/assisted_tagging.lua
+ln -s "$(pwd)/lua/plugin_common.lua" ~/.config/darktable/lua/contrib/plugin_common.lua
+echo 'do local ok, e = pcall(require, "contrib/assisted_tagging"); local f = io.open(require("darktable").configuration.config_dir .. "/dt-lua-errors.txt", "a"); f:write("assisted_tagging ", ok and "loaded" or ("FAILED " .. tostring(e)), "\n"); f:close() end' >> ~/.config/darktable/luarc
+```
+
+Windows (Command Prompt), links. These need Developer Mode on (`Win + R`, then `ms-settings:developers`) or an Administrator prompt:
+
+```
+if not exist "%LOCALAPPDATA%\darktable\lua\contrib" mkdir "%LOCALAPPDATA%\darktable\lua\contrib"
+mklink "%LOCALAPPDATA%\darktable\lua\contrib\assisted_tagging.lua" "%CD%\lua\assisted_tagging.lua"
+mklink "%LOCALAPPDATA%\darktable\lua\contrib\plugin_common.lua" "%CD%\lua\plugin_common.lua"
+```
+
+Windows (Command Prompt), copies instead of links. Use this with neither Developer Mode nor Administrator, and re-run it after every update:
+
+```
+if not exist "%LOCALAPPDATA%\darktable\lua\contrib" mkdir "%LOCALAPPDATA%\darktable\lua\contrib"
+copy /Y lua\assisted_tagging.lua "%LOCALAPPDATA%\darktable\lua\contrib\"
+copy /Y lua\plugin_common.lua "%LOCALAPPDATA%\darktable\lua\contrib\"
+```
+
+Windows (Command Prompt), the `luarc` line (after either of the two blocks above):
+
+```
+echo do local ok, e = pcall(require, "contrib/assisted_tagging"); local f = io.open(require("darktable").configuration.config_dir .. "/dt-lua-errors.txt", "a"); f:write("assisted_tagging ", ok and "loaded" or ("FAILED " .. tostring(e)), "\n"); f:close() end >> "%LOCALAPPDATA%\darktable\luarc"
+```
+
+Windows (PowerShell), links and the `luarc` line. Same Developer Mode or Administrator need:
+
+```
+New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\darktable\lua\contrib"
+New-Item -ItemType SymbolicLink -Path "$env:LOCALAPPDATA\darktable\lua\contrib\assisted_tagging.lua" -Value "$PWD\lua\assisted_tagging.lua"
+New-Item -ItemType SymbolicLink -Path "$env:LOCALAPPDATA\darktable\lua\contrib\plugin_common.lua" -Value "$PWD\lua\plugin_common.lua"
+Add-Content "$env:LOCALAPPDATA\darktable\luarc" 'do local ok, e = pcall(require, "contrib/assisted_tagging"); local f = io.open(require("darktable").configuration.config_dir .. "/dt-lua-errors.txt", "a"); f:write("assisted_tagging ", ok and "loaded" or ("FAILED " .. tostring(e)), "\n"); f:close() end'
+```
+
+Then restart darktable and open `dt-lua-errors.txt` in the config directory. `assisted_tagging loaded` means it worked: the panel appears in lighttable once the view has finished loading. `assisted_tagging FAILED ...` gives the reason.
+
+**Why these steps.**
+
+- The plugin is two files, and both must sit in `lua/contrib`: `lua/assisted_tagging.lua` and `lua/plugin_common.lua`. `plugin_common.lua` is the module the three Assisted plugins share. The three copies are identical, so one copy serves all three; if another Assisted plugin already put it there, the second `ln -s` or `mklink` fails with "already exists", which is harmless.
+- Without `plugin_common.lua` the plugin fails with `module 'plugin_common' not found`.
+- `plugin_common.lua` has no `luarc` line. It is not a plugin: the plugin loads it with `loadfile`, looking beside itself first, then in the **plugins folder** preference. Nothing copies it for you, and on a new device the preference does not exist yet (it is registered only after the plugin loads), so put it in `lua/contrib`. Your `luarc` shows one line per plugin and none for `plugin_common`, which is correct. Installing just this one plugin? Still do both file steps. Installing more than one? Do the `plugin_common.lua` step once; a repeat is harmless.
+- The `luarc` line loads the plugin inside `pcall` and appends `loaded` or `FAILED <reason>` to `dt-lua-errors.txt`, so a plugin that does not appear says why. Each Assisted plugin gets its own line with its own name. A plain `require "contrib/assisted_tagging"` line also works but says nothing when it fails.
+- A link into the repo finds `plugin_common.lua` beside the plugin by itself. With the **plugins folder** preference (next step) set, the plugin can also load it from `darktable-assisted-tagging/lua/` in that folder when it is not in `contrib`.
+- Copies must be re-made after every update; links follow the repo.
+
+### 3. Point the plugin at the repo
+
+Start darktable, open **preferences → lua options**, and set **plugins folder (holds the three assisted-* folders)** to the folder that holds `darktable-assisted-tagging` (and the other assisted plugins). From there the plugin finds `python/identify.py`, the `models` folder and the `.venv` by itself. The preference is shared by the assisted plugins; the older per-plugin **Assisted Tagging: plugin folder** preference still works, and the log says once to move it. There is no interpreter preference: the plugin runs its own `.venv` (else `python`/`python3` on `PATH`), because each assisted plugin has different requirements.
+
+### 4. Models
 
 Download them into a `models` folder in the repo. The plugin looks there, `.gitignore` skips the whole folder, and `git pull` leaves it alone. Run every curl block below from the repo root, the folder holding `README.md`, not `python/`; `--create-dirs` makes `models/`.
-
-The plugin picks the model for each job itself. Each table below lists one job's files best first; the plugin uses the best one in `models/` and ignores the rest. The row marked `(base)` comes with the base install; a row below it is an older fallback. A job with none of its files installed stops the run with an error naming the file to get (the face models are the exception: only people collections need them).
-
-The run log names each pick, plus any better file you haven't installed, e.g. `vehicles: object_detection_yolox_2022nov.onnx (better, not installed: dfine_x_coco.onnx, …)`. Adding or removing a file changes the pick on the next run:
-
-- a new vehicle finder, text finder or number reader re-reads every image once, because the model is part of the cache key
-- a new livery embedder re-embeds every reference before analysing (the progress bar counts the references; on a large collection this takes minutes, and a cancel keeps those already done)
 
 **Base install** (Windows 10+ ships `curl`):
 
@@ -121,6 +177,15 @@ box check: on (SigLIP 2); colour reader: SigLIP 2
 ```
 
 `box check: off (no SigLIP 2 model); colour reader: HSV rules` means the SigLIP 2 files are missing or misnamed. `(better, not installed: …)` names files you could add. The first run after adding any of these re-reads every image once, so expect it to take longer.
+
+**How the plugin picks a model.**
+
+The plugin picks the model for each job itself. Each table below lists one job's files best first; the plugin uses the best one in `models/` and ignores the rest. The row marked `(base)` comes with the base install; a row below it is an older fallback. A job with none of its files installed stops the run with an error naming the file to get (the face models are the exception: only people collections need them).
+
+The run log names each pick, plus any better file you haven't installed, e.g. `vehicles: object_detection_yolox_2022nov.onnx (better, not installed: dfine_x_coco.onnx, …)`. Adding or removing a file changes the pick on the next run:
+
+- a new vehicle finder, text finder or number reader re-reads every image once, because the model is part of the cache key
+- a new livery embedder re-embeds every reference before analysing (the progress bar counts the references; on a large collection this takes minutes, and a cancel keeps those already done)
 
 The tables give the download for every other file. Save each under the name in the File column.
 
@@ -240,54 +305,6 @@ People collections (`"kind": "people"` in entries.json) need these two. Motorspo
 A people entry has only `id` and `tags`; references are images with exactly one face, so tag those images by hand first. Choose `min_sim`, `margin` and `min_face_px` in `settings.json` with `python python/eval_people.py <collection> --face-detector … --face-recognizer …`.
 
 **Audit References** (panel button, `python/audit_refs.py`) needs nothing beyond the packages in `requirements.txt` and the models above.
-
-### 3. darktable side
-
-darktable's config directory is `~/.config/darktable` on Linux/macOS and `%LOCALAPPDATA%\darktable` on Windows.
-
-The plugin is **two files**, and both must sit in the config directory's `lua/contrib` folder:
-
-- `lua/assisted_tagging.lua`, the plugin
-- `lua/plugin_common.lua`, the module the three Assisted plugins share. The three copies are identical, so one copy serves all three plugins. If another Assisted plugin already put it there, skip that step.
-
-Without `plugin_common.lua` the plugin fails to load with `module 'plugin_common' not found`.
-
-Then add one `luarc` line. It loads the plugin inside `pcall` and appends `loaded` or `FAILED <reason>` to `dt-lua-errors.txt` in the config directory, so a plugin that does not appear says why. Every Assisted plugin gets its own line with its own name.
-
-Linux / macOS:
-
-```
-mkdir -p ~/.config/darktable/lua/contrib
-ln -s "$(pwd)/lua/assisted_tagging.lua" ~/.config/darktable/lua/contrib/assisted_tagging.lua
-ln -s "$(pwd)/lua/plugin_common.lua" ~/.config/darktable/lua/contrib/plugin_common.lua
-echo 'do local ok, e = pcall(require, "contrib/assisted_tagging"); local f = io.open(require("darktable").configuration.config_dir .. "/dt-lua-errors.txt", "a"); f:write("assisted_tagging ", ok and "loaded" or ("FAILED " .. tostring(e)), "\n"); f:close() end' >> ~/.config/darktable/luarc
-```
-
-Windows (Command Prompt). Creating symbolic links needs an Administrator prompt unless Developer Mode is enabled.
-
-```
-if not exist "%LOCALAPPDATA%\darktable\lua\contrib" mkdir "%LOCALAPPDATA%\darktable\lua\contrib"
-mklink "%LOCALAPPDATA%\darktable\lua\contrib\assisted_tagging.lua" "%CD%\lua\assisted_tagging.lua"
-mklink "%LOCALAPPDATA%\darktable\lua\contrib\plugin_common.lua" "%CD%\lua\plugin_common.lua"
-echo do local ok, e = pcall(require, "contrib/assisted_tagging"); local f = io.open(require("darktable").configuration.config_dir .. "/dt-lua-errors.txt", "a"); f:write("assisted_tagging ", ok and "loaded" or ("FAILED " .. tostring(e)), "\n"); f:close() end >> "%LOCALAPPDATA%\darktable\luarc"
-```
-
-Windows (PowerShell). Same Administrator caveat.
-
-```
-New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\darktable\lua\contrib"
-New-Item -ItemType SymbolicLink -Path "$env:LOCALAPPDATA\darktable\lua\contrib\assisted_tagging.lua" -Value "$PWD\lua\assisted_tagging.lua"
-New-Item -ItemType SymbolicLink -Path "$env:LOCALAPPDATA\darktable\lua\contrib\plugin_common.lua" -Value "$PWD\lua\plugin_common.lua"
-Add-Content "$env:LOCALAPPDATA\darktable\luarc" 'do local ok, e = pcall(require, "contrib/assisted_tagging"); local f = io.open(require("darktable").configuration.config_dir .. "/dt-lua-errors.txt", "a"); f:write("assisted_tagging ", ok and "loaded" or ("FAILED " .. tostring(e)), "\n"); f:close() end'
-```
-
-Windows without Administrator rights or Developer Mode: copy `assisted_tagging.lua` and `plugin_common.lua` into `%LOCALAPPDATA%\darktable\lua\contrib` instead of linking them, and add the same `luarc` line. Re-copy both after every update.
-
-After restarting darktable, open `dt-lua-errors.txt` in the config directory. `assisted_tagging loaded` means the plugin loaded; its panel appears in lighttable once the view has finished loading. `assisted_tagging FAILED ...` gives the reason, usually a file missing from `contrib`. The plain `require "contrib/assisted_tagging"` line still works if you prefer it, but says nothing when it fails. With the **plugins folder** preference (next step) set, the plugin can also load `plugin_common.lua` from `darktable-assisted-tagging/lua/` in that folder when it is not in `contrib`.
-
-### 4. Point the plugin at the repo
-
-Start darktable, open **preferences → lua options**, and set **plugins folder (holds the three assisted-* folders)** to the folder that holds `darktable-assisted-tagging` (and the other assisted plugins). From there the plugin finds `python/identify.py`, the `models` folder and the `.venv` by itself. The preference is shared by the assisted plugins; the older per-plugin **Assisted Tagging: plugin folder** preference still works, and the log says once to move it. There is no interpreter preference: the plugin runs its own `.venv` (else `python`/`python3` on `PATH`), because each assisted plugin has different requirements.
 
 ## Using it
 
@@ -830,7 +847,7 @@ Editing a constant of a per-frame module (`vehicles.py`, `ocr.py`, `embed.py`, `
 - **The panel isn't there.** Start darktable with `-d lua` and look for `LUA ERROR` in the log. On Windows the log is `Documents\Darktable\darktable-log.txt`.
 - **Every run writes a log** to `assisted_tagging.log` in darktable's config directory (e.g. `%LOCALAPPDATA%\darktable` on Windows); the 5 runs before it are kept as `assisted_tagging.prev.log` (the last one), `assisted_tagging.prev2.log` … `assisted_tagging.prev5.log`. Each line is written as it happens, so a crash leaves the last step in the file; each stage logs `started` and `done` with its seconds, and a failed write names its image. It has the exact command, the reference counts per entry, one line per vehicle with what was read and matched, and any per-image errors.
 - **"…/entries.json: …"** The run stopped on a mistake in that file; the message says which entry and what's wrong.
-- **"… model not found: …"** A model file is missing. Download it into `models/` (see [Install](#2-models)). A job with none of its files installed stops the run with `Assisted Tagging: No <job> model in models/. Install <file> (README, "Models").`
+- **"… model not found: …"** A model file is missing. Download it into `models/` (see [Install](#4-models)). A job with none of its files installed stops the run with `Assisted Tagging: No <job> model in models/. Install <file> (README, "Models").`
 - **"Python is missing a package."** `darktable-assisted-tagging/.venv` doesn't have `requirements.txt` installed; the log names the package.
 - **"no collections yet."** Create a folder with an `entries.json` in the collections folder the message names, then click **Reload**.
 - **Everything comes back `Unidentified`.** Check the log's `references:` line: an entry with 0 references can only be found by its number. The `entry list:` lines under it, logged before any image is read, name what in entries.json will cost matches: a number on more than one car (a read of it names neither, so only livery can), entries with no references, and entries with neither a number nor references.
@@ -858,7 +875,7 @@ The darktable side of grouping support, the neighbour aid and the `settings:` lo
 **Setup**
 
 1. **Python tests.** In the repo folder: `.venv\Scripts\python python\run_tests.py`. *Expect:* every test passes, including `test_neighbour`, `test_import_numbers`, `test_import_start_list` and `test_identify`.
-2. **Install the plugin** as in [Install](#3-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, **Open entries.json**, the page buttons *1 collection ▾* (open, its settings below it) to *6 references ▸*. No `LUA ERROR` in the darktable log.
+2. **Install the plugin** as in [Install](#2-darktable-side) and start darktable. *Expect:* an **Assisted Tagging** panel in lighttable showing *new collection* on the `template` preset; on a collection, **Open entries.json**, the page buttons *1 collection ▾* (open, its settings below it) to *6 references ▸*. No `LUA ERROR` in the darktable log.
 3. **A collection.** Set the plugins folder preference, then make a collection (from tagged images, or from the `f1-season` example plus a few references). *Expect:* it appears in the **Preset** dropdown.
 
 **Grouping support** (one run per mode, on a selection holding a burst)
