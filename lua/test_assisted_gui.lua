@@ -881,18 +881,33 @@ local function choose(combo, text)
 end
 
 local actions = widget_where(panel, "combobox", "label", "Actions")
--- bundles always go to <plugin folder>/exports; no folder to pick
+-- bundles always go to <plugin folder>/exports as a zip; no folder to pick
 local out = ROOT .. "/plugins/darktable-assisted-tagging/exports"
+local ZIP = out .. "/Rallye.atpreset.zip"
+local function winpath(x) return (x:gsub("/", "\\")) end
+-- unzips `zip` into a fresh folder and returns it, so the tests read the bundle's files
+local function unzip_to(zip, dir)
+    real_execute(WINDOWS and ('rmdir /s /q "' .. winpath(dir) .. '" 2>nul & mkdir "' .. winpath(dir) .. '" & tar -x -f "' .. winpath(zip) .. '" -C "' .. winpath(dir) .. '"')
+        or ("rm -rf '" .. dir .. "' && mkdir -p '" .. dir .. "' && unzip -q '" .. zip .. "' -d '" .. dir .. "'"))
+    return dir
+end
+local function zip_from(dir, zip)
+    real_execute(WINDOWS and ('tar -a -c -f "' .. winpath(zip) .. '" -C "' .. winpath(dir) .. '" .')
+        or ("rm -f '" .. zip .. "' && (cd '" .. dir .. "' && zip -qr '" .. zip .. "' .)"))
+end
+local function bundle() return unzip_to(ZIP, ROOT .. "/unz") end
 check("presets: export is offered for the Rallye collection", choose(actions, "export preset…"), true)
 check("presets: export has no folder chooser", widget_where(panel, "file_chooser_button", "title", "Folder to Export the Preset Into"), nil)
 prints = {}
 widget_where(panel, "button", "label", "Export").clicked_callback()
-check("presets: export toast", last_print():find('Preset "Rallye" exported to ' .. out .. "/Rallye.atpreset", 1, true) ~= nil, true)
-check("presets: the bundle carries the entry list", read_file(out .. "/Rallye.atpreset/entries.json"), "[]")
-check("presets: the bundle carries the settings", read_file(out .. "/Rallye.atpreset/preset.json") ~= nil, true)
+check("presets: export toast", last_print():find('Preset "Rallye" exported to ' .. ZIP, 1, true) ~= nil, true)
+local unz = bundle()
+check("presets: the zip carries the entry list", read_file(unz .. "/entries.json"), "[]")
+check("presets: the zip carries the settings", read_file(unz .. "/preset.json") ~= nil, true)
 check("presets: the manifest lists both files",
-    (read_file(out .. "/Rallye.atpreset/manifest.json") or ""):find('"files": "preset.json,entries.json"', 1, true) ~= nil, true)
-check("presets: unticked references stay behind", read_file(out .. "/Rallye.atpreset/refs/sources.json"), nil)
+    (read_file(unz .. "/manifest.json") or ""):find('"files": "preset.json,entries.json"', 1, true) ~= nil, true)
+check("presets: unticked references stay behind", read_file(unz .. "/refs/sources.json"), nil)
+check("presets: no staging folder is left behind", read_file(out .. "/.staging/preset.json"), nil)
 
 -- references, ticked: refs/ goes whole, index.npz beside it stays behind
 choose(actions, "export preset…")
@@ -901,15 +916,16 @@ check("presets: the references box shows the size", refs_box.label:match("^refer
 refs_box.value = true
 prints = {}
 widget_where(panel, "button", "label", "Export").clicked_callback()
--- the same bundle name, now with refs: it differs, so it is replaced, not numbered
-local refs_bundle = out .. "/Rallye.atpreset"
-check("presets: a changed export replaces the bundle", last_print():find("re-exported, replacing " .. refs_bundle, 1, true) ~= nil, true)
-check("presets: no numbered copy", read_file(out .. "/Rallye (2).atpreset/preset.json"), nil)
-check("presets: ticked references are exported", read_file(refs_bundle .. "/refs/112/1_b0.jpg"), "crop")
-check("presets: sources.json goes with them", read_file(refs_bundle .. "/refs/sources.json"), "{}")
-check("presets: index.npz stays behind", read_file(refs_bundle .. "/index.npz"), nil)
+-- the same zip name, now with refs: it differs, so it is replaced, not numbered
+local refs_bundle = ZIP
+check("presets: a changed export replaces the zip", last_print():find("(replaced the earlier export)", 1, true) ~= nil and last_print():find(refs_bundle, 1, true) ~= nil, true)
+check("presets: no numbered copy", read_file(out .. "/Rallye (2).atpreset.zip"), nil)
+unz = bundle()
+check("presets: ticked references are exported", read_file(unz .. "/refs/112/1_b0.jpg"), "crop")
+check("presets: sources.json goes with them", read_file(unz .. "/refs/sources.json"), "{}")
+check("presets: index.npz stays behind", read_file(unz .. "/index.npz"), nil)
 check("presets: the manifest lists refs",
-    (read_file(refs_bundle .. "/manifest.json") or ""):find('"files": "preset.json,entries.json,refs"', 1, true) ~= nil, true)
+    (read_file(unz .. "/manifest.json") or ""):find('"files": "preset.json,entries.json,refs"', 1, true) ~= nil, true)
 choose(actions, "export preset…")
 refs_box.value = true
 prints = {}
@@ -918,13 +934,17 @@ check("presets: the same export again is skipped", last_print():find("already ex
 choose(actions, "export preset…")
 prints = {}
 widget_where(panel, "button", "label", "Export").clicked_callback()
-check("presets: an export without refs replaces the bundle with refs gone", read_file(refs_bundle .. "/refs/sources.json"), nil)
+check("presets: an export without refs replaces the zip with refs gone", read_file(bundle() .. "/refs/sources.json"), nil)
 choose(actions, "export preset…")
 check("presets: the references box is unticked when export opens again", refs_box.value, false)
 
 check("presets: import is offered", choose(actions, "import preset…"), true)
-widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Folder)").value = out .. "/Rallye.atpreset"
-write_file(out .. "/Rallye.atpreset/entries.json", '[{"entry": "112"}]')
+-- a bundle with a different entry list, made by editing an unzipped copy
+local edited = unzip_to(ZIP, ROOT .. "/edited")
+write_file(edited .. "/entries.json", '[{"entry": "112"}]')
+local EDITED = out .. "/Edited.atpreset.zip"
+zip_from(edited, EDITED)
+widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset.zip)").value = EDITED
 prints = {}
 widget_where(panel, "button", "label", "Import").clicked_callback()
 check("presets: import adds Rallye (2)", last_print():find('Imported "Rallye (2)"', 1, true) ~= nil, true)
@@ -937,19 +957,21 @@ check("presets: a bundle without refs imports none", read_file(ROOT .. "/collect
 choose(actions, "export preset…")
 refs_box.value = true
 widget_where(panel, "button", "label", "Export").clicked_callback()
-check("presets: ticking references again replaces the bundle with refs back", read_file(refs_bundle .. "/refs/112/1_b0.jpg"), "crop")
+check("presets: ticking references again replaces the zip with refs back", read_file(bundle() .. "/refs/112/1_b0.jpg"), "crop")
 
 choose(actions, "import preset…")
-widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Folder)").value = refs_bundle
+widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset.zip)").value = refs_bundle
 prints = {}
 widget_where(panel, "button", "label", "Import").clicked_callback()
 check("presets: the refs bundle imports as Rallye (3)", last_print():find('Imported "Rallye (3)"', 1, true) ~= nil, true)
 check("presets: Rallye (3) holds the references", read_file(ROOT .. "/collections/Rallye (3)/refs/112/1_b0.jpg"), "crop")
 check("presets: Rallye (3) holds sources.json", read_file(ROOT .. "/collections/Rallye (3)/refs/sources.json"), "{}")
 
-write_file(out .. "/Rallye.atpreset/manifest.json",
+write_file(edited .. "/manifest.json",
     '{"version": 1, "plugin": "assisted_tagging", "preset": "Hill", "files": "preset.json"}')
-widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Folder)").value = out .. "/Rallye.atpreset"
+os.remove(out .. "/Edited.atpreset.zip")
+zip_from(edited, EDITED)
+widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset.zip)").value = EDITED
 prints = {}
 widget_where(panel, "button", "label", "Import").clicked_callback()
 check("presets: a bundle without entries.json is refused", last_print():find("the bundle has no entries.json", 1, true) ~= nil, true)

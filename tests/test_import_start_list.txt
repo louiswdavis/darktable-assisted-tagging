@@ -94,7 +94,7 @@ import_start_list: number 30: shares car with "x", which is not a 1–3 digit nu
 import_start_list: number 30 shares a car with itself
 import_start_list: row 1: "1234" is not a 1–3 digit number
 import_start_list: number 9 is listed twice
-import_start_list: [Errno 2] No such file or directory: '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmp75ytqh5y/dup2/entries.json.j65tkr2j.tmp'
+import_start_list: [Errno 2] No such file or directory: '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmp9pvrv2fx/dup2/entries.json.mz4aaro2.tmp'
 import_start_list: paddock id A1 is listed twice
 import_start_list: row 1: demo 3 needs a paddock id (a letter, then letters or digits), got ""
-import_start_list: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmp75ytqh5y/bare/entries.json is a bare list; make it {"entries": [...]} first
+import_start_list: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmp9pvrv2fx/bare/entries.json is a bare list; make it {"entries": [...]} first

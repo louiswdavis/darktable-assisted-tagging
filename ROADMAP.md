@@ -386,7 +386,7 @@ folder: `manifest.json`, `preset.json` (the collection's `settings.json`) and `e
 **references** tick box (off each time the box opens, label shows file count and MB) adds the whole
 `refs/` folder; `index.npz` stays behind and the import's first run embeds the copied crops. Faces
 have no box of their own: in a people collection the refs are the faces, and the tooltip says so.
-Export replaces: exporting a preset again rewrites `<name>.atpreset` when anything differs and skips it ("already exported and unchanged") when not, like darktable's overwrite-on-new export (2026-11-21). Import never overwrites: a taken name becomes `<name> (2)`. Not built yet: refs for start-list
+Export replaces: exporting a preset again rewrites `<name>.atpreset.zip` when anything differs and skips it ("already exported and unchanged") when not, like darktable's overwrite-on-new export (2026-11-21). Import never overwrites: a taken name becomes `<name> (2)`. Not built yet: refs for start-list
 entries only, replace/merge on import, zip bundles and the cross-plugin rally set. The design below
 still holds for those.
 
@@ -419,7 +419,7 @@ riskiest:
 **Run caches (layer 4) stay out.** Boxes are keyed by image id and detector version, so they're
 wrong in another library and stale after a model change; the frame-share cache rebuilds itself.
 
-**Bundle format.** A plain folder `<name>.atpreset/` with a `manifest.json` (plugin, layers,
+**Bundle format.** A zip `<name>.atpreset.zip` (2026-11-21; was a plain folder) holding a `manifest.json` (plugin, layers,
 plugin version, preset schema version, export date, files with sizes). Lua has no zip; a folder
 copies with Explorer and needs no new code. A zip is a later option through the Python side
 (`zipfile`).
