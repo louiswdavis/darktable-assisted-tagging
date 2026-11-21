@@ -368,7 +368,7 @@ def suggest_crops(collection_dir, path, entry, frames, boxes):
             rgb = np.array(im.convert("RGB"))
         dest = os.path.join(out_dir, entry[i], os.path.basename(path[i]))
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        Image.fromarray(crop_box(rgb, boxes[i])).save(dest, quality=95)
+        Image.fromarray(crop_box(rgb, boxes[i][0])).save(dest, quality=95)
         written.append(i)
     return written, no_car, several
 
@@ -395,6 +395,7 @@ def quarantine_refs(collection_dir, path, entry, chosen, flags):
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         shutil.move(src, dest)
         moved.append(i)
+    os.makedirs(root, exist_ok=True)  # nothing chosen moves nothing, so the folder may not exist yet
     with open(os.path.join(root, QUARANTINE_LIST_NAME), "a", encoding="utf-8") as f:
         f.writelines(f"{QUARANTINE_DIR}/{entry[i]}/{os.path.basename(path[i])}\t{path[i]}\t{','.join(flags[i])}\n" for i in moved)
     return moved
