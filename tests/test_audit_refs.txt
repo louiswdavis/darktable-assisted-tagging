@@ -10,7 +10,7 @@ ok   cancel raises AuditCancelled
 all tests passed
 
 --- stderr ---
-00:21:22 py: checking frames: 2 cached, 1 to detect
-00:21:22 py: checking frames: 1 detected in 0s (0.01 s each)
-00:21:22 py: checking frames: 3 cached, 0 to detect
-00:21:22 py: checking frames: 0 cached, 2 to detect
+02:01:55 py: checking frames: 2 cached, 1 to detect
+02:01:55 py: checking frames: 1 detected in 0s (0.01 s each)
+02:01:55 py: checking frames: 3 cached, 0 to detect
+02:01:55 py: checking frames: 0 cached, 2 to detect

@@ -298,6 +298,29 @@ check("entries: six fields leave the colour empty", rally_entries["12"].colour, 
 local coloured_entries = T.parse_entries_csv("12,Team,12,M|Number|12,Smith,Jones,Red")
 check("entries: a seventh field is the colour", coloured_entries["12"].colour, "Red")
 
+do -- search_entries: one box searches every field and tag
+    local se, so = T.parse_entries_csv(table.concat({
+        "12,Team A,12,M|Make|Mazda;M|Model|MX-5,Smith,Jones,Red",
+        "7,Team B,7,M|Make|Ford;M|Model|Maze,Brown",
+    }, "\n"))
+    check("search: blank query lists nothing", T.search_entries(se, so, "  "), "")
+    check("search: a brand tag matches, case-blind, and shows the tag", T.search_entries(se, so, "MAZD"), "12 (#12, Team A): M|Make|Mazda")
+    check("search: a partial hits a brand and a model", T.search_entries(se, so, "maz"),
+        "12 (#12, Team A): M|Make|Mazda\n7 (#7, Team B): M|Model|Maze")
+    check("search: a driver name matches", T.search_entries(se, so, "brown"), "7 (#7, Team B)")
+    check("search: every word must match", T.search_entries(se, so, "maz red"), "12 (#12, Team A): M|Make|Mazda")
+    check("search: a number matches", T.search_entries(se, so, "12"), "12 (#12, Team A)")
+    check("search: no hit says so", T.search_entries(se, so, "zzz"), "No entries match.")
+    local many, many_order = {}, {}
+    for i = 1, 25 do
+        local id = "E" .. i
+        many[id] = { id = id, team = "", number = "", tags = { "T|" .. id }, name = "", co_driver = "", colour = "", car = "", paddock = "" }
+        many_order[i] = id
+    end
+    local out = T.search_entries(many, many_order, "e")
+    check("search: results cap at 20 and count the rest", out:match("[^\n]+$"), "+5 more")
+end
+
 -- colour_relation (mirror of car_colour.py) ---------------------------------
 check("colour_relation: equal agrees", T.colour_relation("Red", "Red"), 1)
 check("colour_relation: different colours differ", T.colour_relation("Red", "Blue"), -1)

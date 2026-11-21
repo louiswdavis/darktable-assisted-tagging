@@ -115,6 +115,14 @@ ok   entries: a sixth field is the co-driver
 ok   entries: a parsed co-driver names its entry
 ok   entries: six fields leave the colour empty
 ok   entries: a seventh field is the colour
+ok   search: blank query lists nothing
+ok   search: a brand tag matches, case-blind, and shows the tag
+ok   search: a partial hits a brand and a model
+ok   search: a driver name matches
+ok   search: every word must match
+ok   search: a number matches
+ok   search: no hit says so
+ok   search: results cap at 20 and count the rest
 ok   colour_relation: equal agrees
 ok   colour_relation: different colours differ
 ok   colour_relation: empty entry colour is 0

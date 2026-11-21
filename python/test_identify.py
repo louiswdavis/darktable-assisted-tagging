@@ -1148,7 +1148,9 @@ def run_tests():
           (["min_margin", "min_read", "min_sim", "noise_min_beside_share", "noise_min_partners", "number_gate_min", "number_list_floor", "number_list_margin",
             "number_min_height", "ocr_min_score", "weak_read_min"],
            ["camera", "car", "colour", "number", "refs", "tags", "team"]))
-    readme = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "README.md"), encoding="utf-8").read()
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+    readme = "".join(open(os.path.join(root, p), encoding="utf-8").read()
+                     for p in ("README.md", "docs/usage.md", "docs/panel-options.md", "docs/how-it-works.md", "docs/testing.md"))
     listed = re.search(r'"thresholds" \(\{([^}]*)\}', readme)
     check("the README's boxes.json shape lists the thresholds the run writes",
           sorted(listed.group(1).split(", ")) if listed else None, sorted(run["thresholds"]))

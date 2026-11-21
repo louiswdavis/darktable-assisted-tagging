@@ -239,6 +239,53 @@ function M.parse_entries_csv(text)
     return entries, order
 end
 
+local SEARCH_LIMIT = 20
+
+-- The ids, in file order, of the entries whose id, team, number, name, co-driver, colour, car, paddock
+-- or any tag holds every word of query (case-blind substring), and the words. Blank query: no ids.
+function M.search_ids(entries, order, query)
+    local words, ids = {}, {}
+    for w in (query or ""):lower():gmatch("%S+") do words[#words + 1] = w end
+    if #words == 0 then return ids, words end
+    for _, id in ipairs(order) do
+        local e = entries[id]
+        local fields = { e.id, e.team, e.number, e.name, e.co_driver, e.colour, e.car, e.paddock }
+        local hay = (table.concat(fields, "\n") .. "\n" .. table.concat(e.tags, "\n")):lower()
+        local hit = true
+        for _, w in ipairs(words) do
+            if not hay:find(w, 1, true) then hit = false break end
+        end
+        if hit then ids[#ids + 1] = id end
+    end
+    return ids, words
+end
+
+-- search_ids as text lines: "id (#number, team)" plus the tags that matched, SEARCH_LIMIT entries at
+-- most with the rest counted. "" for a blank query, "No entries match." for none.
+function M.search_entries(entries, order, query)
+    local ids, words = M.search_ids(entries, order, query)
+    if #words == 0 then return "" end
+    if #ids == 0 then return "No entries match." end
+    local lines = {}
+    for i = 1, math.min(#ids, SEARCH_LIMIT) do
+        local e = entries[ids[i]]
+        local matched = {}
+        for _, tag in ipairs(e.tags) do
+            local low = tag:lower()
+            for _, w in ipairs(words) do
+                if low:find(w, 1, true) then matched[#matched + 1] = tag break end
+            end
+        end
+        local bits = {}
+        if e.number ~= "" then bits[#bits + 1] = "#" .. e.number end
+        if e.team ~= "" then bits[#bits + 1] = e.team end
+        local head = #bits > 0 and (e.id .. " (" .. table.concat(bits, ", ") .. ")") or e.id
+        lines[#lines + 1] = #matched > 0 and (head .. ": " .. table.concat(matched, "; ")) or head
+    end
+    if #ids > SEARCH_LIMIT then lines[#lines + 1] = string.format("+%d more", #ids - SEARCH_LIMIT) end
+    return table.concat(lines, "\n")
+end
+
 function M.default_rules()
     local diag = {}
     for k, v in pairs(M.DIAG_TAGS) do diag[k] = v end
@@ -3072,6 +3119,39 @@ function M.derive_images(images, mode)
     run_next()
 end
 
+-- Puts one entry's tags on each image, as the user's own tags: the ledger is not touched, so a later
+-- Identify leaves them alone unless it is set to replace manual tags.
+function M.apply_entry(images, entry_id)
+    if not can_start(images) then return end
+    load_entries_csv()
+    local entry = entries[entry_id]
+    if not entry then
+        dt.print(_("Assisted Tagging: Pick an entry first. If the list is empty, click Reload."))
+        return
+    end
+    local failed = 0
+    local okr, err = C.logged_call(log, "apply entry", function()
+        for _, img in ipairs(images) do
+            local okw, werr = pcall(function()
+                for _, name in ipairs(entry.tags) do tags.attach(tags.create(name), img) end
+            end)
+            if not okw then
+                failed = failed + 1
+                log(string.format("apply entry %s: %s couldn't be tagged: %s", entry_id, C.image_label(img), tostring(werr)))
+            end
+        end
+        wait_for_writes()
+    end)
+    flush_log()
+    if not okr then
+        notify_error(_("Assisted Tagging: Couldn't apply the entry. ") .. tostring(err))
+        return
+    end
+    local msg = string.format("Assisted Tagging: Applied %s to %s.", entry_id, C.count(#images - failed, "image"))
+    if failed > 0 then msg = msg .. string.format(" %d couldn't be tagged (see log).", failed) end
+    say(msg)
+end
+
 -- Syncs each image's tags to identify.py's results and reports the outcome. Sets run.applying
 -- before the first tag write and updates run.ledger as tags change, so the caller can save the
 -- ledger even when this stops or errors partway.
@@ -4971,6 +5051,38 @@ local function install_panel()
         tooltip = _("The entry Add as Reference saves the selected images under."),
         _("(no entries)"),
     }
+    local search_results = new_widget("text_view") { editable = false, text = "" }
+    local search_ids = {}
+    local search_pick = new_widget("combobox") {
+        label = _("Match"),
+        tooltip = _("The matching entries (the first 20). Apply Entry to Selected tags the selected images with the one shown."),
+        _("(no matches)"),
+    }
+    local search_entry = new_widget("entry") {
+        placeholder = _("Search entries: number, brand, model, driver…"),
+        tooltip = _("Type any part of a number, team, name, colour or tag. Every word must match something in the entry. Matching entries are listed below; nothing is changed until you click Apply Entry to Selected."),
+        text = "",
+        changed_callback = function(self)
+            local query = self.text or ""
+            search_results.text = M.search_entries(entries, entry_order, query)
+            search_ids = M.search_ids(entries, entry_order, query)
+            local labels = {}
+            for i = 1, math.min(#search_ids, 20) do labels[i] = entry_label(entries[search_ids[i]]) end
+            fill_combo(search_pick, #labels > 0 and labels or { _("(no matches)") }, 1)
+        end,
+    }
+    local search_apply_button = new_widget("button") {
+        label = _("Apply Entry to Selected"),
+        tooltip = _("Add the tags of the entry shown in Match to the selected images, as your own tags: no model runs, and a later Identify leaves them alone unless it replaces manual tags."),
+        clicked_callback = function()
+            local eid = search_ids[search_pick.selected or 0]
+            if not eid then
+                dt.print(_("Assisted Tagging: Search for an entry and pick one in Match first."))
+                return
+            end
+            M.apply_entry(dt.gui.action_images, eid)
+        end,
+    }
     local add_button = new_widget("button") {
         label = _("Add as Reference"),
         tooltip = _("Save the largest vehicle in each selected image as a reference sample of the entry above. Also fills the entry's colour in entries.json when the Colour family is on (page 4)."),
@@ -5270,7 +5382,7 @@ local function install_panel()
           new_widget("section_label") { label = _("Identify Colour (Models; Writes Tags and entries.json)") },
           colour_group_button, colour_selection_button },
         { new_widget("section_label") { label = _("Add to One Entry (Uses the Entry List)") },
-          entry_combo, add_button,
+          search_entry, search_results, search_pick, search_apply_button, entry_combo, add_button,
           new_widget("section_label") { label = _("Add by Tags or Last Run (Entry List Not Used)") },
           add_tagged_button, promote_button,
           new_widget("section_label") { label = _("Audit") },
