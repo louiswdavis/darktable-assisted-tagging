@@ -1486,12 +1486,18 @@ def write_run_outputs(args, data: dict):
         best_effort("the archive copy", lambda: archive_run(written, args.archive_dir, ARCHIVE_KEEP))
 
 
+def reference_stage(total: int) -> str:
+    """Progress stage while references embed: a real re-embed (2+ crops) is "embedding references", which the
+    plugin shows on the whole job bar; one new crop stays inside the short "references" band."""
+    return "embedding references" if total > 1 else "references"
+
+
 def open_index(collection: str, models: dict, rules: Rules, embedder, progress: str = "") -> ReferenceIndex:
     """The collection's reference index, keyed on whichever models embed its references.
     Re-embedding (new embedder or blur setting) ticks `progress`, so the plugin's stall timer
     doesn't fire, and a cancel stops it; the caller checks cancel_requested afterwards."""
     def on_progress(done, total):
-        write_progress(progress, done, total, "references")
+        write_progress(progress, done, total, reference_stage(total))
         return not cancel_requested(progress)
 
     if rules.kind == "people":

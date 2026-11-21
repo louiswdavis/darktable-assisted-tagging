@@ -2314,6 +2314,9 @@ local IDENTIFY_BANDS = {
     ["starting Python"] = { 0.04, 0.05 },
     ["loading models"] = { 0.05, 0.10 },
     ["references"] = { 0.10, 0.13 },
+    -- a re-embed of many references (a changed embedder or blur setting) is the whole wait: it gets the full bar,
+    -- and the bar restarts from the next stage's band once it ends
+    ["embedding references"] = { 0.00, 1.00 },
     ["checking cache"] = { 0.13, 0.15 },
     ["starting workers"] = { 0.15, 0.17 },
     ["analysing"] = { 0.17, 0.66 },
@@ -2333,7 +2336,8 @@ local function show_stage(job, stage, done)
     end
     if stage ~= shown_stage then
         shown_stage = stage
-        dt.print("Assisted Tagging: " .. capital(stage) .. "…")
+        dt.print("Assisted Tagging: " .. capital(stage)
+            .. (stage == "embedding references" and " (one-time: the result is saved, and Cancel keeps what is done)" or "") .. "…")
         log("stage: " .. stage)
     end
 end

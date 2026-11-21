@@ -6,6 +6,10 @@ import json
 import os
 import sys
 import tempfile
+import types
+
+import numpy as np
+from PIL import Image
 
 import identify as I
 
@@ -117,6 +121,35 @@ def run_tests():
           len(nothing) == 1 and "nothing can identify it" in nothing[0], True)
     many = entry_lines([dict(VER, id=f"E{i}", number=str(i + 1)) for i in range(40)], {"E0": 1})
     check("entry list: a long list of names is capped with 'and N more'", "and " in many[0] and " more" in many[0], True)
+
+    # ---- open_index: a real re-embed reports "embedding references" (the plugin's full job bar)
+    class OneHotEmbedder:
+        dim = 8
+
+        def embed(self, crop):
+            return np.eye(8, dtype=np.float32)[int(crop.mean()) % 8]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        model = os.path.join(tmp, "embedder.onnx")
+        with open(model, "wb") as f:
+            f.write(b"x")
+        rules = types.SimpleNamespace(kind="cars", blur_references=False, colour_weight=0)
+        progress = os.path.join(tmp, "progress.txt")
+
+        def add_crops(*names):
+            for name in names:
+                path = os.path.join(tmp, "refs", "A", name)
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+                Image.new("RGB", (40, 30), (60, 60, 60)).save(path)
+
+        add_crops("1.jpg", "2.jpg", "3.jpg")
+        I.open_index(tmp, {"embedder": model}, rules, OneHotEmbedder(), progress)
+        with open(progress, encoding="utf-8") as pf:
+            check("open_index: re-embedding three references reports the embedding stage", pf.read(), "embedding references,3,3,0")
+        add_crops("4.jpg")
+        I.open_index(tmp, {"embedder": model}, rules, OneHotEmbedder(), progress)
+        with open(progress, encoding="utf-8") as pf:
+            check("open_index: one new reference stays in the short references stage", pf.read(), "references,1,1,0")
 
     print("")
     if failures == 0:
