@@ -1,0 +1,8 @@
+
+-- assisted_tagging: loads the plugin and writes "loaded" or "FAILED <reason>" to dt-lua-errors.txt
+do
+    local ok, e = pcall(require, "contrib/assisted_tagging")
+    local f = io.open(require("darktable").configuration.config_dir .. "/dt-lua-errors.txt", "a")
+    f:write("assisted_tagging ", ok and "loaded" or ("FAILED " .. tostring(e)), "\n")
+    f:close()
+end
