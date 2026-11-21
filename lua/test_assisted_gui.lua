@@ -901,15 +901,24 @@ check("presets: the references box shows the size", refs_box.label:match("^refer
 refs_box.value = true
 prints = {}
 widget_where(panel, "button", "label", "Export").clicked_callback()
--- the first bundle is still there, so this one takes the next free name
-local refs_bundle = out .. "/Rallye (2).atpreset"
-check("presets: a second export takes a free name", last_print():find("exported to " .. refs_bundle, 1, true) ~= nil, true)
-check("presets: the first bundle is left alone", read_file(out .. "/Rallye.atpreset/refs/sources.json"), nil)
+-- the same bundle name, now with refs: it differs, so it is replaced, not numbered
+local refs_bundle = out .. "/Rallye.atpreset"
+check("presets: a changed export replaces the bundle", last_print():find("re-exported, replacing " .. refs_bundle, 1, true) ~= nil, true)
+check("presets: no numbered copy", read_file(out .. "/Rallye (2).atpreset/preset.json"), nil)
 check("presets: ticked references are exported", read_file(refs_bundle .. "/refs/112/1_b0.jpg"), "crop")
 check("presets: sources.json goes with them", read_file(refs_bundle .. "/refs/sources.json"), "{}")
 check("presets: index.npz stays behind", read_file(refs_bundle .. "/index.npz"), nil)
 check("presets: the manifest lists refs",
     (read_file(refs_bundle .. "/manifest.json") or ""):find('"files": "preset.json,entries.json,refs"', 1, true) ~= nil, true)
+choose(actions, "export preset…")
+refs_box.value = true
+prints = {}
+widget_where(panel, "button", "label", "Export").clicked_callback()
+check("presets: the same export again is skipped", last_print():find("already exported and unchanged: " .. refs_bundle, 1, true) ~= nil, true)
+choose(actions, "export preset…")
+prints = {}
+widget_where(panel, "button", "label", "Export").clicked_callback()
+check("presets: an export without refs replaces the bundle with refs gone", read_file(refs_bundle .. "/refs/sources.json"), nil)
 choose(actions, "export preset…")
 check("presets: the references box is unticked when export opens again", refs_box.value, false)
 
