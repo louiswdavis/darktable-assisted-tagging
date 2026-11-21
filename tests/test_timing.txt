@@ -1,0 +1,11 @@
+ok   run returns the session's output
+ok   other attributes are forwarded
+ok   calls counted under the file name
+ok   seconds counted
+ok   take clears the totals
+ok   report is empty with nothing run
+ok   a failing run is still counted and still raises
+ok   merge adds worker totals
+ok   report lists the slowest model first
+
+all tests passed
