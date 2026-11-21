@@ -100,6 +100,7 @@ A file that's just the `[ … ]` list of entries works too, with the default rul
 | `car` | no | a double-driven car: the id of the other entry in the same car, set on the higher-numbered entry only (`"car": "30"` on 730). Both entries then carry each other's tags, so any match on the car (number read, livery, hand tag) tags both drivers, and their livery references count as one car. Two entries per car at most. A combined number on the car (`8108`) stays unknown: tag `Number seen\|108` by hand |
 | `shows` | no | other numbers the car carries besides its entry number, as a list (`"shows": ["44"]`): an old event's number left on the door, or a covered digit (`808` on 108). A read of a shown number names this entry; when another entry has that number too, livery picks only between the entries carrying it. 1–3 digits each, not the entry's own number |
 | `paddock` | no | where the car parks, as printed on the entry list (`"paddock": "H3"`). Free text, never read by a match; the start-list import fills it from the **Paddock** column. A demonstration entry also uses it as its id |
+| `plate` | no | the car's licence plate (`"plate": "AB12 CDE"`). Matched exactly on letters and digits only (spaces, hyphens and case ignored); never fuzzy. Written as a tag only when `family_plate` is on (off by default). Searchable in the panel; the start-list import fills it from a **Plate** column. Nothing reads plates from images yet, so the tag comes from the entry list only |
 
 Teammates share their team tag, so a team-only result carries exactly the team tag. The examples leave the year out of the tags: the collection already separates seasons for matching, and darktable's collections module filters by capture date. A **livery change** mid-season is a new entry (`VER-miami`, with the same tags and no `number`, so the number still identifies `VER`) or a new collection.
 
@@ -117,6 +118,7 @@ A family is one kind of tag the plugin writes. Each has a switch and a root in t
 | Class | the entry's `extra` | `family_extra` | `family_extra_root` | `Assisted Tagging\|Motorsport\|Class` |
 | Vehicle | the entry's `make` and `model`, as `<make>\|<model>` | `family_vehicle` | `family_vehicle_root` | `Assisted Tagging\|Motorsport\|Vehicle` |
 | Paddock | the entry's `paddock` id | `family_paddock` | `family_paddock_root` | `Assisted Tagging\|Motorsport\|Paddock` |
+| Plate (off by default) | the entry's `plate`, as typed | `family_plate` | `family_plate_root` | `Assisted Tagging\|Motorsport\|Plate` |
 | Sponsor | each [`sponsor_keywords`](#rules) word read inside a vehicle box, title-cased (`castrol` → `Castrol`) unless [`sponsor_names`](#rules) spells it; words read on banners or not listed are never written. Off by default | `family_sponsor` | `family_sponsor_root` | `Assisted Tagging\|Motorsport\|Sponsor` |
 
 All nine are on by default except Sponsor. An identified entry gets one tag per family that is on and that it has a value for, then its own `tags`. An entry that builds no tag at all stops the run.

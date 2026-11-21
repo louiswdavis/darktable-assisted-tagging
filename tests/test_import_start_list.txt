@@ -22,6 +22,8 @@ ok   parse_columns rejects an unknown role
 ok   parse_columns: role= means no column
 ok   map_header: a role given as none skips its alias
 ok   map_header: need_number=False allows no number
+ok   map_header: a licence plate column is found
+ok   entries_from: a plate is kept as typed
 ok   map_header: a paddock column alone is enough
 ok   entries_from: a row with a paddock id and no number is keyed by the paddock id
 ok   entries_from: no number and no paddock id is refused
@@ -94,7 +96,7 @@ import_start_list: number 30: shares car with "x", which is not a 1–3 digit nu
 import_start_list: number 30 shares a car with itself
 import_start_list: row 1: "1234" is not a 1–3 digit number
 import_start_list: number 9 is listed twice
-import_start_list: [Errno 2] No such file or directory: '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpzao1jb49/dup2/entries.json.m5s2hbd0.tmp'
+import_start_list: [Errno 2] No such file or directory: '/var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmp8nigw3vo/dup2/entries.json.bjhdz649.tmp'
 import_start_list: paddock id A1 is listed twice
 import_start_list: row 1: demo 3 needs a paddock id (a letter, then letters or digits), got ""
-import_start_list: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmpzao1jb49/bare/entries.json is a bare list; make it {"entries": [...]} first
+import_start_list: /var/folders/nz/vys208qx42q2wqdxhcbhjrf80000gp/T/tmp8nigw3vo/bare/entries.json is a bare list; make it {"entries": [...]} first

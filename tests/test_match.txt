@@ -272,4 +272,12 @@ ok   paddock hit: two reads of one entry keep the better
 ok   paddock hit: an entry outside the pool is not named
 ok   paddock hit: an id two entries carry names nobody
 ok   paddock hit: no reads, no entry
+ok   plate key: spaces, hyphens and case dropped
+ok   plate index: keys to entry ids
+ok   plate hit: spacing and case don't matter
+ok   plate hit: a near miss names nobody
+ok   plate hit: an unlisted plate names nobody
+ok   plate hit: an entry outside the pool is not named
+ok   plate hit: under min_read names nobody
+ok   plate hit: a plate two entries carry names nobody
 all tests passed

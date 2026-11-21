@@ -2,6 +2,7 @@
 consensus. Pure functions over OCR candidates and similarities."""
 
 import math
+import re
 from dataclasses import dataclass, replace
 
 from car_colour import colour_relation, decide_colour, overturned_colour
@@ -58,6 +59,7 @@ class Entry:
     co_driver: str = ""  # a rally co-driver, the value of the co-driver tag family; "" when none
     shows: tuple = ()  # other numbers the car carries (an old event's number left on the door); () when none
     paddock: str = ""  # the letter+digits code on the car beside its number (D14); "" when none
+    plate: str = ""  # the car's licence plate as typed ("AB12 CDE"); matched by letters and digits only; "" when none
 
 
 NO_NUMBER = "-"  # hand-set number for a car that genuinely has none; fills the number key, is never read
@@ -88,14 +90,36 @@ def paddock_index(entries: dict) -> dict:
     return by_paddock
 
 
+def plate_key(text: str) -> str:
+    """A plate as it is matched: upper-case letters and digits only, so "ab12 cde" and "AB-12CDE" agree."""
+    return re.sub(r"[^0-9A-Z]", "", text.upper())
+
+
+def plate_index(entries: dict) -> dict:
+    """{PLATE KEY: [entry ids]} (plate_key) over the entries that list a plate."""
+    by_plate: dict = {}
+    for e in entries.values():
+        if plate_key(e.plate):
+            by_plate.setdefault(plate_key(e.plate), []).append(e.id)
+    return by_plate
+
+
+def plate_hit(plates: list, entries: dict, pool: set = None, min_read: float = 0.0) -> tuple:
+    """paddock_hit for licence plates: `plates` is [(plate text, confidence)], compared by plate_key."""
+    return _exact_hit(plate_index(entries), [(plate_key(text), conf) for text, conf in plates], pool, min_read)
+
+
 def paddock_hit(paddocks: list, entries: dict, pool: set = None, min_read: float = 0.0) -> tuple:
     """(entry id, confidence) when the paddock reads (`paddocks`: [(id, confidence)]) at min_read or
     above name exactly one entry in `pool` (None is every entry), else ("", 0.0): two entries
     sharing an id, or reads naming two entries, are no read."""
-    index = paddock_index(entries)
+    return _exact_hit(paddock_index(entries), [(code.upper(), conf) for code, conf in paddocks], pool, min_read)
+
+
+def _exact_hit(index: dict, reads: list, pool, min_read: float) -> tuple:
     named = {}
-    for code, conf in paddocks:
-        ids = [i for i in index.get(code.upper(), []) if pool is None or i in pool]
+    for code, conf in reads:
+        ids = [i for i in index.get(code, []) if pool is None or i in pool]
         if conf >= min_read and len(ids) == 1:
             named[ids[0]] = max(named.get(ids[0], 0.0), conf)
     if len(named) != 1:

@@ -115,6 +115,8 @@ ok   entries: a sixth field is the co-driver
 ok   entries: a parsed co-driver names its entry
 ok   entries: six fields leave the colour empty
 ok   entries: a seventh field is the colour
+ok   parse_entries_csv: the tenth column is the plate
+ok   search: a plate is found by its letters
 ok   search: blank query lists nothing
 ok   search: a brand tag matches, case-blind, and shows the tag
 ok   search: a partial hits a brand and a model
@@ -592,6 +594,7 @@ ok   family co_driver defaults
 ok   family extra defaults
 ok   family vehicle defaults
 ok   family paddock defaults
+ok   family plate defaults
 ok   family sponsor defaults
 ok   tagging defaults
 ok   every tag switch defaults on

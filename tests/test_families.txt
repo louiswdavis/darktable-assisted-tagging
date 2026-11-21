@@ -1,6 +1,6 @@
 ok   family order
 ok   family sources
-ok   only the sponsor family is off by default
+ok   only the plate and sponsor families are off by default
 ok   setting keys
 ok   family_tag
 ok   schema defaults are the family defaults

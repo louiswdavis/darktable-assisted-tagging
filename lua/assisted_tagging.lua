@@ -84,6 +84,7 @@ M.FAMILIES = {
     { key = "extra", sources = { "extra" }, default_root = "Assisted Tagging|Motorsport|Class" },
     { key = "vehicle", sources = { "make", "model" }, default_root = "Assisted Tagging|Motorsport|Vehicle" },
     { key = "paddock", sources = { "paddock" }, default_root = "Assisted Tagging|Motorsport|Paddock" },
+    { key = "plate", sources = { "plate" }, default_root = "Assisted Tagging|Motorsport|Plate" },
     { key = "sponsor", sources = {}, default_root = "Assisted Tagging|Motorsport|Sponsor" },
 }
 
@@ -223,16 +224,16 @@ local function split(s, sep)
     return out
 end
 
--- identify.py's entries.csv (id,team,number,tag;tag…,name,co_driver,colour,car,paddock) → entries by id, and the ids in
+-- identify.py's entries.csv (id,team,number,tag;tag…,name,co_driver,colour,car,paddock,plate) → entries by id, and the ids in
 -- file order. car: the id both entries of a shared car name ("" when unshared).
 function M.parse_entries_csv(text)
     local entries, order = {}, {}
     for line in (text or ""):gmatch("[^\r\n]+") do
-        local p = M.parse_csv_line(line, 9) or M.parse_csv_line(line, 8) or M.parse_csv_line(line, 7) or M.parse_csv_line(line, 6) or M.parse_csv_line(line, 5)
+        local p = M.parse_csv_line(line, 10) or M.parse_csv_line(line, 9) or M.parse_csv_line(line, 8) or M.parse_csv_line(line, 7) or M.parse_csv_line(line, 6) or M.parse_csv_line(line, 5)
             or M.parse_csv_line(line, 4)
         if p and p[1] ~= "" and p[4] ~= "" and not entries[p[1]] then
             entries[p[1]] = { id = p[1], team = p[2], number = p[3], tags = split(p[4], ";"), name = p[5] or "",
-                              co_driver = p[6] or "", colour = p[7] or "", car = p[8] or "", paddock = p[9] or "" }
+                              co_driver = p[6] or "", colour = p[7] or "", car = p[8] or "", paddock = p[9] or "", plate = p[10] or "" }
             order[#order + 1] = p[1]
         end
     end
@@ -249,7 +250,7 @@ function M.search_ids(entries, order, query)
     if #words == 0 then return ids, words end
     for _, id in ipairs(order) do
         local e = entries[id]
-        local fields = { e.id, e.team, e.number, e.name, e.co_driver, e.colour, e.car, e.paddock }
+        local fields = { e.id, e.team, e.number, e.name, e.co_driver, e.colour, e.car, e.paddock, e.plate }
         local hay = (table.concat(fields, "\n") .. "\n" .. table.concat(e.tags, "\n")):lower()
         local hit = true
         for _, w in ipairs(words) do
@@ -1364,7 +1365,7 @@ function M.new_number_alert(rows_of, ids, file_of)
 end
 
 -- The start-list import's column roles, as import_start_list.py ROLES names them.
-M.IMPORT_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "colour", "shares-car", "paddock" }
+M.IMPORT_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "colour", "shares-car", "paddock", "plate" }
 
 -- `import_start_list.py --header` output → (CSV headers in order, {role = mapped header or ""}).
 function M.parse_header_report(out)
@@ -1389,7 +1390,7 @@ function M.columns_spec(picked)
 end
 
 -- The one-entry tab's roles. No shares-car: the import needs both entries of a shared car in the same list.
-M.ENTRY_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "colour", "paddock" }
+M.ENTRY_ROLES = { "number", "driver", "co-driver", "team", "class", "make", "model", "colour", "paddock", "plate" }
 
 -- {role = typed text} → (a one-entry start-list CSV, its --columns value), or (nil, problem) when number is blank.
 function M.one_entry_csv(typed)
@@ -1587,6 +1588,8 @@ M.PRESET_SCHEMA = {
     { key = "family_vehicle_root", kind = "string", default = "Assisted Tagging|Motorsport|Vehicle" },
     { key = "family_paddock", kind = "bool", default = true },
     { key = "family_paddock_root", kind = "string", default = "Assisted Tagging|Motorsport|Paddock" },
+    { key = "family_plate", kind = "bool", default = false },
+    { key = "family_plate_root", kind = "string", default = "Assisted Tagging|Motorsport|Plate" },
     { key = "family_sponsor", kind = "bool", default = false },
     { key = "family_sponsor_root", kind = "string", default = "Assisted Tagging|Motorsport|Sponsor" },
     { key = "tag_number", kind = "bool", default = true },
@@ -4840,7 +4843,7 @@ local function install_panel()
     end
     -- One picker per role: (none) + the chosen CSV's headers, preset to the usual names.
     local ROLE_LABELS = { number = _("Number"), driver = _("Driver"), ["co-driver"] = _("Co-Driver"), team = _("Team"),
-        class = _("Class"), make = _("Make"), model = _("Model"), colour = _("Colour"), ["shares-car"] = _("Shares Car With"), paddock = _("Paddock") }
+        class = _("Class"), make = _("Make"), model = _("Model"), colour = _("Colour"), ["shares-car"] = _("Shares Car With"), paddock = _("Paddock"), plate = _("Plate") }
     local column_headers = {} -- the chosen CSV's headers; {} until one is read
     local column_combos = {}
     for i, role in ipairs(M.IMPORT_ROLES) do
@@ -5215,6 +5218,7 @@ local function install_panel()
         extra = { _("Class"), _("Write an identified entry's class (start-list Class column) as <root>|<class>.") },
         vehicle = { _("Vehicle"), _("Write an identified entry's make and model as <root>|<make>|<model>.") },
         paddock = { _("Paddock"), _("Write an identified entry's paddock id as <root>|<paddock id>. Entries without a paddock id get no tag.") },
+        plate = { _("Plate"), _("Write an identified entry's licence plate, as typed, as <root>|<plate>. Entries without a plate get no tag."), _("Default: off.") },
         sponsor = { _("Sponsor"), _("Write each rules.sponsor_keywords word read on a car as <root>|<Word>. Words read outside a vehicle box (banners) and words not listed are never written."), _("Default: off.") },
     }
     tag_rows[#tag_rows + 1] = new_widget("section_label") { label = _("Tag Families") }

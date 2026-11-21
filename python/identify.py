@@ -43,7 +43,7 @@ from embed import Embedder, decode, embedder_key, encode
 from fingerprint import analysis_fingerprint
 from match import (HAND, NO_NUMBER, IDENTIFIED, MATCH_MIN_MARGIN, MATCH_MIN_SIM, NOISE_MIN_BESIDE_SHARE, NOISE_MIN_PARTNERS, NUMBER_LIST_FLOOR, NUMBER_LIST_MARGIN, NEW_NUMBER_MIN_FRAMES, WEAK_READ_MIN, BoxResult, Entry, agreeing_reads, already_tagged, usable_reads, noise_numbers, new_numbers, without_noise, number_index, numbers_of, paddock_hit, paddock_index,
                    burst_colours, burst_consensus, closer_car_match, colour_check, colour_overturns, colour_pool, conflicts, decided_by, disagrees, entries_under, hinted_match, main_car_only, match_camera, sure_cars,
-                   match_livery, match_team, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
+                   match_livery, match_team, plate_key, pool_sims, promotable, shot_type, team_key, TEAM_KEY)
 from neighbour import neighbour_aid, with_library_neighbours
 from overlap import HIDDEN, _inter, visible_boxes
 from segment import SEGMENT_CACHE_TOKEN, Segmenter, needs_mask, segmenter_path
@@ -316,7 +316,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
             raise bad(f'entry "{eid}" appears twice')
         unknown = check_entry_fields(kind, item)
         if unknown:
-            fields = "id, tags" if kind == "people" else "id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car, shows, paddock"
+            fields = "id, tags" if kind == "people" else "id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car, shows, paddock, plate"
             raise bad(f'entry "{eid}": unknown field "{unknown}" (fields are {fields})')
         if kind == "people":
             _check_tags(item.get("tags"), f'entry "{eid}": tags', bad)
@@ -335,10 +335,12 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         co_driver = item.get("co_driver", "")
         if not isinstance(co_driver, str) or _BAD_TAG.search(co_driver):
             raise bad(f'entry "{eid}": co_driver must be text without , ; or "')
-        for key in ("extra", "make", "model", "paddock"):
+        for key in ("extra", "make", "model", "paddock", "plate"):
             value = item.get(key, "")
             if not isinstance(value, str) or _BAD_TAG.search(value) or "|" in value:
                 raise bad(f'entry "{eid}": {key} must be text without , ; " or |')
+        if item.get("plate") and not plate_key(item["plate"]):
+            raise bad(f'entry "{eid}": plate {item["plate"]} has no letters or digits')
         if item.get("model") and not item.get("make"):
             raise bad(f'entry "{eid}": model {item["model"]} has no make')
         camera = item.get("camera", "")
@@ -357,7 +359,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
         if number in shows:
             raise bad(f'entry "{eid}": shows repeats its own number {number}')
         entries[eid] = Entry(eid, number, team, _entry_tags(eid, item, rules.families, bad), camera, colour, name, car,
-                             co_driver, tuple(dict.fromkeys(shows)), item.get("paddock", ""))
+                             co_driver, tuple(dict.fromkeys(shows)), item.get("paddock", ""), item.get("plate", ""))
     if kind == "people":
         if rules_raw is None:
             log("warning: entries.json has no rules block, so the face thresholds use defaults")
@@ -381,7 +383,7 @@ def load_collection(collection_dir: str, settings_path: str = "") -> tuple:
 def write_entries_csv(entries: dict, path: str):
     with open(path, "w", newline="", encoding="utf-8") as f:
         for e in entries.values():
-            f.write(f"{e.id},{e.team},{'' if e.number == NO_NUMBER else e.number},{';'.join(e.tags)},{e.name},{e.co_driver},{e.colour},{e.car},{e.paddock}\n")
+            f.write(f"{e.id},{e.team},{'' if e.number == NO_NUMBER else e.number},{';'.join(e.tags)},{e.name},{e.co_driver},{e.colour},{e.car},{e.paddock},{e.plate}\n")
 
 
 def write_rules_csv(rules: Rules, from_entries: tuple, path: str):

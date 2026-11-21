@@ -98,6 +98,8 @@ def run_tests():
         check("map_header: a role given as none skips its alias",
               M.map_header(["No.", "Driver", "Team"], {"team": ""}), {"number": 0, "driver": 1})
         check("map_header: need_number=False allows no number", M.map_header(["Pilot"], {}, need_number=False), {"driver": 0})
+        check("map_header: a licence plate column is found", M.map_header(["Nr", "Licence Plate"], {}), {"number": 0, "plate": 1})
+        check("entries_from: a plate is kept as typed", M.entries_from([{"number": "7", "plate": "AB12 CDE"}])[0], [{"id": "7", "number": "7", "plate": "AB12 CDE"}])
         check("map_header: a paddock column alone is enough", M.map_header(["Pilot", "Paddock"], {}), {"driver": 0, "paddock": 1})
         check("entries_from: a row with a paddock id and no number is keyed by the paddock id",
               M.entries_from([{"number": "", "paddock": "Z 5", "driver": "Smith"}])[0],
@@ -119,7 +121,7 @@ def run_tests():
         check("header_report lists headers then each role's mapped header",
               M.header_report("Nr;Pilot;Team\n1;A;B\n").split("\n"),
               ["header\tNr", "header\tPilot", "header\tTeam", "role\tnumber\tNr", "role\tdriver\tPilot", "role\tco-driver\t",
-               "role\tteam\tTeam", "role\tclass\t", "role\tmake\t", "role\tmodel\t", "role\tcolour\t", "role\tshares-car\t", "role\tpaddock\t"])
+               "role\tteam\tTeam", "role\tclass\t", "role\tmake\t", "role\tmodel\t", "role\tcolour\t", "role\tshares-car\t", "role\tpaddock\t", "role\tplate\t"])
 
         codir = os.path.join(tmp, "codrivers")
         os.makedirs(codir)

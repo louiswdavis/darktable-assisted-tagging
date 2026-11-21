@@ -38,10 +38,10 @@ def resolve_error(**over) -> str:
 
 def test_order():
     check("family order", [f.key for f in F.FAMILIES],
-          ["colour", "number", "team", "driver", "co_driver", "extra", "vehicle", "paddock", "sponsor"])
+          ["colour", "number", "team", "driver", "co_driver", "extra", "vehicle", "paddock", "plate", "sponsor"])
     check("family sources", [f.sources for f in F.FAMILIES],
-          [(), ("number",), ("team",), ("name",), ("co_driver",), ("extra",), ("make", "model"), ("paddock",), ()])
-    check("only the sponsor family is off by default", [f.key for f in F.FAMILIES if not f.default_on], ["sponsor"])
+          [(), ("number",), ("team",), ("name",), ("co_driver",), ("extra",), ("make", "model"), ("paddock",), ("plate",), ()])
+    check("only the plate and sponsor families are off by default", [f.key for f in F.FAMILIES if not f.default_on], ["plate", "sponsor"])
     check("setting keys", (F.switch_key("team"), F.root_key("team")), ("family_team", "family_team_root"))
     check("family_tag", F.family_tag("Assisted Tagging|Motorsport|Team", "Ferrari"), "Assisted Tagging|Motorsport|Team|Ferrari")
     check("schema defaults are the family defaults",

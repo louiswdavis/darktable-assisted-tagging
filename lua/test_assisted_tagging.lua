@@ -303,6 +303,9 @@ do -- search_entries: one box searches every field and tag
         "12,Team A,12,M|Make|Mazda;M|Model|MX-5,Smith,Jones,Red",
         "7,Team B,7,M|Make|Ford;M|Model|Maze,Brown",
     }, "\n"))
+    local pe, po = T.parse_entries_csv("9,Team C,9,M|Make|Audi,Lee,,,,,AB12 CDE")
+    check("parse_entries_csv: the tenth column is the plate", pe["9"].plate, "AB12 CDE")
+    check("search: a plate is found by its letters", T.search_entries(pe, po, "ab12"), "9 (#9, Team C)")
     check("search: blank query lists nothing", T.search_entries(se, so, "  "), "")
     check("search: a brand tag matches, case-blind, and shows the tag", T.search_entries(se, so, "MAZD"), "12 (#12, Team A): M|Make|Mazda")
     check("search: a partial hits a brand and a model", T.search_entries(se, so, "maz"),
@@ -467,7 +470,7 @@ check("rules: an off family has no line and no root", fam_rules.families.number,
 do
     local keys_in_order = {}
     for _, f in ipairs(T.FAMILIES) do keys_in_order[#keys_in_order + 1] = f.key end
-    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver,co_driver,extra,vehicle,paddock,sponsor")
+    check("FAMILIES: order", table.concat(keys_in_order, ","), "colour,number,team,driver,co_driver,extra,vehicle,paddock,plate,sponsor")
     local fs = T.preset_defaults(T.PRESET_SCHEMA)
     local roots = T.family_roots(fs)
     check("family_roots: every family on by default", roots.colour .. " " .. roots.number .. " " .. roots.team .. " " .. roots.driver,
@@ -949,13 +952,13 @@ do
     check("parse_header_report: empty output", #(T.parse_header_report("")), 0)
     check("columns_spec names every role, none as empty",
         T.columns_spec({ number = "Nr", driver = "Pilot" }),
-        "number=Nr;driver=Pilot;co-driver=;team=;class=;make=;model=;colour=;shares-car=;paddock=")
+        "number=Nr;driver=Pilot;co-driver=;team=;class=;make=;model=;colour=;shares-car=;paddock=;plate=")
     local text, spec = T.one_entry_csv({ number = " 12 ", driver = "Smith", team = 'A, "B" Racing', make = "Ford", colour = "Red" })
     check("one_entry_csv: header row of the typed roles, then the trimmed entry",
-        text, '"number","driver","co-driver","team","class","make","model","colour","paddock"\n'
-            .. '"12","Smith","","A, ""B"" Racing","","Ford","","Red",""\n')
+        text, '"number","driver","co-driver","team","class","make","model","colour","paddock","plate"\n'
+            .. '"12","Smith","","A, ""B"" Racing","","Ford","","Red","",""\n')
     check("one_entry_csv: each role maps its own header, shares-car none", spec,
-        "number=number;driver=driver;co-driver=co-driver;team=team;class=class;make=make;model=model;colour=colour;shares-car=;paddock=paddock")
+        "number=number;driver=driver;co-driver=co-driver;team=team;class=class;make=make;model=model;colour=colour;shares-car=;paddock=paddock;plate=plate")
     local none, why = T.one_entry_csv({ number = "  ", driver = "Smith" })
     check("one_entry_csv: a blank number and paddock is refused", none == nil and why, "Type the entry's number or paddock id first.")
     local pad = T.one_entry_csv({ number = "", paddock = "A11", driver = "Smith" })
@@ -1402,7 +1405,7 @@ do
     check("colour keys default on", tostring(d.family_colour) .. tostring(d.tag_check_colour), "truetrue")
     for _, f in ipairs(T.FAMILIES) do
         check("family " .. f.key .. " defaults", tostring(d["family_" .. f.key]) .. " " .. d["family_" .. f.key .. "_root"],
-            tostring(f.key ~= "sponsor") .. " " .. f.default_root)
+            tostring(f.key ~= "sponsor" and f.key ~= "plate") .. " " .. f.default_root)
     end
     check("tagging defaults", table.concat({ tostring(d.use_hints), d.group_support, d.group_node,
         tostring(d.run_tag), tostring(d.suggest_crops), tostring(d.quarantine),

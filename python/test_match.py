@@ -756,6 +756,18 @@ def run_tests():
     check("paddock hit: an id two entries carry names nobody", Mt.paddock_hit([("D14", 0.9)], shared_id), ("", 0.0))
     check("paddock hit: no reads, no entry", Mt.paddock_hit([], padded), ("", 0.0))
 
+    # licence plates: letters and digits only, case-blind, exact
+    plated = dict(ENTRIES, HAM=replace(ENTRIES["HAM"], plate="AB12 CDE"), LEC=replace(ENTRIES["LEC"], plate="x-99 yz"))
+    check("plate key: spaces, hyphens and case dropped", (Mt.plate_key("ab12 cde"), Mt.plate_key("X-99.yz"), Mt.plate_key(" - ")), ("AB12CDE", "X99YZ", ""))
+    check("plate index: keys to entry ids", Mt.plate_index(plated), {"AB12CDE": ["HAM"], "X99YZ": ["LEC"]})
+    check("plate hit: spacing and case don't matter", Mt.plate_hit([("ab12cde", 0.8)], plated), ("HAM", 0.8))
+    check("plate hit: a near miss names nobody", Mt.plate_hit([("AB12CDF", 0.9)], plated), ("", 0.0))
+    check("plate hit: an unlisted plate names nobody", Mt.plate_hit([("ZZ00ZZZ", 0.9)], plated), ("", 0.0))
+    check("plate hit: an entry outside the pool is not named", Mt.plate_hit([("AB12CDE", 0.9)], plated, pool={"LEC"}), ("", 0.0))
+    check("plate hit: under min_read names nobody", Mt.plate_hit([("AB12CDE", 0.3)], plated, min_read=0.5), ("", 0.0))
+    check("plate hit: a plate two entries carry names nobody",
+          Mt.plate_hit([("AB12CDE", 0.9)], dict(plated, TSU=replace(ENTRIES["TSU"], plate="ab12cde"))), ("", 0.0))
+
     if failures == 0:
         print("all tests passed")
         sys.exit(0)

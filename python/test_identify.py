@@ -139,7 +139,7 @@ def run_tests():
     check("moved rules in entries.json still load", (moved_rules.order_weight, moved_rules.min_read), (0.5, 0.9))
     check("moved rules log the deprecation", "rules.order_weight in entries.json is deprecated; move it to settings.json" in lines, True)
     check("a misspelt entry field is named", load_error([dict(VER, tagz=[])]),
-          'entry "VER": unknown field "tagz" (fields are id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car, shows, paddock)')
+          'entry "VER": unknown field "tagz" (fields are id, number, team, name, co_driver, extra, make, model, tags, camera, colour, car, shows, paddock, plate)')
     check("a misspelt top-level key is named", load_error({"entrys": []}),
           'unknown key "entrys" (the file holds "kind", "rules" and "entries")')
     LH = {"id": "Lando Norris", "tags": ["People|Professions|F1 Drivers|Lando Norris"]}
@@ -238,6 +238,11 @@ def run_tests():
           'entry "7": extra must be text without , ; " or |')
     check("families: vehicle off, no vehicle tag", I.load_collection(collection(
         [ESC], settings={"family_vehicle": False}))[0]["7"].tags, ("Assisted Tagging|Motorsport|Number|7", "Assisted Tagging|Motorsport|Class|A1"))
+    plated = dict(ESC, plate="AB12 CDE")
+    check("plate family: off by default, no plate tag", "Assisted Tagging|Motorsport|Plate|AB12 CDE" in
+          I.load_collection(collection([plated], settings=None))[0]["7"].tags, False)
+    check("plate family: on writes the plate as typed", "Assisted Tagging|Motorsport|Plate|AB12 CDE" in
+          I.load_collection(collection([plated], settings={"family_plate": True}))[0]["7"].tags, True)
     check("vehicle: custom root", I.load_collection(collection(
         [ESC], settings={"family_vehicle_root": "Cars"}))[0]["7"].tags,
           ("Assisted Tagging|Motorsport|Number|7", "Assisted Tagging|Motorsport|Class|A1", "Cars|Ford|Escort"))
@@ -330,19 +335,19 @@ def run_tests():
     I.write_entries_csv(entries, os.path.join(out, "e.csv"))
     I.write_rules_csv(rules, _fe, os.path.join(out, "r.csv"))
     check("entries.csv rows", open(os.path.join(out, "e.csv"), encoding="utf-8").read().splitlines()[1],
-          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda,,,,,")
+          "TSU,Red Bull,22,F1|Red Bull;F1|Red Bull|Tsunoda,,,,,,")
     name_entries = I.load_collection(collection([dict(VER, name="Max Verstappen", co_driver="Gianpiero Lambiase")]))[0]
     I.write_entries_csv({"VER": dataclasses.replace(entries["VER"], number="-")}, os.path.join(out, "dash.csv"))
     check("a - number leaves entries.csv's number column empty", open(os.path.join(out, "dash.csv"), encoding="utf-8").read().splitlines()[0].split(",")[2], "")
     I.write_entries_csv(name_entries, os.path.join(out, "n.csv"))
     check("entries.csv holds the name and co-driver", open(os.path.join(out, "n.csv"), encoding="utf-8").read().splitlines()[0],
-          "VER,Red Bull,1,F1|Red Bull;F1|Red Bull|Verstappen,Max Verstappen,Gianpiero Lambiase,,,")
+          "VER,Red Bull,1,F1|Red Bull;F1|Red Bull|Verstappen,Max Verstappen,Gianpiero Lambiase,,,,")
     I.write_entries_csv({"VER": dataclasses.replace(entries["VER"], paddock="D14")}, os.path.join(out, "p.csv"))
-    check("entries.csv ends with the paddock id", open(os.path.join(out, "p.csv"), encoding="utf-8").read().splitlines()[0].rsplit(",", 1)[1], "D14")
+    check("entries.csv ends with the paddock id", open(os.path.join(out, "p.csv"), encoding="utf-8").read().splitlines()[0].rsplit(",", 2)[1], "D14")
     car_entries = I.load_collection(collection([AMES, COLE], settings=None))[0]
     I.write_entries_csv(car_entries, os.path.join(out, "c.csv"))
     check("entries.csv holds the shared car's id on both entries",
-          [line.rsplit(",", 2)[1] for line in open(os.path.join(out, "c.csv"), encoding="utf-8").read().splitlines()], ["30", "30"])
+          [line.rsplit(",", 3)[1] for line in open(os.path.join(out, "c.csv"), encoding="utf-8").read().splitlines()], ["30", "30"])
     check("rules.csv rows", open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()[:3],
           ["team_only,shared tags", "unidentified,F1|Check", "diag_number,Assisted Tagging|Identification|By number"])
     rows = open(os.path.join(out, "r.csv"), encoding="utf-8").read().splitlines()
