@@ -949,6 +949,7 @@ prints = {}
 widget_where(panel, "button", "label", "Export").clicked_callback()
 -- the same zip name, now with refs: it differs, so it is replaced, not numbered
 local refs_bundle = ZIP
+if not last_print():find("(replaced the earlier export)", 1, true) then print("DIAG export with refs said: " .. last_print()) end
 check("presets: a changed export replaces the zip", last_print():find("(replaced the earlier export)", 1, true) ~= nil and last_print():find(refs_bundle, 1, true) ~= nil, true)
 check("presets: no numbered copy", read_file(out .. "/Rallye (2).atpreset.zip"), nil)
 unz = bundle()
