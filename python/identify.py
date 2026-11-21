@@ -626,7 +626,7 @@ def frame_entry(filepath: str, rgb, models: dict) -> tuple:
     start = time.perf_counter()
     entry, hit = detect_cached(filepath, detector, cache, rgb=rgb)
     if not hit:
-        timing.add(os.path.basename(models["detector"]), 1, time.perf_counter() - start)
+        timing.add(detector.id.split(":")[1], 1, time.perf_counter() - start)  # id: family:basename:size:sha1
     return entry, hit
 
 
