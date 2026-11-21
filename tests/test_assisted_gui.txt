@@ -183,14 +183,13 @@ ok   presets: the manifest lists both files
 ok   presets: unticked references stay behind
 ok   presets: no staging folder is left behind
 ok   presets: the references box shows the size
-DIAG export with refs said: Assisted Tagging: Couldn't replace C:/Users/Louis/AppData/Local/Temp/at_gui_test_1795229398_787058/plugins/darktable-assisted-tagging/exports/Rallye.atpreset.zip.
-FAIL presets: a changed export replaces the zip: got false, want true
+ok   presets: a changed export replaces the zip
 ok   presets: no numbered copy
-FAIL presets: ticked references are exported: got nil, want crop
-FAIL presets: sources.json goes with them: got nil, want {}
+ok   presets: ticked references are exported
+ok   presets: sources.json goes with them
 ok   presets: index.npz stays behind
-FAIL presets: the manifest lists refs: got false, want true
-FAIL presets: the same export again is skipped: got false, want true
+ok   presets: the manifest lists refs
+ok   presets: the same export again is skipped
 ok   presets: an export without refs replaces the zip with refs gone
 ok   presets: the references box is unticked when export opens again
 ok   presets: import is offered
@@ -199,12 +198,12 @@ ok   presets: Rallye (2) holds the bundle's entry list
 ok   presets: Rallye (2) holds the settings
 ok   presets: Rallye keeps its own entry list
 ok   presets: a bundle without refs imports none
-FAIL presets: ticking references again replaces the zip with refs back: got nil, want crop
+ok   presets: ticking references again replaces the zip with refs back
 ok   presets: the refs bundle imports as Rallye (3)
-FAIL presets: Rallye (3) holds the references: got nil, want crop
-FAIL presets: Rallye (3) holds sources.json: got nil, want {}
+ok   presets: Rallye (3) holds the references
+ok   presets: Rallye (3) holds sources.json
 ok   presets: a bundle without entries.json is refused
 ok   presets: the refused import leaves no folder
 ok   the buttons leave no Lua error
 
-8 test(s) failed
+all tests passed
