@@ -243,14 +243,24 @@ A people entry has only `id` and `tags`; references are images with exactly one 
 
 ### 3. darktable side
 
-darktable's config directory is `~/.config/darktable` on Linux/macOS and `%LOCALAPPDATA%\darktable` on Windows. Link the plugin into it and load it from `luarc`. The plugin is `lua/assisted_tagging.lua` plus `lua/plugin_common.lua`, the module the three Assisted plugins share; a link into the repo finds the module beside the plugin by itself.
+darktable's config directory is `~/.config/darktable` on Linux/macOS and `%LOCALAPPDATA%\darktable` on Windows.
+
+The plugin is **two files**, and both must sit in the config directory's `lua/contrib` folder:
+
+- `lua/assisted_tagging.lua`, the plugin
+- `lua/plugin_common.lua`, the module the three Assisted plugins share. The three copies are identical, so one copy serves all three plugins. If another Assisted plugin already put it there, skip that step.
+
+Without `plugin_common.lua` the plugin fails to load with `module 'plugin_common' not found`.
+
+Then add one `luarc` line. It loads the plugin inside `pcall` and appends `loaded` or `FAILED <reason>` to `dt-lua-errors.txt` in the config directory, so a plugin that does not appear says why. Every Assisted plugin gets its own line with its own name.
 
 Linux / macOS:
 
 ```
 mkdir -p ~/.config/darktable/lua/contrib
 ln -s "$(pwd)/lua/assisted_tagging.lua" ~/.config/darktable/lua/contrib/assisted_tagging.lua
-echo 'require "contrib/assisted_tagging"' >> ~/.config/darktable/luarc
+ln -s "$(pwd)/lua/plugin_common.lua" ~/.config/darktable/lua/contrib/plugin_common.lua
+echo 'do local ok, e = pcall(require, "contrib/assisted_tagging"); local f = io.open(require("darktable").configuration.config_dir .. "/dt-lua-errors.txt", "a"); f:write("assisted_tagging ", ok and "loaded" or ("FAILED " .. tostring(e)), "\n"); f:close() end' >> ~/.config/darktable/luarc
 ```
 
 Windows (Command Prompt). Creating symbolic links needs an Administrator prompt unless Developer Mode is enabled.
@@ -258,10 +268,22 @@ Windows (Command Prompt). Creating symbolic links needs an Administrator prompt 
 ```
 if not exist "%LOCALAPPDATA%\darktable\lua\contrib" mkdir "%LOCALAPPDATA%\darktable\lua\contrib"
 mklink "%LOCALAPPDATA%\darktable\lua\contrib\assisted_tagging.lua" "%CD%\lua\assisted_tagging.lua"
-echo require "contrib/assisted_tagging" >> "%LOCALAPPDATA%\darktable\luarc"
+mklink "%LOCALAPPDATA%\darktable\lua\contrib\plugin_common.lua" "%CD%\lua\plugin_common.lua"
+echo do local ok, e = pcall(require, "contrib/assisted_tagging"); local f = io.open(require("darktable").configuration.config_dir .. "/dt-lua-errors.txt", "a"); f:write("assisted_tagging ", ok and "loaded" or ("FAILED " .. tostring(e)), "\n"); f:close() end >> "%LOCALAPPDATA%\darktable\luarc"
 ```
 
-Windows without Administrator rights or Developer Mode: copy `assisted_tagging.lua` into `%LOCALAPPDATA%\darktable\lua\contrib` instead of linking it, and add the same `luarc` line. Re-copy it after every update. With the **plugins folder** preference (next step) set, the plugin loads `plugin_common.lua` from that folder's `lua/`; copy it into `contrib` too if you want darktable to start with the preference unset (the three plugins' copies are identical, so one copy serves all of them).
+Windows (PowerShell). Same Administrator caveat.
+
+```
+New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\darktable\lua\contrib"
+New-Item -ItemType SymbolicLink -Path "$env:LOCALAPPDATA\darktable\lua\contrib\assisted_tagging.lua" -Value "$PWD\lua\assisted_tagging.lua"
+New-Item -ItemType SymbolicLink -Path "$env:LOCALAPPDATA\darktable\lua\contrib\plugin_common.lua" -Value "$PWD\lua\plugin_common.lua"
+Add-Content "$env:LOCALAPPDATA\darktable\luarc" 'do local ok, e = pcall(require, "contrib/assisted_tagging"); local f = io.open(require("darktable").configuration.config_dir .. "/dt-lua-errors.txt", "a"); f:write("assisted_tagging ", ok and "loaded" or ("FAILED " .. tostring(e)), "\n"); f:close() end'
+```
+
+Windows without Administrator rights or Developer Mode: copy `assisted_tagging.lua` and `plugin_common.lua` into `%LOCALAPPDATA%\darktable\lua\contrib` instead of linking them, and add the same `luarc` line. Re-copy both after every update.
+
+After restarting darktable, open `dt-lua-errors.txt` in the config directory. `assisted_tagging loaded` means the plugin loaded; its panel appears in lighttable once the view has finished loading. `assisted_tagging FAILED ...` gives the reason, usually a file missing from `contrib`. The plain `require "contrib/assisted_tagging"` line still works if you prefer it, but says nothing when it fails. With the **plugins folder** preference (next step) set, the plugin can also load `plugin_common.lua` from `darktable-assisted-tagging/lua/` in that folder when it is not in `contrib`.
 
 ### 4. Point the plugin at the repo
 
