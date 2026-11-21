@@ -2461,8 +2461,10 @@ end
 -- which also rewrites the collection's tag-plan.txt; show_plan points the user at it.
 -- Settings still read from entries.json's old rules are copied into settings.json.
 -- reread_settings: show settings.json in the panel again (hand edits; unsaved panel changes go).
+-- ensure_tags: also create the collection's entry tags in darktable (thousands of tags.create calls
+-- on a big collection, all on the GUI thread), so only the buttons ask; the start-up reload does not.
 -- Returns true once the lists loaded.
-local function reload_lists(quiet, show_plan, reread_settings)
+local function reload_lists(quiet, show_plan, reread_settings, ensure_tags)
     if busy or not orphan_gone() then
         if not quiet then dt.print(_("Assisted Tagging: Busy, try again when the current run finishes.")) end
         return false
@@ -2509,8 +2511,8 @@ local function reload_lists(quiet, show_plan, reread_settings)
         end
         lists_loaded, loaded = true, true
         refresh_entry_combo()
-        local made = current_collection() ~= "" and create_entry_tags() or 0
-        log(string.format("reload: %d entry tags ensured in darktable", made))
+        local made = ensure_tags and current_collection() ~= "" and create_entry_tags() or 0
+        if ensure_tags then log(string.format("reload: %d entry tags ensured in darktable", made)) end
         local made_note = made > 0 and string.format(" %s ready in darktable's tag list.", C.count(made, "entry tag")) or ""
         if #names == 0 then
             say(string.format("Assisted Tagging: No collections yet. Pick the template preset and click New collection, "
@@ -4674,13 +4676,13 @@ local function install_panel()
     local reload_button = new_widget("button") {
         label = _("Reload"),
         tooltip = _("Reread the collections folder (the preset list) and the selected collection's entries.json and settings.json. Unsaved panel changes are replaced by settings.json."),
-        clicked_callback = function() reload_lists(false, false, true) end,
+        clicked_callback = function() reload_lists(false, false, true, true) end,
     }
     local plan_button = new_widget("button") {
         label = _("Show Tag Plan"),
         tooltip = _("Write tag-plan.txt in the collection's folder and open it: the exact tags each entry writes, plus the team-only, unidentified and diagnostic tags, from its entries.json and settings."),
         clicked_callback = function()
-            if reload_lists(false, true) and current_collection() ~= "" then
+            if reload_lists(false, true, false, true) and current_collection() ~= "" then
                 open_in_app(collections_root() .. "/" .. current_collection() .. "/tag-plan.txt")
             end
         end,
@@ -4827,7 +4829,7 @@ local function install_panel()
             end
             for _, e in ipairs(role_entries) do e.text = "" end
             -- quiet reload: the import's own summary is the message to keep on screen
-            if reload_lists(true) then dt.print("Assisted Tagging: " .. capital(out)) end
+            if reload_lists(true, false, false, true) then dt.print("Assisted Tagging: " .. capital(out)) end
         end,
     }
     local found = { checks = {}, rows = {}, image_of = {} }
