@@ -3125,6 +3125,7 @@ end
 -- Puts one entry's tags on each image, as the user's own tags: the ledger is not touched, so a later
 -- Identify leaves them alone unless it is set to replace manual tags.
 function M.apply_entry(images, entry_id)
+    if queue_if_busy(_("Apply Entry"), images and #images > 0, function() M.apply_entry(images, entry_id) end) then return end
     if not can_start(images) then return end
     load_entries_csv()
     local entry = entries[entry_id]
@@ -3132,9 +3133,19 @@ function M.apply_entry(images, entry_id)
         dt.print(_("Assisted Tagging: Pick an entry first. If the list is empty, click Reload."))
         return
     end
-    local failed = 0
+    busy = true
+    M.cancel_requested = false
+    start_log("apply entry", #images)
+    local job
+    local failed, reached, stopped = 0, 0, false
     local okr, err = C.logged_call(log, "apply entry", function()
-        for _, img in ipairs(images) do
+        job = start_job(_("Apply Entry"), #images)
+        local start = os.time()
+        for i, img in ipairs(images) do
+            if cancelled(job) then
+                stopped = true
+                break
+            end
             local okw, werr = pcall(function()
                 for _, name in ipairs(entry.tags) do tags.attach(tags.create(name), img) end
             end)
@@ -3142,17 +3153,25 @@ function M.apply_entry(images, entry_id)
                 failed = failed + 1
                 log(string.format("apply entry %s: %s couldn't be tagged: %s", entry_id, C.image_label(img), tostring(werr)))
             end
+            reached = i
+            job.percent = i / #images
+            show_count("applying " .. entry_id, i, #images, start, 5)
         end
         wait_for_writes()
+        show_status("")
     end)
+    finish_job(job)
     flush_log()
     if not okr then
         notify_error(_("Assisted Tagging: Couldn't apply the entry. ") .. tostring(err))
+        run_next()
         return
     end
-    local msg = string.format("Assisted Tagging: Applied %s to %s.", entry_id, C.count(#images - failed, "image"))
+    local msg = string.format(stopped and "Assisted Tagging: Stopped; applied %s to %s." or "Assisted Tagging: Applied %s to %s.",
+        entry_id, C.count(reached - failed, "image"))
     if failed > 0 then msg = msg .. string.format(" %d couldn't be tagged (see log).", failed) end
     say(msg)
+    run_next()
 end
 
 -- Syncs each image's tags to identify.py's results and reports the outcome. Sets run.applying
@@ -3773,10 +3792,20 @@ end
 -- copies still carrying <seen_base>|<n> (M.shot_copies), gets the number tag <number root>|<n>
 -- in place of <seen_base>|<n>, both recorded as the plugin's in the ledger. Hand-tagged images
 -- keep their tags. `image_of`: image id → image. Returns the images retagged.
-local function retag_added_numbers(rows, image_of, number_root, seen_base)
+local function retag_added_numbers(rows, image_of, number_root, seen_base, job)
     local ledger = M.ledger_parse(C.read_file_or_tmp(LEDGER_PATH), LIB_KEY)
     local n_images, failed = 0, nil
+    local n_rows, row_i, start = 0, 0, os.time()
     for _, r in ipairs(rows) do
+        if r.kind == "number" then n_rows = n_rows + 1 end
+    end
+    for _, r in ipairs(rows) do
+        if job and (M.cancel_requested or not job.valid) then break end
+        if r.kind == "number" then
+            row_i = row_i + 1
+            if job then job.percent = row_i / n_rows end
+            show_count("retagging numbers", row_i, n_rows, start)
+        end
         if r.kind == "number" then
             local new_name, old_name = number_root .. "|" .. r.number, seen_base .. "|" .. r.number
             local new_tag = tags.create(new_name)
@@ -3872,7 +3901,18 @@ function M.add_found_entries(ticked, image_of)
         return false
     end
     if not reload_lists(true) then return true end
-    local n_images = retag_added_numbers(ticked, image_of, roots.number, M.named_rules(rules, settings).diag.number_seen)
+    busy = true
+    M.cancel_requested = false
+    local job = start_job(_("Retag New Numbers"), 0)
+    local okr, n_images = pcall(retag_added_numbers, ticked, image_of, roots.number,
+        M.named_rules(rules, settings).diag.number_seen, job)
+    finish_job(job)
+    show_status("")
+    run_next()
+    if not okr then
+        notify_error(_("Assisted Tagging: Couldn't retag the images. ") .. tostring(n_images))
+        return true
+    end
     say(string.format("Assisted Tagging: %s; %s tagged with their new number.", capital(out), C.count(n_images, "image")))
     return true
 end
@@ -4150,16 +4190,20 @@ end
 -- the photos that get them }): the union of a unit's synced tags overwrites every member's, as hand
 -- tags: they leave the ledger, so Identify keeps them. When a unit's sources clash, ask(ask_text(
 -- n_clashing, shown), go) is called instead and go() copies once the user confirms.
-local function copy_merged(title, units, ask, ask_text, entries, named)
+-- skip_clashes: a clashing unit is left out instead of merged, so go() copies the clean units only
+-- (ask gets the label "Copy Clean Groups Only" as a third argument; nothing to copy ends without asking).
+local function copy_merged(title, units, ask, ask_text, entries, named, skip_clashes)
     local source_of, members, n_merged, clash_names = {}, {}, 0, {}
     for _, unit in ipairs(units) do
         local source, clashes = M.group_source(unit.synced, named.families)
         if #clashes > 0 then n_merged = n_merged + 1 end
         for _, name in ipairs(clashes) do clash_names[name] = true end
+        if skip_clashes and #clashes > 0 then goto next_unit end
         for _, member in ipairs(unit.members) do
             source_of[member.id] = source
             members[#members + 1] = member
         end
+        ::next_unit::
     end
     local function go()
         fix_tags(title, members, function(img, have)
@@ -4180,10 +4224,15 @@ local function copy_merged(title, units, ask, ask_text, entries, named)
         end)
     end
     if n_merged > 0 then
+        if skip_clashes and #members == 0 then
+            dt.print(string.format(_("Assisted Tagging: %s: every group is mixed, so nothing was copied. Fix the group by hand or use Copy Tags to Group."), title))
+            return
+        end
         local names = {}
         for name in pairs(clash_names) do names[#names + 1] = name end
         table.sort(names)
-        ask(ask_text(n_merged, table.concat(names, ", ", 1, math.min(#names, 4)) .. (#names > 4 and ", …" or "")), go)
+        ask(ask_text(n_merged, table.concat(names, ", ", 1, math.min(#names, 4)) .. (#names > 4 and ", …" or "")), go,
+            skip_clashes and _("Copy Clean Groups Only") or nil)
         return
     end
     go()
@@ -4270,9 +4319,9 @@ function M.copy_tags_from_group(images, ask)
         return
     end
     copy_merged(_("Copy Tags from Group"), units, ask, function(n_merged, shown)
-        return string.format(_("The other images in %d groups hold different tags of one family (%s). Copy merges them, so the selected images in those groups get all of them."),
+        return string.format(_("The other images in %d groups hold different tags of one family (%s), so there is no clean copy. Those groups are skipped; only the groups whose other images agree are copied."),
             n_merged, shown)
-    end, entries, named)
+    end, entries, named, true)
 end
 
 -- Copy Tags to Selection: the selected photos' synced tags merge across all of them (copy_merged),
@@ -5029,19 +5078,20 @@ local function install_panel()
     local copy_confirm_label = new_widget("text_view") { editable = false, text = "" }
     local copy_confirm_go
     local copy_confirm_box
+    local copy_confirm_button = new_widget("button") {
+        label = _("Merge and Copy"),
+        clicked_callback = function()
+            copy_confirm_box.visible = false
+            copy_confirm_go()
+        end,
+    }
     copy_confirm_box = new_widget("box") {
         orientation = "vertical",
         visible = false,
         copy_confirm_label,
         new_widget("box") {
             orientation = "horizontal",
-            new_widget("button") {
-                label = _("Merge and Copy"),
-                clicked_callback = function()
-                    copy_confirm_box.visible = false
-                    copy_confirm_go()
-                end,
-            },
+            copy_confirm_button,
             new_widget("button") { label = _("Cancel"), clicked_callback = function() copy_confirm_box.visible = false end },
         },
     }
@@ -5050,8 +5100,9 @@ local function install_panel()
         tooltip = _("In each darktable group holding selected images, the selected images' entry and family tags (number, colour, team…) replace those on every other image in the group, so the group matches. When the copy names an entry, Check match goes, and an image that had no entry also loses Unidentified and Number seen. Other diagnostics, run stamps and your other tags stay. Tags never cross from one group to another. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. A selected image missing a tag gets it filled in. Asks first only when a group's selected images hold different tags of one family, such as two colours."),
         clicked_callback = function()
             copy_confirm_box.visible = false
-            M.copy_tags_to_group(dt.gui.action_images, function(text, go)
+            M.copy_tags_to_group(dt.gui.action_images, function(text, go, label)
                 copy_confirm_label.text = text
+                copy_confirm_button.label = label or _("Merge and Copy")
                 copy_confirm_go = go
                 copy_confirm_box.visible = true
             end)
@@ -5059,11 +5110,12 @@ local function install_panel()
     }
     local copy_from_group_button = new_widget("button") {
         label = _("Copy Tags from Group"),
-        tooltip = _("The reverse of Copy Tags to Group: each selected image takes the entry and family tags (number, colour, team…) of the other images in its darktable group, replacing its own of those. Groups whose other images carry none are skipped. The settled checks go and the copies count as tags you applied by hand, as for Copy Tags to Group. Asks first only when the group's other images hold different tags of one family, such as two colours. Writes darktable tags and the tag ledger only."),
+        tooltip = _("The reverse of Copy Tags to Group: each selected image takes the entry and family tags (number, colour, team…) of the other images in its darktable group, replacing its own of those. Groups whose other images carry none are skipped. The settled checks go and the copies count as tags you applied by hand, as for Copy Tags to Group. A group whose other images hold different tags of one family, such as two colours, has no clean copy: a box asks first, and Copy Clean Groups Only skips those groups and copies the rest. Writes darktable tags and the tag ledger only."),
         clicked_callback = function()
             copy_confirm_box.visible = false
-            M.copy_tags_from_group(dt.gui.action_images, function(text, go)
+            M.copy_tags_from_group(dt.gui.action_images, function(text, go, label)
                 copy_confirm_label.text = text
+                copy_confirm_button.label = label or _("Merge and Copy")
                 copy_confirm_go = go
                 copy_confirm_box.visible = true
             end)
@@ -5074,8 +5126,9 @@ local function install_panel()
         tooltip = _("Merge the selected images' entry and family tags (number, colour, team…) across all of them, so each one fills in the tags it lacks. Images outside the selection, group mates too, are untouched. When the copy names an entry, Check match goes, and an image that had no entry also loses Unidentified and Number seen. The copies count as tags you applied by hand, so Identify keeps them unless Replace Manual Tags is ticked. Asks first only when the selected images hold different tags of one family, such as two colours."),
         clicked_callback = function()
             copy_confirm_box.visible = false
-            M.copy_tags_to_selection(dt.gui.action_images, function(text, go)
+            M.copy_tags_to_selection(dt.gui.action_images, function(text, go, label)
                 copy_confirm_label.text = text
+                copy_confirm_button.label = label or _("Merge and Copy")
                 copy_confirm_go = go
                 copy_confirm_box.visible = true
             end)

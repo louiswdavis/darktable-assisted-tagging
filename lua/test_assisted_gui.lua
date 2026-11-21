@@ -382,6 +382,21 @@ T.clear_marks({ first, second, third })
 check("clear, after a cancel: the next clear finishes the rest", #second.tags + #third.tags, 0)
 check("no button changes the selection", selection_sets, 0)
 
+-- Apply Entry to Selected runs as a job: bar, count, cancel
+local ae = { image(21, "DSC00021.JPG", {}), image(22, "DSC00022.JPG", {}), image(23, "DSC00023.JPG", {}) }
+local jobs_before = #jobs
+prints = {}
+T.apply_entry(ae, "112")
+local ae_ran = printed("Assisted Tagging: Applied 112 to 3 images.")
+check("apply entry: starts a job", #jobs, jobs_before + 1)
+check("apply entry: the bar reaches 100% and closes", jobs[#jobs].percent == 1 and not jobs[#jobs].valid, true)
+check("apply entry: says it started and then how many it tagged",
+    printed("Assisted Tagging: Apply Entry started on 3 images…") and ae_ran, true)
+check("apply entry: every image got the entry's tags", #ae[1].tags > 0 and #ae[1].tags == #ae[3].tags, true)
+prints = {}
+T.apply_entry({ image(24, "DSC00024.JPG", {}) }, "112")
+check("apply entry: the panel isn't left busy for the next click", printed("Another job is still running"), false)
+
 -- Export and import presets ---------------------------------------------------------
 local function widget_where(widget, kind, field, value)
     if type(widget) ~= "table" then return nil end
@@ -780,6 +795,29 @@ check("copy to group, Merge and Copy: every image gets the merged tags",
     "Colour|Green, Colour|Red, Number|112, Rallye|112 / Colour|Green, Colour|Red, Number|112, Rallye|112 / Colour|Green, Colour|Red, Number|112, Rallye|112")
 check("copy to group, Merge and Copy: the confirm box hides", confirm_box and confirm_box.visible, false)
 
+-- Copy Tags from Group with a mixed burst: the confirm skips it and copies only the clean group
+local mix_target = grouped(701, "DSC00701.JPG", {}, 701)
+grouped(702, "DSC00702.JPG", { "Rallye|112", "Colour|Red" }, 701)
+grouped(703, "DSC00703.JPG", { "Rallye|112", "Colour|Green" }, 701)
+local clean_target = grouped(711, "DSC00711.JPG", {}, 711)
+grouped(712, "DSC00712.JPG", { "Rallye|35", "Colour|Blue" }, 711)
+prints, dt.gui.action_images = {}, { mix_target, clean_target }
+;(from_button or { clicked_callback = function() end }).clicked_callback()
+local skip_button = widget_where(panel, "button", "label", "Copy Clean Groups Only")
+check("copy from group, a mixed burst: the confirm shows with the skip button", tostring(confirm_box and confirm_box.visible) .. " " .. tostring(skip_button ~= nil), "true true")
+check("copy from group, a mixed burst: the confirm says the group is skipped",
+    confirm_box and confirm_box[1].text,
+    "The other images in 1 groups hold different tags of one family (Colour|Green, Colour|Red), so there is no clean copy. Those groups are skipped; only the groups whose other images agree are copied.")
+check("copy from group, a mixed burst: nothing is written before the confirm", tag_list(clean_target), "")
+;(skip_button or { clicked_callback = function() end }).clicked_callback()
+check("copy from group, skip: the clean group is copied and the mixed one is left alone",
+    tag_list(clean_target) .. " / " .. tag_list(mix_target), "Colour|Blue, Rallye|35 / ")
+-- every group mixed: nothing to copy, so no confirm
+prints, dt.gui.action_images = {}, { mix_target }
+;(from_button or { clicked_callback = function() end }).clicked_callback()
+check("copy from group, every group mixed: says nothing was copied and shows no confirm",
+    tostring(confirm_box and confirm_box.visible) .. " " .. tostring(printed("every group is mixed")), "false true")
+for _, id in ipairs({ 701, 702, 703, 711, 712 }) do grouped_by_id[id] = nil end
 -- a selected photo missing the colour tag only gets it filled in: no confirm
 local fill_a = grouped(311, "DSC00311.JPG", { "Rallye|112", "Colour|Red" }, 311)
 local fill_b = grouped(312, "DSC00312.JPG", { "Rallye|112" }, 311)
