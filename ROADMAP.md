@@ -386,7 +386,7 @@ folder: `manifest.json`, `preset.json` (the collection's `settings.json`) and `e
 **references** tick box (off each time the box opens, label shows file count and MB) adds the whole
 `refs/` folder; `index.npz` stays behind and the import's first run embeds the copied crops. Faces
 have no box of their own: in a people collection the refs are the faces, and the tooltip says so.
-Import never overwrites: a taken name becomes `<name> (2)`. Not built yet: refs for start-list
+Export replaces: exporting a preset again rewrites `<name>.atpreset` when anything differs and skips it ("already exported and unchanged") when not, like darktable's overwrite-on-new export (2026-11-21). Import never overwrites: a taken name becomes `<name> (2)`. Not built yet: refs for start-list
 entries only, replace/merge on import, zip bundles and the cross-plugin rally set. The design below
 still holds for those.
 

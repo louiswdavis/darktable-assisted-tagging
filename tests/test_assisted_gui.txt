@@ -189,11 +189,12 @@ ok   presets: Rallye (2) holds the bundle's entry list
 ok   presets: Rallye (2) holds the settings
 ok   presets: Rallye keeps its own entry list
 ok   presets: a bundle without refs imports none
+ok   presets: ticking references again replaces the bundle with refs back
 ok   presets: the refs bundle imports as Rallye (3)
-FAIL presets: Rallye (3) holds the references: got nil, want crop
-FAIL presets: Rallye (3) holds sources.json: got nil, want {}
+ok   presets: Rallye (3) holds the references
+ok   presets: Rallye (3) holds sources.json
 ok   presets: a bundle without entries.json is refused
 ok   presets: the refused import leaves no folder
 ok   the buttons leave no Lua error
 
-2 test(s) failed
+all tests passed

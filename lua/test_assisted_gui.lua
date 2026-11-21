@@ -933,6 +933,12 @@ check("presets: Rallye (2) holds the settings", read_file(ROOT .. "/collections/
 check("presets: Rallye keeps its own entry list", read_file(ROOT .. "/collections/Rallye/entries.json"), "[]")
 check("presets: a bundle without refs imports none", read_file(ROOT .. "/collections/Rallye (2)/refs/sources.json"), nil)
 
+-- put the references back into the bundle (replaces it again) for the refs import below
+choose(actions, "export preset…")
+refs_box.value = true
+widget_where(panel, "button", "label", "Export").clicked_callback()
+check("presets: ticking references again replaces the bundle with refs back", read_file(refs_bundle .. "/refs/112/1_b0.jpg"), "crop")
+
 choose(actions, "import preset…")
 widget_where(panel, "file_chooser_button", "title", "Preset Bundle (.atpreset Folder)").value = refs_bundle
 prints = {}
