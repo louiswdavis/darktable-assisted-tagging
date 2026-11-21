@@ -1,0 +1,39 @@
+ok   list_collections: empty root is no collections
+ok   list_collections: missing folder is no collections
+ok   list_collections: only folders with entries.json, case-insensitive order
+ok   --list exits 0
+ok   --list writes one name per line
+ok   --list writes entries.csv with both entries
+ok   --list writes rules.csv
+ok   --list writes tag-plan.txt beside entries.json
+ok   --list creates the collections root
+ok   --list with no collections exits 0
+ok   --list skips CSVs for a collection that doesn't exist
+ok   a malformed entries.json exits 2
+ok   the message names entries.json
+ok   entry list: a clean list with references logs nothing
+ok   entry list: a number on two cars is reported
+ok   entry list: the shared-number line names both entries
+ok   entry list: a double-driven car's two entries are one car
+ok   entry list: entries without references are reported when any exist
+ok   entry list: the no-references line names the entry
+ok   entry list: no counts at all logs no references line
+ok   entry list: an entry with no number, paddock or references is unfindable
+ok   entry list: a long list of names is capped with 'and N more'
+
+all tests passed
+
+--- stderr ---
+02:53:11 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+02:53:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+02:53:11 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+02:53:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+02:53:11 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+02:53:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+02:53:11 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+02:53:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+02:53:11 py: warning: teammates without a camera colour, so the pod can't separate them: VER, TSU
+02:53:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+02:53:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+02:53:11 py: warning: teammates without a camera colour, so the pod can't separate them: E0, E1, E2, E3, E4, E5, E6, E7, E8, E9, E10, E11, E12, E13, E14, E15, E16, E17, E18, E19, E20, E21, E22, E23, E24, E25, E26, E27, E28, E29, E30, E31, E32, E33, E34, E35, E36, E37, E38, E39
+02:53:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
