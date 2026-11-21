@@ -1,41 +1,4 @@
-23:12:16 lua: derive number: darktable 5.6.2, 34 images, collection 2026 Rallye
-23:12:16 lua: Assisted Tagging: Derive from Number started on 34 images…
-23:12:16 lua: derive number: DSC09453.ARW skipped, no number tag of yours names an entry
-23:12:16 lua: derive number: DSC09453.JPG skipped, no number tag of yours names an entry
-23:12:16 lua: derive number: DSC09454.ARW skipped, no number tag of yours names an entry
-23:12:16 lua: derive number: DSC09454.JPG skipped, no number tag of yours names an entry
-23:12:16 lua: derive number: DSC09455.ARW -> 58
-23:12:17 lua: derive number: DSC09455.JPG -> 58
-23:12:18 lua: derive number: DSC09456.ARW -> 58
-23:12:18 lua: derive number: DSC09456.JPG -> 58
-23:12:19 lua: derive number: DSC09457.ARW -> 58
-23:12:20 lua: derive number: DSC09457.JPG -> 58
-23:12:21 lua: derive number: DSC09458.ARW -> 58
-23:12:21 lua: derive number: DSC09458.JPG -> 58
-23:12:22 lua: derive number: DSC09459.ARW skipped, no number tag of yours names an entry
-23:12:22 lua: derive number: DSC09459.JPG skipped, no number tag of yours names an entry
-23:12:22 lua: derive number: DSC09460.ARW -> 58
-23:12:22 lua: derive number: DSC09460.JPG -> 58
-23:12:23 lua: derive number: DSC09461.ARW skipped, no number tag of yours names an entry
-23:12:23 lua: derive number: DSC09461.JPG skipped, no number tag of yours names an entry
-23:12:23 lua: derive number: DSC09462.ARW -> 58
-23:12:24 lua: derive number: DSC09462.JPG -> 58
-23:12:24 lua: derive number: DSC09463.ARW -> 58
-23:12:25 lua: derive number: DSC09463.JPG -> 58
-23:12:26 lua: derive number: DSC09464.ARW -> 58
-23:12:26 lua: derive number: DSC09464.JPG -> 58
-23:12:27 lua: derive number: DSC09465.ARW skipped, no number tag of yours names an entry
-23:12:27 lua: derive number: DSC09465.JPG skipped, no number tag of yours names an entry
-23:12:27 lua: derive number: DSC09466.ARW -> 58
-23:12:28 lua: derive number: DSC09466.JPG -> 58
-23:12:29 lua: derive number: DSC09467.ARW skipped, no number tag of yours names an entry
-23:12:29 lua: derive number: DSC09467.JPG skipped, no number tag of yours names an entry
-23:12:29 lua: derive number: DSC09468.ARW skipped, no number tag of yours names an entry
-23:12:29 lua: derive number: DSC09468.JPG skipped, no number tag of yours names an entry
-23:12:29 lua: derive number: DSC09469.ARW skipped, no number tag of yours names an entry
-23:12:29 lua: derive number: DSC09469.JPG skipped, no number tag of yours names an entry
-23:12:29 lua: derive number: darktable finished 36 tag writes, 13s
-23:12:29 lua: ledger: dropped 16 images no longer in the library
-23:12:29 lua: ledger: prune took 0s
-23:12:29 lua: Assisted Tagging: Derive from Number done: 18 images derived. Left out: 16 skipped (reasons in the log).
-23:12:29 lua: derive finished
+03:08:07 lua: Copy Tags from Group: darktable 5.6.2, 4 images, collection 2026 Rallye
+03:08:07 lua: Assisted Tagging: Copy Tags from Group started on 4 images…
+03:08:07 lua: ledger: prune took 0s
+03:08:07 lua: Assisted Tagging: Copy Tags from Group done, 0 tag changes on 4 images.

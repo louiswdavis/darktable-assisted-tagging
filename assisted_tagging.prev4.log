@@ -1,33 +1,80 @@
-23:14:18 lua: identify colour: darktable 5.6.2, 34 images, collection 2026 Rallye
-23:14:18 lua: Assisted Tagging: Identify Colour started on 34 images…
-23:14:28 lua: 17 RAW selections read from their paired JPEG
-23:14:28 lua: vehicles: dfine_x_coco.onnx
-23:14:28 lua: segmenter: image_segmentation_efficientsam_ti_2025april.onnx
-23:14:28 lua: text finder: text_detection_en_ppocrv3_2023may.onnx
-23:14:28 lua: number reader: PP-OCRv5_server_rec.onnx
-23:14:28 lua: second reader: none installed
-23:14:28 lua: livery embedder: dinov2_base.onnx (better, not installed: dinov2_large.onnx)
-23:14:28 lua: box check: siglip2_base_vision.onnx
-23:14:28 lua: face detector: face_detection_yunet_2023mar.onnx
-23:14:28 lua: face recognizer: face_recognition_sface_2021dec.onnx
-23:14:28 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_manifest.csv" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_results.csv" "--add-reference" "--colours-only" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "2026 Rallye" "--settings" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_settings.run.json" "--detections" "C:/Users/Louis/AppData/Local/darktable/assisted_plugins/detections.sqlite" "--detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dfine_x_coco.onnx" "--segmenter" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/image_segmentation_efficientsam_ti_2025april.onnx" "--ocr-det" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/text_detection_en_ppocrv3_2023may.onnx" "--ocr-rec" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/PP-OCRv5_server_rec.onnx" "--embedder" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dinov2_base.onnx" "--siglip" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/siglip2_base_vision.onnx" "--face-detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_detection_yunet_2023mar.onnx" "--face-recognizer" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_recognition_sface_2021dec.onnx" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_rules.csv" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_progress.txt"
-23:14:29 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:14:29 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:14:41 py: number reader: PaddleOCR (PP-OCRv5_server_rec.onnx); text finder: text_detection_en_ppocrv3_2023may.onnx
-23:14:41 py: box check: on (SigLIP 2); colour reader: SigLIP 2
-23:14:47 py: matching: started
-23:14:50 py: 204535: couldn't tell the car's colour; colour unread
-23:14:54 py: 204543: couldn't tell the car's colour; colour unread
-23:14:55 py: 204545: couldn't tell the car's colour; colour unread
-23:14:59 py: 204553: couldn't tell the car's colour; colour unread
-23:15:01 py: 204555: couldn't tell the car's colour; colour unread
-23:15:03 py: 204559: couldn't tell the car's colour; colour unread
-23:15:04 py: 204561: couldn't tell the car's colour; colour unread
-23:15:04 py: entry 58: its photos' colour reads don't agree enough (4 Pink, 4 Red, 2 Purple), so it gets no colour
-23:15:04 py: tag plan: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\tag-plan.txt
-23:15:04 py: matching: done, 17s, peak memory 3522 MB (workers not included)
-23:15:04 py: run: 35s in total, peak memory 3522 MB (workers not included)
-23:15:05 lua: identify.py exit 0
-23:15:05 lua: selection: the colours read disagree (0 of 10 for no single colour and near colours; needs 67%), so 34 images got no colour tag
-23:15:05 lua: Assisted Tagging: No entry colour saved. Left out: colour not read on 7 images; 34 images got no colour tag, the colours disagree; 10 images read as a different colour from the saved one, which was kept (see log). File: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections/2026 Rallye/entries.json.
-23:15:05 lua: run finished
+03:09:10 lua: derive colour: darktable 5.6.2, 74 images, collection 2026 Rallye
+03:09:10 lua: Assisted Tagging: Derive from Colour started on 74 images…
+03:09:10 lua: derive colour: DSC09238.ARW skipped, it has no colour tag
+03:09:10 lua: derive colour: DSC09238.JPG skipped, it has no colour tag
+03:09:10 lua: derive colour: DSC09239.ARW skipped, 11 entries are Pink
+03:09:10 lua: derive colour: DSC09239.JPG skipped, 11 entries are Pink
+03:09:10 lua: derive colour: DSC09240.ARW skipped, 11 entries are Pink
+03:09:10 lua: derive colour: DSC09240.JPG skipped, 11 entries are Pink
+03:09:10 lua: derive colour: DSC09241.ARW skipped, 11 entries are Pink
+03:09:10 lua: derive colour: DSC09241.JPG skipped, 11 entries are Pink
+03:09:10 lua: derive colour: DSC09242.ARW skipped, 11 entries are Pink
+03:09:11 lua: derive colour: DSC09242.JPG skipped, 11 entries are Pink
+03:09:11 lua: derive colour: DSC09243.ARW skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09243.JPG skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09244.ARW skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09244.JPG skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09246.ARW skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09246.JPG skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09248.ARW skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09248.JPG skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09249.ARW skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09249.JPG skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09250.ARW skipped, 18 entries are White
+03:09:11 lua: derive colour: DSC09250.JPG skipped, 18 entries are White
+03:09:11 lua: derive colour: DSC09253.ARW skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09253.JPG skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09254.ARW skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09254.JPG skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09255.ARW skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09255.JPG skipped, it has no colour tag
+03:09:11 lua: derive colour: DSC09257.ARW skipped, 18 entries are White
+03:09:11 lua: derive colour: DSC09257.JPG skipped, 18 entries are White
+03:09:11 lua: derive colour: DSC09258.ARW skipped, 4 entries are Yellow
+03:09:11 lua: derive colour: DSC09258.JPG skipped, 4 entries are Yellow
+03:09:11 lua: derive colour: DSC09259.ARW skipped, 4 entries are Yellow
+03:09:11 lua: derive colour: DSC09259.JPG skipped, 4 entries are Yellow
+03:09:11 lua: derive colour: DSC09260.ARW skipped, 4 entries are Yellow
+03:09:12 lua: derive colour: DSC09260.JPG skipped, 4 entries are Yellow
+03:09:12 lua: derive colour: DSC09274.ARW skipped, it has no colour tag
+03:09:12 lua: derive colour: DSC09274.JPG skipped, it has no colour tag
+03:09:12 lua: derive colour: DSC09275.ARW skipped, 14 entries are Red
+03:09:12 lua: derive colour: DSC09275.JPG skipped, 14 entries are Red
+03:09:12 lua: derive colour: DSC09276.ARW skipped, it has no colour tag
+03:09:12 lua: derive colour: DSC09276.JPG skipped, it has no colour tag
+03:09:12 lua: derive colour: DSC09280.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09280.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09281.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09281.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09282.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09282.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09284.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09284.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09285.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09285.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09286.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09286.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09287.ARW skipped, it has several colour tags
+03:09:12 lua: derive colour: DSC09287.JPG skipped, it has several colour tags
+03:09:12 lua: derive colour: DSC09290.ARW skipped, it has several colour tags
+03:09:12 lua: derive colour: DSC09290.JPG skipped, it has several colour tags
+03:09:12 lua: derive colour: DSC09291.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09291.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09292.ARW skipped, it has several colour tags
+03:09:12 lua: derive colour: DSC09292.JPG skipped, it has several colour tags
+03:09:12 lua: derive colour: DSC09294.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09294.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09295.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09295.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09297.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09297.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09298.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09298.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09299.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09299.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09301.ARW skipped, 3 entries are Brown
+03:09:12 lua: derive colour: DSC09301.JPG skipped, 3 entries are Brown
+03:09:12 lua: derive colour: darktable finished 0 tag writes, 2s
+03:09:12 lua: ledger: prune took 0s
+03:09:12 lua: Assisted Tagging: Derive from Colour: no image derived. Left out: 74 skipped (reasons in the log).
+03:09:12 lua: derive finished

@@ -1,42 +1,29 @@
-23:19:12 lua: Copy Tags to Group: darktable 5.6.2, 34 images, collection 2026 Rallye
-23:19:12 lua: Assisted Tagging: Copy Tags to Group started on 34 images…
-23:19:12 lua: ledger: prune took 0s
-23:19:12 lua: Assisted Tagging: Copy Tags to Group done, 0 tag changes on 34 images.
-23:20:26 lua: open: "start "" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\entries.json""
-23:21:06 lua: open: "start "" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\entries.json""
-23:23:16 lua: open: "start "" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\entries.json""
-23:33:58 lua: import start list: ""C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/import_start_list.py" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections/2026 Rallye" "--csv" "C:\Users\Louis\AppData\Local\Temp/assisted_tagging_one_entry.csv" "--columns" "number=number;driver=driver;co-driver=co-driver;team=team;class=class;make=make;model=model;colour=colour;shares-car=;paddock=paddock" 2>&1"
-23:33:59 lua: import start list: added 0 entries to entries.json; skipped 1 already listed: 70
-23:33:59 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "-" "-" "--list" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "2026 Rallye" "--collections-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_collections.csv" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_rules.csv" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_progress.txt"
-23:34:01 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:34:01 py: tag plan: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\tag-plan.txt
-23:34:01 py: run: 0s in total, peak memory 51 MB (workers not included)
-23:34:01 lua: identify.py exit 0
-23:34:54 lua: open: "start "" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\entries.json""
-23:35:39 lua: import start list: ""C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/import_start_list.py" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections/2026 Rallye" "--csv" "C:\Users\Louis\AppData\Local\Temp/assisted_tagging_one_entry.csv" "--columns" "number=number;driver=driver;co-driver=co-driver;team=team;class=class;make=make;model=model;colour=colour;shares-car=;paddock=paddock" 2>&1"
-23:35:39 lua: import start list: added 0 entries to entries.json; skipped 1 already listed: 70
-23:35:40 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "-" "-" "--list" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "2026 Rallye" "--collections-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_collections.csv" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_rules.csv" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795215439_1_progress.txt"
-23:35:41 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:35:41 py: tag plan: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\tag-plan.txt
-23:35:41 py: run: 0s in total, peak memory 51 MB (workers not included)
-23:35:41 lua: identify.py exit 0
-23:51:09 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "-" "-" "--list" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "2026 Rallye" "--collections-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795218660_1_collections.csv" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795218660_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795218660_1_rules.csv" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795218660_1_progress.txt"
-23:51:11 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:51:11 py: tag plan: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\tag-plan.txt
-23:51:11 py: run: 0s in total, peak memory 53 MB (workers not included)
-23:51:12 lua: identify.py exit 0
-23:51:15 lua: reload: 667 entry tags ensured in darktable
-23:54:07 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "-" "-" "--list" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "2026 Rallye" "--collections-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795218840_1_collections.csv" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795218840_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795218840_1_rules.csv" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795218840_1_progress.txt"
-23:54:08 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-23:54:08 py: tag plan: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\tag-plan.txt
-23:54:08 py: run: 0s in total, peak memory 51 MB (workers not included)
-23:54:08 lua: identify.py exit 0
-23:54:08 lua: reload: 667 entry tags ensured in darktable
-00:04:28 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "-" "-" "--list" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "2026 Rallye" "--collections-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795219461_1_collections.csv" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795219461_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795219461_1_rules.csv" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795219461_1_progress.txt"
-00:04:29 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
-00:04:29 py: tag plan: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\tag-plan.txt
-00:04:29 py: run: 0s in total, peak memory 51 MB (workers not included)
-00:04:29 lua: identify.py exit 0
-00:04:30 lua: reload: 667 entry tags ensured in darktable
-00:05:44 lua: preset "2026 Rallye" re-exported, replacing C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/exports/2026 Rallye.atpreset (preset.json, entries.json, refs)
-00:05:50 lua: preset "2026 Rallye" is already exported and unchanged: C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/exports/2026 Rallye.atpreset
+03:12:17 lua: identify missing entries started: darktable 5.6.2, 1 images, collection 2026 Rallye
+03:12:17 lua: settings: replace manual false, cars per image solo, team hints false, tag each run none, grouping support native, node (blank), neighbour tolerance 3, order weight 0.7
+03:12:17 lua: missing entries: 22, 24, 25, 26, 27, 28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 730, 731, 732, 733, 734, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 760, 761, 82, 83, 84, 85, 86, 87, 90, 91, 790, 94, 95, 96, 97, 98, 796, 100, 101, 102, 103, 104, 105, 107, 108, 109, 110, 807, 808, 809, 112, 113, 114, 115, 116, 813, 118, 119, 120, 121, 820, 122, Office1, Office2, A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10, A11, A12, A13, A14, A15, A16, A17, A18, 58, 131
+03:12:17 lua: Assisted Tagging: Identify Missing Entries started on 1 image…
+03:12:17 lua: stage: preparing
+03:12:17 lua: prepare: reading tags of the selection
+03:12:17 lua: group support native: 0 of 1 images in groups of 2+
+03:12:17 lua: prepare: done, 1 rows, 0s
+03:12:17 lua: stage: neighbours
+03:12:17 lua: neighbour: reading the film rolls of the selection
+03:12:25 lua: neighbour: 0 unselected tagged images shot near the selection, 8s
+03:12:25 lua: vehicles: dfine_x_coco.onnx
+03:12:25 lua: segmenter: image_segmentation_efficientsam_ti_2025april.onnx
+03:12:25 lua: text finder: text_detection_en_ppocrv3_2023may.onnx
+03:12:25 lua: number reader: PP-OCRv5_server_rec.onnx
+03:12:25 lua: second reader: none installed
+03:12:25 lua: livery embedder: dinov2_large.onnx
+03:12:25 lua: box check: siglip2_base_vision.onnx
+03:12:25 lua: face detector: face_detection_yunet_2023mar.onnx
+03:12:25 lua: face recognizer: face_recognition_sface_2021dec.onnx
+03:12:25 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795229694_1_manifest.csv" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795229694_1_results.csv" "--collections-root" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/collections" "--collection" "2026 Rallye" "--settings" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795229694_1_settings.run.json" "--detections" "C:/Users/Louis/AppData/Local/darktable/assisted_plugins/detections.sqlite" "--detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dfine_x_coco.onnx" "--segmenter" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/image_segmentation_efficientsam_ti_2025april.onnx" "--ocr-det" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/text_detection_en_ppocrv3_2023may.onnx" "--ocr-rec" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/PP-OCRv5_server_rec.onnx" "--embedder" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/dinov2_large.onnx" "--siglip" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/siglip2_base_vision.onnx" "--face-detector" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_detection_yunet_2023mar.onnx" "--face-recognizer" "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/models/face_recognition_sface_2021dec.onnx" "--only-entries" "22,24,25,26,27,28,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,730,731,732,733,734,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,760,761,82,83,84,85,86,87,90,91,790,94,95,96,97,98,796,100,101,102,103,104,105,107,108,109,110,807,808,809,112,113,114,115,116,813,118,119,120,121,820,122,Office1,Office2,A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,58,131" "--cache" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/cache.sqlite" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795229694_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795229694_1_rules.csv" "--boxes-out" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/last-run/2026 Rallye.boxes.json" "--overturns-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795229694_1_overturns.csv" "--report-out" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/last-run/2026 Rallye.report" "--archive-dir" "C:\Users\Louis\AppData\Local\darktable/assisted_tagging/runs" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795229694_1_progress.txt"
+03:12:26 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+03:12:26 py: loading models: started
+03:12:38 py: number reader: PaddleOCR (PP-OCRv5_server_rec.onnx); text finder: text_detection_en_ppocrv3_2023may.onnx
+03:12:38 py: box check: on (SigLIP 2); colour reader: SigLIP 2
+03:12:38 py: only entries: 22,24,25,26,27,28,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,730,731,732,733,734,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,760,761,82,83,84,85,86,87,90,91,790,94,95,96,97,98,796,100,101,102,103,104,105,107,108,109,110,807,808,809,112,113,114,115,116,813,118,119,120,121,820,122,Office1,Office2,A0,A1,A2,A3,A4,A5,A6,A7,A8,A9,A10,A11,A12,A13,A14,A15,A16,A17,A18,58,131
+03:12:38 py: loading models: done, 12s, peak memory 5338 MB (workers not included)
+03:12:38 py: references: started
+03:12:38 py: references: embedding 2140 (new or replaced, or the embedder or blur setting changed)

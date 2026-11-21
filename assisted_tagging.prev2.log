@@ -1,4 +1,80 @@
-23:17:30 lua: Copy Tags to Selection: darktable 5.6.2, 30 images, collection 2026 Rallye
-23:17:30 lua: Assisted Tagging: Copy Tags to Selection started on 30 images…
-23:17:44 lua: ledger: prune took 1s
-23:17:44 lua: Assisted Tagging: Copy Tags to Selection done, 58 tag changes on 30 images.
+03:09:58 lua: derive colour: darktable 5.6.2, 74 images, collection 2026 Rallye
+03:09:58 lua: Assisted Tagging: Derive from Colour started on 74 images…
+03:09:58 lua: derive colour: DSC09238.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09238.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09239.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09239.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09240.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09240.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09241.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09241.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09242.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09242.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09243.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09243.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09244.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09244.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09246.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09246.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09248.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09248.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09249.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09249.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09250.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09250.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09253.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09253.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09254.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09254.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09255.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09255.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09257.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09257.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09258.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09258.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09259.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09259.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09260.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09260.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09274.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09274.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09275.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09275.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09276.ARW skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09276.JPG skipped, it has no colour tag
+03:09:58 lua: derive colour: DSC09280.ARW skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09280.JPG skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09281.ARW skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09281.JPG skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09282.ARW skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09282.JPG skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09284.ARW skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09284.JPG skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09285.ARW skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09285.JPG skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09286.ARW skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09286.JPG skipped, 3 entries are Brown
+03:09:58 lua: derive colour: DSC09287.ARW skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09287.JPG skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09290.ARW skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09290.JPG skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09291.ARW skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09291.JPG skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09292.ARW skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09292.JPG skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09294.ARW skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09294.JPG skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09295.ARW skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09295.JPG skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09297.ARW skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09297.JPG skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09298.ARW skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09298.JPG skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09299.ARW skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09299.JPG skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09301.ARW skipped, 3 entries are Brown
+03:09:59 lua: derive colour: DSC09301.JPG skipped, 3 entries are Brown
+03:09:59 lua: derive colour: darktable finished 0 tag writes, 1s
+03:09:59 lua: ledger: prune took 0s
+03:09:59 lua: Assisted Tagging: Derive from Colour: no image derived. Left out: 74 skipped (reasons in the log).
+03:09:59 lua: derive finished
