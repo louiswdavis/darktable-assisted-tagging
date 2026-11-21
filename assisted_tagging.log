@@ -32,3 +32,11 @@
 23:54:08 py: run: 0s in total, peak memory 51 MB (workers not included)
 23:54:08 lua: identify.py exit 0
 23:54:08 lua: reload: 667 entry tags ensured in darktable
+00:04:28 lua: running: "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/.venv/Scripts/python.exe" -u "C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/python/identify.py" "-" "-" "--list" "--collections-root" "C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections" "--collection" "2026 Rallye" "--collections-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795219461_1_collections.csv" "--entries-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795219461_1_entries.csv" "--rules-out" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795219461_1_rules.csv" "--progress" "C:\Users\Louis\AppData\Local\Temp/dt_assisted_tagging_1795219461_1_progress.txt"
+00:04:29 py: warning: entries.json has no rules block, so sponsor keywords and the other rules use defaults
+00:04:29 py: tag plan: C:\Users\Louis\AppData\Local\darktable\assisted_tagging\collections\2026 Rallye\tag-plan.txt
+00:04:29 py: run: 0s in total, peak memory 51 MB (workers not included)
+00:04:29 lua: identify.py exit 0
+00:04:30 lua: reload: 667 entry tags ensured in darktable
+00:05:44 lua: preset "2026 Rallye" re-exported, replacing C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/exports/2026 Rallye.atpreset (preset.json, entries.json, refs)
+00:05:50 lua: preset "2026 Rallye" is already exported and unchanged: C:\Users\Louis\Pictures\DarkTable\Settings\Plugins/darktable-assisted-tagging/exports/2026 Rallye.atpreset
